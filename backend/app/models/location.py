@@ -1,0 +1,76 @@
+"""
+Location model - represents physical sites within a company.
+Each location can have multiple waste assessment projects.
+"""
+from sqlalchemy import Column, String, Float, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from app.models.base import BaseModel
+
+
+class Location(BaseModel):
+    """
+    Physical location/site of a company (plant, warehouse, distribution center).
+    
+    Example: Honda Planta Guadalajara, Toyota Centro Logístico Querétaro
+    """
+    __tablename__ = "locations"
+    
+    # Relationship to company
+    company_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    
+    # Location info
+    name = Column(String(255), nullable=False, comment="Plant name or identifier")
+    city = Column(String(100), nullable=False, index=True)
+    state = Column(String(100), nullable=False, index=True)
+    address = Column(String(500), nullable=True)
+    
+    # Coordinates for mapping (optional)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    
+    # Additional info
+    notes = Column(String(1000), nullable=True)
+    
+    # Relationships
+    company = relationship("Company", back_populates="locations")
+    projects = relationship(
+        "Project",
+        back_populates="location_rel",  # Fixed: must match Project.location_rel
+        cascade="all, delete-orphan",
+        order_by="desc(Project.created_at)",
+        lazy="selectin",  # Eager load projects
+    )
+    
+    def __repr__(self) -> str:
+        """Safe repr that doesn't trigger lazy loads or attribute refresh."""
+        try:
+            # Access __dict__ directly to avoid triggering SQLAlchemy instrumentation
+            name = self.__dict__.get('name', 'Unknown')
+            return f"<Location {name}>"
+        except Exception:
+            return f"<Location (detached)>"
+    
+    @property
+    def full_address(self) -> str:
+        """Formatted full address."""
+        parts = [self.address, self.city, self.state]
+        return ", ".join(p for p in parts if p)
+    
+    @property
+    def project_count(self) -> int:
+        """Total projects at this location. Safe for unloaded relationships."""
+        try:
+            # Check if projects is loaded to avoid lazy load
+            from sqlalchemy import inspect
+            insp = inspect(self)
+            if 'projects' in insp.unloaded:
+                return 0
+            return len(self.projects) if self.projects else 0
+        except Exception:
+            return 0

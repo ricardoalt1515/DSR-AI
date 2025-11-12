@@ -1,0 +1,68 @@
+# ============================================================================
+# AWS Amplify Ignore File
+# ============================================================================
+# Similar to .gitignore, this file tells Amplify which files to exclude
+# from the deployment bundle to optimize build times and reduce storage.
+# ============================================================================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Testing
+coverage/
+.nyc_output/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+__mocks__/
+
+# Development files
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+
+# Next.js build artifacts (will be regenerated)
+.next/
+out/
+build/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (not needed for runtime)
+*.md
+!README.md
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Misc
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Scripts (not needed in production)
+scripts/
+
+# Linting
+.eslintcache
+.prettierignore

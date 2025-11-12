@@ -1,0 +1,223 @@
+{
+    "version": "2025.1",
+    "last_updated": "2025-01-24",
+    "data_source": "250706_AI_Database_Wastewater_Treatment 1.xlsx",
+    "technologies": {
+      "ACTIVATED_SLUDGE": {
+        "base_cost_per_m3d": 118,
+        "typical_range": [66, 194],
+        "sample_size": 400,
+        "applications": ["Municipal Sewage", "Industrial"],
+        "efficiency": {
+          "BOD": "90-95%",
+          "TSS": "90-95%", 
+          "TN": "40-60%"
+        },
+        "power_kwh_m3": 0.3,
+        "chemical_kg_m3": 0.02,
+        "lifespan_years": 20,
+        "vendors": ["Xylem (Sanitaire)"],
+        "models": ["ICEAS", "Sanitaire Sequence"],
+        "sizing_formula": "Aeration Tank Volume (m³) = Q × HRT; MLSS = 3000 mg/L"
+      },
+      "MBR": {
+        "base_cost_per_m3d": 180,
+        "typical_range": [120, 280],
+        "sample_size": 45,
+        "applications": ["High Quality Effluent", "Space Limited", "Industrial"],
+        "efficiency": {
+          "BOD": "95-99%",
+          "TSS": "99%",
+          "TN": "60-80%"
+        },
+        "power_kwh_m3": 0.7,
+        "chemical_kg_m3": 0.05,
+        "lifespan_years": 15,
+        "vendors": ["Kubota", "SUEZ", "Toray"],
+        "models": ["Kubota Submerged MBR"],
+        "sizing_formula": "Membrane Area (m²) = Q / Flux; Flux = 20-30 L/m²/h"
+      },
+      "DAF": {
+        "base_cost_per_m3d": 85,
+        "typical_range": [50, 150],
+        "sample_size": 38,
+        "applications": ["FOG Removal", "Industrial Pretreatment", "Food & Beverage"],
+        "efficiency": {
+          "TSS": "80-90%",
+          "FOG": "90%",
+          "BOD": "30-50%"
+        },
+        "power_kwh_m3": 0.15,
+        "chemical_kg_m3": 0.1,
+        "lifespan_years": 15,
+        "vendors": ["Nijhuis Industries", "KWI", "Fluence"],
+        "models": ["Nijhuis AquaDAF"],
+        "sizing_formula": "Surface Area (m²) = Q / Surface Loading Rate; Rate = 5-10 m³/m²/h"
+      },
+      "CLARIFIER": {
+        "base_cost_per_m3d": 60,
+        "typical_range": [40, 100],
+        "sample_size": 35,
+        "applications": ["Solids Separation", "Secondary Treatment"],
+        "efficiency": {
+          "TSS": "85-95%"
+        },
+        "power_kwh_m3": 0.05,
+        "chemical_kg_m3": 0.0,
+        "lifespan_years": 25,
+        "vendors": ["WesTech", "Ovivo"],
+        "sizing_formula": "Surface Area = Q / Overflow Rate"
+      },
+      "FILTER": {
+        "base_cost_per_m3d": 45,
+        "typical_range": [30, 80],
+        "sample_size": 28,
+        "applications": ["Tertiary Treatment", "Polishing"],
+        "efficiency": {
+          "TSS": "90-98%"
+        },
+        "power_kwh_m3": 0.1,
+        "chemical_kg_m3": 0.01,
+        "lifespan_years": 20,
+        "vendors": ["Leopold", "Parkson"],
+        "sizing_formula": "Filter Area = Q / Filtration Rate"
+      },
+      "RO": {
+        "base_cost_per_m3d": 200,
+        "typical_range": [150, 300],
+        "sample_size": 22,
+        "applications": ["Desalination", "High Purity", "Reuse"],
+        "efficiency": {
+          "TDS": "95-99%",
+          "Salts": "95-99%"
+        },
+        "power_kwh_m3": 3.0,
+        "chemical_kg_m3": 0.15,
+        "lifespan_years": 10,
+        "vendors": ["Dow", "Toray", "Hydranautics"],
+        "sizing_formula": "Membrane Area = Q / Flux"
+      },
+      "UV": {
+        "base_cost_per_m3d": 35,
+        "typical_range": [25, 50],
+        "sample_size": 20,
+        "applications": ["Disinfection", "Final Treatment"],
+        "efficiency": {
+          "Pathogens": "3-4 log removal"
+        },
+        "power_kwh_m3": 0.05,
+        "chemical_kg_m3": 0.0,
+        "lifespan_years": 10,
+        "vendors": ["Trojan", "Xylem"],
+        "sizing_formula": "UV Dose = Intensity × Time"
+      },
+      "CHEMICAL_TREATMENT": {
+        "base_cost_per_m3d": 75,
+        "typical_range": [50, 120],
+        "sample_size": 31,
+        "applications": ["Coagulation", "Precipitation", "pH Adjustment"],
+        "efficiency": {
+          "TSS": "70-90%",
+          "Phosphorus": "80-95%"
+        },
+        "power_kwh_m3": 0.1,
+        "chemical_kg_m3": 0.2,
+        "lifespan_years": 20,
+        "vendors": ["Generic"],
+        "sizing_formula": "Tank Volume = Q × Contact Time"
+      },
+      "ANAEROBIC": {
+        "base_cost_per_m3d": 90,
+        "typical_range": [60, 140],
+        "sample_size": 18,
+        "applications": ["High Strength Wastewater", "Biogas Production"],
+        "efficiency": {
+          "COD": "70-85%",
+          "BOD": "80-90%"
+        },
+        "power_kwh_m3": 0.1,
+        "chemical_kg_m3": 0.05,
+        "lifespan_years": 25,
+        "vendors": ["Paques", "Veolia"],
+        "models": ["UASB", "IC Reactor"],
+        "sizing_formula": "Reactor Volume = Q × HRT; HRT = 6-24 hours"
+      },
+      "SCREENING": {
+        "base_cost_per_m3d": 25,
+        "typical_range": [15, 40],
+        "sample_size": 30,
+        "applications": ["Primary Treatment", "Solids Removal"],
+        "efficiency": {
+          "Large Solids": "95-99%"
+        },
+        "power_kwh_m3": 0.02,
+        "chemical_kg_m3": 0.0,
+        "lifespan_years": 15,
+        "vendors": ["Huber", "Parkson"],
+        "sizing_formula": "Screen Area = Q / Approach Velocity"
+      }
+    },
+    "factors": {
+      "scale": {
+        "small": 1.35,
+        "medium": 1.0,
+        "large": 0.75,
+        "note": "Based on actual project data showing strong economies of scale"
+      },
+      "complexity": {
+        "simple": 1.0,
+        "medium": 1.15,
+        "complex": 1.35,
+        "note": "Complexity factors for difficult wastewater or site conditions"
+      },
+      "location": {
+        "north_america": 1.0,
+        "europe": 1.1,
+        "asia_pacific": 0.9,
+        "latin_america": 0.8,
+        "middle_east": 1.2,
+        "africa": 0.7,
+        "note": "Regional cost multipliers from Excel data"
+      }
+    },
+    "capex_structure": {
+      "equipment": 0.40,
+      "civil_works": 0.25,
+      "installation_piping": 0.20,
+      "engineering": 0.10,
+      "contingency": 0.15,
+      "note": "Breakdown percentages vary by project complexity"
+    },
+    "opex_components": {
+      "energy_cost_kwh": 0.10,
+      "labor_cost_per_operator_year": 30000,
+      "maintenance_percent_capex": 0.04,
+      "chemical_costs_vary_by_process": true
+    },
+    "typical_opex_percent": {
+      "min": 0.15,
+      "typical": 0.18,
+      "max": 0.22,
+      "note": "Annual OPEX as percentage of CAPEX"
+    },
+    "flow_categories": {
+      "small": {
+        "min_m3d": 0,
+        "max_m3d": 100,
+        "typical_cost_multiplier": 1.5,
+        "note": "Higher unit costs due to lack of scale"
+      },
+      "medium": {
+        "min_m3d": 100,
+        "max_m3d": 500,
+        "typical_cost_multiplier": 1.0,
+        "note": "Base reference costs"
+      },
+      "large": {
+        "min_m3d": 500,
+        "max_m3d": 10000,
+        "typical_cost_multiplier": 0.7,
+        "note": "Significant economies of scale"
+      }
+    }
+  }

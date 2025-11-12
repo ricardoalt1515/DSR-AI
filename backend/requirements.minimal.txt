@@ -1,0 +1,85 @@
+# ============================================================================
+# H2O Allegiant - Minimal Production Requirements
+# ============================================================================
+# Optimized for fast builds and production deployment
+# Removed: docling, torch, transformers (not used in codebase)
+# Build time: ~2 minutes (vs 10+ minutes with full requirements)
+# ============================================================================
+
+# FastAPI y dependencias core
+fastapi==0.115.13
+uvicorn==0.34.3
+pydantic==2.11.7
+pydantic-settings==2.9.1
+python-dotenv==1.1.0
+
+# Seguridad y Authentication
+fastapi-users[sqlalchemy]==14.0.1
+
+# Agentes AI - SOLO LO QUE USAMOS
+langgraph==0.2.39
+langchain-core==0.3.65
+langsmith==0.3.45
+pydantic-ai-slim[openai]==1.0.3
+openai>=1.75.0
+
+# Base de datos
+sqlalchemy==2.0.41
+alembic==1.16.2
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
+
+# Redis
+redis==6.4.0
+
+# HTTP y Networking
+httpx==0.28.1
+httpcore==1.0.9
+aiohttp==3.12.13
+requests==2.32.4
+
+# AWS
+aioboto3>=13.2.0
+aiobotocore>=2.20.0  
+boto3>=1.35.0
+botocore>=1.35.0
+
+# Procesamiento de Documentos - SIN docling (no se usa)
+reportlab==4.4.2
+PyPDF2==3.0.1
+markdown==3.8.2
+xhtml2pdf==0.2.17
+jinja2==3.1.6
+aiofiles==24.1.0
+
+# Visualizaciones
+matplotlib==3.10.3
+numpy==2.3.0
+plotly==5.17.0
+kaleido==0.2.1
+pydot==2.0.0
+pillow==11.2.1
+
+# WeasyPrint para PDFs
+weasyprint==66.0
+tinycss2==1.4.0
+cssselect2==0.8.0
+pydyf==0.11.0
+cffi==1.17.1
+Brotli==1.1.0
+
+# Utilidades
+PyYAML==6.0.2
+click==8.2.1
+rich==14.0.0
+typer==0.16.0
+tenacity==9.1.2
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Structured Logging
+structlog==24.4.0
+
+# Server
+gunicorn==22.0.0

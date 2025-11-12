@@ -1,0 +1,258 @@
+/**
+ * DSR Business Opportunity Analysis - Types
+ * Simplified structure for waste brokerage decisions
+ */
+
+// ==============================================
+// BUSINESS OPPORTUNITY ANALYSIS
+// ==============================================
+
+/**
+ * Landfill Reduction Metrics
+ */
+export interface LandfillReduction {
+	before: string[];
+	after: string[];
+	annualSavings: string[];
+}
+
+/**
+ * Waste Handling Cost Savings (Generator perspective - negotiation leverage)
+ */
+export interface WasteHandlingCostSavings {
+	before: string[];
+	after: string[];
+	annualSavings: string[];
+}
+
+/**
+ * DSR Revenue Potential from Resale
+ */
+export interface PotentialRevenue {
+	perKg: string[];
+	annualPotential: string[];
+	marketRate: string[];
+	notes: string[];
+}
+
+/**
+ * Environmental Impact Context
+ */
+export interface EnvironmentalImpact {
+	currentSituation: string[];
+	benefitIfDiverted: string[];
+	esgStory: string;
+}
+
+/**
+ * Material Safety and Handling
+ */
+export interface MaterialSafety {
+	hazardLevel: "None" | "Low" | "Moderate" | "High";
+	specificHazards: string[];
+	ppeRequirements: string[];
+	regulatoryNotes: string[];
+}
+
+/**
+ * Storage and Handling Requirements
+ */
+export interface StorageHandling {
+	storageRequirements: string[];
+	degradationRisks: string[];
+	qualityPriceImpact: string[];
+}
+
+/**
+ * Market Intelligence (Generic - no company names)
+ */
+export interface MarketIntelligence {
+	buyerTypes: string[];
+	typicalRequirements: string[];
+	pricingFactors: string[];
+}
+
+/**
+ * Resource Considerations (Practical Guidance)
+ */
+export interface ResourceConsiderations {
+	environmentalImpact: EnvironmentalImpact;
+	materialSafety: MaterialSafety;
+	storageHandling: StorageHandling;
+	marketIntelligence: MarketIntelligence;
+}
+
+/**
+ * Complete Business Opportunity Analysis
+ * Contains all financial, strategic, and material intelligence
+ */
+export interface BusinessOpportunity {
+	// Decision (GO/NO-GO)
+	overallRecommendation: "GO" | "NO-GO" | "INVESTIGATE FURTHER";
+	decisionSummary: string;
+	
+	// Financial Analysis
+	landfillReduction: LandfillReduction;
+	wasteHandlingCostSavings: WasteHandlingCostSavings;
+	potentialRevenue: PotentialRevenue;
+	
+	// Strategic Guidance
+	strategicRecommendations: string[];
+	circularEconomyOptions: string[];
+	risks: string[];
+	
+	// Material Intelligence
+	hazardousConcerns: string[];
+	resourceConsiderations: ResourceConsiderations;
+}
+
+// ==============================================
+// LIFE CYCLE ASSESSMENT (LCA)
+// ==============================================
+
+/**
+ * CO₂ Reduction Metrics
+ */
+export interface CO2Reduction {
+	percent: string[];
+	tons: string[];
+	method: string[];
+}
+
+/**
+ * Water Impact Metrics
+ */
+export interface WaterReduction {
+	litersSaved: string[];
+	reuseEfficiency: string[];
+	method: string[];
+}
+
+/**
+ * Toxicity and Safety Assessment
+ */
+export interface ToxicityImpact {
+	level: string; // "None" | "Low" | "Moderate" | "High"
+	notes: string;
+}
+
+/**
+ * Resource Recovery and Efficiency Metrics
+ */
+export interface ResourceEfficiency {
+	materialRecoveredPercent: string[];
+	energySaved: string[];
+	notes: string;
+}
+
+/**
+ * Complete Life Cycle Assessment
+ * Contains all environmental impact data
+ */
+export interface LifeCycleAssessment {
+	co2Reduction: CO2Reduction;
+	waterReduction: WaterReduction;
+	toxicityImpact: ToxicityImpact;
+	resourceEfficiency: ResourceEfficiency;
+	environmentalNotes: string; // Environmental pitch for buyers/generators
+}
+
+// ==============================================
+// MAIN REPORT OUTPUT
+// ==============================================
+
+/**
+ * DSR Business Opportunity Report - Simplified Output
+ * Contains only essential data for GO/NO-GO decisions
+ */
+export interface WasteUpcyclingReport {
+	// Basic Context
+	clientName: string;
+	facilityType: string;
+	location: string;
+	primaryWasteTypes: string[];
+	dailyMonthlyVolume: string;
+	existingDisposalMethod: string;
+	
+	// Core Structured Data
+	businessOpportunity: BusinessOpportunity;
+	lca: LifeCycleAssessment;
+	aiInsights: string[];
+	
+	// Display & Metadata
+	markdownContent: string;
+	confidenceLevel: "High" | "Medium" | "Low";
+}
+
+// ==============================================
+// AI METADATA (Transparency)
+// ==============================================
+
+/**
+ * AI Metadata for waste upcycling reports
+ * Simplified for business-focused analysis (no engineering tools)
+ */
+export interface AIMetadata {
+	usage_stats: {
+		total_tokens: number;
+		model_used: string;
+		cost_estimate?: number;
+		generation_time_seconds?: number;
+	};
+	user_sector?: string;
+	confidence_level: "High" | "Medium" | "Low";
+	recommendations?: string[];
+	generated_at: string;
+	report_type: string; // e.g., "waste_upcycling_feasibility"
+}
+
+// ==============================================
+// LEGACY WATER TREATMENT TYPES (Deprecated)
+// ==============================================
+// These types are kept for backward compatibility but should not be used
+// in new code. Use WasteUpcyclingReport types instead.
+
+/** @deprecated Use WasteInventoryItem instead */
+export interface TreatmentEfficiency {
+	parameters: Array<{
+		parameterName: string;
+		influentConcentration?: number;
+		effluentConcentration?: number;
+		removalEfficiencyPercent: number;
+		unit: string;
+		treatmentStage?: string;
+	}>;
+	overallCompliance?: boolean;
+	criticalParameters?: string[];
+}
+
+/** @deprecated Not used in waste upcycling reports */
+export interface Equipment {
+	type: string;
+	specifications: string;
+	capacityM3Day: number;
+	powerConsumptionKw: number;
+	capexUsd: number;
+	dimensions: string;
+	justification?: string;
+	criticality?: string;
+	stage?: string;
+	riskFactor?: number;
+}
+
+/** @deprecated Use ROIMetric instead */
+export interface OperationalCosts {
+	electricalEnergy: number;
+	chemicals: number;
+	personnel: number;
+	maintenanceSpareParts: number;
+}
+
+/** @deprecated Use CostEstimate instead */
+export interface CostBreakdown {
+	equipmentCost?: number;
+	civilWorks?: number;
+	installationPiping?: number;
+	engineeringSupervision?: number;
+	contingency?: number;
+}

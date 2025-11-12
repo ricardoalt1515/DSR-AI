@@ -1,0 +1,41 @@
+ID,Application Type,Description,Typical Flow Range (m³/d),Typical Influent Characteristics,Recommended Treatment Train,Typical Footprint (m²/m³/day),Estimated Sludge Production (kg/d)
+1,Municipal Sewage,Domestic wastewater,"100–100,000","COD: 400–800 mg/L, TSS: 250–400 mg/L, BOD: 200–400 mg/L, TN: 20–50 mg/L, TP: 4–8 mg/L, pH: 6.5–8.5",Screening + Primary Clarifier + Activated Sludge + UV Disinfection,0.8,70.0
+2,Dairy Industry,"High organics, fats","50–5,000","COD: 4,000–10,000 mg/L, TSS: 1,000–2,000 mg/L, BOD: 2,000–5,000 mg/L, FOG: high, pH: 6–8",Screening + DAF + UASB + SBR + UV Disinfection,1.2,19.25
+3,Textile Wastewater,"Dyes, low biodegradability","20–2,000","COD: 500–3,000 mg/L, TSS: 200–800 mg/L, Color: high, pH: 6–9",Screening + Equalization + SBR + GAC + Ozonation,1.5,7.699999999999999
+4,Brewery Wastewater,"High organics, variable pH","30–3,000","COD: 2,000–6,000 mg/L, TSS: 500–1,000 mg/L, BOD: 1,000–3,000 mg/L, FOG: moderate, pH: 5–8",Screening + DAF + UASB + Activated Sludge + UV Disinfection,1.1,11.55
+5,Pulp & Paper,"High TSS, lignin, recalcitrants","500–50,000","COD: 1,500–6,000 mg/L, TSS: 500–3,000 mg/L, Lignin: present, pH: 5–8",Screening + Primary Clarifier + Activated Sludge + Tertiary Filtration,1.3,192.5
+6,Pharmaceutical,"Complex chemicals, APIs","20–1,000","COD: 500–5,000 mg/L, TSS: 100–500 mg/L, APIs: present, Micropollutants: yes, pH: variable",Screening + Equalization + MBR + RO + UV Disinfection,2.0,7.35
+7,Food Processing,"High BOD/COD, oils and fats","50–10,000","COD: 800–4,000 mg/L, TSS: 400–1,500 mg/L, FOG: high, BOD: 800–4,000 mg/L, pH: 6–8",Screening + DAF + SBR + GAC + Chlorination,1.4,21.0
+8,Petrochemical,"High COD, hydrocarbons, phenols","100–20,000","COD: 2,000–10,000 mg/L, TSS: 500–2,000 mg/L, Phenols: variable, Hydrocarbons: high, pH: 6–8",API Separator + UASB + SBR + RO + UV Disinfection,2.5,42.0
+9,Upstream Oil & Gas,Produced water with hydrocarbons,"500–30,000","COD: 1,000–10,000 mg/L, TSS: 200–1,500 mg/L, Oil & Grease: high, pH: 6–9",API Separator + DAF + UASB + RO + UV Disinfection,3.0,185.5
+10,Downstream Oil & Gas,"Refinery wastewater, high COD","1,000–50,000","COD: 2,000–12,000 mg/L, TSS: 500–2,500 mg/L, Phenols: present, pH: 6–9",API Separator + UASB + Activated Sludge + NF + UV Disinfection,2.8,17.5
+11,Mining,"Heavy metals, sediment, low pH","200–100,000","COD: 200–2,000 mg/L, TSS: 500–3,000 mg/L, Metals: high, pH: 3–6",Thickener + Chemical Precipitation + SBR + RO,2.0,105.0
+12,Paintings and Solvents,"VOC rich, high COD, solvents","50–5,000","COD: 3,000–8,000 mg/L, TSS: 100–800 mg/L, VOCs: high, pH: 5–9",Equalization + AOP + SBR + RO + UV Disinfection,1.8,19.25
+13,Data Centers,"High heat loads, low organics","5–1,000","COD: <100 mg/L, TSS: <50 mg/L, Temp: 30–45°C, pH: 6.5–8",Microfiltration + RO + UV Disinfection,0.5,2.1
+14,Semiconductor Manufacturing,Ultra-pure water requirements,"10–5,000","COD: <50 mg/L, TSS: <20 mg/L, TDS: <50 mg/L, pH: 6–8",Microfiltration + NF + RO + UV Disinfection,0.4,5.25
+15,Microplastics Removal,Microplastic particles removal,2–500,"COD: <200 mg/L, TSS: 50–300 mg/L, Microplastics: 100–500 µm, BOD: low, pH: 6.5–8.5",Microfiltration + GAC + RO + UV Disinfection,0.6,175.7
+16,Metal Plating,"Heavy metals, cyanides","50–2,000","COD: 300–1,500 mg/L, TSS: 100–800 mg/L, Metals: Cr, Ni, Cu; Cyanides: present, pH: 3–5",Equalization + Chemical Precipitation + MBBR + RO,1.6,18.2
+17,Steel Processing,"Oily wastewater, scale inhibitors","500–50,000","COD: 500–2,000 mg/L, TSS: 1,000–5,000 mg/L, Oils: present, Scale inhibitors: present, pH: 7–9",Screening + Constructed Wetlands + UV Disinfection,2.2,192.5
+18,Coal Processing,"Acidic, metal-rich wastewater","200–10,000","COD: 2,000–8,000 mg/L, TSS: 500–2,000 mg/L, Metals: high, pH: 2–4",Equalization + AOP + MBR + RO + UV Disinfection,2.5,73.5
+19,Automotive Manufacturing,"Paint, oils, solvents","500–20,000","COD: 1,000–5,000 mg/L, TSS: 200–1,000 mg/L, Oils: medium, Solvents: present, pH: 6–9",Chemical Precipitation + Ion Exchange + RO + UV,1.7,182.0
+20,Leather Tanning,"Chromium, sulfides, organics","100–2,000","COD: 2,000–6,000 mg/L, TSS: 500–1,500 mg/L, Chromium: 50–300 mg/L, Sulfides: high, pH: 4–7",Equalization + SBR + GAC + Chlorination,1.8,35.7
+21,Landfill Leachate,"Ammonia, recalcitrants","20–5,000","COD: 2,000–8,000 mg/L, TSS: 200–1,000 mg/L, NH3-N: 500–2,000 mg/L, pH: 6–8",Equalization + MBR + RO + UV Disinfection,2.1,8.75
+22,Desalination Brine,"High TDS, scaling compounds","10–50,000","COD: <100 mg/L, TSS: <50 mg/L, TDS: 30,000–60,000 mg/L, Scaling ions: high, pH: 6–8",Microfiltration + NF + RO + UV Disinfection,0.9,21.0
+23,Power Plant Cooling Water,"Biocides, temperature fluctuations","100–200,000","COD: <200 mg/L, TSS: <100 mg/L, Biocides: present, Temp: 25–40°C, pH: 6–9",Screening + SBR + UV Disinfection,0.7,105.0
+24,Chemical Manufacturing,"Toxic chemicals, variable quality","1,000–50,000","COD: 1,000–10,000 mg/L, TSS: 200–1,500 mg/L, Toxicity: variable, pH: 5–9",Equalization + MBR + NF + RO + UV Disinfection,2.3,17.5
+25,Refineries,"Oily, high COD, sulphides","2,000–100,000","COD: 3,000–8,000 mg/L, TSS: 500–2,000 mg/L, Sulfides: yes, Hydrocarbons: high, pH: 6–9",API Separator + UASB + Activated Sludge + NF + UV Disinfection,2.6,35.0
+26,Slaughterhouse Wastewater,"High organics, blood residues","100–20,000","COD: 2,000–6,000 mg/L, TSS: 1,000–3,000 mg/L, BOD: 1,500–4,000 mg/L, Blood residues: present, pH: 6–7.5",Screening + DAF + UASB + SBR + UV Disinfection,1.5,42.0
+27,Fish Processing,"High BOD, ammonia, solids","50–10,000","COD: 1,000–3,000 mg/L, TSS: 500–1,500 mg/L, TN: 100–300 mg/L, FOG: moderate, pH: 6–8",Screening + DAF + SBR + GAC + UV Disinfection,1.3,21.0
+28,Agricultural Runoff,"Nutrients, pesticides, sediment","500–50,000","COD: 800–2,000 mg/L, TSS: 300–1,000 mg/L, Nutrients: high, Pesticides: present, pH: 6–8",Screening + Constructed Wetlands + UV Disinfection,2.9,192.5
+29,Sugar Industry,"Sugars, high BOD/COD","1,000–20,000","COD: 500–2,000 mg/L, TSS: 200–800 mg/L, Sugars: high, Pesticides: yes, pH: 6–8",Equalization + SBR + Tertiary Filtration + Chlorination,1.4,7.0
+30,Winery Wastewater,"Alcohol, high BOD","10–5,000","COD: 4,000–8,000 mg/L, TSS: 500–1,500 mg/L, Sugars: high, Alcohol: present, pH: 5–7",Screening + DAF + SBR + GAC + Chlorination,1.2,5.25
+31,Distillery Wastewater,"Alcohol, high BOD","10–3,000","COD: 5,000–10,000 mg/L, TSS: 1,000–3,000 mg/L, Alcohol: high, pH: 4.5–6",Equalization + SBR + NF + UV Disinfection,1.3,4.55
+32,Tire Manufacturing,"Rubber particles, organics","20–2,000","COD: 5,000–10,000 mg/L, TSS: 500–2,000 mg/L, Rubber: high, pH: 6–9",Screening + DAF + SBR + GAC + Chlorination,1.8,7.699999999999999
+33,Textile Dyeing,"Reactive dyes, salts","100–5,000","COD: 1,000–5,000 mg/L, TSS: 300–1,500 mg/L, Reactive dyes: high, Salts: high, pH: 6–9",Equalization + SBR + GAC + UV Disinfection,1.5,36.75
+34,Battery Manufacturing,"Heavy metals, acid/alkali","50–2,000","COD: 1,000–5,000 mg/L, TSS: 200–1,000 mg/L, Heavy metals: Pb, Cd, Ni, pH: 2–6",Equalization + SBR + NF + UV Disinfection,1.9,18.2
+35,Paper Recycling,"High organics, fibers","500–10,000","COD: 1,000–4,000 mg/L, TSS: 500–2,000 mg/L, Fibers: high, pH: 6–8",Equalization + SBR + GAC + UV Disinfection,1.6,178.5
+36,Glass Manufacturing,"Silicates, low BOD","50–1,000","COD: 500–2,000 mg/L, TSS: 100–500 mg/L, Silicates: high, pH: 6–9",Equalization + SBR + NF + UV Disinfection,1.1,17.85
+37,Plastic Recycling,"Plastic residues, VOCs","20–5,000","COD: 1,000–5,000 mg/L, TSS: 500–2,000 mg/L, VOCs: present, pH: 6–8",Equalization + SBR + GAC + UV Disinfection,1.4,8.75
+38,Pharmaceutical R&D,"APIs, solvents","10–2,000","COD: 2,000–5,000 mg/L, TSS: 200–1,000 mg/L, APIs: present, Micropollutants: yes, pH: variable",Equalization + AOP + MBR + RO + UV Disinfection,0.8,4.199999999999999
+39,Food & Beverage Bottling,"Sugars, CO2, bottle wash water","50–5,000","COD: 500–3,000 mg/L, TSS: 100–800 mg/L, Sugars: moderate, CO₂: present, pH: 6–8",Screening + DAF + SBR + GAC + UV Disinfection,1.2,19.25
+40,Pet Food Production,"Animal proteins, fats","20–1,000","COD: 500–2,000 mg/L, TSS: 300–1,000 mg/L, Proteins: high, FOG: moderate, pH: 6–8",Equalization + SBR + GAC + UV Disinfection,1.3,7.35

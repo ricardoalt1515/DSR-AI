@@ -1,0 +1,1681 @@
+Application,Flow (m³/day),Step,CapEx ($),OpEx ($/m³)
+Municipal Sewage,50,Screening,522.82,0.017
+Municipal Sewage,50,Primary Clarifier,1907.31,0.047
+Municipal Sewage,50,Activated Sludge,4182.56,0.142
+Municipal Sewage,50,UV Disinfection,3092.49,0.062
+Municipal Sewage,200,Screening,1201.12,0.0154
+Municipal Sewage,200,Primary Clarifier,4696.35,0.0454
+Municipal Sewage,200,Activated Sludge,9609.0,0.1404
+Municipal Sewage,200,UV Disinfection,8161.14,0.0604
+Municipal Sewage,1000,Screening,3154.79,0.0151
+Municipal Sewage,1000,Primary Clarifier,13368.76,0.0451
+Municipal Sewage,1000,Activated Sludge,25238.29,0.1401
+Municipal Sewage,1000,UV Disinfection,25178.51,0.0601
+Municipal Sewage,5000,Screening,8286.14,0.015
+Municipal Sewage,5000,Primary Clarifier,38055.88,0.045
+Municipal Sewage,5000,Activated Sludge,66289.08,0.14
+Municipal Sewage,5000,UV Disinfection,77679.96,0.06
+Municipal Sewage,10000,Screening,12559.43,0.015
+Municipal Sewage,10000,Primary Clarifier,59716.08,0.045
+Municipal Sewage,10000,Activated Sludge,100475.46,0.14
+Municipal Sewage,10000,UV Disinfection,126191.47,0.06
+Municipal Sewage,25000,Screening,21763.76,0.015
+Municipal Sewage,25000,Primary Clarifier,108330.88,0.045
+Municipal Sewage,25000,Activated Sludge,174110.11,0.14
+Municipal Sewage,25000,UV Disinfection,239655.83,0.06
+Municipal Sewage,50000,Screening,32987.7,0.015
+Municipal Sewage,50000,Primary Clarifier,169989.37,0.045
+Municipal Sewage,50000,Activated Sludge,263901.58,0.14
+Municipal Sewage,50000,UV Disinfection,389322.05,0.06
+Municipal Sewage,100000,Screening,50000.0,0.015
+Municipal Sewage,100000,Primary Clarifier,266741.91,0.045
+Municipal Sewage,100000,Activated Sludge,400000.0,0.14
+Municipal Sewage,100000,UV Disinfection,632455.53,0.06
+Municipal Sewage,250000,Screening,86643.11,0.015
+Municipal Sewage,250000,Primary Clarifier,483896.26,0.045
+Municipal Sewage,250000,Activated Sludge,693144.84,0.14
+Municipal Sewage,250000,UV Disinfection,1201124.43,0.06
+Municipal Sewage,500000,Screening,131326.39,0.015
+Municipal Sewage,500000,Primary Clarifier,759314.62,0.045
+Municipal Sewage,500000,Activated Sludge,1050611.12,0.14
+Municipal Sewage,500000,UV Disinfection,1951232.4,0.06
+Dairy Industry,50,Screening,522.82,0.017
+Dairy Industry,50,DAF,9277.48,0.102
+Dairy Industry,50,UASB,2579.61,0.072
+Dairy Industry,50,SBR,5653.68,0.172
+Dairy Industry,50,UV Disinfection,3092.49,0.062
+Dairy Industry,200,Screening,1201.12,0.0154
+Dairy Industry,200,DAF,24483.43,0.1004
+Dairy Industry,200,UASB,5529.52,0.0704
+Dairy Industry,200,SBR,13353.91,0.1704
+Dairy Industry,200,UV Disinfection,8161.14,0.0604
+Dairy Industry,1000,Screening,3154.79,0.0151
+Dairy Industry,1000,DAF,75535.52,0.1001
+Dairy Industry,1000,UASB,13400.51,0.0701
+Dairy Industry,1000,SBR,36221.8,0.1701
+Dairy Industry,1000,UV Disinfection,25178.51,0.0601
+Dairy Industry,5000,Screening,8286.14,0.015
+Dairy Industry,5000,DAF,233039.88,0.1
+Dairy Industry,5000,UASB,32475.42,0.07
+Dairy Industry,5000,SBR,98249.74,0.17
+Dairy Industry,5000,UV Disinfection,77679.96,0.06
+Dairy Industry,10000,Screening,12559.43,0.015
+Dairy Industry,10000,DAF,378574.41,0.1
+Dairy Industry,10000,UASB,47546.8,0.07
+Dairy Industry,10000,SBR,150997.59,0.17
+Dairy Industry,10000,UV Disinfection,126191.47,0.06
+Dairy Industry,25000,Screening,21763.76,0.015
+Dairy Industry,25000,DAF,718967.5,0.1
+Dairy Industry,25000,UASB,78702.45,0.07
+Dairy Industry,25000,SBR,266497.3,0.17
+Dairy Industry,25000,UV Disinfection,239655.83,0.06
+Dairy Industry,50000,Screening,32987.7,0.015
+Dairy Industry,50000,DAF,1167966.14,0.1
+Dairy Industry,50000,UASB,115227.13,0.07
+Dairy Industry,50000,SBR,409573.08,0.17
+Dairy Industry,50000,UV Disinfection,389322.05,0.06
+Dairy Industry,100000,Screening,50000.0,0.015
+Dairy Industry,100000,DAF,1897366.6,0.1
+Dairy Industry,100000,UASB,168702.4,0.07
+Dairy Industry,100000,SBR,629462.71,0.17
+Dairy Industry,100000,UV Disinfection,632455.53,0.06
+Dairy Industry,250000,Screening,86643.11,0.015
+Dairy Industry,250000,DAF,3603373.3,0.1
+Dairy Industry,250000,UASB,279246.83,0.07
+Dairy Industry,250000,SBR,1110945.64,0.17
+Dairy Industry,250000,UV Disinfection,1201124.43,0.06
+Dairy Industry,500000,Screening,131326.39,0.015
+Dairy Industry,500000,DAF,5853697.2,0.1
+Dairy Industry,500000,UASB,408841.3,0.07
+Dairy Industry,500000,SBR,1707384.79,0.17
+Dairy Industry,500000,UV Disinfection,1951232.4,0.06
+Textile Wastewater,50,Screening,522.82,0.017
+Textile Wastewater,50,Equalization,3136.92,0.052
+Textile Wastewater,50,SBR,5653.68,0.172
+Textile Wastewater,50,GAC,15042.41,0.222
+Textile Wastewater,50,Ozonation,27438.3,0.302
+Textile Wastewater,200,Screening,1201.12,0.0154
+Textile Wastewater,200,Equalization,7206.75,0.0504
+Textile Wastewater,200,SBR,13353.91,0.1704
+Textile Wastewater,200,GAC,42546.37,0.2204
+Textile Wastewater,200,Ozonation,83177.38,0.3004
+Textile Wastewater,1000,Screening,3154.79,0.0151
+Textile Wastewater,1000,Equalization,18928.72,0.0501
+Textile Wastewater,1000,SBR,36221.8,0.1701
+Textile Wastewater,1000,GAC,142262.35,0.2201
+Textile Wastewater,1000,Ozonation,301426.37,0.3001
+Textile Wastewater,5000,Screening,8286.14,0.015
+Textile Wastewater,5000,Equalization,49716.81,0.05
+Textile Wastewater,5000,SBR,98249.74,0.17
+Textile Wastewater,5000,GAC,475682.85,0.22
+Textile Wastewater,5000,Ozonation,1092338.52,0.3
+Textile Wastewater,10000,Screening,12559.43,0.015
+Textile Wastewater,10000,Equalization,75356.59,0.05
+Textile Wastewater,10000,SBR,150997.59,0.17
+Textile Wastewater,10000,GAC,800000.0,0.22
+Textile Wastewater,10000,Ozonation,1901871.83,0.3
+Textile Wastewater,25000,Screening,21763.76,0.015
+Textile Wastewater,25000,Equalization,130582.58,0.05
+Textile Wastewater,25000,SBR,266497.3,0.17
+Textile Wastewater,25000,GAC,1590541.46,0.22
+Textile Wastewater,25000,Ozonation,3958523.73,0.3
+Textile Wastewater,50000,Screening,32987.7,0.015
+Textile Wastewater,50000,Equalization,197926.19,0.05
+Textile Wastewater,50000,SBR,409573.08,0.17
+Textile Wastewater,50000,GAC,2674961.22,0.22
+Textile Wastewater,50000,Ozonation,6892190.13,0.3
+Textile Wastewater,100000,Screening,50000.0,0.015
+Textile Wastewater,100000,Equalization,300000.0,0.05
+Textile Wastewater,100000,SBR,629462.71,0.17
+Textile Wastewater,100000,GAC,4498730.6,0.22
+Textile Wastewater,100000,Ozonation,9315817.85,0.3
+Textile Wastewater,250000,Screening,86643.11,0.015
+Textile Wastewater,250000,Equalization,519858.63,0.05
+Textile Wastewater,250000,SBR,1110945.64,0.17
+Textile Wastewater,250000,GAC,8944271.91,0.22
+Textile Wastewater,250000,Ozonation,9315817.85,0.3
+Textile Wastewater,500000,Screening,131326.39,0.015
+Textile Wastewater,500000,Equalization,787958.34,0.05
+Textile Wastewater,500000,SBR,1707384.79,0.17
+Textile Wastewater,500000,GAC,9315817.85,0.22
+Textile Wastewater,500000,Ozonation,9315817.85,0.3
+Brewery Wastewater,50,Screening,522.82,0.017
+Brewery Wastewater,50,DAF,9277.48,0.102
+Brewery Wastewater,50,UASB,2579.61,0.072
+Brewery Wastewater,50,Activated Sludge,4182.56,0.142
+Brewery Wastewater,50,UV Disinfection,3092.49,0.062
+Brewery Wastewater,200,Screening,1201.12,0.0154
+Brewery Wastewater,200,DAF,24483.43,0.1004
+Brewery Wastewater,200,UASB,5529.52,0.0704
+Brewery Wastewater,200,Activated Sludge,9609.0,0.1404
+Brewery Wastewater,200,UV Disinfection,8161.14,0.0604
+Brewery Wastewater,1000,Screening,3154.79,0.0151
+Brewery Wastewater,1000,DAF,75535.52,0.1001
+Brewery Wastewater,1000,UASB,13400.51,0.0701
+Brewery Wastewater,1000,Activated Sludge,25238.29,0.1401
+Brewery Wastewater,1000,UV Disinfection,25178.51,0.0601
+Brewery Wastewater,5000,Screening,8286.14,0.015
+Brewery Wastewater,5000,DAF,233039.88,0.1
+Brewery Wastewater,5000,UASB,32475.42,0.07
+Brewery Wastewater,5000,Activated Sludge,66289.08,0.14
+Brewery Wastewater,5000,UV Disinfection,77679.96,0.06
+Brewery Wastewater,10000,Screening,12559.43,0.015
+Brewery Wastewater,10000,DAF,378574.41,0.1
+Brewery Wastewater,10000,UASB,47546.8,0.07
+Brewery Wastewater,10000,Activated Sludge,100475.46,0.14
+Brewery Wastewater,10000,UV Disinfection,126191.47,0.06
+Brewery Wastewater,25000,Screening,21763.76,0.015
+Brewery Wastewater,25000,DAF,718967.5,0.1
+Brewery Wastewater,25000,UASB,78702.45,0.07
+Brewery Wastewater,25000,Activated Sludge,174110.11,0.14
+Brewery Wastewater,25000,UV Disinfection,239655.83,0.06
+Brewery Wastewater,50000,Screening,32987.7,0.015
+Brewery Wastewater,50000,DAF,1167966.14,0.1
+Brewery Wastewater,50000,UASB,115227.13,0.07
+Brewery Wastewater,50000,Activated Sludge,263901.58,0.14
+Brewery Wastewater,50000,UV Disinfection,389322.05,0.06
+Brewery Wastewater,100000,Screening,50000.0,0.015
+Brewery Wastewater,100000,DAF,1897366.6,0.1
+Brewery Wastewater,100000,UASB,168702.4,0.07
+Brewery Wastewater,100000,Activated Sludge,400000.0,0.14
+Brewery Wastewater,100000,UV Disinfection,632455.53,0.06
+Brewery Wastewater,250000,Screening,86643.11,0.015
+Brewery Wastewater,250000,DAF,3603373.3,0.1
+Brewery Wastewater,250000,UASB,279246.83,0.07
+Brewery Wastewater,250000,Activated Sludge,693144.84,0.14
+Brewery Wastewater,250000,UV Disinfection,1201124.43,0.06
+Brewery Wastewater,500000,Screening,131326.39,0.015
+Brewery Wastewater,500000,DAF,5853697.2,0.1
+Brewery Wastewater,500000,UASB,408841.3,0.07
+Brewery Wastewater,500000,Activated Sludge,1050611.12,0.14
+Brewery Wastewater,500000,UV Disinfection,1951232.4,0.06
+Pulp & Paper,50,Screening,522.82,0.017
+Pulp & Paper,50,Primary Clarifier,1907.31,0.047
+Pulp & Paper,50,Activated Sludge,4182.56,0.142
+Pulp & Paper,50,Tertiary Filtration,4182.56,0.092
+Pulp & Paper,200,Screening,1201.12,0.0154
+Pulp & Paper,200,Primary Clarifier,4696.35,0.0454
+Pulp & Paper,200,Activated Sludge,9609.0,0.1404
+Pulp & Paper,200,Tertiary Filtration,9609.0,0.0904
+Pulp & Paper,1000,Screening,3154.79,0.0151
+Pulp & Paper,1000,Primary Clarifier,13368.76,0.0451
+Pulp & Paper,1000,Activated Sludge,25238.29,0.1401
+Pulp & Paper,1000,Tertiary Filtration,25238.29,0.0901
+Pulp & Paper,5000,Screening,8286.14,0.015
+Pulp & Paper,5000,Primary Clarifier,38055.88,0.045
+Pulp & Paper,5000,Activated Sludge,66289.08,0.14
+Pulp & Paper,5000,Tertiary Filtration,66289.08,0.09
+Pulp & Paper,10000,Screening,12559.43,0.015
+Pulp & Paper,10000,Primary Clarifier,59716.08,0.045
+Pulp & Paper,10000,Activated Sludge,100475.46,0.14
+Pulp & Paper,10000,Tertiary Filtration,100475.46,0.09
+Pulp & Paper,25000,Screening,21763.76,0.015
+Pulp & Paper,25000,Primary Clarifier,108330.88,0.045
+Pulp & Paper,25000,Activated Sludge,174110.11,0.14
+Pulp & Paper,25000,Tertiary Filtration,174110.11,0.09
+Pulp & Paper,50000,Screening,32987.7,0.015
+Pulp & Paper,50000,Primary Clarifier,169989.37,0.045
+Pulp & Paper,50000,Activated Sludge,263901.58,0.14
+Pulp & Paper,50000,Tertiary Filtration,263901.58,0.09
+Pulp & Paper,100000,Screening,50000.0,0.015
+Pulp & Paper,100000,Primary Clarifier,266741.91,0.045
+Pulp & Paper,100000,Activated Sludge,400000.0,0.14
+Pulp & Paper,100000,Tertiary Filtration,400000.0,0.09
+Pulp & Paper,250000,Screening,86643.11,0.015
+Pulp & Paper,250000,Primary Clarifier,483896.26,0.045
+Pulp & Paper,250000,Activated Sludge,693144.84,0.14
+Pulp & Paper,250000,Tertiary Filtration,693144.84,0.09
+Pulp & Paper,500000,Screening,131326.39,0.015
+Pulp & Paper,500000,Primary Clarifier,759314.62,0.045
+Pulp & Paper,500000,Activated Sludge,1050611.12,0.14
+Pulp & Paper,500000,Tertiary Filtration,1050611.12,0.09
+Pharmaceutical,50,Screening,522.82,0.017
+Pharmaceutical,50,Equalization,3136.92,0.052
+Pharmaceutical,50,MBR,12715.41,0.322
+Pharmaceutical,50,RO,37606.03,0.552
+Pharmaceutical,50,UV Disinfection,3092.49,0.062
+Pharmaceutical,200,Screening,1201.12,0.0154
+Pharmaceutical,200,Equalization,7206.75,0.0504
+Pharmaceutical,200,MBR,31309.02,0.3204
+Pharmaceutical,200,RO,106365.92,0.5504
+Pharmaceutical,200,UV Disinfection,8161.14,0.0604
+Pharmaceutical,1000,Screening,3154.79,0.0151
+Pharmaceutical,1000,Equalization,18928.72,0.0501
+Pharmaceutical,1000,MBR,89125.09,0.3201
+Pharmaceutical,1000,RO,355655.88,0.5501
+Pharmaceutical,1000,UV Disinfection,25178.51,0.0601
+Pharmaceutical,5000,Screening,8286.14,0.015
+Pharmaceutical,5000,Equalization,49716.81,0.05
+Pharmaceutical,5000,MBR,253705.86,0.32
+Pharmaceutical,5000,RO,1189207.12,0.55
+Pharmaceutical,5000,UV Disinfection,77679.96,0.06
+Pharmaceutical,10000,Screening,12559.43,0.015
+Pharmaceutical,10000,Equalization,75356.59,0.05
+Pharmaceutical,10000,MBR,398107.17,0.32
+Pharmaceutical,10000,RO,2000000.0,0.55
+Pharmaceutical,10000,UV Disinfection,126191.47,0.06
+Pharmaceutical,25000,Screening,21763.76,0.015
+Pharmaceutical,25000,Equalization,130582.58,0.05
+Pharmaceutical,25000,MBR,722205.86,0.32
+Pharmaceutical,25000,RO,3976353.64,0.55
+Pharmaceutical,25000,UV Disinfection,239655.83,0.06
+Pharmaceutical,50000,Screening,32987.7,0.015
+Pharmaceutical,50000,Equalization,197926.19,0.05
+Pharmaceutical,50000,MBR,1133262.46,0.32
+Pharmaceutical,50000,RO,6687403.05,0.55
+Pharmaceutical,50000,UV Disinfection,389322.05,0.06
+Pharmaceutical,100000,Screening,50000.0,0.015
+Pharmaceutical,100000,Equalization,300000.0,0.05
+Pharmaceutical,100000,MBR,1778279.41,0.32
+Pharmaceutical,100000,RO,9315817.85,0.55
+Pharmaceutical,100000,UV Disinfection,632455.53,0.06
+Pharmaceutical,250000,Screening,86643.11,0.015
+Pharmaceutical,250000,Equalization,519858.63,0.05
+Pharmaceutical,250000,MBR,3225975.06,0.32
+Pharmaceutical,250000,RO,9315817.85,0.55
+Pharmaceutical,250000,UV Disinfection,1201124.43,0.06
+Pharmaceutical,500000,Screening,131326.39,0.015
+Pharmaceutical,500000,Equalization,787958.34,0.05
+Pharmaceutical,500000,MBR,5062097.47,0.32
+Pharmaceutical,500000,RO,9315817.85,0.55
+Pharmaceutical,500000,UV Disinfection,1951232.4,0.06
+Food Processing,50,Screening,522.82,0.017
+Food Processing,50,DAF,9277.48,0.102
+Food Processing,50,SBR,5653.68,0.172
+Food Processing,50,GAC,15042.41,0.222
+Food Processing,50,Chlorination,1045.64,0.027
+Food Processing,200,Screening,1201.12,0.0154
+Food Processing,200,DAF,24483.43,0.1004
+Food Processing,200,SBR,13353.91,0.1704
+Food Processing,200,GAC,42546.37,0.2204
+Food Processing,200,Chlorination,2402.25,0.0254
+Food Processing,1000,Screening,3154.79,0.0151
+Food Processing,1000,DAF,75535.52,0.1001
+Food Processing,1000,SBR,36221.8,0.1701
+Food Processing,1000,GAC,142262.35,0.2201
+Food Processing,1000,Chlorination,6309.57,0.0251
+Food Processing,5000,Screening,8286.14,0.015
+Food Processing,5000,DAF,233039.88,0.1
+Food Processing,5000,SBR,98249.74,0.17
+Food Processing,5000,GAC,475682.85,0.22
+Food Processing,5000,Chlorination,16572.27,0.025
+Food Processing,10000,Screening,12559.43,0.015
+Food Processing,10000,DAF,378574.41,0.1
+Food Processing,10000,SBR,150997.59,0.17
+Food Processing,10000,GAC,800000.0,0.22
+Food Processing,10000,Chlorination,25118.86,0.025
+Food Processing,25000,Screening,21763.76,0.015
+Food Processing,25000,DAF,718967.5,0.1
+Food Processing,25000,SBR,266497.3,0.17
+Food Processing,25000,GAC,1590541.46,0.22
+Food Processing,25000,Chlorination,43527.53,0.025
+Food Processing,50000,Screening,32987.7,0.015
+Food Processing,50000,DAF,1167966.14,0.1
+Food Processing,50000,SBR,409573.08,0.17
+Food Processing,50000,GAC,2674961.22,0.22
+Food Processing,50000,Chlorination,65975.4,0.025
+Food Processing,100000,Screening,50000.0,0.015
+Food Processing,100000,DAF,1897366.6,0.1
+Food Processing,100000,SBR,629462.71,0.17
+Food Processing,100000,GAC,4498730.6,0.22
+Food Processing,100000,Chlorination,100000.0,0.025
+Food Processing,250000,Screening,86643.11,0.015
+Food Processing,250000,DAF,3603373.3,0.1
+Food Processing,250000,SBR,1110945.64,0.17
+Food Processing,250000,GAC,8944271.91,0.22
+Food Processing,250000,Chlorination,173286.21,0.025
+Food Processing,500000,Screening,131326.39,0.015
+Food Processing,500000,DAF,5853697.2,0.1
+Food Processing,500000,SBR,1707384.79,0.17
+Food Processing,500000,GAC,9315817.85,0.22
+Food Processing,500000,Chlorination,262652.78,0.025
+Petrochemical,50,API Separator,2614.1,0.042
+Petrochemical,50,UASB,2579.61,0.072
+Petrochemical,50,SBR,5653.68,0.172
+Petrochemical,50,RO,37606.03,0.552
+Petrochemical,50,UV Disinfection,3092.49,0.062
+Petrochemical,200,API Separator,6005.62,0.0404
+Petrochemical,200,UASB,5529.52,0.0704
+Petrochemical,200,SBR,13353.91,0.1704
+Petrochemical,200,RO,106365.92,0.5504
+Petrochemical,200,UV Disinfection,8161.14,0.0604
+Petrochemical,1000,API Separator,15773.93,0.0401
+Petrochemical,1000,UASB,13400.51,0.0701
+Petrochemical,1000,SBR,36221.8,0.1701
+Petrochemical,1000,RO,355655.88,0.5501
+Petrochemical,1000,UV Disinfection,25178.51,0.0601
+Petrochemical,5000,API Separator,41430.68,0.04
+Petrochemical,5000,UASB,32475.42,0.07
+Petrochemical,5000,SBR,98249.74,0.17
+Petrochemical,5000,RO,1189207.12,0.55
+Petrochemical,5000,UV Disinfection,77679.96,0.06
+Petrochemical,10000,API Separator,62797.16,0.04
+Petrochemical,10000,UASB,47546.8,0.07
+Petrochemical,10000,SBR,150997.59,0.17
+Petrochemical,10000,RO,2000000.0,0.55
+Petrochemical,10000,UV Disinfection,126191.47,0.06
+Petrochemical,25000,API Separator,108818.82,0.04
+Petrochemical,25000,UASB,78702.45,0.07
+Petrochemical,25000,SBR,266497.3,0.17
+Petrochemical,25000,RO,3976353.64,0.55
+Petrochemical,25000,UV Disinfection,239655.83,0.06
+Petrochemical,50000,API Separator,164938.49,0.04
+Petrochemical,50000,UASB,115227.13,0.07
+Petrochemical,50000,SBR,409573.08,0.17
+Petrochemical,50000,RO,6687403.05,0.55
+Petrochemical,50000,UV Disinfection,389322.05,0.06
+Petrochemical,100000,API Separator,250000.0,0.04
+Petrochemical,100000,UASB,168702.4,0.07
+Petrochemical,100000,SBR,629462.71,0.17
+Petrochemical,100000,RO,9315817.85,0.55
+Petrochemical,100000,UV Disinfection,632455.53,0.06
+Petrochemical,250000,API Separator,433215.53,0.04
+Petrochemical,250000,UASB,279246.83,0.07
+Petrochemical,250000,SBR,1110945.64,0.17
+Petrochemical,250000,RO,9315817.85,0.55
+Petrochemical,250000,UV Disinfection,1201124.43,0.06
+Petrochemical,500000,API Separator,656631.95,0.04
+Petrochemical,500000,UASB,408841.3,0.07
+Petrochemical,500000,SBR,1707384.79,0.17
+Petrochemical,500000,RO,9315817.85,0.55
+Petrochemical,500000,UV Disinfection,1951232.4,0.06
+Upstream Oil & Gas,50,API Separator,2614.1,0.042
+Upstream Oil & Gas,50,DAF,9277.48,0.102
+Upstream Oil & Gas,50,UASB,2579.61,0.072
+Upstream Oil & Gas,50,RO,37606.03,0.552
+Upstream Oil & Gas,50,UV Disinfection,3092.49,0.062
+Upstream Oil & Gas,200,API Separator,6005.62,0.0404
+Upstream Oil & Gas,200,DAF,24483.43,0.1004
+Upstream Oil & Gas,200,UASB,5529.52,0.0704
+Upstream Oil & Gas,200,RO,106365.92,0.5504
+Upstream Oil & Gas,200,UV Disinfection,8161.14,0.0604
+Upstream Oil & Gas,1000,API Separator,15773.93,0.0401
+Upstream Oil & Gas,1000,DAF,75535.52,0.1001
+Upstream Oil & Gas,1000,UASB,13400.51,0.0701
+Upstream Oil & Gas,1000,RO,355655.88,0.5501
+Upstream Oil & Gas,1000,UV Disinfection,25178.51,0.0601
+Upstream Oil & Gas,5000,API Separator,41430.68,0.04
+Upstream Oil & Gas,5000,DAF,233039.88,0.1
+Upstream Oil & Gas,5000,UASB,32475.42,0.07
+Upstream Oil & Gas,5000,RO,1189207.12,0.55
+Upstream Oil & Gas,5000,UV Disinfection,77679.96,0.06
+Upstream Oil & Gas,10000,API Separator,62797.16,0.04
+Upstream Oil & Gas,10000,DAF,378574.41,0.1
+Upstream Oil & Gas,10000,UASB,47546.8,0.07
+Upstream Oil & Gas,10000,RO,2000000.0,0.55
+Upstream Oil & Gas,10000,UV Disinfection,126191.47,0.06
+Upstream Oil & Gas,25000,API Separator,108818.82,0.04
+Upstream Oil & Gas,25000,DAF,718967.5,0.1
+Upstream Oil & Gas,25000,UASB,78702.45,0.07
+Upstream Oil & Gas,25000,RO,3976353.64,0.55
+Upstream Oil & Gas,25000,UV Disinfection,239655.83,0.06
+Upstream Oil & Gas,50000,API Separator,164938.49,0.04
+Upstream Oil & Gas,50000,DAF,1167966.14,0.1
+Upstream Oil & Gas,50000,UASB,115227.13,0.07
+Upstream Oil & Gas,50000,RO,6687403.05,0.55
+Upstream Oil & Gas,50000,UV Disinfection,389322.05,0.06
+Upstream Oil & Gas,100000,API Separator,250000.0,0.04
+Upstream Oil & Gas,100000,DAF,1897366.6,0.1
+Upstream Oil & Gas,100000,UASB,168702.4,0.07
+Upstream Oil & Gas,100000,RO,9315817.85,0.55
+Upstream Oil & Gas,100000,UV Disinfection,632455.53,0.06
+Upstream Oil & Gas,250000,API Separator,433215.53,0.04
+Upstream Oil & Gas,250000,DAF,3603373.3,0.1
+Upstream Oil & Gas,250000,UASB,279246.83,0.07
+Upstream Oil & Gas,250000,RO,9315817.85,0.55
+Upstream Oil & Gas,250000,UV Disinfection,1201124.43,0.06
+Upstream Oil & Gas,500000,API Separator,656631.95,0.04
+Upstream Oil & Gas,500000,DAF,5853697.2,0.1
+Upstream Oil & Gas,500000,UASB,408841.3,0.07
+Upstream Oil & Gas,500000,RO,9315817.85,0.55
+Upstream Oil & Gas,500000,UV Disinfection,1951232.4,0.06
+Downstream Oil & Gas,50,API Separator,2614.1,0.042
+Downstream Oil & Gas,50,UASB,2579.61,0.072
+Downstream Oil & Gas,50,Activated Sludge,4182.56,0.142
+Downstream Oil & Gas,50,NF,28204.52,0.372
+Downstream Oil & Gas,50,UV Disinfection,3092.49,0.062
+Downstream Oil & Gas,200,API Separator,6005.62,0.0404
+Downstream Oil & Gas,200,UASB,5529.52,0.0704
+Downstream Oil & Gas,200,Activated Sludge,9609.0,0.1404
+Downstream Oil & Gas,200,NF,79774.44,0.3704
+Downstream Oil & Gas,200,UV Disinfection,8161.14,0.0604
+Downstream Oil & Gas,1000,API Separator,15773.93,0.0401
+Downstream Oil & Gas,1000,UASB,13400.51,0.0701
+Downstream Oil & Gas,1000,Activated Sludge,25238.29,0.1401
+Downstream Oil & Gas,1000,NF,266741.91,0.3701
+Downstream Oil & Gas,1000,UV Disinfection,25178.51,0.0601
+Downstream Oil & Gas,5000,API Separator,41430.68,0.04
+Downstream Oil & Gas,5000,UASB,32475.42,0.07
+Downstream Oil & Gas,5000,Activated Sludge,66289.08,0.14
+Downstream Oil & Gas,5000,NF,891905.34,0.37
+Downstream Oil & Gas,5000,UV Disinfection,77679.96,0.06
+Downstream Oil & Gas,10000,API Separator,62797.16,0.04
+Downstream Oil & Gas,10000,UASB,47546.8,0.07
+Downstream Oil & Gas,10000,Activated Sludge,100475.46,0.14
+Downstream Oil & Gas,10000,NF,1500000.0,0.37
+Downstream Oil & Gas,10000,UV Disinfection,126191.47,0.06
+Downstream Oil & Gas,25000,API Separator,108818.82,0.04
+Downstream Oil & Gas,25000,UASB,78702.45,0.07
+Downstream Oil & Gas,25000,Activated Sludge,174110.11,0.14
+Downstream Oil & Gas,25000,NF,2982265.23,0.37
+Downstream Oil & Gas,25000,UV Disinfection,239655.83,0.06
+Downstream Oil & Gas,50000,API Separator,164938.49,0.04
+Downstream Oil & Gas,50000,UASB,115227.13,0.07
+Downstream Oil & Gas,50000,Activated Sludge,263901.58,0.14
+Downstream Oil & Gas,50000,NF,5015552.29,0.37
+Downstream Oil & Gas,50000,UV Disinfection,389322.05,0.06
+Downstream Oil & Gas,100000,API Separator,250000.0,0.04
+Downstream Oil & Gas,100000,UASB,168702.4,0.07
+Downstream Oil & Gas,100000,Activated Sludge,400000.0,0.14
+Downstream Oil & Gas,100000,NF,8435119.88,0.37
+Downstream Oil & Gas,100000,UV Disinfection,632455.53,0.06
+Downstream Oil & Gas,250000,API Separator,433215.53,0.04
+Downstream Oil & Gas,250000,UASB,279246.83,0.07
+Downstream Oil & Gas,250000,Activated Sludge,693144.84,0.14
+Downstream Oil & Gas,250000,NF,9315817.85,0.37
+Downstream Oil & Gas,250000,UV Disinfection,1201124.43,0.06
+Downstream Oil & Gas,500000,API Separator,656631.95,0.04
+Downstream Oil & Gas,500000,UASB,408841.3,0.07
+Downstream Oil & Gas,500000,Activated Sludge,1050611.12,0.14
+Downstream Oil & Gas,500000,NF,9315817.85,0.37
+Downstream Oil & Gas,500000,UV Disinfection,1951232.4,0.06
+Mining,50,Chemical Precipitation,6357.71,0.132
+Mining,50,SBR,5653.68,0.172
+Mining,50,RO,37606.03,0.552
+Mining,200,Chemical Precipitation,15654.51,0.1304
+Mining,200,SBR,13353.91,0.1704
+Mining,200,RO,106365.92,0.5504
+Mining,1000,Chemical Precipitation,44562.55,0.1301
+Mining,1000,SBR,36221.8,0.1701
+Mining,1000,RO,355655.88,0.5501
+Mining,5000,Chemical Precipitation,126852.93,0.13
+Mining,5000,SBR,98249.74,0.17
+Mining,5000,RO,1189207.12,0.55
+Mining,10000,Chemical Precipitation,199053.59,0.13
+Mining,10000,SBR,150997.59,0.17
+Mining,10000,RO,2000000.0,0.55
+Mining,25000,Chemical Precipitation,361102.93,0.13
+Mining,25000,SBR,266497.3,0.17
+Mining,25000,RO,3976353.64,0.55
+Mining,50000,Chemical Precipitation,566631.23,0.13
+Mining,50000,SBR,409573.08,0.17
+Mining,50000,RO,6687403.05,0.55
+Mining,100000,Chemical Precipitation,889139.71,0.13
+Mining,100000,SBR,629462.71,0.17
+Mining,100000,RO,9315817.85,0.55
+Mining,250000,Chemical Precipitation,1612987.53,0.13
+Mining,250000,SBR,1110945.64,0.17
+Mining,250000,RO,9315817.85,0.55
+Mining,500000,Chemical Precipitation,2531048.73,0.13
+Mining,500000,SBR,1707384.79,0.17
+Mining,500000,RO,9315817.85,0.55
+Paintings and Solvents,50,Equalization,3136.92,0.052
+Paintings and Solvents,50,AOP,34297.88,0.452
+Paintings and Solvents,50,SBR,5653.68,0.172
+Paintings and Solvents,50,RO,37606.03,0.552
+Paintings and Solvents,50,UV Disinfection,3092.49,0.062
+Paintings and Solvents,200,Equalization,7206.75,0.0504
+Paintings and Solvents,200,AOP,103971.73,0.4504
+Paintings and Solvents,200,SBR,13353.91,0.1704
+Paintings and Solvents,200,RO,106365.92,0.5504
+Paintings and Solvents,200,UV Disinfection,8161.14,0.0604
+Paintings and Solvents,1000,Equalization,18928.72,0.0501
+Paintings and Solvents,1000,AOP,376782.96,0.4501
+Paintings and Solvents,1000,SBR,36221.8,0.1701
+Paintings and Solvents,1000,RO,355655.88,0.5501
+Paintings and Solvents,1000,UV Disinfection,25178.51,0.0601
+Paintings and Solvents,5000,Equalization,49716.81,0.05
+Paintings and Solvents,5000,AOP,1365423.15,0.45
+Paintings and Solvents,5000,SBR,98249.74,0.17
+Paintings and Solvents,5000,RO,1189207.12,0.55
+Paintings and Solvents,5000,UV Disinfection,77679.96,0.06
+Paintings and Solvents,10000,Equalization,75356.59,0.05
+Paintings and Solvents,10000,AOP,2377339.79,0.45
+Paintings and Solvents,10000,SBR,150997.59,0.17
+Paintings and Solvents,10000,RO,2000000.0,0.55
+Paintings and Solvents,10000,UV Disinfection,126191.47,0.06
+Paintings and Solvents,25000,Equalization,130582.58,0.05
+Paintings and Solvents,25000,AOP,4948154.67,0.45
+Paintings and Solvents,25000,SBR,266497.3,0.17
+Paintings and Solvents,25000,RO,3976353.64,0.55
+Paintings and Solvents,25000,UV Disinfection,239655.83,0.06
+Paintings and Solvents,50000,Equalization,197926.19,0.05
+Paintings and Solvents,50000,AOP,8615237.66,0.45
+Paintings and Solvents,50000,SBR,409573.08,0.17
+Paintings and Solvents,50000,RO,6687403.05,0.55
+Paintings and Solvents,50000,UV Disinfection,389322.05,0.06
+Paintings and Solvents,100000,Equalization,300000.0,0.05
+Paintings and Solvents,100000,AOP,9315817.85,0.45
+Paintings and Solvents,100000,SBR,629462.71,0.17
+Paintings and Solvents,100000,RO,9315817.85,0.55
+Paintings and Solvents,100000,UV Disinfection,632455.53,0.06
+Paintings and Solvents,250000,Equalization,519858.63,0.05
+Paintings and Solvents,250000,AOP,9315817.85,0.45
+Paintings and Solvents,250000,SBR,1110945.64,0.17
+Paintings and Solvents,250000,RO,9315817.85,0.55
+Paintings and Solvents,250000,UV Disinfection,1201124.43,0.06
+Paintings and Solvents,500000,Equalization,787958.34,0.05
+Paintings and Solvents,500000,AOP,9315817.85,0.45
+Paintings and Solvents,500000,SBR,1707384.79,0.17
+Paintings and Solvents,500000,RO,9315817.85,0.55
+Paintings and Solvents,500000,UV Disinfection,1951232.4,0.06
+Data Centers,50,RO,37606.03,0.552
+Data Centers,50,UV Disinfection,3092.49,0.062
+Data Centers,200,RO,106365.92,0.5504
+Data Centers,200,UV Disinfection,8161.14,0.0604
+Data Centers,1000,RO,355655.88,0.5501
+Data Centers,1000,UV Disinfection,25178.51,0.0601
+Data Centers,5000,RO,1189207.12,0.55
+Data Centers,5000,UV Disinfection,77679.96,0.06
+Data Centers,10000,RO,2000000.0,0.55
+Data Centers,10000,UV Disinfection,126191.47,0.06
+Data Centers,25000,RO,3976353.64,0.55
+Data Centers,25000,UV Disinfection,239655.83,0.06
+Data Centers,50000,RO,6687403.05,0.55
+Data Centers,50000,UV Disinfection,389322.05,0.06
+Data Centers,100000,RO,9315817.85,0.55
+Data Centers,100000,UV Disinfection,632455.53,0.06
+Data Centers,250000,RO,9315817.85,0.55
+Data Centers,250000,UV Disinfection,1201124.43,0.06
+Data Centers,500000,RO,9315817.85,0.55
+Data Centers,500000,UV Disinfection,1951232.4,0.06
+Semiconductor Manufacturing,50,NF,28204.52,0.372
+Semiconductor Manufacturing,50,RO,37606.03,0.552
+Semiconductor Manufacturing,50,UV Disinfection,3092.49,0.062
+Semiconductor Manufacturing,200,NF,79774.44,0.3704
+Semiconductor Manufacturing,200,RO,106365.92,0.5504
+Semiconductor Manufacturing,200,UV Disinfection,8161.14,0.0604
+Semiconductor Manufacturing,1000,NF,266741.91,0.3701
+Semiconductor Manufacturing,1000,RO,355655.88,0.5501
+Semiconductor Manufacturing,1000,UV Disinfection,25178.51,0.0601
+Semiconductor Manufacturing,5000,NF,891905.34,0.37
+Semiconductor Manufacturing,5000,RO,1189207.12,0.55
+Semiconductor Manufacturing,5000,UV Disinfection,77679.96,0.06
+Semiconductor Manufacturing,10000,NF,1500000.0,0.37
+Semiconductor Manufacturing,10000,RO,2000000.0,0.55
+Semiconductor Manufacturing,10000,UV Disinfection,126191.47,0.06
+Semiconductor Manufacturing,25000,NF,2982265.23,0.37
+Semiconductor Manufacturing,25000,RO,3976353.64,0.55
+Semiconductor Manufacturing,25000,UV Disinfection,239655.83,0.06
+Semiconductor Manufacturing,50000,NF,5015552.29,0.37
+Semiconductor Manufacturing,50000,RO,6687403.05,0.55
+Semiconductor Manufacturing,50000,UV Disinfection,389322.05,0.06
+Semiconductor Manufacturing,100000,NF,8435119.88,0.37
+Semiconductor Manufacturing,100000,RO,9315817.85,0.55
+Semiconductor Manufacturing,100000,UV Disinfection,632455.53,0.06
+Semiconductor Manufacturing,250000,NF,9315817.85,0.37
+Semiconductor Manufacturing,250000,RO,9315817.85,0.55
+Semiconductor Manufacturing,250000,UV Disinfection,1201124.43,0.06
+Semiconductor Manufacturing,500000,NF,9315817.85,0.37
+Semiconductor Manufacturing,500000,RO,9315817.85,0.55
+Semiconductor Manufacturing,500000,UV Disinfection,1951232.4,0.06
+Microplastics Removal,50,GAC,15042.41,0.222
+Microplastics Removal,50,RO,37606.03,0.552
+Microplastics Removal,50,UV Disinfection,3092.49,0.062
+Microplastics Removal,200,GAC,42546.37,0.2204
+Microplastics Removal,200,RO,106365.92,0.5504
+Microplastics Removal,200,UV Disinfection,8161.14,0.0604
+Microplastics Removal,1000,GAC,142262.35,0.2201
+Microplastics Removal,1000,RO,355655.88,0.5501
+Microplastics Removal,1000,UV Disinfection,25178.51,0.0601
+Microplastics Removal,5000,GAC,475682.85,0.22
+Microplastics Removal,5000,RO,1189207.12,0.55
+Microplastics Removal,5000,UV Disinfection,77679.96,0.06
+Microplastics Removal,10000,GAC,800000.0,0.22
+Microplastics Removal,10000,RO,2000000.0,0.55
+Microplastics Removal,10000,UV Disinfection,126191.47,0.06
+Microplastics Removal,25000,GAC,1590541.46,0.22
+Microplastics Removal,25000,RO,3976353.64,0.55
+Microplastics Removal,25000,UV Disinfection,239655.83,0.06
+Microplastics Removal,50000,GAC,2674961.22,0.22
+Microplastics Removal,50000,RO,6687403.05,0.55
+Microplastics Removal,50000,UV Disinfection,389322.05,0.06
+Microplastics Removal,100000,GAC,4498730.6,0.22
+Microplastics Removal,100000,RO,9315817.85,0.55
+Microplastics Removal,100000,UV Disinfection,632455.53,0.06
+Microplastics Removal,250000,GAC,8944271.91,0.22
+Microplastics Removal,250000,RO,9315817.85,0.55
+Microplastics Removal,250000,UV Disinfection,1201124.43,0.06
+Microplastics Removal,500000,GAC,9315817.85,0.22
+Microplastics Removal,500000,RO,9315817.85,0.55
+Microplastics Removal,500000,UV Disinfection,1951232.4,0.06
+Metal Plating,50,Equalization,3136.92,0.052
+Metal Plating,50,Chemical Precipitation,6357.71,0.132
+Metal Plating,50,MBBR,7629.25,0.162
+Metal Plating,50,RO,37606.03,0.552
+Metal Plating,200,Equalization,7206.75,0.0504
+Metal Plating,200,Chemical Precipitation,15654.51,0.1304
+Metal Plating,200,MBBR,18785.41,0.1604
+Metal Plating,200,RO,106365.92,0.5504
+Metal Plating,1000,Equalization,18928.72,0.0501
+Metal Plating,1000,Chemical Precipitation,44562.55,0.1301
+Metal Plating,1000,MBBR,53475.06,0.1601
+Metal Plating,1000,RO,355655.88,0.5501
+Metal Plating,5000,Equalization,49716.81,0.05
+Metal Plating,5000,Chemical Precipitation,126852.93,0.13
+Metal Plating,5000,MBBR,152223.52,0.16
+Metal Plating,5000,RO,1189207.12,0.55
+Metal Plating,10000,Equalization,75356.59,0.05
+Metal Plating,10000,Chemical Precipitation,199053.59,0.13
+Metal Plating,10000,MBBR,238864.3,0.16
+Metal Plating,10000,RO,2000000.0,0.55
+Metal Plating,25000,Equalization,130582.58,0.05
+Metal Plating,25000,Chemical Precipitation,361102.93,0.13
+Metal Plating,25000,MBBR,433323.51,0.16
+Metal Plating,25000,RO,3976353.64,0.55
+Metal Plating,50000,Equalization,197926.19,0.05
+Metal Plating,50000,Chemical Precipitation,566631.23,0.13
+Metal Plating,50000,MBBR,679957.48,0.16
+Metal Plating,50000,RO,6687403.05,0.55
+Metal Plating,100000,Equalization,300000.0,0.05
+Metal Plating,100000,Chemical Precipitation,889139.71,0.13
+Metal Plating,100000,MBBR,1066967.65,0.16
+Metal Plating,100000,RO,9315817.85,0.55
+Metal Plating,250000,Equalization,519858.63,0.05
+Metal Plating,250000,Chemical Precipitation,1612987.53,0.13
+Metal Plating,250000,MBBR,1935585.04,0.16
+Metal Plating,250000,RO,9315817.85,0.55
+Metal Plating,500000,Equalization,787958.34,0.05
+Metal Plating,500000,Chemical Precipitation,2531048.73,0.13
+Metal Plating,500000,MBBR,3037258.48,0.16
+Metal Plating,500000,RO,9315817.85,0.55
+Steel Processing,50,Screening,522.82,0.017
+Steel Processing,50,Constructed Wetlands,707.11,0.012
+Steel Processing,50,UV Disinfection,3092.49,0.062
+Steel Processing,200,Screening,1201.12,0.0154
+Steel Processing,200,Constructed Wetlands,1414.21,0.0104
+Steel Processing,200,UV Disinfection,8161.14,0.0604
+Steel Processing,1000,Screening,3154.79,0.0151
+Steel Processing,1000,Constructed Wetlands,3162.28,0.0101
+Steel Processing,1000,UV Disinfection,25178.51,0.0601
+Steel Processing,5000,Screening,8286.14,0.015
+Steel Processing,5000,Constructed Wetlands,7071.07,0.01
+Steel Processing,5000,UV Disinfection,77679.96,0.06
+Steel Processing,10000,Screening,12559.43,0.015
+Steel Processing,10000,Constructed Wetlands,10000.0,0.01
+Steel Processing,10000,UV Disinfection,126191.47,0.06
+Steel Processing,25000,Screening,21763.76,0.015
+Steel Processing,25000,Constructed Wetlands,15811.39,0.01
+Steel Processing,25000,UV Disinfection,239655.83,0.06
+Steel Processing,50000,Screening,32987.7,0.015
+Steel Processing,50000,Constructed Wetlands,22360.68,0.01
+Steel Processing,50000,UV Disinfection,389322.05,0.06
+Steel Processing,100000,Screening,50000.0,0.015
+Steel Processing,100000,Constructed Wetlands,31622.78,0.01
+Steel Processing,100000,UV Disinfection,632455.53,0.06
+Steel Processing,250000,Screening,86643.11,0.015
+Steel Processing,250000,Constructed Wetlands,50000.0,0.01
+Steel Processing,250000,UV Disinfection,1201124.43,0.06
+Steel Processing,500000,Screening,131326.39,0.015
+Steel Processing,500000,Constructed Wetlands,70710.68,0.01
+Steel Processing,500000,UV Disinfection,1951232.4,0.06
+Coal Processing,50,Equalization,3136.92,0.052
+Coal Processing,50,AOP,34297.88,0.452
+Coal Processing,50,MBR,12715.41,0.322
+Coal Processing,50,RO,37606.03,0.552
+Coal Processing,50,UV Disinfection,3092.49,0.062
+Coal Processing,200,Equalization,7206.75,0.0504
+Coal Processing,200,AOP,103971.73,0.4504
+Coal Processing,200,MBR,31309.02,0.3204
+Coal Processing,200,RO,106365.92,0.5504
+Coal Processing,200,UV Disinfection,8161.14,0.0604
+Coal Processing,1000,Equalization,18928.72,0.0501
+Coal Processing,1000,AOP,376782.96,0.4501
+Coal Processing,1000,MBR,89125.09,0.3201
+Coal Processing,1000,RO,355655.88,0.5501
+Coal Processing,1000,UV Disinfection,25178.51,0.0601
+Coal Processing,5000,Equalization,49716.81,0.05
+Coal Processing,5000,AOP,1365423.15,0.45
+Coal Processing,5000,MBR,253705.86,0.32
+Coal Processing,5000,RO,1189207.12,0.55
+Coal Processing,5000,UV Disinfection,77679.96,0.06
+Coal Processing,10000,Equalization,75356.59,0.05
+Coal Processing,10000,AOP,2377339.79,0.45
+Coal Processing,10000,MBR,398107.17,0.32
+Coal Processing,10000,RO,2000000.0,0.55
+Coal Processing,10000,UV Disinfection,126191.47,0.06
+Coal Processing,25000,Equalization,130582.58,0.05
+Coal Processing,25000,AOP,4948154.67,0.45
+Coal Processing,25000,MBR,722205.86,0.32
+Coal Processing,25000,RO,3976353.64,0.55
+Coal Processing,25000,UV Disinfection,239655.83,0.06
+Coal Processing,50000,Equalization,197926.19,0.05
+Coal Processing,50000,AOP,8615237.66,0.45
+Coal Processing,50000,MBR,1133262.46,0.32
+Coal Processing,50000,RO,6687403.05,0.55
+Coal Processing,50000,UV Disinfection,389322.05,0.06
+Coal Processing,100000,Equalization,300000.0,0.05
+Coal Processing,100000,AOP,9315817.85,0.45
+Coal Processing,100000,MBR,1778279.41,0.32
+Coal Processing,100000,RO,9315817.85,0.55
+Coal Processing,100000,UV Disinfection,632455.53,0.06
+Coal Processing,250000,Equalization,519858.63,0.05
+Coal Processing,250000,AOP,9315817.85,0.45
+Coal Processing,250000,MBR,3225975.06,0.32
+Coal Processing,250000,RO,9315817.85,0.55
+Coal Processing,250000,UV Disinfection,1201124.43,0.06
+Coal Processing,500000,Equalization,787958.34,0.05
+Coal Processing,500000,AOP,9315817.85,0.45
+Coal Processing,500000,MBR,5062097.47,0.32
+Coal Processing,500000,RO,9315817.85,0.55
+Coal Processing,500000,UV Disinfection,1951232.4,0.06
+Automotive Manufacturing,50,Chemical Precipitation,6357.71,0.132
+Automotive Manufacturing,50,Ion Exchange,18554.97,0.272
+Automotive Manufacturing,50,RO,37606.03,0.552
+Automotive Manufacturing,200,Chemical Precipitation,15654.51,0.1304
+Automotive Manufacturing,200,Ion Exchange,48966.86,0.2704
+Automotive Manufacturing,200,RO,106365.92,0.5504
+Automotive Manufacturing,1000,Chemical Precipitation,44562.55,0.1301
+Automotive Manufacturing,1000,Ion Exchange,151071.05,0.2701
+Automotive Manufacturing,1000,RO,355655.88,0.5501
+Automotive Manufacturing,5000,Chemical Precipitation,126852.93,0.13
+Automotive Manufacturing,5000,Ion Exchange,466079.77,0.27
+Automotive Manufacturing,5000,RO,1189207.12,0.55
+Automotive Manufacturing,10000,Chemical Precipitation,199053.59,0.13
+Automotive Manufacturing,10000,Ion Exchange,757148.81,0.27
+Automotive Manufacturing,10000,RO,2000000.0,0.55
+Automotive Manufacturing,25000,Chemical Precipitation,361102.93,0.13
+Automotive Manufacturing,25000,Ion Exchange,1437934.99,0.27
+Automotive Manufacturing,25000,RO,3976353.64,0.55
+Automotive Manufacturing,50000,Chemical Precipitation,566631.23,0.13
+Automotive Manufacturing,50000,Ion Exchange,2335932.28,0.27
+Automotive Manufacturing,50000,RO,6687403.05,0.55
+Automotive Manufacturing,100000,Chemical Precipitation,889139.71,0.13
+Automotive Manufacturing,100000,Ion Exchange,3794733.19,0.27
+Automotive Manufacturing,100000,RO,9315817.85,0.55
+Automotive Manufacturing,250000,Chemical Precipitation,1612987.53,0.13
+Automotive Manufacturing,250000,Ion Exchange,7206746.6,0.27
+Automotive Manufacturing,250000,RO,9315817.85,0.55
+Automotive Manufacturing,500000,Chemical Precipitation,2531048.73,0.13
+Automotive Manufacturing,500000,Ion Exchange,9315817.85,0.27
+Automotive Manufacturing,500000,RO,9315817.85,0.55
+Leather Tanning,50,Equalization,3136.92,0.052
+Leather Tanning,50,SBR,5653.68,0.172
+Leather Tanning,50,GAC,15042.41,0.222
+Leather Tanning,50,Chlorination,1045.64,0.027
+Leather Tanning,200,Equalization,7206.75,0.0504
+Leather Tanning,200,SBR,13353.91,0.1704
+Leather Tanning,200,GAC,42546.37,0.2204
+Leather Tanning,200,Chlorination,2402.25,0.0254
+Leather Tanning,1000,Equalization,18928.72,0.0501
+Leather Tanning,1000,SBR,36221.8,0.1701
+Leather Tanning,1000,GAC,142262.35,0.2201
+Leather Tanning,1000,Chlorination,6309.57,0.0251
+Leather Tanning,5000,Equalization,49716.81,0.05
+Leather Tanning,5000,SBR,98249.74,0.17
+Leather Tanning,5000,GAC,475682.85,0.22
+Leather Tanning,5000,Chlorination,16572.27,0.025
+Leather Tanning,10000,Equalization,75356.59,0.05
+Leather Tanning,10000,SBR,150997.59,0.17
+Leather Tanning,10000,GAC,800000.0,0.22
+Leather Tanning,10000,Chlorination,25118.86,0.025
+Leather Tanning,25000,Equalization,130582.58,0.05
+Leather Tanning,25000,SBR,266497.3,0.17
+Leather Tanning,25000,GAC,1590541.46,0.22
+Leather Tanning,25000,Chlorination,43527.53,0.025
+Leather Tanning,50000,Equalization,197926.19,0.05
+Leather Tanning,50000,SBR,409573.08,0.17
+Leather Tanning,50000,GAC,2674961.22,0.22
+Leather Tanning,50000,Chlorination,65975.4,0.025
+Leather Tanning,100000,Equalization,300000.0,0.05
+Leather Tanning,100000,SBR,629462.71,0.17
+Leather Tanning,100000,GAC,4498730.6,0.22
+Leather Tanning,100000,Chlorination,100000.0,0.025
+Leather Tanning,250000,Equalization,519858.63,0.05
+Leather Tanning,250000,SBR,1110945.64,0.17
+Leather Tanning,250000,GAC,8944271.91,0.22
+Leather Tanning,250000,Chlorination,173286.21,0.025
+Leather Tanning,500000,Equalization,787958.34,0.05
+Leather Tanning,500000,SBR,1707384.79,0.17
+Leather Tanning,500000,GAC,9315817.85,0.22
+Leather Tanning,500000,Chlorination,262652.78,0.025
+Landfill Leachate,50,Equalization,3136.92,0.052
+Landfill Leachate,50,MBR,12715.41,0.322
+Landfill Leachate,50,RO,37606.03,0.552
+Landfill Leachate,50,UV Disinfection,3092.49,0.062
+Landfill Leachate,200,Equalization,7206.75,0.0504
+Landfill Leachate,200,MBR,31309.02,0.3204
+Landfill Leachate,200,RO,106365.92,0.5504
+Landfill Leachate,200,UV Disinfection,8161.14,0.0604
+Landfill Leachate,1000,Equalization,18928.72,0.0501
+Landfill Leachate,1000,MBR,89125.09,0.3201
+Landfill Leachate,1000,RO,355655.88,0.5501
+Landfill Leachate,1000,UV Disinfection,25178.51,0.0601
+Landfill Leachate,5000,Equalization,49716.81,0.05
+Landfill Leachate,5000,MBR,253705.86,0.32
+Landfill Leachate,5000,RO,1189207.12,0.55
+Landfill Leachate,5000,UV Disinfection,77679.96,0.06
+Landfill Leachate,10000,Equalization,75356.59,0.05
+Landfill Leachate,10000,MBR,398107.17,0.32
+Landfill Leachate,10000,RO,2000000.0,0.55
+Landfill Leachate,10000,UV Disinfection,126191.47,0.06
+Landfill Leachate,25000,Equalization,130582.58,0.05
+Landfill Leachate,25000,MBR,722205.86,0.32
+Landfill Leachate,25000,RO,3976353.64,0.55
+Landfill Leachate,25000,UV Disinfection,239655.83,0.06
+Landfill Leachate,50000,Equalization,197926.19,0.05
+Landfill Leachate,50000,MBR,1133262.46,0.32
+Landfill Leachate,50000,RO,6687403.05,0.55
+Landfill Leachate,50000,UV Disinfection,389322.05,0.06
+Landfill Leachate,100000,Equalization,300000.0,0.05
+Landfill Leachate,100000,MBR,1778279.41,0.32
+Landfill Leachate,100000,RO,9315817.85,0.55
+Landfill Leachate,100000,UV Disinfection,632455.53,0.06
+Landfill Leachate,250000,Equalization,519858.63,0.05
+Landfill Leachate,250000,MBR,3225975.06,0.32
+Landfill Leachate,250000,RO,9315817.85,0.55
+Landfill Leachate,250000,UV Disinfection,1201124.43,0.06
+Landfill Leachate,500000,Equalization,787958.34,0.05
+Landfill Leachate,500000,MBR,5062097.47,0.32
+Landfill Leachate,500000,RO,9315817.85,0.55
+Landfill Leachate,500000,UV Disinfection,1951232.4,0.06
+Desalination Brine,50,NF,28204.52,0.372
+Desalination Brine,50,RO,37606.03,0.552
+Desalination Brine,50,UV Disinfection,3092.49,0.062
+Desalination Brine,200,NF,79774.44,0.3704
+Desalination Brine,200,RO,106365.92,0.5504
+Desalination Brine,200,UV Disinfection,8161.14,0.0604
+Desalination Brine,1000,NF,266741.91,0.3701
+Desalination Brine,1000,RO,355655.88,0.5501
+Desalination Brine,1000,UV Disinfection,25178.51,0.0601
+Desalination Brine,5000,NF,891905.34,0.37
+Desalination Brine,5000,RO,1189207.12,0.55
+Desalination Brine,5000,UV Disinfection,77679.96,0.06
+Desalination Brine,10000,NF,1500000.0,0.37
+Desalination Brine,10000,RO,2000000.0,0.55
+Desalination Brine,10000,UV Disinfection,126191.47,0.06
+Desalination Brine,25000,NF,2982265.23,0.37
+Desalination Brine,25000,RO,3976353.64,0.55
+Desalination Brine,25000,UV Disinfection,239655.83,0.06
+Desalination Brine,50000,NF,5015552.29,0.37
+Desalination Brine,50000,RO,6687403.05,0.55
+Desalination Brine,50000,UV Disinfection,389322.05,0.06
+Desalination Brine,100000,NF,8435119.88,0.37
+Desalination Brine,100000,RO,9315817.85,0.55
+Desalination Brine,100000,UV Disinfection,632455.53,0.06
+Desalination Brine,250000,NF,9315817.85,0.37
+Desalination Brine,250000,RO,9315817.85,0.55
+Desalination Brine,250000,UV Disinfection,1201124.43,0.06
+Desalination Brine,500000,NF,9315817.85,0.37
+Desalination Brine,500000,RO,9315817.85,0.55
+Desalination Brine,500000,UV Disinfection,1951232.4,0.06
+Power Plant Cooling Water,50,Screening,522.82,0.017
+Power Plant Cooling Water,50,SBR,5653.68,0.172
+Power Plant Cooling Water,50,UV Disinfection,3092.49,0.062
+Power Plant Cooling Water,200,Screening,1201.12,0.0154
+Power Plant Cooling Water,200,SBR,13353.91,0.1704
+Power Plant Cooling Water,200,UV Disinfection,8161.14,0.0604
+Power Plant Cooling Water,1000,Screening,3154.79,0.0151
+Power Plant Cooling Water,1000,SBR,36221.8,0.1701
+Power Plant Cooling Water,1000,UV Disinfection,25178.51,0.0601
+Power Plant Cooling Water,5000,Screening,8286.14,0.015
+Power Plant Cooling Water,5000,SBR,98249.74,0.17
+Power Plant Cooling Water,5000,UV Disinfection,77679.96,0.06
+Power Plant Cooling Water,10000,Screening,12559.43,0.015
+Power Plant Cooling Water,10000,SBR,150997.59,0.17
+Power Plant Cooling Water,10000,UV Disinfection,126191.47,0.06
+Power Plant Cooling Water,25000,Screening,21763.76,0.015
+Power Plant Cooling Water,25000,SBR,266497.3,0.17
+Power Plant Cooling Water,25000,UV Disinfection,239655.83,0.06
+Power Plant Cooling Water,50000,Screening,32987.7,0.015
+Power Plant Cooling Water,50000,SBR,409573.08,0.17
+Power Plant Cooling Water,50000,UV Disinfection,389322.05,0.06
+Power Plant Cooling Water,100000,Screening,50000.0,0.015
+Power Plant Cooling Water,100000,SBR,629462.71,0.17
+Power Plant Cooling Water,100000,UV Disinfection,632455.53,0.06
+Power Plant Cooling Water,250000,Screening,86643.11,0.015
+Power Plant Cooling Water,250000,SBR,1110945.64,0.17
+Power Plant Cooling Water,250000,UV Disinfection,1201124.43,0.06
+Power Plant Cooling Water,500000,Screening,131326.39,0.015
+Power Plant Cooling Water,500000,SBR,1707384.79,0.17
+Power Plant Cooling Water,500000,UV Disinfection,1951232.4,0.06
+Chemical Manufacturing,50,Equalization,3136.92,0.052
+Chemical Manufacturing,50,MBR,12715.41,0.322
+Chemical Manufacturing,50,NF,28204.52,0.372
+Chemical Manufacturing,50,RO,37606.03,0.552
+Chemical Manufacturing,50,UV Disinfection,3092.49,0.062
+Chemical Manufacturing,200,Equalization,7206.75,0.0504
+Chemical Manufacturing,200,MBR,31309.02,0.3204
+Chemical Manufacturing,200,NF,79774.44,0.3704
+Chemical Manufacturing,200,RO,106365.92,0.5504
+Chemical Manufacturing,200,UV Disinfection,8161.14,0.0604
+Chemical Manufacturing,1000,Equalization,18928.72,0.0501
+Chemical Manufacturing,1000,MBR,89125.09,0.3201
+Chemical Manufacturing,1000,NF,266741.91,0.3701
+Chemical Manufacturing,1000,RO,355655.88,0.5501
+Chemical Manufacturing,1000,UV Disinfection,25178.51,0.0601
+Chemical Manufacturing,5000,Equalization,49716.81,0.05
+Chemical Manufacturing,5000,MBR,253705.86,0.32
+Chemical Manufacturing,5000,NF,891905.34,0.37
+Chemical Manufacturing,5000,RO,1189207.12,0.55
+Chemical Manufacturing,5000,UV Disinfection,77679.96,0.06
+Chemical Manufacturing,10000,Equalization,75356.59,0.05
+Chemical Manufacturing,10000,MBR,398107.17,0.32
+Chemical Manufacturing,10000,NF,1500000.0,0.37
+Chemical Manufacturing,10000,RO,2000000.0,0.55
+Chemical Manufacturing,10000,UV Disinfection,126191.47,0.06
+Chemical Manufacturing,25000,Equalization,130582.58,0.05
+Chemical Manufacturing,25000,MBR,722205.86,0.32
+Chemical Manufacturing,25000,NF,2982265.23,0.37
+Chemical Manufacturing,25000,RO,3976353.64,0.55
+Chemical Manufacturing,25000,UV Disinfection,239655.83,0.06
+Chemical Manufacturing,50000,Equalization,197926.19,0.05
+Chemical Manufacturing,50000,MBR,1133262.46,0.32
+Chemical Manufacturing,50000,NF,5015552.29,0.37
+Chemical Manufacturing,50000,RO,6687403.05,0.55
+Chemical Manufacturing,50000,UV Disinfection,389322.05,0.06
+Chemical Manufacturing,100000,Equalization,300000.0,0.05
+Chemical Manufacturing,100000,MBR,1778279.41,0.32
+Chemical Manufacturing,100000,NF,8435119.88,0.37
+Chemical Manufacturing,100000,RO,9315817.85,0.55
+Chemical Manufacturing,100000,UV Disinfection,632455.53,0.06
+Chemical Manufacturing,250000,Equalization,519858.63,0.05
+Chemical Manufacturing,250000,MBR,3225975.06,0.32
+Chemical Manufacturing,250000,NF,9315817.85,0.37
+Chemical Manufacturing,250000,RO,9315817.85,0.55
+Chemical Manufacturing,250000,UV Disinfection,1201124.43,0.06
+Chemical Manufacturing,500000,Equalization,787958.34,0.05
+Chemical Manufacturing,500000,MBR,5062097.47,0.32
+Chemical Manufacturing,500000,NF,9315817.85,0.37
+Chemical Manufacturing,500000,RO,9315817.85,0.55
+Chemical Manufacturing,500000,UV Disinfection,1951232.4,0.06
+Refineries,50,API Separator,2614.1,0.042
+Refineries,50,UASB,2579.61,0.072
+Refineries,50,Activated Sludge,4182.56,0.142
+Refineries,50,NF,28204.52,0.372
+Refineries,50,UV Disinfection,3092.49,0.062
+Refineries,200,API Separator,6005.62,0.0404
+Refineries,200,UASB,5529.52,0.0704
+Refineries,200,Activated Sludge,9609.0,0.1404
+Refineries,200,NF,79774.44,0.3704
+Refineries,200,UV Disinfection,8161.14,0.0604
+Refineries,1000,API Separator,15773.93,0.0401
+Refineries,1000,UASB,13400.51,0.0701
+Refineries,1000,Activated Sludge,25238.29,0.1401
+Refineries,1000,NF,266741.91,0.3701
+Refineries,1000,UV Disinfection,25178.51,0.0601
+Refineries,5000,API Separator,41430.68,0.04
+Refineries,5000,UASB,32475.42,0.07
+Refineries,5000,Activated Sludge,66289.08,0.14
+Refineries,5000,NF,891905.34,0.37
+Refineries,5000,UV Disinfection,77679.96,0.06
+Refineries,10000,API Separator,62797.16,0.04
+Refineries,10000,UASB,47546.8,0.07
+Refineries,10000,Activated Sludge,100475.46,0.14
+Refineries,10000,NF,1500000.0,0.37
+Refineries,10000,UV Disinfection,126191.47,0.06
+Refineries,25000,API Separator,108818.82,0.04
+Refineries,25000,UASB,78702.45,0.07
+Refineries,25000,Activated Sludge,174110.11,0.14
+Refineries,25000,NF,2982265.23,0.37
+Refineries,25000,UV Disinfection,239655.83,0.06
+Refineries,50000,API Separator,164938.49,0.04
+Refineries,50000,UASB,115227.13,0.07
+Refineries,50000,Activated Sludge,263901.58,0.14
+Refineries,50000,NF,5015552.29,0.37
+Refineries,50000,UV Disinfection,389322.05,0.06
+Refineries,100000,API Separator,250000.0,0.04
+Refineries,100000,UASB,168702.4,0.07
+Refineries,100000,Activated Sludge,400000.0,0.14
+Refineries,100000,NF,8435119.88,0.37
+Refineries,100000,UV Disinfection,632455.53,0.06
+Refineries,250000,API Separator,433215.53,0.04
+Refineries,250000,UASB,279246.83,0.07
+Refineries,250000,Activated Sludge,693144.84,0.14
+Refineries,250000,NF,9315817.85,0.37
+Refineries,250000,UV Disinfection,1201124.43,0.06
+Refineries,500000,API Separator,656631.95,0.04
+Refineries,500000,UASB,408841.3,0.07
+Refineries,500000,Activated Sludge,1050611.12,0.14
+Refineries,500000,NF,9315817.85,0.37
+Refineries,500000,UV Disinfection,1951232.4,0.06
+Slaughterhouse Wastewater,50,Screening,522.82,0.017
+Slaughterhouse Wastewater,50,DAF,9277.48,0.102
+Slaughterhouse Wastewater,50,UASB,2579.61,0.072
+Slaughterhouse Wastewater,50,SBR,5653.68,0.172
+Slaughterhouse Wastewater,50,UV Disinfection,3092.49,0.062
+Slaughterhouse Wastewater,200,Screening,1201.12,0.0154
+Slaughterhouse Wastewater,200,DAF,24483.43,0.1004
+Slaughterhouse Wastewater,200,UASB,5529.52,0.0704
+Slaughterhouse Wastewater,200,SBR,13353.91,0.1704
+Slaughterhouse Wastewater,200,UV Disinfection,8161.14,0.0604
+Slaughterhouse Wastewater,1000,Screening,3154.79,0.0151
+Slaughterhouse Wastewater,1000,DAF,75535.52,0.1001
+Slaughterhouse Wastewater,1000,UASB,13400.51,0.0701
+Slaughterhouse Wastewater,1000,SBR,36221.8,0.1701
+Slaughterhouse Wastewater,1000,UV Disinfection,25178.51,0.0601
+Slaughterhouse Wastewater,5000,Screening,8286.14,0.015
+Slaughterhouse Wastewater,5000,DAF,233039.88,0.1
+Slaughterhouse Wastewater,5000,UASB,32475.42,0.07
+Slaughterhouse Wastewater,5000,SBR,98249.74,0.17
+Slaughterhouse Wastewater,5000,UV Disinfection,77679.96,0.06
+Slaughterhouse Wastewater,10000,Screening,12559.43,0.015
+Slaughterhouse Wastewater,10000,DAF,378574.41,0.1
+Slaughterhouse Wastewater,10000,UASB,47546.8,0.07
+Slaughterhouse Wastewater,10000,SBR,150997.59,0.17
+Slaughterhouse Wastewater,10000,UV Disinfection,126191.47,0.06
+Slaughterhouse Wastewater,25000,Screening,21763.76,0.015
+Slaughterhouse Wastewater,25000,DAF,718967.5,0.1
+Slaughterhouse Wastewater,25000,UASB,78702.45,0.07
+Slaughterhouse Wastewater,25000,SBR,266497.3,0.17
+Slaughterhouse Wastewater,25000,UV Disinfection,239655.83,0.06
+Slaughterhouse Wastewater,50000,Screening,32987.7,0.015
+Slaughterhouse Wastewater,50000,DAF,1167966.14,0.1
+Slaughterhouse Wastewater,50000,UASB,115227.13,0.07
+Slaughterhouse Wastewater,50000,SBR,409573.08,0.17
+Slaughterhouse Wastewater,50000,UV Disinfection,389322.05,0.06
+Slaughterhouse Wastewater,100000,Screening,50000.0,0.015
+Slaughterhouse Wastewater,100000,DAF,1897366.6,0.1
+Slaughterhouse Wastewater,100000,UASB,168702.4,0.07
+Slaughterhouse Wastewater,100000,SBR,629462.71,0.17
+Slaughterhouse Wastewater,100000,UV Disinfection,632455.53,0.06
+Slaughterhouse Wastewater,250000,Screening,86643.11,0.015
+Slaughterhouse Wastewater,250000,DAF,3603373.3,0.1
+Slaughterhouse Wastewater,250000,UASB,279246.83,0.07
+Slaughterhouse Wastewater,250000,SBR,1110945.64,0.17
+Slaughterhouse Wastewater,250000,UV Disinfection,1201124.43,0.06
+Slaughterhouse Wastewater,500000,Screening,131326.39,0.015
+Slaughterhouse Wastewater,500000,DAF,5853697.2,0.1
+Slaughterhouse Wastewater,500000,UASB,408841.3,0.07
+Slaughterhouse Wastewater,500000,SBR,1707384.79,0.17
+Slaughterhouse Wastewater,500000,UV Disinfection,1951232.4,0.06
+Fish Processing,50,Screening,522.82,0.017
+Fish Processing,50,DAF,9277.48,0.102
+Fish Processing,50,SBR,5653.68,0.172
+Fish Processing,50,GAC,15042.41,0.222
+Fish Processing,50,UV Disinfection,3092.49,0.062
+Fish Processing,200,Screening,1201.12,0.0154
+Fish Processing,200,DAF,24483.43,0.1004
+Fish Processing,200,SBR,13353.91,0.1704
+Fish Processing,200,GAC,42546.37,0.2204
+Fish Processing,200,UV Disinfection,8161.14,0.0604
+Fish Processing,1000,Screening,3154.79,0.0151
+Fish Processing,1000,DAF,75535.52,0.1001
+Fish Processing,1000,SBR,36221.8,0.1701
+Fish Processing,1000,GAC,142262.35,0.2201
+Fish Processing,1000,UV Disinfection,25178.51,0.0601
+Fish Processing,5000,Screening,8286.14,0.015
+Fish Processing,5000,DAF,233039.88,0.1
+Fish Processing,5000,SBR,98249.74,0.17
+Fish Processing,5000,GAC,475682.85,0.22
+Fish Processing,5000,UV Disinfection,77679.96,0.06
+Fish Processing,10000,Screening,12559.43,0.015
+Fish Processing,10000,DAF,378574.41,0.1
+Fish Processing,10000,SBR,150997.59,0.17
+Fish Processing,10000,GAC,800000.0,0.22
+Fish Processing,10000,UV Disinfection,126191.47,0.06
+Fish Processing,25000,Screening,21763.76,0.015
+Fish Processing,25000,DAF,718967.5,0.1
+Fish Processing,25000,SBR,266497.3,0.17
+Fish Processing,25000,GAC,1590541.46,0.22
+Fish Processing,25000,UV Disinfection,239655.83,0.06
+Fish Processing,50000,Screening,32987.7,0.015
+Fish Processing,50000,DAF,1167966.14,0.1
+Fish Processing,50000,SBR,409573.08,0.17
+Fish Processing,50000,GAC,2674961.22,0.22
+Fish Processing,50000,UV Disinfection,389322.05,0.06
+Fish Processing,100000,Screening,50000.0,0.015
+Fish Processing,100000,DAF,1897366.6,0.1
+Fish Processing,100000,SBR,629462.71,0.17
+Fish Processing,100000,GAC,4498730.6,0.22
+Fish Processing,100000,UV Disinfection,632455.53,0.06
+Fish Processing,250000,Screening,86643.11,0.015
+Fish Processing,250000,DAF,3603373.3,0.1
+Fish Processing,250000,SBR,1110945.64,0.17
+Fish Processing,250000,GAC,8944271.91,0.22
+Fish Processing,250000,UV Disinfection,1201124.43,0.06
+Fish Processing,500000,Screening,131326.39,0.015
+Fish Processing,500000,DAF,5853697.2,0.1
+Fish Processing,500000,SBR,1707384.79,0.17
+Fish Processing,500000,GAC,9315817.85,0.22
+Fish Processing,500000,UV Disinfection,1951232.4,0.06
+Agricultural Runoff,50,Screening,522.82,0.017
+Agricultural Runoff,50,Constructed Wetlands,707.11,0.012
+Agricultural Runoff,50,UV Disinfection,3092.49,0.062
+Agricultural Runoff,200,Screening,1201.12,0.0154
+Agricultural Runoff,200,Constructed Wetlands,1414.21,0.0104
+Agricultural Runoff,200,UV Disinfection,8161.14,0.0604
+Agricultural Runoff,1000,Screening,3154.79,0.0151
+Agricultural Runoff,1000,Constructed Wetlands,3162.28,0.0101
+Agricultural Runoff,1000,UV Disinfection,25178.51,0.0601
+Agricultural Runoff,5000,Screening,8286.14,0.015
+Agricultural Runoff,5000,Constructed Wetlands,7071.07,0.01
+Agricultural Runoff,5000,UV Disinfection,77679.96,0.06
+Agricultural Runoff,10000,Screening,12559.43,0.015
+Agricultural Runoff,10000,Constructed Wetlands,10000.0,0.01
+Agricultural Runoff,10000,UV Disinfection,126191.47,0.06
+Agricultural Runoff,25000,Screening,21763.76,0.015
+Agricultural Runoff,25000,Constructed Wetlands,15811.39,0.01
+Agricultural Runoff,25000,UV Disinfection,239655.83,0.06
+Agricultural Runoff,50000,Screening,32987.7,0.015
+Agricultural Runoff,50000,Constructed Wetlands,22360.68,0.01
+Agricultural Runoff,50000,UV Disinfection,389322.05,0.06
+Agricultural Runoff,100000,Screening,50000.0,0.015
+Agricultural Runoff,100000,Constructed Wetlands,31622.78,0.01
+Agricultural Runoff,100000,UV Disinfection,632455.53,0.06
+Agricultural Runoff,250000,Screening,86643.11,0.015
+Agricultural Runoff,250000,Constructed Wetlands,50000.0,0.01
+Agricultural Runoff,250000,UV Disinfection,1201124.43,0.06
+Agricultural Runoff,500000,Screening,131326.39,0.015
+Agricultural Runoff,500000,Constructed Wetlands,70710.68,0.01
+Agricultural Runoff,500000,UV Disinfection,1951232.4,0.06
+Sugar Industry,50,Equalization,3136.92,0.052
+Sugar Industry,50,SBR,5653.68,0.172
+Sugar Industry,50,Tertiary Filtration,4182.56,0.092
+Sugar Industry,50,Chlorination,1045.64,0.027
+Sugar Industry,200,Equalization,7206.75,0.0504
+Sugar Industry,200,SBR,13353.91,0.1704
+Sugar Industry,200,Tertiary Filtration,9609.0,0.0904
+Sugar Industry,200,Chlorination,2402.25,0.0254
+Sugar Industry,1000,Equalization,18928.72,0.0501
+Sugar Industry,1000,SBR,36221.8,0.1701
+Sugar Industry,1000,Tertiary Filtration,25238.29,0.0901
+Sugar Industry,1000,Chlorination,6309.57,0.0251
+Sugar Industry,5000,Equalization,49716.81,0.05
+Sugar Industry,5000,SBR,98249.74,0.17
+Sugar Industry,5000,Tertiary Filtration,66289.08,0.09
+Sugar Industry,5000,Chlorination,16572.27,0.025
+Sugar Industry,10000,Equalization,75356.59,0.05
+Sugar Industry,10000,SBR,150997.59,0.17
+Sugar Industry,10000,Tertiary Filtration,100475.46,0.09
+Sugar Industry,10000,Chlorination,25118.86,0.025
+Sugar Industry,25000,Equalization,130582.58,0.05
+Sugar Industry,25000,SBR,266497.3,0.17
+Sugar Industry,25000,Tertiary Filtration,174110.11,0.09
+Sugar Industry,25000,Chlorination,43527.53,0.025
+Sugar Industry,50000,Equalization,197926.19,0.05
+Sugar Industry,50000,SBR,409573.08,0.17
+Sugar Industry,50000,Tertiary Filtration,263901.58,0.09
+Sugar Industry,50000,Chlorination,65975.4,0.025
+Sugar Industry,100000,Equalization,300000.0,0.05
+Sugar Industry,100000,SBR,629462.71,0.17
+Sugar Industry,100000,Tertiary Filtration,400000.0,0.09
+Sugar Industry,100000,Chlorination,100000.0,0.025
+Sugar Industry,250000,Equalization,519858.63,0.05
+Sugar Industry,250000,SBR,1110945.64,0.17
+Sugar Industry,250000,Tertiary Filtration,693144.84,0.09
+Sugar Industry,250000,Chlorination,173286.21,0.025
+Sugar Industry,500000,Equalization,787958.34,0.05
+Sugar Industry,500000,SBR,1707384.79,0.17
+Sugar Industry,500000,Tertiary Filtration,1050611.12,0.09
+Sugar Industry,500000,Chlorination,262652.78,0.025
+Winery Wastewater,50,Screening,522.82,0.017
+Winery Wastewater,50,DAF,9277.48,0.102
+Winery Wastewater,50,SBR,5653.68,0.172
+Winery Wastewater,50,GAC,15042.41,0.222
+Winery Wastewater,50,Chlorination,1045.64,0.027
+Winery Wastewater,200,Screening,1201.12,0.0154
+Winery Wastewater,200,DAF,24483.43,0.1004
+Winery Wastewater,200,SBR,13353.91,0.1704
+Winery Wastewater,200,GAC,42546.37,0.2204
+Winery Wastewater,200,Chlorination,2402.25,0.0254
+Winery Wastewater,1000,Screening,3154.79,0.0151
+Winery Wastewater,1000,DAF,75535.52,0.1001
+Winery Wastewater,1000,SBR,36221.8,0.1701
+Winery Wastewater,1000,GAC,142262.35,0.2201
+Winery Wastewater,1000,Chlorination,6309.57,0.0251
+Winery Wastewater,5000,Screening,8286.14,0.015
+Winery Wastewater,5000,DAF,233039.88,0.1
+Winery Wastewater,5000,SBR,98249.74,0.17
+Winery Wastewater,5000,GAC,475682.85,0.22
+Winery Wastewater,5000,Chlorination,16572.27,0.025
+Winery Wastewater,10000,Screening,12559.43,0.015
+Winery Wastewater,10000,DAF,378574.41,0.1
+Winery Wastewater,10000,SBR,150997.59,0.17
+Winery Wastewater,10000,GAC,800000.0,0.22
+Winery Wastewater,10000,Chlorination,25118.86,0.025
+Winery Wastewater,25000,Screening,21763.76,0.015
+Winery Wastewater,25000,DAF,718967.5,0.1
+Winery Wastewater,25000,SBR,266497.3,0.17
+Winery Wastewater,25000,GAC,1590541.46,0.22
+Winery Wastewater,25000,Chlorination,43527.53,0.025
+Winery Wastewater,50000,Screening,32987.7,0.015
+Winery Wastewater,50000,DAF,1167966.14,0.1
+Winery Wastewater,50000,SBR,409573.08,0.17
+Winery Wastewater,50000,GAC,2674961.22,0.22
+Winery Wastewater,50000,Chlorination,65975.4,0.025
+Winery Wastewater,100000,Screening,50000.0,0.015
+Winery Wastewater,100000,DAF,1897366.6,0.1
+Winery Wastewater,100000,SBR,629462.71,0.17
+Winery Wastewater,100000,GAC,4498730.6,0.22
+Winery Wastewater,100000,Chlorination,100000.0,0.025
+Winery Wastewater,250000,Screening,86643.11,0.015
+Winery Wastewater,250000,DAF,3603373.3,0.1
+Winery Wastewater,250000,SBR,1110945.64,0.17
+Winery Wastewater,250000,GAC,8944271.91,0.22
+Winery Wastewater,250000,Chlorination,173286.21,0.025
+Winery Wastewater,500000,Screening,131326.39,0.015
+Winery Wastewater,500000,DAF,5853697.2,0.1
+Winery Wastewater,500000,SBR,1707384.79,0.17
+Winery Wastewater,500000,GAC,9315817.85,0.22
+Winery Wastewater,500000,Chlorination,262652.78,0.025
+Distillery Wastewater,50,Equalization,3136.92,0.052
+Distillery Wastewater,50,SBR,5653.68,0.172
+Distillery Wastewater,50,NF,28204.52,0.372
+Distillery Wastewater,50,UV Disinfection,3092.49,0.062
+Distillery Wastewater,200,Equalization,7206.75,0.0504
+Distillery Wastewater,200,SBR,13353.91,0.1704
+Distillery Wastewater,200,NF,79774.44,0.3704
+Distillery Wastewater,200,UV Disinfection,8161.14,0.0604
+Distillery Wastewater,1000,Equalization,18928.72,0.0501
+Distillery Wastewater,1000,SBR,36221.8,0.1701
+Distillery Wastewater,1000,NF,266741.91,0.3701
+Distillery Wastewater,1000,UV Disinfection,25178.51,0.0601
+Distillery Wastewater,5000,Equalization,49716.81,0.05
+Distillery Wastewater,5000,SBR,98249.74,0.17
+Distillery Wastewater,5000,NF,891905.34,0.37
+Distillery Wastewater,5000,UV Disinfection,77679.96,0.06
+Distillery Wastewater,10000,Equalization,75356.59,0.05
+Distillery Wastewater,10000,SBR,150997.59,0.17
+Distillery Wastewater,10000,NF,1500000.0,0.37
+Distillery Wastewater,10000,UV Disinfection,126191.47,0.06
+Distillery Wastewater,25000,Equalization,130582.58,0.05
+Distillery Wastewater,25000,SBR,266497.3,0.17
+Distillery Wastewater,25000,NF,2982265.23,0.37
+Distillery Wastewater,25000,UV Disinfection,239655.83,0.06
+Distillery Wastewater,50000,Equalization,197926.19,0.05
+Distillery Wastewater,50000,SBR,409573.08,0.17
+Distillery Wastewater,50000,NF,5015552.29,0.37
+Distillery Wastewater,50000,UV Disinfection,389322.05,0.06
+Distillery Wastewater,100000,Equalization,300000.0,0.05
+Distillery Wastewater,100000,SBR,629462.71,0.17
+Distillery Wastewater,100000,NF,8435119.88,0.37
+Distillery Wastewater,100000,UV Disinfection,632455.53,0.06
+Distillery Wastewater,250000,Equalization,519858.63,0.05
+Distillery Wastewater,250000,SBR,1110945.64,0.17
+Distillery Wastewater,250000,NF,9315817.85,0.37
+Distillery Wastewater,250000,UV Disinfection,1201124.43,0.06
+Distillery Wastewater,500000,Equalization,787958.34,0.05
+Distillery Wastewater,500000,SBR,1707384.79,0.17
+Distillery Wastewater,500000,NF,9315817.85,0.37
+Distillery Wastewater,500000,UV Disinfection,1951232.4,0.06
+Tire Manufacturing,50,Screening,522.82,0.017
+Tire Manufacturing,50,DAF,9277.48,0.102
+Tire Manufacturing,50,SBR,5653.68,0.172
+Tire Manufacturing,50,GAC,15042.41,0.222
+Tire Manufacturing,50,Chlorination,1045.64,0.027
+Tire Manufacturing,200,Screening,1201.12,0.0154
+Tire Manufacturing,200,DAF,24483.43,0.1004
+Tire Manufacturing,200,SBR,13353.91,0.1704
+Tire Manufacturing,200,GAC,42546.37,0.2204
+Tire Manufacturing,200,Chlorination,2402.25,0.0254
+Tire Manufacturing,1000,Screening,3154.79,0.0151
+Tire Manufacturing,1000,DAF,75535.52,0.1001
+Tire Manufacturing,1000,SBR,36221.8,0.1701
+Tire Manufacturing,1000,GAC,142262.35,0.2201
+Tire Manufacturing,1000,Chlorination,6309.57,0.0251
+Tire Manufacturing,5000,Screening,8286.14,0.015
+Tire Manufacturing,5000,DAF,233039.88,0.1
+Tire Manufacturing,5000,SBR,98249.74,0.17
+Tire Manufacturing,5000,GAC,475682.85,0.22
+Tire Manufacturing,5000,Chlorination,16572.27,0.025
+Tire Manufacturing,10000,Screening,12559.43,0.015
+Tire Manufacturing,10000,DAF,378574.41,0.1
+Tire Manufacturing,10000,SBR,150997.59,0.17
+Tire Manufacturing,10000,GAC,800000.0,0.22
+Tire Manufacturing,10000,Chlorination,25118.86,0.025
+Tire Manufacturing,25000,Screening,21763.76,0.015
+Tire Manufacturing,25000,DAF,718967.5,0.1
+Tire Manufacturing,25000,SBR,266497.3,0.17
+Tire Manufacturing,25000,GAC,1590541.46,0.22
+Tire Manufacturing,25000,Chlorination,43527.53,0.025
+Tire Manufacturing,50000,Screening,32987.7,0.015
+Tire Manufacturing,50000,DAF,1167966.14,0.1
+Tire Manufacturing,50000,SBR,409573.08,0.17
+Tire Manufacturing,50000,GAC,2674961.22,0.22
+Tire Manufacturing,50000,Chlorination,65975.4,0.025
+Tire Manufacturing,100000,Screening,50000.0,0.015
+Tire Manufacturing,100000,DAF,1897366.6,0.1
+Tire Manufacturing,100000,SBR,629462.71,0.17
+Tire Manufacturing,100000,GAC,4498730.6,0.22
+Tire Manufacturing,100000,Chlorination,100000.0,0.025
+Tire Manufacturing,250000,Screening,86643.11,0.015
+Tire Manufacturing,250000,DAF,3603373.3,0.1
+Tire Manufacturing,250000,SBR,1110945.64,0.17
+Tire Manufacturing,250000,GAC,8944271.91,0.22
+Tire Manufacturing,250000,Chlorination,173286.21,0.025
+Tire Manufacturing,500000,Screening,131326.39,0.015
+Tire Manufacturing,500000,DAF,5853697.2,0.1
+Tire Manufacturing,500000,SBR,1707384.79,0.17
+Tire Manufacturing,500000,GAC,9315817.85,0.22
+Tire Manufacturing,500000,Chlorination,262652.78,0.025
+Textile Dyeing,50,Equalization,3136.92,0.052
+Textile Dyeing,50,SBR,5653.68,0.172
+Textile Dyeing,50,GAC,15042.41,0.222
+Textile Dyeing,50,UV Disinfection,3092.49,0.062
+Textile Dyeing,200,Equalization,7206.75,0.0504
+Textile Dyeing,200,SBR,13353.91,0.1704
+Textile Dyeing,200,GAC,42546.37,0.2204
+Textile Dyeing,200,UV Disinfection,8161.14,0.0604
+Textile Dyeing,1000,Equalization,18928.72,0.0501
+Textile Dyeing,1000,SBR,36221.8,0.1701
+Textile Dyeing,1000,GAC,142262.35,0.2201
+Textile Dyeing,1000,UV Disinfection,25178.51,0.0601
+Textile Dyeing,5000,Equalization,49716.81,0.05
+Textile Dyeing,5000,SBR,98249.74,0.17
+Textile Dyeing,5000,GAC,475682.85,0.22
+Textile Dyeing,5000,UV Disinfection,77679.96,0.06
+Textile Dyeing,10000,Equalization,75356.59,0.05
+Textile Dyeing,10000,SBR,150997.59,0.17
+Textile Dyeing,10000,GAC,800000.0,0.22
+Textile Dyeing,10000,UV Disinfection,126191.47,0.06
+Textile Dyeing,25000,Equalization,130582.58,0.05
+Textile Dyeing,25000,SBR,266497.3,0.17
+Textile Dyeing,25000,GAC,1590541.46,0.22
+Textile Dyeing,25000,UV Disinfection,239655.83,0.06
+Textile Dyeing,50000,Equalization,197926.19,0.05
+Textile Dyeing,50000,SBR,409573.08,0.17
+Textile Dyeing,50000,GAC,2674961.22,0.22
+Textile Dyeing,50000,UV Disinfection,389322.05,0.06
+Textile Dyeing,100000,Equalization,300000.0,0.05
+Textile Dyeing,100000,SBR,629462.71,0.17
+Textile Dyeing,100000,GAC,4498730.6,0.22
+Textile Dyeing,100000,UV Disinfection,632455.53,0.06
+Textile Dyeing,250000,Equalization,519858.63,0.05
+Textile Dyeing,250000,SBR,1110945.64,0.17
+Textile Dyeing,250000,GAC,8944271.91,0.22
+Textile Dyeing,250000,UV Disinfection,1201124.43,0.06
+Textile Dyeing,500000,Equalization,787958.34,0.05
+Textile Dyeing,500000,SBR,1707384.79,0.17
+Textile Dyeing,500000,GAC,9315817.85,0.22
+Textile Dyeing,500000,UV Disinfection,1951232.4,0.06
+Battery Manufacturing,50,Equalization,3136.92,0.052
+Battery Manufacturing,50,SBR,5653.68,0.172
+Battery Manufacturing,50,NF,28204.52,0.372
+Battery Manufacturing,50,UV Disinfection,3092.49,0.062
+Battery Manufacturing,200,Equalization,7206.75,0.0504
+Battery Manufacturing,200,SBR,13353.91,0.1704
+Battery Manufacturing,200,NF,79774.44,0.3704
+Battery Manufacturing,200,UV Disinfection,8161.14,0.0604
+Battery Manufacturing,1000,Equalization,18928.72,0.0501
+Battery Manufacturing,1000,SBR,36221.8,0.1701
+Battery Manufacturing,1000,NF,266741.91,0.3701
+Battery Manufacturing,1000,UV Disinfection,25178.51,0.0601
+Battery Manufacturing,5000,Equalization,49716.81,0.05
+Battery Manufacturing,5000,SBR,98249.74,0.17
+Battery Manufacturing,5000,NF,891905.34,0.37
+Battery Manufacturing,5000,UV Disinfection,77679.96,0.06
+Battery Manufacturing,10000,Equalization,75356.59,0.05
+Battery Manufacturing,10000,SBR,150997.59,0.17
+Battery Manufacturing,10000,NF,1500000.0,0.37
+Battery Manufacturing,10000,UV Disinfection,126191.47,0.06
+Battery Manufacturing,25000,Equalization,130582.58,0.05
+Battery Manufacturing,25000,SBR,266497.3,0.17
+Battery Manufacturing,25000,NF,2982265.23,0.37
+Battery Manufacturing,25000,UV Disinfection,239655.83,0.06
+Battery Manufacturing,50000,Equalization,197926.19,0.05
+Battery Manufacturing,50000,SBR,409573.08,0.17
+Battery Manufacturing,50000,NF,5015552.29,0.37
+Battery Manufacturing,50000,UV Disinfection,389322.05,0.06
+Battery Manufacturing,100000,Equalization,300000.0,0.05
+Battery Manufacturing,100000,SBR,629462.71,0.17
+Battery Manufacturing,100000,NF,8435119.88,0.37
+Battery Manufacturing,100000,UV Disinfection,632455.53,0.06
+Battery Manufacturing,250000,Equalization,519858.63,0.05
+Battery Manufacturing,250000,SBR,1110945.64,0.17
+Battery Manufacturing,250000,NF,9315817.85,0.37
+Battery Manufacturing,250000,UV Disinfection,1201124.43,0.06
+Battery Manufacturing,500000,Equalization,787958.34,0.05
+Battery Manufacturing,500000,SBR,1707384.79,0.17
+Battery Manufacturing,500000,NF,9315817.85,0.37
+Battery Manufacturing,500000,UV Disinfection,1951232.4,0.06
+Paper Recycling,50,Equalization,3136.92,0.052
+Paper Recycling,50,SBR,5653.68,0.172
+Paper Recycling,50,GAC,15042.41,0.222
+Paper Recycling,50,UV Disinfection,3092.49,0.062
+Paper Recycling,200,Equalization,7206.75,0.0504
+Paper Recycling,200,SBR,13353.91,0.1704
+Paper Recycling,200,GAC,42546.37,0.2204
+Paper Recycling,200,UV Disinfection,8161.14,0.0604
+Paper Recycling,1000,Equalization,18928.72,0.0501
+Paper Recycling,1000,SBR,36221.8,0.1701
+Paper Recycling,1000,GAC,142262.35,0.2201
+Paper Recycling,1000,UV Disinfection,25178.51,0.0601
+Paper Recycling,5000,Equalization,49716.81,0.05
+Paper Recycling,5000,SBR,98249.74,0.17
+Paper Recycling,5000,GAC,475682.85,0.22
+Paper Recycling,5000,UV Disinfection,77679.96,0.06
+Paper Recycling,10000,Equalization,75356.59,0.05
+Paper Recycling,10000,SBR,150997.59,0.17
+Paper Recycling,10000,GAC,800000.0,0.22
+Paper Recycling,10000,UV Disinfection,126191.47,0.06
+Paper Recycling,25000,Equalization,130582.58,0.05
+Paper Recycling,25000,SBR,266497.3,0.17
+Paper Recycling,25000,GAC,1590541.46,0.22
+Paper Recycling,25000,UV Disinfection,239655.83,0.06
+Paper Recycling,50000,Equalization,197926.19,0.05
+Paper Recycling,50000,SBR,409573.08,0.17
+Paper Recycling,50000,GAC,2674961.22,0.22
+Paper Recycling,50000,UV Disinfection,389322.05,0.06
+Paper Recycling,100000,Equalization,300000.0,0.05
+Paper Recycling,100000,SBR,629462.71,0.17
+Paper Recycling,100000,GAC,4498730.6,0.22
+Paper Recycling,100000,UV Disinfection,632455.53,0.06
+Paper Recycling,250000,Equalization,519858.63,0.05
+Paper Recycling,250000,SBR,1110945.64,0.17
+Paper Recycling,250000,GAC,8944271.91,0.22
+Paper Recycling,250000,UV Disinfection,1201124.43,0.06
+Paper Recycling,500000,Equalization,787958.34,0.05
+Paper Recycling,500000,SBR,1707384.79,0.17
+Paper Recycling,500000,GAC,9315817.85,0.22
+Paper Recycling,500000,UV Disinfection,1951232.4,0.06
+Glass Manufacturing,50,Equalization,3136.92,0.052
+Glass Manufacturing,50,SBR,5653.68,0.172
+Glass Manufacturing,50,NF,28204.52,0.372
+Glass Manufacturing,50,UV Disinfection,3092.49,0.062
+Glass Manufacturing,200,Equalization,7206.75,0.0504
+Glass Manufacturing,200,SBR,13353.91,0.1704
+Glass Manufacturing,200,NF,79774.44,0.3704
+Glass Manufacturing,200,UV Disinfection,8161.14,0.0604
+Glass Manufacturing,1000,Equalization,18928.72,0.0501
+Glass Manufacturing,1000,SBR,36221.8,0.1701
+Glass Manufacturing,1000,NF,266741.91,0.3701
+Glass Manufacturing,1000,UV Disinfection,25178.51,0.0601
+Glass Manufacturing,5000,Equalization,49716.81,0.05
+Glass Manufacturing,5000,SBR,98249.74,0.17
+Glass Manufacturing,5000,NF,891905.34,0.37
+Glass Manufacturing,5000,UV Disinfection,77679.96,0.06
+Glass Manufacturing,10000,Equalization,75356.59,0.05
+Glass Manufacturing,10000,SBR,150997.59,0.17
+Glass Manufacturing,10000,NF,1500000.0,0.37
+Glass Manufacturing,10000,UV Disinfection,126191.47,0.06
+Glass Manufacturing,25000,Equalization,130582.58,0.05
+Glass Manufacturing,25000,SBR,266497.3,0.17
+Glass Manufacturing,25000,NF,2982265.23,0.37
+Glass Manufacturing,25000,UV Disinfection,239655.83,0.06
+Glass Manufacturing,50000,Equalization,197926.19,0.05
+Glass Manufacturing,50000,SBR,409573.08,0.17
+Glass Manufacturing,50000,NF,5015552.29,0.37
+Glass Manufacturing,50000,UV Disinfection,389322.05,0.06
+Glass Manufacturing,100000,Equalization,300000.0,0.05
+Glass Manufacturing,100000,SBR,629462.71,0.17
+Glass Manufacturing,100000,NF,8435119.88,0.37
+Glass Manufacturing,100000,UV Disinfection,632455.53,0.06
+Glass Manufacturing,250000,Equalization,519858.63,0.05
+Glass Manufacturing,250000,SBR,1110945.64,0.17
+Glass Manufacturing,250000,NF,9315817.85,0.37
+Glass Manufacturing,250000,UV Disinfection,1201124.43,0.06
+Glass Manufacturing,500000,Equalization,787958.34,0.05
+Glass Manufacturing,500000,SBR,1707384.79,0.17
+Glass Manufacturing,500000,NF,9315817.85,0.37
+Glass Manufacturing,500000,UV Disinfection,1951232.4,0.06
+Plastic Recycling,50,Equalization,3136.92,0.052
+Plastic Recycling,50,SBR,5653.68,0.172
+Plastic Recycling,50,GAC,15042.41,0.222
+Plastic Recycling,50,UV Disinfection,3092.49,0.062
+Plastic Recycling,200,Equalization,7206.75,0.0504
+Plastic Recycling,200,SBR,13353.91,0.1704
+Plastic Recycling,200,GAC,42546.37,0.2204
+Plastic Recycling,200,UV Disinfection,8161.14,0.0604
+Plastic Recycling,1000,Equalization,18928.72,0.0501
+Plastic Recycling,1000,SBR,36221.8,0.1701
+Plastic Recycling,1000,GAC,142262.35,0.2201
+Plastic Recycling,1000,UV Disinfection,25178.51,0.0601
+Plastic Recycling,5000,Equalization,49716.81,0.05
+Plastic Recycling,5000,SBR,98249.74,0.17
+Plastic Recycling,5000,GAC,475682.85,0.22
+Plastic Recycling,5000,UV Disinfection,77679.96,0.06
+Plastic Recycling,10000,Equalization,75356.59,0.05
+Plastic Recycling,10000,SBR,150997.59,0.17
+Plastic Recycling,10000,GAC,800000.0,0.22
+Plastic Recycling,10000,UV Disinfection,126191.47,0.06
+Plastic Recycling,25000,Equalization,130582.58,0.05
+Plastic Recycling,25000,SBR,266497.3,0.17
+Plastic Recycling,25000,GAC,1590541.46,0.22
+Plastic Recycling,25000,UV Disinfection,239655.83,0.06
+Plastic Recycling,50000,Equalization,197926.19,0.05
+Plastic Recycling,50000,SBR,409573.08,0.17
+Plastic Recycling,50000,GAC,2674961.22,0.22
+Plastic Recycling,50000,UV Disinfection,389322.05,0.06
+Plastic Recycling,100000,Equalization,300000.0,0.05
+Plastic Recycling,100000,SBR,629462.71,0.17
+Plastic Recycling,100000,GAC,4498730.6,0.22
+Plastic Recycling,100000,UV Disinfection,632455.53,0.06
+Plastic Recycling,250000,Equalization,519858.63,0.05
+Plastic Recycling,250000,SBR,1110945.64,0.17
+Plastic Recycling,250000,GAC,8944271.91,0.22
+Plastic Recycling,250000,UV Disinfection,1201124.43,0.06
+Plastic Recycling,500000,Equalization,787958.34,0.05
+Plastic Recycling,500000,SBR,1707384.79,0.17
+Plastic Recycling,500000,GAC,9315817.85,0.22
+Plastic Recycling,500000,UV Disinfection,1951232.4,0.06
+Pharmaceutical R&D,50,Equalization,3136.92,0.052
+Pharmaceutical R&D,50,AOP,34297.88,0.452
+Pharmaceutical R&D,50,MBR,12715.41,0.322
+Pharmaceutical R&D,50,RO,37606.03,0.552
+Pharmaceutical R&D,50,UV Disinfection,3092.49,0.062
+Pharmaceutical R&D,200,Equalization,7206.75,0.0504
+Pharmaceutical R&D,200,AOP,103971.73,0.4504
+Pharmaceutical R&D,200,MBR,31309.02,0.3204
+Pharmaceutical R&D,200,RO,106365.92,0.5504
+Pharmaceutical R&D,200,UV Disinfection,8161.14,0.0604
+Pharmaceutical R&D,1000,Equalization,18928.72,0.0501
+Pharmaceutical R&D,1000,AOP,376782.96,0.4501
+Pharmaceutical R&D,1000,MBR,89125.09,0.3201
+Pharmaceutical R&D,1000,RO,355655.88,0.5501
+Pharmaceutical R&D,1000,UV Disinfection,25178.51,0.0601
+Pharmaceutical R&D,5000,Equalization,49716.81,0.05
+Pharmaceutical R&D,5000,AOP,1365423.15,0.45
+Pharmaceutical R&D,5000,MBR,253705.86,0.32
+Pharmaceutical R&D,5000,RO,1189207.12,0.55
+Pharmaceutical R&D,5000,UV Disinfection,77679.96,0.06
+Pharmaceutical R&D,10000,Equalization,75356.59,0.05
+Pharmaceutical R&D,10000,AOP,2377339.79,0.45
+Pharmaceutical R&D,10000,MBR,398107.17,0.32
+Pharmaceutical R&D,10000,RO,2000000.0,0.55
+Pharmaceutical R&D,10000,UV Disinfection,126191.47,0.06
+Pharmaceutical R&D,25000,Equalization,130582.58,0.05
+Pharmaceutical R&D,25000,AOP,4948154.67,0.45
+Pharmaceutical R&D,25000,MBR,722205.86,0.32
+Pharmaceutical R&D,25000,RO,3976353.64,0.55
+Pharmaceutical R&D,25000,UV Disinfection,239655.83,0.06
+Pharmaceutical R&D,50000,Equalization,197926.19,0.05
+Pharmaceutical R&D,50000,AOP,8615237.66,0.45
+Pharmaceutical R&D,50000,MBR,1133262.46,0.32
+Pharmaceutical R&D,50000,RO,6687403.05,0.55
+Pharmaceutical R&D,50000,UV Disinfection,389322.05,0.06
+Pharmaceutical R&D,100000,Equalization,300000.0,0.05
+Pharmaceutical R&D,100000,AOP,9315817.85,0.45
+Pharmaceutical R&D,100000,MBR,1778279.41,0.32
+Pharmaceutical R&D,100000,RO,9315817.85,0.55
+Pharmaceutical R&D,100000,UV Disinfection,632455.53,0.06
+Pharmaceutical R&D,250000,Equalization,519858.63,0.05
+Pharmaceutical R&D,250000,AOP,9315817.85,0.45
+Pharmaceutical R&D,250000,MBR,3225975.06,0.32
+Pharmaceutical R&D,250000,RO,9315817.85,0.55
+Pharmaceutical R&D,250000,UV Disinfection,1201124.43,0.06
+Pharmaceutical R&D,500000,Equalization,787958.34,0.05
+Pharmaceutical R&D,500000,AOP,9315817.85,0.45
+Pharmaceutical R&D,500000,MBR,5062097.47,0.32
+Pharmaceutical R&D,500000,RO,9315817.85,0.55
+Pharmaceutical R&D,500000,UV Disinfection,1951232.4,0.06
+Food & Beverage Bottling,50,Screening,522.82,0.017
+Food & Beverage Bottling,50,DAF,9277.48,0.102
+Food & Beverage Bottling,50,SBR,5653.68,0.172
+Food & Beverage Bottling,50,GAC,15042.41,0.222
+Food & Beverage Bottling,50,UV Disinfection,3092.49,0.062
+Food & Beverage Bottling,200,Screening,1201.12,0.0154
+Food & Beverage Bottling,200,DAF,24483.43,0.1004
+Food & Beverage Bottling,200,SBR,13353.91,0.1704
+Food & Beverage Bottling,200,GAC,42546.37,0.2204
+Food & Beverage Bottling,200,UV Disinfection,8161.14,0.0604
+Food & Beverage Bottling,1000,Screening,3154.79,0.0151
+Food & Beverage Bottling,1000,DAF,75535.52,0.1001
+Food & Beverage Bottling,1000,SBR,36221.8,0.1701
+Food & Beverage Bottling,1000,GAC,142262.35,0.2201
+Food & Beverage Bottling,1000,UV Disinfection,25178.51,0.0601
+Food & Beverage Bottling,5000,Screening,8286.14,0.015
+Food & Beverage Bottling,5000,DAF,233039.88,0.1
+Food & Beverage Bottling,5000,SBR,98249.74,0.17
+Food & Beverage Bottling,5000,GAC,475682.85,0.22
+Food & Beverage Bottling,5000,UV Disinfection,77679.96,0.06
+Food & Beverage Bottling,10000,Screening,12559.43,0.015
+Food & Beverage Bottling,10000,DAF,378574.41,0.1
+Food & Beverage Bottling,10000,SBR,150997.59,0.17
+Food & Beverage Bottling,10000,GAC,800000.0,0.22
+Food & Beverage Bottling,10000,UV Disinfection,126191.47,0.06
+Food & Beverage Bottling,25000,Screening,21763.76,0.015
+Food & Beverage Bottling,25000,DAF,718967.5,0.1
+Food & Beverage Bottling,25000,SBR,266497.3,0.17
+Food & Beverage Bottling,25000,GAC,1590541.46,0.22
+Food & Beverage Bottling,25000,UV Disinfection,239655.83,0.06
+Food & Beverage Bottling,50000,Screening,32987.7,0.015
+Food & Beverage Bottling,50000,DAF,1167966.14,0.1
+Food & Beverage Bottling,50000,SBR,409573.08,0.17
+Food & Beverage Bottling,50000,GAC,2674961.22,0.22
+Food & Beverage Bottling,50000,UV Disinfection,389322.05,0.06
+Food & Beverage Bottling,100000,Screening,50000.0,0.015
+Food & Beverage Bottling,100000,DAF,1897366.6,0.1
+Food & Beverage Bottling,100000,SBR,629462.71,0.17
+Food & Beverage Bottling,100000,GAC,4498730.6,0.22
+Food & Beverage Bottling,100000,UV Disinfection,632455.53,0.06
+Food & Beverage Bottling,250000,Screening,86643.11,0.015
+Food & Beverage Bottling,250000,DAF,3603373.3,0.1
+Food & Beverage Bottling,250000,SBR,1110945.64,0.17
+Food & Beverage Bottling,250000,GAC,8944271.91,0.22
+Food & Beverage Bottling,250000,UV Disinfection,1201124.43,0.06
+Food & Beverage Bottling,500000,Screening,131326.39,0.015
+Food & Beverage Bottling,500000,DAF,5853697.2,0.1
+Food & Beverage Bottling,500000,SBR,1707384.79,0.17
+Food & Beverage Bottling,500000,GAC,9315817.85,0.22
+Food & Beverage Bottling,500000,UV Disinfection,1951232.4,0.06
+Pet Food Production,50,Equalization,3136.92,0.052
+Pet Food Production,50,SBR,5653.68,0.172
+Pet Food Production,50,GAC,15042.41,0.222
+Pet Food Production,50,UV Disinfection,3092.49,0.062
+Pet Food Production,200,Equalization,7206.75,0.0504
+Pet Food Production,200,SBR,13353.91,0.1704
+Pet Food Production,200,GAC,42546.37,0.2204
+Pet Food Production,200,UV Disinfection,8161.14,0.0604
+Pet Food Production,1000,Equalization,18928.72,0.0501
+Pet Food Production,1000,SBR,36221.8,0.1701
+Pet Food Production,1000,GAC,142262.35,0.2201
+Pet Food Production,1000,UV Disinfection,25178.51,0.0601
+Pet Food Production,5000,Equalization,49716.81,0.05
+Pet Food Production,5000,SBR,98249.74,0.17
+Pet Food Production,5000,GAC,475682.85,0.22
+Pet Food Production,5000,UV Disinfection,77679.96,0.06
+Pet Food Production,10000,Equalization,75356.59,0.05
+Pet Food Production,10000,SBR,150997.59,0.17
+Pet Food Production,10000,GAC,800000.0,0.22
+Pet Food Production,10000,UV Disinfection,126191.47,0.06
+Pet Food Production,25000,Equalization,130582.58,0.05
+Pet Food Production,25000,SBR,266497.3,0.17
+Pet Food Production,25000,GAC,1590541.46,0.22
+Pet Food Production,25000,UV Disinfection,239655.83,0.06
+Pet Food Production,50000,Equalization,197926.19,0.05
+Pet Food Production,50000,SBR,409573.08,0.17
+Pet Food Production,50000,GAC,2674961.22,0.22
+Pet Food Production,50000,UV Disinfection,389322.05,0.06
+Pet Food Production,100000,Equalization,300000.0,0.05
+Pet Food Production,100000,SBR,629462.71,0.17
+Pet Food Production,100000,GAC,4498730.6,0.22
+Pet Food Production,100000,UV Disinfection,632455.53,0.06
+Pet Food Production,250000,Equalization,519858.63,0.05
+Pet Food Production,250000,SBR,1110945.64,0.17
+Pet Food Production,250000,GAC,8944271.91,0.22
+Pet Food Production,250000,UV Disinfection,1201124.43,0.06
+Pet Food Production,500000,Equalization,787958.34,0.05
+Pet Food Production,500000,SBR,1707384.79,0.17
+Pet Food Production,500000,GAC,9315817.85,0.22
+Pet Food Production,500000,UV Disinfection,1951232.4,0.06

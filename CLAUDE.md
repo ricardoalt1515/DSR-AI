@@ -4,22 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**DSR Inc.** is an AI-powered waste treatment engineering platform that generates technical proposals using Pydantic-AI agents. The system is architected as a **multi-repo workspace** with independent deployment pipelines:
+**DSR Inc.** is an AI-powered waste treatment engineering platform that generates technical proposals using Pydantic-AI agents. The system is architected as a **monorepo** with backend and frontend as subdirectories:
 
-- **Backend**: FastAPI + Python (independent Git repo in `backend/`)
-- **Frontend**: Next.js + React (independent Git repo in `frontend/`)
+- **Backend**: FastAPI + Python in `backend/`
+- **Frontend**: Next.js + React in `frontend/`
 - **Infrastructure**: Terraform + AWS deployment configs
+- **Documentation**: Shared specs and guides
 
-Each component has its own CLAUDE.md with specific guidance - refer to `backend/CLAUDE.md` and `frontend/CLAUDE.md` for detailed instructions.
+All code is tracked in a single Git repository with atomic commits spanning both backend and frontend changes.
 
 ## Repository Structure
 
 ```
-h2o-allegiant/
-├── backend/              # FastAPI Python backend (separate Git repo)
-├── frontend/             # Next.js React frontend (separate Git repo)
+waste-platform/
+├── backend/              # FastAPI Python backend
+├── frontend/             # Next.js React frontend
 ├── infrastructure/       # Terraform AWS deployment configs
-└── _docs/               # Shared documentation and specifications
+├── _docs/               # Shared documentation and specifications
+└── CLAUDE.md            # This file
 ```
 
 ## Key Architecture Decisions
@@ -49,14 +51,19 @@ def calculate_reactor_volume(flow_rate: float, hrt_hours: float) -> float:
 
 **Why**: Engineering calculations must be reproducible and comply with published standards (Metcalf & Eddy, WEF).
 
-### 3. Independent Deployment Pipelines
+### 3. Monorepo Structure for Coordinated Development
 
-Backend and frontend are separate Git repositories with independent CI/CD:
+Backend and frontend are subdirectories in a single monorepo, allowing:
 
+- **Atomic commits**: Backend + frontend changes tracked together
+- **Coordinated deployments**: Control which versions deploy together
+- **Unified testing**: Run full-stack tests in one workflow
+
+Independent CI/CD pipelines:
 - **Backend**: Docker → ECR → ECS Fargate
-- **Frontend**: Git push → AWS Amplify
+- **Frontend**: Built/deployed separately in CI/CD workflow
 
-**Why**: Decouples frontend UI iterations from critical backend API changes, enabling faster iteration cycles.
+**Why**: Keeps related changes together while maintaining independent deployment control.
 
 ## Common Development Commands
 

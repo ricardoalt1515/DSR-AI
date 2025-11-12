@@ -1,0 +1,409 @@
+"""
+H2O Allegiant Backend - Main application entry point.
+"""
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import logging
+import os
+from pathlib import Path
+import structlog
+
+from app.core.config import settings
+from app.core.database import init_db, close_db
+from app.schemas.common import ErrorResponse, APIError
+
+# ============================================================================
+# Structured Logging Configuration (Best Practice 2025)
+# ============================================================================
+# structlog provides:
+# - JSON output for production (easy parsing)
+# - Consistent log format across application
+# - Contextual information preserved
+# - Integration with observability tools (Datadog, Grafana, CloudWatch)
+# ============================================================================
+
+if settings.ENVIRONMENT == "production":
+    # Production: JSON output for log aggregation
+    processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer(),  # JSON output
+    ]
+else:
+    # Development: Human-readable colored output
+    processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.dev.ConsoleRenderer(),  # Colored output
+    ]
+
+structlog.configure(
+    processors=processors,
+    wrapper_class=structlog.stdlib.BoundLogger,
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
+# Configure standard library logging (for libraries that use it)
+logging.basicConfig(
+    level=settings.LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(settings.LOG_FILE),
+        logging.StreamHandler(),
+    ],
+)
+
+# Get structured logger for this module
+logger = structlog.get_logger(__name__)
+
+# Ensure log directory exists
+os.makedirs(os.path.dirname(settings.LOG_FILE), exist_ok=True)
+
+# Rate Limiter Configuration (slowapi with Redis backend)
+# Redis-backed storage for distributed rate limiting across multiple ECS tasks
+# This ensures rate limits work correctly when auto-scaling (>1 task)
+def get_redis_url() -> str:
+    """Get Redis URL for rate limiter storage."""
+    if settings.REDIS_PASSWORD:
+        return f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+    return f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+
+# Use Redis storage if available, fallback to in-memory for local dev
+try:
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri=get_redis_url(),
+        strategy="fixed-window"
+    )
+    logger.info("✅ Rate limiter initialized with Redis backend (distributed)")
+except Exception as e:
+    # Fallback to in-memory for local development
+    logger.warning(f"⚠️ Redis unavailable, using in-memory rate limiting: {e}")
+    limiter = Limiter(key_func=get_remote_address)
+    logger.info("✅ Rate limiter initialized with in-memory storage (local only)")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events.
+    """
+    # Startup
+    logger.info("🚀 Starting H2O Allegiant Backend...")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    
+    # Validate configuration before accepting traffic
+    from app.core.startup_checks import validate_required_secrets, validate_production_config
+    validate_required_secrets()
+    validate_production_config()
+    
+    # Initialize database (only in development)
+    # DISABLED: Use Alembic migrations instead
+    # if settings.DEBUG:
+    #     logger.warning("Debug mode: initializing database tables...")
+    #     await init_db()
+    
+    # Initialize Redis cache
+    from app.services.cache_service import cache_service
+    await cache_service.connect()
+    
+    # Ensure storage directory exists
+    if settings.USE_LOCAL_STORAGE:
+        os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
+        logger.info(f"Local storage path: {settings.LOCAL_STORAGE_PATH}")
+    
+    logger.info("✅ Application started successfully")
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Shutting down application...")
+    await close_db()
+    await cache_service.close()
+    logger.info("✅ Application shutdown complete")
+
+
+# Create FastAPI application
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="AI-powered water treatment engineering platform backend",
+    docs_url=f"{settings.API_V1_PREFIX}/docs",
+    redoc_url=f"{settings.API_V1_PREFIX}/redoc",
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    lifespan=lifespan,
+    # Note: response_model_by_alias removed - FastAPI Users doesn't use aliases
+    # Frontend transforms snake_case to camelCase in auth.ts
+    # response_model_by_alias=True,  # ← Removed: causes Content-Length mismatch
+)
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
+)
+
+
+# ============================================================================
+# Rate Limiting Middleware for FastAPI Users Endpoints
+# ============================================================================
+# FastAPI Users auto-generates endpoints, so we can't use @limiter.limit()
+# decorators. Instead, we use middleware to apply granular limits by path.
+# ============================================================================
+
+AUTH_ENDPOINT_LIMITS = {
+    # Login/Register - Strict (brute force & spam prevention)
+    f"{settings.API_V1_PREFIX}/auth/jwt/login": "5/minute",
+    f"{settings.API_V1_PREFIX}/auth/register": "3/minute",
+    f"{settings.API_V1_PREFIX}/auth/forgot-password": "3/minute",
+    f"{settings.API_V1_PREFIX}/auth/reset-password": "3/minute",
+
+    # Profile access - Generous (frequent legitimate use)
+    f"{settings.API_V1_PREFIX}/auth/me": "60/minute",
+
+    # Verification - Moderate
+    f"{settings.API_V1_PREFIX}/auth/verify": "10/minute",
+    f"{settings.API_V1_PREFIX}/auth/request-verify-token": "5/minute",
+}
+
+
+@app.middleware("http")
+async def granular_rate_limit_middleware(request: Request, call_next):
+    """
+    Apply granular rate limits to auth endpoints using Redis.
+    Redis-backed for distributed rate limiting across multiple ECS tasks.
+    Custom endpoints use @limiter.limit() decorators instead.
+    """
+    path = request.url.path
+    method = request.method
+
+    # Check if this endpoint has a specific rate limit
+    if path in AUTH_ENDPOINT_LIMITS and method in ["GET", "POST", "PATCH", "DELETE"]:
+        limit_str = AUTH_ENDPOINT_LIMITS[path]
+
+        try:
+            # Parse limit string (e.g., "5/minute")
+            count, period = limit_str.split("/")
+            count = int(count)
+            
+            # Get client IP
+            client_ip = get_remote_address(request)
+            
+            # Create cache key for Redis
+            cache_key = f"rate_limit:{path}:{client_ip}"
+            
+            # Use Redis for distributed rate limiting
+            from app.services.cache_service import cache_service
+            
+            if cache_service._redis:
+                # Increment counter in Redis
+                current_count = await cache_service._redis.incr(cache_key)
+                
+                # Set expiration on first request (60 seconds for "per minute")
+                if current_count == 1:
+                    await cache_service._redis.expire(cache_key, 60)
+                
+                # Check if limit exceeded
+                if current_count > count:
+                    logger.warning(f"Rate limit exceeded: {path} from {client_ip} ({current_count}/{count})")
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "error": {
+                                "message": "Too many requests. Please try again later.",
+                                "code": "RATE_LIMIT_EXCEEDED",
+                            }
+                        },
+                        headers={"Retry-After": "60"}
+                    )
+            else:
+                # Fallback: If Redis unavailable, allow request (fail open)
+                # This prevents blocking users if Redis is down
+                logger.warning(f"Redis unavailable for rate limiting, allowing request: {path}")
+
+        except Exception as e:
+            logger.error(f"Rate limit check failed: {e}")
+            # Don't block request if rate limiting fails (fail open for availability)
+
+    # Continue with request
+    response = await call_next(request)
+    
+    # Note: expires_in injection removed - causes Content-Length mismatch
+    # Frontend now hardcodes expires_in = 86400 (24h) in auth.ts
+    # TODO: Implement custom login endpoint if dynamic expires_in is needed
+    
+    return response
+
+
+# Note: Rate limiting strategy
+# - Auth endpoints: Granular limits via middleware (above)
+# - Custom endpoints: Use @limiter.limit("X/minute") decorators
+# - Read operations: More permissive (e.g., 60/minute)
+# - Write operations: More restrictive (e.g., 10/minute)
+# - Expensive operations: Very restrictive (e.g., 3/minute)
+
+
+# Exception Handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError
+) -> JSONResponse:
+    """Handle validation errors with proper error response format."""
+    logger.error(f"Validation error: {exc.errors()}")
+    
+    error_response = ErrorResponse(
+        error=APIError(
+            message="Validation error",
+            code="VALIDATION_ERROR",
+            details={"errors": exc.errors()},
+        )
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=error_response.model_dump(mode="json"),
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(
+    request: Request,
+    exc: Exception
+) -> JSONResponse:
+    """Handle unexpected errors."""
+    logger.error(f"Unexpected error: {str(exc)}", exc_info=True)
+    
+    error_response = ErrorResponse(
+        error=APIError(
+            message="Internal server error" if not settings.DEBUG else str(exc),
+            code="INTERNAL_ERROR",
+            details={"type": type(exc).__name__} if settings.DEBUG else None,
+        )
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=error_response.model_dump(mode="json"),
+    )
+
+
+@app.get("/ping", tags=["Health"])
+async def ping():
+    """Simple ping endpoint for uptime monitoring."""
+    return {"status": "ok"}
+
+
+# Root endpoint
+@app.get("/", tags=["Root"])
+async def root():
+    """Root endpoint with API information."""
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "environment": settings.ENVIRONMENT,
+        "docs_url": f"{settings.BACKEND_URL}{settings.API_V1_PREFIX}/docs",
+        "health_url": f"{settings.BACKEND_URL}/health",
+    }
+
+
+# Import and include routers
+from app.api.v1 import auth, health, companies, projects, proposals, files, project_data
+
+# Health checks (available at root and API prefix)
+app.include_router(
+    health.router,
+    tags=["Health"],
+)
+
+app.include_router(
+    auth.router,
+    prefix=f"{settings.API_V1_PREFIX}/auth",
+    tags=["Authentication"],
+)
+
+app.include_router(
+    companies.router,
+    prefix=f"{settings.API_V1_PREFIX}/companies",
+    tags=["Companies & Locations"],
+)
+
+app.include_router(
+    projects.router,
+    prefix=f"{settings.API_V1_PREFIX}/projects",
+    tags=["Projects"],
+)
+
+app.include_router(
+    files.router,
+    prefix=f"{settings.API_V1_PREFIX}/projects",
+    tags=["Files"],
+)
+
+app.include_router(
+    proposals.router,
+    prefix=f"{settings.API_V1_PREFIX}/ai/proposals",
+    tags=["AI Proposals"],
+)
+
+app.include_router(
+    project_data.router,
+    prefix=f"{settings.API_V1_PREFIX}/projects",
+    tags=["Project Data"],
+)
+
+# ============================================================================
+# Static Files (Development Only)
+# ============================================================================
+# Serve uploaded files (PDFs, images) in development mode
+# In production, these are served directly from S3
+# ============================================================================
+UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
+
+if not os.getenv("S3_BUCKET"):  # Only in local development
+    app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+    logger.info(f"Local storage path: {UPLOADS_DIR}")
+
+logger.info("✅ All API routes registered")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.DEBUG,
+        log_level=settings.LOG_LEVEL.lower(),
+    )
