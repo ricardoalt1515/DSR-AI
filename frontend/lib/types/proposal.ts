@@ -39,25 +39,19 @@ export interface PotentialRevenue {
  * Environmental Impact Context
  */
 export interface EnvironmentalImpact {
-	currentSituation: string[];
-	benefitIfDiverted: string[];
+	currentSituation: string;
+	benefitIfDiverted: string;
 	esgStory: string;
 }
 
 /**
  * Material Safety and Handling
  */
-export interface MaterialSafety {
+export interface MaterialHandling {
 	hazardLevel: "None" | "Low" | "Moderate" | "High";
 	specificHazards: string[];
 	ppeRequirements: string[];
 	regulatoryNotes: string[];
-}
-
-/**
- * Storage and Handling Requirements
- */
-export interface StorageHandling {
 	storageRequirements: string[];
 	degradationRisks: string[];
 	qualityPriceImpact: string[];
@@ -77,8 +71,7 @@ export interface MarketIntelligence {
  */
 export interface ResourceConsiderations {
 	environmentalImpact: EnvironmentalImpact;
-	materialSafety: MaterialSafety;
-	storageHandling: StorageHandling;
+	materialHandling: MaterialHandling;
 	marketIntelligence: MarketIntelligence;
 }
 
@@ -102,7 +95,6 @@ export interface BusinessOpportunity {
 	risks: string[];
 	
 	// Material Intelligence
-	hazardousConcerns: string[];
 	resourceConsiderations: ResourceConsiderations;
 }
 
@@ -120,15 +112,6 @@ export interface CO2Reduction {
 }
 
 /**
- * Water Impact Metrics
- */
-export interface WaterReduction {
-	litersSaved: string[];
-	reuseEfficiency: string[];
-	method: string[];
-}
-
-/**
  * Toxicity and Safety Assessment
  */
 export interface ToxicityImpact {
@@ -141,7 +124,6 @@ export interface ToxicityImpact {
  */
 export interface ResourceEfficiency {
 	materialRecoveredPercent: string[];
-	energySaved: string[];
 	notes: string;
 }
 
@@ -151,7 +133,6 @@ export interface ResourceEfficiency {
  */
 export interface LifeCycleAssessment {
 	co2Reduction: CO2Reduction;
-	waterReduction: WaterReduction;
 	toxicityImpact: ToxicityImpact;
 	resourceEfficiency: ResourceEfficiency;
 	environmentalNotes: string; // Environmental pitch for buyers/generators

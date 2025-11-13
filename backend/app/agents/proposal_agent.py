@@ -51,7 +51,7 @@ def load_proposal_prompt() -> str:
     Load waste upcycling report prompt from external markdown file.
     Follows 2025 best practices for prompt management in production AI applications.
     """
-    prompt_path = Path(__file__).parent.parent / "prompts" / "dsr-bussines-opportunity.v2.md"
+    prompt_path = Path(__file__).parent.parent / "prompts" / "dsr-bussiness-opportunity.v2.md"
 
     try:
         with open(prompt_path, encoding="utf-8") as f:
@@ -131,6 +131,7 @@ CLIENT REQUIREMENTS & METADATA:
 {metadata_json}
 """
 
+
 async def generate_enhanced_proposal(
     water_data: FlexibleWaterProjectData,
     client_metadata: dict[str, Any] | None = None,
@@ -201,7 +202,7 @@ async def generate_enhanced_proposal(
             "Generate a comprehensive waste upcycling feasibility report analyzing waste streams, recovery opportunities, ROI, and environmental impact.",
             deps=context,
             usage_limits=UsageLimits(
-                request_limit=5,       # No tools needed - just LLM reasoning
+                request_limit=5,  # No tools needed - just LLM reasoning
                 total_tokens_limit=100000,  # Lower limit - simpler business analysis
             ),
         )

@@ -87,10 +87,6 @@ Start with the GO/NO-GO decision:
 ## risks
 - 2‑5 risks (volume, quality, buyer concentration, regulation, logistics).
 
-## hazardousConcerns
-- Health & handling info for buyers (resins, fumes, sharps, treated wood, etc.).  
-  If none, use `["No hazardous characteristics identified"]`.
-
 ## resourceConsiderations
 Provide practical guidance on handling this resource:
 
@@ -106,26 +102,14 @@ Provide practical guidance on handling this resource:
 - **esgStory**: One-line ESG narrative
   - Example: "From river waste to renewable energy - demonstrates circular economy commitment"
 
-### materialSafety
+### materialHandling (combined safety + storage)
 - **hazardLevel**: None / Low / Moderate / High
 - **specificHazards**: List specific concerns
-  - Example: "Natural pine resin - low toxicity but skin/respiratory irritant"
-  - Example: "Oil contamination from machinery - flammable risk"
-- **ppeRequirements**: What workers need
-  - Example: "Gloves + dust mask when cutting"
-  - Example: "Ventilation required if processing indoors"
+- **ppeRequirements**: Required PPE
 - **regulatoryNotes**: Permits or restrictions (if applicable)
-  - Example: "Check if oil content classifies as hazardous waste"
-
-### storageHandling
-- **storageRequirements**: How to store properly
-  - Example: "Store in dry location, under roof"
-  - Example: "Keep plastic covered - UV degrades quality"
-- **degradationRisks**: What degrades quality
-  - Example: "Humidity reduces wood value 30-40%"
-  - Example: "Mixed plastic loses value if not segregated quickly"
-- **qualityPriceImpact**: How storage affects value
-  - Example: "Dry hardwood: $200/ton, wet wood: $120/ton"
+- **storageRequirements**: How to store properly (dry, covered, ventilated)
+- **degradationRisks**: What damages quality (humidity, sun, contamination)
+- **qualityPriceImpact**: How handling/storage changes price
 
 ### marketIntelligence (GENERIC - no company names)
 - **buyerTypes**: Industries that buy this (generic)
@@ -150,16 +134,12 @@ Use EPA WaRM factors and simple reasoning. If data is missing, estimate and flag
 - `tons`: absolute tCO₂e avoided (`["~288 tCO₂e/yr avoided (Assumption)"]`).
 - `method`: bullet explanation with factor used (`["EPA WaRM wood factor -1.2 tCO₂e/ton × 240 tons/yr"]`).
 
-## waterReduction
-- Use only if relevant (dumping in river, washing, etc.). Otherwise `[]` or `["N/A"]`.
-
 ## toxicityImpact
 - `level`: None / Low / Moderate / High.
 - `notes`: short paragraph on toxicity, PPE, restrictions.
 
 ## resourceEfficiency
-- `materialRecoveredPercent`: how much is really usable (e.g., “~75% usable, 25% contaminated”).
-- `energySaved`: if recycling vs virgin saves energy (simple statements or “N/A”).
+- `materialRecoveredPercent`: how much es usable (e.g., “~75% usable, 25% contaminated”).
 - `notes`: highlight direct reuse vs processing.
 
 ## environmentalNotes
@@ -209,15 +189,12 @@ BUSINESS OPPORTUNITY:
     - "Secure LOI with two lumber mills before grinder investment"
     - "Negotiate free removal contract (savings = leverage)"
   circularEconomyOptions:
-    - "Option 1: Grind to sawdust → lumber mills @ $200/ton → ≈$8.4k/yr profit"
-    - "Option 2: Compress to pellets → industrial boilers @ $100/ton → ≈$13k/yr profit"
-    - "Option 3: Select good boards → carpenters @ $250/ton → ≈$5k/yr profit (zero CapEx)"
+    - "Grind to sawdust → lumber yards → ~$200/ton (~$8k/yr net)"
+    - "Compress to pellets → biomass plants → ~$100-$120/ton (needs CapEx/partner)"
+    - "Select good boards → carpenters/artisans → ~$250/ton (low volume, zero CapEx)"
   risks:
     - "Quality varies; 25% of boards show rot (needs sorting)"
     - "No pellet buyer contracted yet (Investigate further)"
-  hazardousConcerns:
-    - "Natural pine resin present—low toxicity but dust can irritate; use PPE/ventilation"
-  
   resourceConsiderations:
     environmentalImpact:
       currentSituation:
@@ -226,8 +203,7 @@ BUSINESS OPPORTUNITY:
         - "Eliminates 100% river pollution (240 tons/yr diverted)"
         - "Reduces ≈288 tCO₂e/yr vs landfill"
       esgStory: "From river waste to renewable energy - demonstrates circular economy commitment"
-    
-    materialSafety:
+    material_handling:
       hazardLevel: "Low"
       specificHazards:
         - "Natural pine resin - irritates skin/respiratory during cutting"
@@ -238,51 +214,37 @@ BUSINESS OPPORTUNITY:
         - "Ventilation in processing area"
       regulatoryNotes:
         - "Untreated wood - no special permits required"
-    
-    storageHandling:
       storageRequirements:
-        - "Store dry, under roof - humidity degrades quality rapidly"
-        - "Separate by type if possible (pine/oak) - increases value 20-30%"
-        - "Use pallets - avoid direct ground contact"
+        - "Store dry, under roof; use pallets to avoid ground moisture"
       degradationRisks:
-        - "Humidity >20%: fungus, rot, significant quality loss"
-        - "Direct sun: cracks in reusable boards"
-        - "Time: after 3-6 months outdoor loses 40% value"
+        - "Humidity >20% causes fungus/rot"
+        - "Direct sun cracks reusable boards"
       qualityPriceImpact:
         - "Dry wood (<15% humidity): $150-$200/ton"
         - "Wet wood (>20% humidity): $80-$120/ton (-40% price)"
-        - "Segregated by type: +20-30% vs mixed"
-    
     marketIntelligence:
       buyerTypes:
-        - "Madererías / lumber yards (construction material)"
-        - "Plantas de biomasa (fuel for industrial boilers)"
-        - "Fabricantes de pellets (renewable energy)"
-        - "Carpinterías industriales (reusable boards)"
+        - "Lumber yards"
+        - "Biomass plants"
+        - "Pellet manufacturers"
+        - "Carpentry shops"
       typicalRequirements:
-        - "Lumber yards: 5-10 tons/month minimum"
-        - "Biomass plants: prefer 20+ tons/month"
-        - "Pellet manufacturers: 50+ tons/month ideal"
+        - "5-20 tons/month minimum depending on buyer"
+        - "Moisture <15% for premium pricing"
       pricingFactors:
-        - "Dry material (<15% humidity) - critical for combustion"
-        - "No chemical treatment (CCA, creosote) - regulatory restriction"
-        - "Segregated by type increases value but not mandatory"
-        - "Free of contaminants (plastic, metal, dirt)"
+        - "Segregation by species adds +20-30%"
+        - "Dry storage maintains top value"
 
 LCA:
   co2Reduction:
     percent: ["~90% reduction vs landfill"]
     tons: ["≈288 tCO₂e/yr avoided (240 tons × -1.2 factor)"]
     method: ["EPA WaRM wood factor -1.2 tCO₂e/ton", "Includes +12 tCO₂e/yr trucking (Assumption: 50 miles)"]
-  waterReduction:
-    reuseEfficiency: ["Stops 240 tons/yr from entering river (100% pollution prevention)"]
-    method: ["Based on generator statement: waste dumped in river previously"]
   toxicityImpact:
     level: "Low"
     notes: "Untreated pine/oak. Resin may irritate skin/respiratory during grinding—standard PPE mitigates."
   resourceEfficiency:
     materialRecoveredPercent: ["~70% high-grade boards", "~30% lower grade (sawdust/pellets)"]
-    energySaved: ["Recycling wood uses ~60% less energy than virgin lumber (Assumption)"]
     notes: "Direct reuse of boards requires zero processing energy."
   environmentalNotes: "Diverting 240 tons/yr of wood eliminates river contamination and avoids ≈288 tCO₂e/yr. Material is low-toxicity and largely reusable, delivering a clear circular-economy story."
 

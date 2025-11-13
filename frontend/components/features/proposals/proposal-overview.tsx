@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Package, Recycle, Target, TrendingDown, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, DollarSign, Leaf, Recycle, Target, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import type { Proposal } from "./types";
+import { extractHighRevenue, extractLandfillDiversion, extractCO2Avoided } from "./metrics-helpers";
 
 interface ProposalOverviewProps {
 	proposal: Proposal;
@@ -15,8 +16,12 @@ interface ProposalOverviewProps {
 export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 	const report = proposal.aiMetadata.proposal;
 	const businessOpp = report.businessOpportunity;
-	const wasteTypes = report.primaryWasteTypes?.length || 0;
 	const businessIdeas = businessOpp?.circularEconomyOptions?.length || 0;
+
+	// Extract key metrics using shared helpers (DRY)
+	const revenueEstimate = extractHighRevenue(report);
+	const landfillDiversion = extractLandfillDiversion(report);
+	const co2Avoided = extractCO2Avoided(report);
 
 	const getDecisionConfig = () => {
 		if (!businessOpp?.overallRecommendation) return null;
@@ -80,38 +85,38 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				</p>
 			</div>
 
-			{/* Key Metrics Grid */}
-			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+			{/* Key Metrics Grid - Business-focused KPIs */}
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 				<MetricCard
-					icon={Package}
-					label="Waste Volume"
-					value={report.dailyMonthlyVolume}
-					subtitle="Total waste generated"
-					variant="primary"
+					icon={DollarSign}
+					label="Revenue Potential"
+					value={revenueEstimate}
+					subtitle="High estimate (annual)"
+					variant="success"
 				/>
 
 				<MetricCard
 					icon={Recycle}
-					label="Waste Types"
-					value={wasteTypes}
-					subtitle="Material categories"
-					variant="chart-2"
+					label="Business Ideas"
+					value={businessIdeas}
+					subtitle="Circular economy pathways"
+					variant="primary"
 				/>
 
 				<MetricCard
 					icon={Target}
-					label="Business Ideas"
-					value={businessIdeas}
-					subtitle="Circular economy pathways"
-					variant="chart-4"
+					label="Landfill Diversion"
+					value={landfillDiversion}
+					subtitle="Waste recovery potential"
+					variant="chart-2"
 				/>
 
 				<MetricCard
-					icon={TrendingDown}
-					label="Current Disposal"
-					value={report.existingDisposalMethod}
-					subtitle="Baseline method"
-					variant="warning"
+					icon={Leaf}
+					label="CO₂ Avoided"
+					value={co2Avoided}
+					subtitle="Annual emissions reduction"
+					variant="chart-4"
 				/>
 			</div>
 

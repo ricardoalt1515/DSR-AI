@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ArrowRight, DollarSign, Leaf, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertCircle, ArrowRight, Car, DollarSign, Leaf, TrendingDown, TrendingUp, TreeDeciduous, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import type { Proposal } from "./types";
+import { extractCO2Tons, co2ToCars, co2ToTrees, co2ToCoalKwh, formatNumber } from "./metrics-helpers";
 
 interface ProposalEconomicsProps {
 	proposal: Proposal;
@@ -341,12 +342,79 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 						</div>
 					)}
 
+					{/* CO₂ EQUIVALENTS - STORYTELLING */}
+					{(() => {
+						const co2Tons = extractCO2Tons(report);
+						if (!co2Tons) return null;
+
+						const cars = co2ToCars(co2Tons);
+						const trees = co2ToTrees(co2Tons);
+						const kwhCoal = co2ToCoalKwh(co2Tons);
+
+						return (
+							<div className="space-y-4">
+								<div className="text-center">
+									<p className="text-sm text-muted-foreground font-medium">
+										That's equivalent to:
+									</p>
+								</div>
+
+								{/* Equivalents Grid */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+									{/* Cars off the road */}
+									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+										<Car className="h-8 w-8 text-green-600 dark:text-green-400" />
+										<div className="text-center">
+											<div className="text-3xl font-bold text-green-600 dark:text-green-400">
+												{formatNumber(cars)}
+											</div>
+											<p className="text-xs text-muted-foreground mt-1">
+												cars off the road
+											</p>
+										</div>
+									</div>
+
+									{/* Trees planted */}
+									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+										<TreeDeciduous className="h-8 w-8 text-green-600 dark:text-green-400" />
+										<div className="text-center">
+											<div className="text-3xl font-bold text-green-600 dark:text-green-400">
+												{formatNumber(trees)}
+											</div>
+											<p className="text-xs text-muted-foreground mt-1">
+												trees planted
+											</p>
+										</div>
+									</div>
+
+									{/* Coal power avoided */}
+									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+										<Zap className="h-8 w-8 text-green-600 dark:text-green-400" />
+										<div className="text-center">
+											<div className="text-3xl font-bold text-green-600 dark:text-green-400">
+												{formatNumber(kwhCoal)}
+											</div>
+											<p className="text-xs text-muted-foreground mt-1">
+												kWh coal power
+											</p>
+										</div>
+									</div>
+								</div>
+
+								{/* EPA source note */}
+								<p className="text-xs text-center text-muted-foreground">
+									Based on EPA standard conversion factors
+								</p>
+							</div>
+						);
+					})()}
+
 					{/* Methodology - Collapsible */}
 					{lca.co2Reduction.method.length > 0 && (
 						<Accordion type="single" collapsible className="w-full">
 							<AccordionItem value="methodology" className="border-none">
 								<AccordionTrigger className="text-sm font-medium hover:no-underline">
-									Calculation Methodology
+									EPA WaRM Calculation Methodology
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">

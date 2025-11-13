@@ -11,7 +11,7 @@ All data is now contained in 3 main structured blocks instead of 10+ redundant f
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.schemas.common import BaseSchema
 
@@ -95,16 +95,28 @@ class BusinessOpportunity(BaseSchema):
         description="Business risks DSR should monitor (2-5 risks)"
     )
 
-    # ============================================================================
-    # Material Intelligence
-    # ============================================================================
-
-    hazardous_concerns: list[str] = Field(
-        default_factory=list,
-        description="Material safety/handling concerns for buyers"
-    )
-
     resource_considerations: "ResourceConsiderations" = Field(
+        default_factory=lambda: ResourceConsiderations(
+            environmental_impact=EnvironmentalImpact(
+                current_situation=["N/A (environmental data missing)"],
+                benefit_if_diverted=["N/A (environmental benefit missing)"],
+                esg_story="N/A (ESG story missing)",
+            ),
+            material_handling=MaterialHandling(
+                hazard_level="Low",
+                specific_hazards=["N/A (hazards not provided)"],
+                ppe_requirements=["N/A"],
+                regulatory_notes=["N/A"],
+                storage_requirements=["N/A"],
+                degradation_risks=["N/A"],
+                quality_price_impact=["N/A"],
+            ),
+            market_intelligence=MarketIntelligence(
+                buyer_types=["N/A"],
+                typical_requirements=["N/A"],
+                pricing_factors=["N/A"],
+            ),
+        ),
         description="Practical handling, storage, and market considerations"
     )
 
@@ -119,10 +131,10 @@ class BusinessOpportunity(BaseSchema):
 
 class EnvironmentalImpact(BaseSchema):
     """Environmental context - current vs diverted."""
-    current_situation: list[str] = Field(
+    current_situation: str = Field(
         description="What happens if waste continues as-is (pollution, emissions)"
     )
-    benefit_if_diverted: list[str] = Field(
+    benefit_if_diverted: str = Field(
         description="Environmental benefit if DSR acquires (pollution stopped, CO2 reduced)"
     )
     esg_story: str = Field(
@@ -130,8 +142,8 @@ class EnvironmentalImpact(BaseSchema):
     )
 
 
-class MaterialSafety(BaseSchema):
-    """Safety and handling characteristics."""
+class MaterialHandling(BaseSchema):
+    """Combined safety, handling, and storage guidance."""
     hazard_level: Literal["None", "Low", "Moderate", "High"] = Field(
         description="Overall hazard assessment"
     )
@@ -147,11 +159,8 @@ class MaterialSafety(BaseSchema):
         default_factory=list,
         description="Permit or regulatory considerations"
     )
-
-
-class StorageHandling(BaseSchema):
-    """Storage and handling requirements."""
     storage_requirements: list[str] = Field(
+        default_factory=list,
         description="How to store (dry, covered, temperature)"
     )
     degradation_risks: list[str] = Field(
@@ -160,7 +169,7 @@ class StorageHandling(BaseSchema):
     )
     quality_price_impact: list[str] = Field(
         default_factory=list,
-        description="How storage affects value (wet wood -30% price)"
+        description="How storage/handling affects value"
     )
 
 
@@ -182,8 +191,7 @@ class MarketIntelligence(BaseSchema):
 class ResourceConsiderations(BaseSchema):
     """Practical considerations for handling this resource."""
     environmental_impact: EnvironmentalImpact
-    material_safety: MaterialSafety
-    storage_handling: StorageHandling
+    material_handling: MaterialHandling
     market_intelligence: MarketIntelligence
 
 
@@ -198,13 +206,6 @@ class CO2Reduction(BaseSchema):
     method: list[str] = Field(description="Calculation methodology with EPA WaRM factors")
 
 
-class WaterReduction(BaseSchema):
-    """Water impact metrics."""
-    liters_saved: list[str] = Field(default_factory=list, description="Water consumption saved")
-    reuse_efficiency: list[str] = Field(default_factory=list, description="Water pollution prevention")
-    method: list[str] = Field(default_factory=list, description="Calculation method")
-
-
 class ToxicityImpact(BaseSchema):
     """Toxicity and safety assessment."""
     level: str = Field(default="Low", description="Toxicity level: None, Low, Moderate, High")
@@ -214,15 +215,20 @@ class ToxicityImpact(BaseSchema):
 class ResourceEfficiency(BaseSchema):
     """Resource recovery metrics."""
     material_recovered_percent: list[str] = Field(description="Recovery rate percentages")
-    energy_saved: list[str] = Field(default_factory=list, description="Energy savings vs virgin material")
     notes: str = Field(description="Additional efficiency notes")
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _ensure_string(cls, value: str | list[str]) -> str:
+        if isinstance(value, list):
+            return "; ".join(value)
+        return value
 
 
 class LifeCycleAssessment(BaseSchema):
     """Complete Life Cycle Assessment (LCA)."""
 
     co2_reduction: CO2Reduction
-    water_reduction: WaterReduction
     toxicity_impact: ToxicityImpact
     resource_efficiency: ResourceEfficiency
 
@@ -316,6 +322,7 @@ class ProposalOutput(BaseSchema):
     # ============================================================================
 
     markdown_content: str = Field(
+        default="",
         description="Complete markdown report for PDF generation and display. Generated from structured data above."
     )
 
