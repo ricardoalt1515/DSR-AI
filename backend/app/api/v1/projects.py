@@ -4,7 +4,6 @@ Projects CRUD endpoints.
 
 from uuid import UUID
 from typing import Optional
-from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -17,8 +16,6 @@ from app.api.dependencies import (
     SearchQuery,
     StatusFilter,
     SectorFilter,
-    LifecycleFilter,
-    IncludeArchivedFilter,
 )
 from app.schemas.project import (
     ProjectCreate,
@@ -43,21 +40,6 @@ router = APIRouter()
 from app.main import limiter
 
 
-async def _load_project_with_relationships(db: AsyncDB, project_id: UUID) -> Project:
-    """Reload project with relationships needed for detail response."""
-    from app.models.location import Location
-
-    result = await db.execute(
-        select(Project)
-        .options(
-            selectinload(Project.location_rel).selectinload(Location.company),
-            selectinload(Project.proposals),
-        )
-        .where(Project.id == project_id)
-    )
-    return result.scalar_one()
-
-
 @router.get(
     "",
     response_model=PaginatedResponse[ProjectSummary],
@@ -76,8 +58,6 @@ async def list_projects(
     sector: SectorFilter = None,  # ✅ Type alias
     company_id: Optional[UUID] = Query(None, description="Filter by company ID"),
     location_id: Optional[UUID] = Query(None, description="Filter by location ID"),
-    lifecycle_state: LifecycleFilter = None,
-    include_archived: IncludeArchivedFilter = False,
 ):
     """
     List user's projects with filtering and pagination.
@@ -89,75 +69,60 @@ async def list_projects(
 
     Returns lightweight ProjectSummary objects.
     """
-    # Helper to apply shared filters across queries
+    # Build query with selective loading
+    # ✅ Load only proposal IDs for count (proposals_count property needs it)
+    # ✅ Load location_rel and company for company_name/location_name computed fields
     from app.models.location import Location
-
-    def apply_common_filters(base_query):
-        query = base_query.where(Project.user_id == current_user.id)
-
-        if search:
-            search_filter = f"%{search}%"
-            query = query.where(
-                (Project.name.ilike(search_filter)) | (Project.client.ilike(search_filter))
-            )
-
-        if status:
-            query = query.where(Project.status == status)
-
-        if sector:
-            query = query.where(Project.sector == sector)
-
-        if company_id:
-            query = query.join(Project.location_rel).where(Location.company_id == company_id)
-
-        if location_id:
-            query = query.where(Project.location_id == location_id)
-
-        return query
-
-    items_query = apply_common_filters(select(Project))
-    total_query = apply_common_filters(select(func.count(Project.id)))
-    lifecycle_counts_query = apply_common_filters(
-        select(
-            Project.lifecycle_state.label("lifecycle_state"),
-            func.count(Project.id).label("count"),
+    query = (
+        select(Project)
+        .where(Project.user_id == current_user.id)
+        .options(
+            selectinload(Project.proposals).load_only(Proposal.id),  # Only load IDs for count
+            selectinload(Project.location_rel).selectinload(Location.company),  # For computed fields
+            raiseload(Project.files),
+            raiseload(Project.timeline),
         )
-    ).group_by(Project.lifecycle_state)
-
-    # Archived handling: hide archived unless explicitly requesting them
-    hide_archived = not include_archived and lifecycle_state != "archived"
-    if hide_archived:
-        items_query = items_query.where(Project.is_archived.is_(False))
-        total_query = total_query.where(Project.is_archived.is_(False))
-
-    # Lifecycle filter only applies to items/total (counts remain per-state)
-    if lifecycle_state:
-        items_query = items_query.where(Project.lifecycle_state == lifecycle_state)
-        total_query = total_query.where(Project.lifecycle_state == lifecycle_state)
-
-    # Load relationships efficiently for list view
-    items_query = items_query.options(
-        selectinload(Project.proposals).load_only(Proposal.id),
-        selectinload(Project.location_rel).selectinload(Location.company),
-        raiseload(Project.files),
-        raiseload(Project.timeline),
     )
 
-    # Pagination
-    items_query = items_query.order_by(Project.updated_at.desc())
-    items_query = items_query.offset((page - 1) * page_size).limit(page_size)
+    # Add search filter
+    if search:
+        search_filter = f"%{search}%"
+        query = query.where(
+            (Project.name.ilike(search_filter)) | (Project.client.ilike(search_filter))
+        )
 
-    # Execute queries
-    result = await db.execute(items_query)
+    # Add status filter (supports comma-separated list for multi-status)
+    if status:
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if len(statuses) == 1:
+            query = query.where(Project.status == statuses[0])
+        elif statuses:
+            query = query.where(Project.status.in_(statuses))
+
+    # Add sector filter
+    if sector:
+        query = query.where(Project.sector == sector)
+    
+    # Add company filter (via location relationship)
+    if company_id:
+        query = query.join(Project.location_rel).where(Location.company_id == company_id)
+    
+    # Add location filter
+    if location_id:
+        query = query.where(Project.location_id == location_id)
+
+    # Get total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
+
+    # Apply pagination
+    query = query.order_by(Project.updated_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
+
+    # Execute query
+    result = await db.execute(query)
     projects = result.scalars().all()
-
-    total_result = await db.execute(total_query)
-    total = total_result.scalar() or 0
-
-    lifecycle_counts_result = await db.execute(lifecycle_counts_query)
-    lifecycle_counts = {state: 0 for state in ("active", "pipeline", "completed", "archived")}
-    for row in lifecycle_counts_result:
-        lifecycle_counts[row.lifecycle_state] = row.count
 
     # Convert to response models
     # ✅ Pydantic V2 handles SQLAlchemy models automatically
@@ -172,9 +137,6 @@ async def list_projects(
         page=page,
         size=page_size,
         pages=pages,
-        meta={
-            "lifecycle_counts": lifecycle_counts,
-        },
     )
 
 
@@ -487,115 +449,6 @@ async def update_project(
     project = result.scalar_one()
 
     logger.info(f"✅ Project updated: {project.id}")
-    return ProjectDetail.model_validate(project)
-
-
-@router.post(
-    "/{project_id}/archive",
-    response_model=ProjectDetail,
-    summary="Archive project",
-    description="Soft-archive a project and hide it from active views",
-    responses={404: {"model": ErrorResponse}, 400: {"model": ErrorResponse}},
-)
-@limiter.limit("10/minute")
-async def archive_project(
-    request: Request,
-    project_id: UUID,
-    current_user: CurrentUser,
-    db: AsyncDB,
-):
-    from app.services.timeline_service import create_timeline_event
-
-    result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
-    )
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    if project.is_archived:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project is already archived",
-        )
-
-    project.is_archived = True
-    project.lifecycle_state = "archived"
-    project.archived_at = datetime.now(timezone.utc)
-
-    await create_timeline_event(
-        db=db,
-        project_id=project.id,
-        event_type="project_archived",
-        title="Proyecto archivado",
-        description="El proyecto fue movido al archivo",
-        actor=current_user.email,
-        metadata={"archived_at": project.archived_at.isoformat()},
-    )
-
-    await db.commit()
-
-    project = await _load_project_with_relationships(db, project.id)
-    logger.info(f"📦 Project archived: {project.id}")
-    return ProjectDetail.model_validate(project)
-
-
-@router.post(
-    "/{project_id}/restore",
-    response_model=ProjectDetail,
-    summary="Restore archived project",
-    description="Bring a previously archived project back to active views",
-    responses={404: {"model": ErrorResponse}, 400: {"model": ErrorResponse}},
-)
-@limiter.limit("10/minute")
-async def restore_project(
-    request: Request,
-    project_id: UUID,
-    current_user: CurrentUser,
-    db: AsyncDB,
-):
-    from app.services.timeline_service import create_timeline_event
-
-    result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
-    )
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    if not project.is_archived:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project is not archived",
-        )
-
-    project.is_archived = False
-    project.archived_at = None
-    if project.lifecycle_state == "archived":
-        project.lifecycle_state = "active"
-
-    await create_timeline_event(
-        db=db,
-        project_id=project.id,
-        event_type="project_restored",
-        title="Proyecto restaurado",
-        description="El proyecto fue restaurado desde el archivo",
-        actor=current_user.email,
-        metadata={},
-    )
-
-    await db.commit()
-
-    project = await _load_project_with_relationships(db, project.id)
-    logger.info(f"♻️ Project restored: {project.id}")
     return ProjectDetail.model_validate(project)
 
 

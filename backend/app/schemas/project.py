@@ -59,7 +59,6 @@ class ProjectUpdate(BaseSchema):
     status: Optional[str] = None
     progress: Optional[int] = Field(None, ge=0, le=100)
     tags: Optional[List[str]] = None
-    is_archived: Optional[bool] = None
     
     class Config:
         json_schema_extra = {
@@ -112,9 +111,6 @@ class ProjectSummary(BaseSchema):
     # Status & progress
     status: str
     progress: Annotated[int, Field(ge=0, le=100)]
-    lifecycle_state: str
-    is_archived: bool
-    archived_at: Optional[datetime] = None
     
     # Timestamps
     created_at: datetime
@@ -144,11 +140,6 @@ class ProjectSummary(BaseSchema):
     def serialize_tags(self, tags: List[str] | None, _info) -> List[str]:
         """Ensure tags is always a list, never None."""
         return tags or []
-
-    @field_serializer('archived_at')
-    def serialize_archived_at(self, dt: datetime | None, _info) -> str | None:
-        """Serialize archived_at to ISO format."""
-        return dt.isoformat() if dt else None
 
 
 class ProjectDetail(ProjectSummary):

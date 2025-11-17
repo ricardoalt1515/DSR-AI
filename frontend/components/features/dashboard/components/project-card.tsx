@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	Archive,
 	Briefcase,
 	Building,
 	Calendar,
@@ -13,7 +12,6 @@ import {
 	Home,
 	MapPin,
 	MoreHorizontal,
-	RotateCcw,
 	Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -55,8 +53,6 @@ interface ProjectCardProps {
 	updatedAt: string;
 	createdAt: string;
 	proposalsCount?: number;
-	isArchived?: boolean;
-	archivedAt?: string | null;
 	className?: string;
 }
 
@@ -94,14 +90,11 @@ const ProjectCard = memo(function ProjectCard({
 	updatedAt,
 	createdAt,
 	proposalsCount = 0,
-	isArchived = false,
-	archivedAt,
 	className,
 }: ProjectCardProps) {
-	const { deleteProject, archiveProject, restoreProject } = useProjectActions();
+	const { deleteProject } = useProjectActions();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [isArchiving, setIsArchiving] = useState(false);
 
 	// ✅ Calculate progress dynamically from technical sections
 	const sections = useTechnicalSections(id);
@@ -163,40 +156,10 @@ const ProjectCard = memo(function ProjectCard({
 		}
 	};
 
-	const archiveLabel = isArchived
-		? archivedAt
-			? `Archived ${new Date(archivedAt).toLocaleDateString("en-US")}`
-			: "Archived"
-		: null;
-
-	const handleArchiveToggle = async () => {
-		setIsArchiving(true);
-		try {
-			if (isArchived) {
-				await restoreProject(id);
-				toast.success("Assessment restored", {
-					description: `"${name}" is back in the portfolio`,
-				});
-			} else {
-				await archiveProject(id);
-				toast.success("Assessment archived", {
-					description: `"${name}" moved to archive`,
-				});
-			}
-		} catch (_error) {
-			toast.error(isArchived ? "Restore failed" : "Archive failed", {
-				description: "Please try again",
-			});
-		} finally {
-			setIsArchiving(false);
-		}
-	};
-
 	return (
 		<Card
 			className={cn(
 				"group relative flex h-full flex-col bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 overflow-hidden",
-				isArchived && "border-dashed border-muted-foreground/50 opacity-90",
 				className,
 			)}
 		>
@@ -233,7 +196,7 @@ const ProjectCard = memo(function ProjectCard({
 								<MoreHorizontal className="h-4 w-4" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-56">
+						<DropdownMenuContent align="end" className="w-48">
 							<DropdownMenuItem asChild>
 								<Link href={`/project/${id}`}>
 									<Edit className="mr-2 h-4 w-4" />
@@ -255,23 +218,6 @@ const ProjectCard = memo(function ProjectCard({
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
-								className="text-primary focus:text-primary"
-								onSelect={(event) => {
-									event.preventDefault();
-									if (!isArchiving) {
-										void handleArchiveToggle();
-									}
-								}}
-							>
-								{isArchived ? (
-									<RotateCcw className="mr-2 h-4 w-4" />
-								) : (
-									<Archive className="mr-2 h-4 w-4" />
-								)}
-								{isArchived ? "Restore to active" : "Archive assessment"}
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
 								className="text-destructive focus:text-destructive"
 								onSelect={(e) => {
 									e.preventDefault();
@@ -290,8 +236,6 @@ const ProjectCard = memo(function ProjectCard({
 						variant="outline"
 						className={cn(
 							"text-xs border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors duration-300",
-							isArchived &&
-								"border-dashed border-muted-foreground/40 bg-muted/60 text-muted-foreground",
 							status === "Proposal Ready" && "status-ready",
 							status === "In Development" && "status-active",
 							status === "On Hold" && "status-warning",
@@ -302,17 +246,7 @@ const ProjectCard = memo(function ProjectCard({
 					<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors duration-300">
 						{statusDescription}
 					</span>
-					{isArchived && (
-						<Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-							Archived
-						</Badge>
-					)}
 				</div>
-				{archiveLabel && (
-					<p className="text-[11px] text-muted-foreground italic">
-						{archiveLabel}
-					</p>
-				)}
 
 				<ProjectProgressIndicator status={status} />
 			</CardHeader>

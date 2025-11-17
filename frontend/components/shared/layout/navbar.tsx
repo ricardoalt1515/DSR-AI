@@ -105,6 +105,13 @@ export function NavBar() {
 	const loadingProjects = useProjectLoading();
 	useEnsureProjectsLoaded();
 	const { user, logout } = useAuth();
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	const authedUser = mounted ? user : null;
 
 	// Proposal generation progress
 	const { isGenerating, progress, currentStep, estimatedTime } =
@@ -112,14 +119,14 @@ export function NavBar() {
 
 	// Get user initials for avatar
 	const getUserInitials = () => {
-		if (!user) return "?";
-		const names = user.name.split(" ").filter((n) => n.length > 0);
+		if (!authedUser) return "?";
+		const names = authedUser.name.split(" ").filter((n) => n.length > 0);
 		if (names.length >= 2) {
 			const first = names[0]?.[0] ?? "";
 			const last = names[names.length - 1]?.[0] ?? "";
 			return (first + last).toUpperCase();
 		}
-		return user.name.substring(0, 2).toUpperCase();
+		return authedUser.name.substring(0, 2).toUpperCase();
 	};
 
 	useEffect(() => {
@@ -213,7 +220,7 @@ export function NavBar() {
 							New Assessment
 						</button>
 
-						{user && (
+						{authedUser && (
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<button
@@ -235,14 +242,14 @@ export function NavBar() {
 									<DropdownMenuLabel className="font-normal">
 										<div className="flex flex-col space-y-1">
 											<p className="text-sm font-medium leading-none">
-												{user.name}
+												{authedUser.name}
 											</p>
 											<p className="text-xs leading-none text-muted-foreground">
-												{user.email}
+												{authedUser.email}
 											</p>
-											{user.company && (
+											{authedUser.company && (
 												<p className="text-xs leading-none text-muted-foreground">
-													{user.company}
+													{authedUser.company}
 												</p>
 											)}
 										</div>

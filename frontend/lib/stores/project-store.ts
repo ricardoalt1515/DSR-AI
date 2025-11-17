@@ -5,81 +5,47 @@ import { immer } from "zustand/middleware/immer";
 import { useShallow } from "zustand/react/shallow";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { logger } from "@/lib/utils/logger";
-import {
-	type DashboardStats,
-	type ProjectListParams,
-	projectsAPI,
-} from "../api/projects";
+import { type DashboardStats, projectsAPI } from "../api/projects";
+import { PROJECT_STATUS_GROUPS } from "../project-status";
+
+export const DEFAULT_PAGE_SIZE = 20;
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+const sanitizeFilters = (filters: ProjectState["filters"]) => {
+	const next = { ...filters };
+
+	// Drop companyId persisted como nombre (pre-cambio) o valor inválido
+	if (next.companyId && !UUID_REGEX.test(next.companyId)) {
+		delete next.companyId;
+	}
+
+	return next;
+};
 
 const mapProjectSummary = (
 	project: ProjectSummary | ProjectDetail,
 ): ProjectSummary => {
 	const summary = project as ProjectSummary;
 	const detail = project as ProjectDetail;
-	const camelProject = project as ProjectSummary & {
-		projectType?: string;
-		scheduleSummary?: string;
-		budget?: number;
-	};
 
-	const normalizedCompanyName =
-		project.companyName || project.client || "";
-	const normalizedLocationName =
-		project.locationName || project.location || "";
-	const normalizedLifecycleState =
-		detail.lifecycleState ??
-		summary.lifecycleState ??
-		(project as { lifecycleState?: LifecycleState }).lifecycleState ??
-		"active";
-	const normalizedArchivedAt =
-		detail.archivedAt ??
-		summary.archivedAt ??
-		(project as { archivedAt?: string | null }).archivedAt ??
-		null;
-	const normalizedIsArchived =
-		typeof detail.isArchived === "boolean"
-			? detail.isArchived
-			: typeof summary.isArchived === "boolean"
-				? summary.isArchived
-				: (project as { isArchived?: boolean }).isArchived ?? false;
-	const projectType =
-		camelProject.projectType ||
-		summary.projectType ||
-		detail.projectType ||
-		(project as { type?: string }).type ||
-		"Assessment";
-	const scheduleSummary =
-		detail.scheduleSummary || summary.scheduleSummary || "To be defined";
-	const budgetValue =
-		typeof detail.budget === "number"
-			? detail.budget
-			: typeof summary.budget === "number"
-				? summary.budget
-				: camelProject.budget || 0;
 	return {
 		id: project.id,
 		name: project.name,
 		locationId: project.locationId,
 		// Hierarchy fields (inherited from Company → Location)
-		companyName: normalizedCompanyName,
-		locationName: normalizedLocationName,
-		client: project.client || normalizedCompanyName,
-		location: project.location || normalizedLocationName,
+		companyName: project.companyName || project.client || "",  // Prefer new field
+		locationName: project.locationName || project.location || "",  // Prefer new field
+		client: project.client || project.companyName || "",  // Legacy fallback
+		location: project.location || project.locationName || "",  // Legacy fallback
 		sector: project.sector,
 		subsector: project.subsector || "",
 		// Status & progress
 		status: project.status,
 		progress: typeof project.progress === "number" ? project.progress : 0,
-		lifecycleState: normalizedLifecycleState,
-		isArchived: normalizedIsArchived,
-		archivedAt: normalizedArchivedAt,
 		// Metadata
 		createdAt: project.createdAt,
 		updatedAt: project.updatedAt,
-		type: projectType,
-		projectType,
-		scheduleSummary,
-		budget: budgetValue,
+		type: project.type ?? "Assessment",
 		description: project.description ?? "",
 		proposalsCount:
 			typeof summary.proposalsCount === "number"
@@ -91,27 +57,6 @@ const mapProjectSummary = (
 	};
 };
 
-type LifecycleState = ProjectSummary["lifecycleState"];
-
-type ProjectFilters = {
-	status?: string;
-	sector?: string;
-	search?: string;
-	companyId?: string;
-	locationId?: string;
-	lifecycleState?: LifecycleState;
-	includeArchived?: boolean;
-};
-
-type LoadProjectsOptions = {
-	force?: boolean;
-};
-
-type CreateProjectInput = Partial<ProjectSummary> & {
-	budget?: number;
-	scheduleSummary?: string;
-};
-
 interface ProjectState {
 	// State
 	projects: ProjectSummary[];
@@ -120,37 +65,41 @@ interface ProjectState {
 	error: string | null;
 	dataSource: "api" | "mock";
 	dashboardStats: DashboardStats | null;
-	lifecycleCounts: Record<LifecycleState, number>;
-	_lastRequestToken: number;
 
-	// Pagination state
-	page: number;
-	pageSize: number;
-	totalPages: number;
-	totalProjects: number;
+		// Pagination state
+		page: number;
+		pageSize: number;
+		totalPages: number;
+		totalProjects: number;
 	hasMore: boolean;
 
-	// Filters state
-	filters: ProjectFilters;
+		// Filters state
+		filters: {
+			status?: string;
+			sector?: string;
+			search?: string;
+			companyId?: string;
+		};
+
+	filteredProjects: (
+		filter?: keyof typeof PROJECT_STATUS_GROUPS,
+		search?: string,
+	) => ProjectSummary[];
 
 	// Actions
-	loadProjects: (
-		page?: number,
-		append?: boolean,
-		options?: LoadProjectsOptions,
-	) => Promise<void>;
+	loadProjects: (page?: number, append?: boolean) => Promise<void>;
 	loadMore: () => Promise<void>;
-	setFilter: (key: keyof ProjectFilters, value: ProjectFilters[typeof key]) => void;
+	setFilter: (key: "status" | "sector" | "search" | "companyId", value: string | undefined) => void;
 	loadProject: (id: string) => Promise<void>;
 	loadDashboardStats: () => Promise<void>;
-	createProject: (projectData: CreateProjectInput) => Promise<ProjectSummary>;
+	createProject: (
+		projectData: Partial<ProjectSummary>,
+	) => Promise<ProjectSummary>;
 	updateProject: (
 		id: string,
 		updates: Partial<ProjectSummary>,
 	) => Promise<void>;
 	deleteProject: (id: string) => Promise<void>;
-	archiveProject: (id: string) => Promise<ProjectSummary>;
-	restoreProject: (id: string) => Promise<ProjectSummary>;
 
 	// Utility actions
 	clearError: () => void;
@@ -172,89 +121,38 @@ export const useProjectStore = create<ProjectState>()(
 			error: null,
 			dataSource: "api",
 			dashboardStats: null,
-			lifecycleCounts: {
-				active: 0,
-				pipeline: 0,
-				completed: 0,
-				archived: 0,
-			},
-			_lastRequestToken: 0,
-
-			archiveProject: async (id: string) => {
-				try {
-					const archived = await projectsAPI.archiveProject(id);
-					const summary = mapProjectSummary(archived);
-
-					set((state) => {
-						state.projects = state.projects.map((project) =>
-							project.id === id ? { ...project, ...summary } : project,
-						);
-						if (state.currentProject?.id === id) {
-							state.currentProject = {
-								...state.currentProject,
-								...archived,
-								archivedAt: archived.archivedAt ?? null,
-								isArchived: true,
-								lifecycleState: archived.lifecycleState ?? summary.lifecycleState,
-							};
-						}
-						state.dataSource = "api";
-					});
-
-					void get().loadProjects(get().page, false, { force: true });
-					return summary;
-				} catch (error) {
-					logger.error("Failed to archive project", error, "ProjectStore");
-					set((state) => {
-						state.error =
-							error instanceof Error ? error.message : "Error al archivar proyecto";
-					});
-					throw error;
-				}
-			},
-
-			restoreProject: async (id: string) => {
-				try {
-					const restored = await projectsAPI.restoreProject(id);
-					const summary = mapProjectSummary(restored);
-
-					set((state) => {
-						state.projects = state.projects.map((project) =>
-							project.id === id ? { ...project, ...summary } : project,
-						);
-						if (state.currentProject?.id === id) {
-							state.currentProject = {
-								...state.currentProject,
-								...restored,
-								archivedAt: restored.archivedAt ?? null,
-								isArchived: false,
-								lifecycleState: restored.lifecycleState ?? summary.lifecycleState,
-							};
-						}
-						state.dataSource = "api";
-					});
-
-					void get().loadProjects(get().page, false, { force: true });
-					return summary;
-				} catch (error) {
-					logger.error("Failed to restore project", error, "ProjectStore");
-					set((state) => {
-						state.error =
-							error instanceof Error ? error.message : "Error al restaurar proyecto";
-					});
-					throw error;
-				}
-			},
 
 			// Pagination initial state
 			page: 1,
-			pageSize: 50,
+			pageSize: DEFAULT_PAGE_SIZE,
 			totalPages: 0,
 			totalProjects: 0,
 			hasMore: false,
 
 			// Filters initial state
-			filters: { includeArchived: false },
+			filters: {},
+
+			filteredProjects: (filter = "all", search = "") => {
+				const projects = get().projects;
+				const allowedStatuses =
+					PROJECT_STATUS_GROUPS[filter] ?? PROJECT_STATUS_GROUPS.all ?? [];
+
+				return projects.filter((project) => {
+					const normalizedSearch = search.trim().toLowerCase();
+					const matchesSearch =
+						normalizedSearch === "" ||
+						project.name.toLowerCase().includes(normalizedSearch) ||
+						project.client.toLowerCase().includes(normalizedSearch) ||
+						project.location.toLowerCase().includes(normalizedSearch);
+
+					const matchesFilter =
+						allowedStatuses.length > 0
+							? allowedStatuses.includes(project.status)
+							: true;
+
+					return matchesSearch && matchesFilter;
+				});
+			},
 
 			// Load dashboard stats from backend
 			loadDashboardStats: async () => {
@@ -274,52 +172,43 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// Load projects from API with pagination and filters
-			loadProjects: async (
-				page = 1,
-				append = false,
-				options: LoadProjectsOptions = {},
-			) => {
-				const state = get();
-				if (state.loading && !options.force) {
-					return; // Already loading, skip
-				}
+				loadProjects: async (page = 1, append = false) => {
+					const state = get();
+					if (state.loading) {
+						return; // Already loading, skip
+					}
 
-				const previousProjects = state.projects;
-				const requestToken = state._lastRequestToken + 1;
-				set((draft) => {
-					draft.loading = true;
-					draft.error = null;
-					draft._lastRequestToken = requestToken;
-				});
+				// Set loading IMMEDIATELY to prevent race condition
+				set({ loading: true, error: null });
 
-				try {
-					const { filters, pageSize } = get();
+					try {
+						const filters = sanitizeFilters(state.filters);
+						const { pageSize } = state;
 
-					const params: ProjectListParams = {
+					// Build params object, only include defined values
+					const params: {
+						page: number;
+						size: number;
+						status?: string;
+						sector?: string;
+						companyId?: string;
+					} = {
 						page,
 						size: pageSize,
 					};
 
-					if (filters.status) params.status = filters.status;
-					if (filters.sector) params.sector = filters.sector;
-					if (filters.search) params.search = filters.search;
-					if (filters.companyId) params.companyId = filters.companyId;
-					if (filters.locationId) params.locationId = filters.locationId;
-					if (filters.lifecycleState) params.lifecycleState = filters.lifecycleState;
-					if (typeof filters.includeArchived === "boolean") {
-						params.includeArchived = filters.includeArchived;
-					}
+						if (filters.status) params.status = filters.status;
+						if (filters.sector) params.sector = filters.sector;
+						if (filters.companyId) params.companyId = filters.companyId;
 
-					const response = await projectsAPI.getProjects(params);
-
-					if (get()._lastRequestToken !== requestToken) {
-						return;
-					}
+						const response = await projectsAPI.getProjects(params);
 
 					const items = response.items?.map(mapProjectSummary) ?? [];
 
 					set((draft) => {
+						// Append or replace projects
 						if (append) {
+							// Deduplicate by ID when appending
 							const existingIds = new Set(draft.projects.map((p) => p.id));
 							const newItems = items.filter((item) => !existingIds.has(item.id));
 							draft.projects = [...draft.projects, ...newItems];
@@ -327,36 +216,23 @@ export const useProjectStore = create<ProjectState>()(
 							draft.projects = items;
 						}
 
+						// Update pagination metadata
 						draft.page = page;
 						draft.totalPages = response.pages ?? 0;
 						draft.totalProjects = response.total ?? 0;
 						draft.hasMore = page < (response.pages ?? 0);
-						const counts = (
-							(response.meta as {
-								lifecycle_counts?: Partial<Record<LifecycleState, number>>;
-							})?.lifecycle_counts ?? {}
-						) as Partial<Record<LifecycleState, number>>;
-						draft.lifecycleCounts = {
-							active: counts.active ?? 0,
-							pipeline: counts.pipeline ?? 0,
-							completed: counts.completed ?? 0,
-							archived: counts.archived ?? 0,
-						};
 
 						draft.loading = false;
 						draft.dataSource = "api";
 					});
 				} catch (error) {
 					logger.error("Failed to load projects", error, "ProjectStore");
-					if (get()._lastRequestToken !== requestToken) {
-						return;
-					}
-					set((draft) => {
-						draft.projects = previousProjects;
-						draft.loading = false;
-						draft.dataSource = "api";
-						draft.error =
-							error instanceof Error ? error.message : "Error al cargar proyectos";
+					set({
+						projects: append ? get().projects : [],
+						loading: false,
+						dataSource: "api",
+						error:
+							error instanceof Error ? error.message : "Error loading projects",
 					});
 				}
 			},
@@ -371,17 +247,19 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// Set filter and reload from page 1
-			setFilter: (key, value) => {
-				set((draft) => {
-					if (value === undefined || value === null) {
-						delete draft.filters[key];
-					} else {
-						draft.filters[key] = value as never;
-					}
-					draft.page = 1;
-				});
-				void get().loadProjects(1, false, { force: true });
-			},
+				setFilter: (key: "status" | "sector" | "search" | "companyId", value: string | undefined) => {
+					set((draft) => {
+						if (value === undefined) {
+							delete draft.filters[key];
+						} else {
+							draft.filters[key] = value;
+						}
+						draft.filters = sanitizeFilters(draft.filters);
+						draft.page = 1;
+					});
+					// Trigger reload with new filters
+					void get().loadProjects(1, false);
+				},
 
 			loadProject: async (id: string) => {
 				set((state) => {
@@ -415,7 +293,7 @@ export const useProjectStore = create<ProjectState>()(
 				}
 			},
 
-			createProject: async (projectData: CreateProjectInput) => {
+			createProject: async (projectData: Partial<ProjectSummary>) => {
 				set((state) => {
 					state.loading = true;
 					state.error = null;
@@ -562,19 +440,6 @@ export const useProjectStore = create<ProjectState>()(
 				pageSize: state.pageSize,
 				// Don't persist: projects, currentProject, loading, error, pagination state
 			}),
-			onRehydrateStorage: () => (state) => {
-				if (!state) return;
-				// Ensure server data reflects persisted filters after hydration
-				void state
-					.loadProjects(1, false, { force: true })
-					.catch((error) => {
-						logger.error(
-							"Failed to reload projects after hydration",
-							error,
-							"ProjectStore",
-						);
-					});
-			},
 		},
 	),
 );
@@ -591,9 +456,6 @@ export const useProjectLoading = () =>
 export const useProjectError = () =>
 	useProjectStore((state) => state?.error ?? null);
 
-export const useLifecycleCounts = () =>
-	useProjectStore((state) => state.lifecycleCounts);
-
 // Actions
 export const useProjectActions = () =>
 	useProjectStore(
@@ -606,10 +468,9 @@ export const useProjectActions = () =>
 			createProject: state.createProject,
 			updateProject: state.updateProject,
 			deleteProject: state.deleteProject,
-			archiveProject: state.archiveProject,
-			restoreProject: state.restoreProject,
 			clearError: state.clearError,
 			setLoading: state.setLoading,
+			filteredProjects: state.filteredProjects,
 		})),
 	);
 

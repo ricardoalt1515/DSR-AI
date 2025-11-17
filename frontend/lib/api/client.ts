@@ -193,7 +193,7 @@ class APIClient {
 	private isRetryableError(error: unknown): boolean {
 		if (error instanceof APIClientError && error.code) {
 			// Retry on network errors or specific HTTP status codes
-			const retryableStatuses = [408, 429, 500, 502, 503, 504];
+			const retryableStatuses = [408, 500, 502, 503, 504];
 			const statusCode = Number.parseInt(
 				error.code.replace("HTTP_", "") || "0",
 				10,

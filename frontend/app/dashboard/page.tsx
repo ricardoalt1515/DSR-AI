@@ -1,7 +1,8 @@
 "use client";
 
-import { Building2, Search, FolderKanban, Loader2 } from "lucide-react";
-import React, { memo, useCallback, useEffect } from "react";
+import { Building2, Search, Filter, FolderKanban, Loader2 } from "lucide-react";
+import React, { memo, useCallback, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
 	DashboardHero,
 	PremiumProjectWizard,
@@ -10,16 +11,10 @@ import {
 	SmartNotifications,
 } from "@/components/features/dashboard";
 import { ProjectCard } from "@/components/features/dashboard/components/project-card";
-import {
-	useProjectActions,
-	usePagination,
-	useProjects,
-	useProjectLoading,
-	useFilters,
-	useLifecycleCounts,
-} from "@/lib/stores";
+import { useProjectActions, usePagination, useProjects, useProjectLoading } from "@/lib/stores";
 import { useCompanyStore } from "@/lib/stores/company-store";
 import ClientOnly from "@/components/shared/common/client-only";
+import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -31,8 +26,6 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import {
 	Select,
 	SelectContent,
@@ -115,86 +108,43 @@ function AssessmentGridSkeleton() {
  * Main Dashboard Content Component
  * Assessment-first view with company/location context
  */
-const lifecycleTabs = [
-	{ value: "active", label: "Active" },
-	{ value: "pipeline", label: "Pipeline" },
-	{ value: "completed", label: "Completed" },
-	{ value: "archived", label: "Archived" },
-];
-
 const DashboardContent = memo(function DashboardContent() {
-	const { loadProjects, setFilter } = useProjectActions();
+	const { setFilter } = useProjectActions();
 	const { companies, loadCompanies } = useCompanyStore();
-	const filters = useFilters();
-	const lifecycleCounts = useLifecycleCounts();
 	const [createModalOpen, setCreateModalOpen] = React.useState(false);
-	const [searchTerm, setSearchTerm] = React.useState(filters.search ?? "");
-	const [companyFilter, setCompanyFilter] = React.useState<string>(
-		filters.companyId ?? "all",
-	);
-	const currentLifecycle = filters.lifecycleState ?? "active";
-	const includeArchived =
-		currentLifecycle === "archived" ? true : Boolean(filters.includeArchived);
-
-	useEffect(() => {
-		setSearchTerm(filters.search ?? "");
-	}, [filters.search]);
-
-	useEffect(() => {
-		setCompanyFilter(filters.companyId ?? "all");
-	}, [filters.companyId]);
+	const [searchTerm, setSearchTerm] = React.useState("");
+	const [companyFilter, setCompanyFilter] = React.useState<string>("all");
+	const [statusFilter, setStatusFilter] = React.useState<string>("active");
 
 	// Load data on mount
 	useEffect(() => {
-		loadProjects();
+		const activeStatuses = PROJECT_STATUS_GROUPS.active.join(",");
+		setFilter("status", activeStatuses);
 		loadCompanies();
-	}, [loadProjects, loadCompanies]);
+	}, [setFilter, loadCompanies]);
 
-	const handleLifecycleChange = useCallback(
-		(value: string) => {
-			setFilter(
-				"lifecycleState",
-				value ? (value as ProjectSummary["lifecycleState"]) : undefined,
-			);
+	// Handle status filter change with server-side filtering
+	const handleStatusFilterChange = useCallback((value: string) => {
+		setStatusFilter(value);
 
-			if (value === "archived") {
-				setFilter("includeArchived", true);
-				return;
-			}
+		// Map filter values to backend statuses
+		if (value === "all") {
+			setFilter("status", undefined);
+		} else if (value === "active") {
+			// Send comma-separated list of active statuses
+			const activeStatuses = PROJECT_STATUS_GROUPS.active.join(",");
+			setFilter("status", activeStatuses);
+		} else {
+			// Single status filter
+			setFilter("status", value);
+		}
+	}, [setFilter]);
 
-			const forcedArchivedToggle =
-				filters.lifecycleState === "archived" && filters.includeArchived;
-
-			if (forcedArchivedToggle) {
-				setFilter("includeArchived", false);
-			}
-		},
-		[setFilter, filters.lifecycleState, filters.includeArchived],
-	);
-
-	const handleSearchChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			const value = event.target.value;
-			setSearchTerm(value);
-			setFilter("search", value.trim() ? value : undefined);
-		},
-		[setFilter],
-	);
-
-	const handleCompanyChange = useCallback(
-		(value: string) => {
-			setCompanyFilter(value);
-			setFilter("companyId", value === "all" ? undefined : value);
-		},
-		[setFilter],
-	);
-
-	const handleIncludeArchivedToggle = useCallback(
-		(checked: boolean) => {
-			setFilter("includeArchived", checked);
-		},
-		[setFilter],
-	);
+	// Handle company filter (server-side via companyId)
+	const handleCompanyFilterChange = useCallback((value: string) => {
+		setCompanyFilter(value);
+		setFilter("companyId", value === "all" ? undefined : value);
+	}, [setFilter]);
 
 	const handleOpenCreateModal = useCallback(() => {
 		setCreateModalOpen(true);
@@ -248,7 +198,7 @@ const DashboardContent = memo(function DashboardContent() {
 							<Input
 								placeholder="Search assessments..."
 								value={searchTerm}
-								onChange={handleSearchChange}
+								onChange={(e) => setSearchTerm(e.target.value)}
 								className="pl-9"
 								autoComplete="off"
 							/>
@@ -256,7 +206,7 @@ const DashboardContent = memo(function DashboardContent() {
 
 						{/* Filter Bar */}
 						<div className="flex flex-wrap gap-3">
-							<Select value={companyFilter} onValueChange={handleCompanyChange}>
+							<Select value={companyFilter} onValueChange={handleCompanyFilterChange}>
 								<SelectTrigger className="w-[180px]">
 									<Building2 className="h-4 w-4 mr-2" />
 									<SelectValue placeholder="All Companies" />
@@ -271,38 +221,23 @@ const DashboardContent = memo(function DashboardContent() {
 								</SelectContent>
 							</Select>
 
-							<div className="flex items-center gap-3 rounded-lg border px-3 py-1.5">
-								<span className="text-sm font-medium">Include archived</span>
-								<Switch
-									checked={includeArchived}
-									onCheckedChange={handleIncludeArchivedToggle}
-									disabled={currentLifecycle === "archived"}
-								/>
-							</div>
+							<Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+								<SelectTrigger className="w-[180px]">
+									<Filter className="h-4 w-4 mr-2" />
+									<SelectValue placeholder="All Status" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Status</SelectItem>
+									<SelectItem value="active">Active</SelectItem>
+									<SelectItem value="Completed">Completed</SelectItem>
+									<SelectItem value="On Hold">On Hold</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
-
-						<Tabs
-							value={currentLifecycle}
-							onValueChange={handleLifecycleChange}
-							className="pt-2"
-						>
-							<TabsList className="flex w-full flex-wrap gap-2 rounded-full bg-muted/50 p-1">
-								{lifecycleTabs.map((tab) => (
-									<TabsTrigger key={tab.value} value={tab.value} className="flex-1">
-										<div className="flex items-center justify-center gap-2">
-											<span>{tab.label}</span>
-											<span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">
-												{lifecycleCounts[tab.value as keyof typeof lifecycleCounts] ?? 0}
-											</span>
-										</div>
-									</TabsTrigger>
-								))}
-							</TabsList>
-						</Tabs>
 					</CardContent>
 				</Card>
 
-				<AssessmentListContainer />
+				<AssessmentListContainer searchTerm={searchTerm} />
 			</section>
 
 			<PremiumProjectWizard
@@ -316,22 +251,44 @@ const DashboardContent = memo(function DashboardContent() {
 
 /**
  * Assessment List Container with Filtering
- * Connects to project store and applies filters (server-side)
+ * Connects to project store and applies search filter client-side
  */
-const AssessmentListContainer = memo(function AssessmentListContainer() {
+const AssessmentListContainer = memo(function AssessmentListContainer({
+	searchTerm,
+}: {
+	searchTerm: string;
+}) {
 	const projects = useProjects();
 	const loading = useProjectLoading();
-	const { hasMore, totalProjects } = usePagination();
+	const { hasMore, totalProjects, pageSize } = usePagination();
 	const { loadMore } = useProjectActions();
 
-	const remainingProjects = Math.max(totalProjects - projects.length, 0);
+	// Apply client-side filters (search only; company/status are applied server-side)
+	const filtered = useMemo(() => {
+		let result = projects;
+
+		// Search filter (client-side)
+		if (searchTerm.trim()) {
+			const search = searchTerm.toLowerCase();
+			result = result.filter(
+				(p) =>
+					p.name.toLowerCase().includes(search) ||
+					(p.companyName || p.client).toLowerCase().includes(search) ||
+					(p.locationName || p.location).toLowerCase().includes(search)
+			);
+		}
+
+		return result;
+	}, [projects, searchTerm]);
+
+	const remainingProjects = totalProjects - projects.length;
 
 	return (
 		<div className="space-y-4">
-			<AssessmentList projects={projects} loading={loading} />
+			<AssessmentList projects={filtered} loading={loading} />
 
 			{/* Load More Button */}
-			{hasMore && projects.length > 0 && (
+			{hasMore && filtered.length > 0 && (
 				<div className="flex flex-col items-center gap-2 pt-4">
 					<p className="text-sm text-muted-foreground">
 						Showing {projects.length} of {totalProjects} assessments
@@ -343,19 +300,19 @@ const AssessmentListContainer = memo(function AssessmentListContainer() {
 						variant="outline"
 						size="lg"
 						className="w-full max-w-md"
-					>
-						{loading ? (
-							<>
-								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Loading...
-							</>
-						) : (
-							`Load More Assessments (${Math.min(50, remainingProjects)})`
-						)}
-					</Button>
-				</div>
-			)}
-		</div>
+						>
+							{loading ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Loading...
+								</>
+							) : (
+								`Load More Assessments (${Math.min(pageSize, remainingProjects)})`
+							)}
+						</Button>
+					</div>
+				)}
+			</div>
 	);
 });
 

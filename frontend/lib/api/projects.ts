@@ -8,7 +8,7 @@ import type { PaginatedResponse } from "./index";
 
 type JsonObject = Record<string, unknown>;
 
-export type ProjectListParams = {
+type ProjectListParams = {
 	page?: number;
 	size?: number;
 	search?: string;
@@ -16,8 +16,6 @@ export type ProjectListParams = {
 	sector?: string;
 	companyId?: string; // Filter by company
 	locationId?: string; // Filter by location
-	lifecycleState?: "active" | "pipeline" | "completed" | "archived";
-	includeArchived?: boolean;
 };
 
 type CreateProjectPayload = JsonObject & {
@@ -36,21 +34,15 @@ type UpdateProjectPayload = JsonObject &
 		progress?: number;
 	};
 
-export type PipelineStageStats = {
-	count: number;
-	avgProgress: number;
-};
-
 export type DashboardStats = {
-	totalProjects: number;
-	inPreparation: number;
+	total_projects: number;
+	in_preparation: number;
 	generating: number;
-	ready: number;
+	proposal_ready: number;
+	in_development: number;
 	completed: number;
-	avgProgress: number;
-	totalBudget: number;
-	lastUpdated: string | null;
-	pipelineStages: Partial<Record<string, PipelineStageStats>>;
+	on_hold: number;
+	avg_progress: number;
 };
 
 export class ProjectsAPI {
@@ -66,15 +58,6 @@ export class ProjectsAPI {
 		if (params?.sector) searchParams.append("sector", params.sector);
 		if (params?.companyId) searchParams.append("company_id", params.companyId);
 		if (params?.locationId) searchParams.append("location_id", params.locationId);
-		if (params?.lifecycleState) {
-			searchParams.append("lifecycle_state", params.lifecycleState);
-		}
-		if (typeof params?.includeArchived === "boolean") {
-			searchParams.append(
-				"include_archived",
-				params.includeArchived ? "true" : "false",
-			);
-		}
 
 		const query = searchParams.toString();
 		const url = query ? `/projects?${query}` : "/projects";
@@ -105,14 +88,6 @@ export class ProjectsAPI {
 
 	static async deleteProject(id: string): Promise<void> {
 		await apiClient.delete<void>(`/projects/${id}`);
-	}
-
-	static async archiveProject(id: string): Promise<ProjectDetail> {
-		return apiClient.post<ProjectDetail>(`/projects/${id}/archive`, {});
-	}
-
-	static async restoreProject(id: string): Promise<ProjectDetail> {
-		return apiClient.post<ProjectDetail>(`/projects/${id}/restore`, {});
 	}
 
 	// ❌ REMOVED: Proposal methods (getProposals, createProposal, updateProposal, deleteProposal)

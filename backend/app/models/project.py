@@ -4,10 +4,9 @@ Represents waste assessment projects at client locations.
 """
 
 from typing import Optional
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, Text, Index, Boolean, DateTime
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
 from app.models.base import BaseModel
 
@@ -100,28 +99,6 @@ class Project(BaseModel):
         default=0,
         nullable=False,
         comment="Completion percentage 0-100",
-    )
-
-    lifecycle_state = Column(
-        String(20),
-        default="active",
-        nullable=False,
-        index=True,
-        comment="Derived lifecycle grouping (active/pipeline/completed/archived)",
-    )
-
-    is_archived = Column(
-        Boolean,
-        default=False,
-        nullable=False,
-        index=True,
-        comment="Whether the project is archived and hidden from active views",
-    )
-
-    archived_at = Column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Timestamp when the project was archived",
     )
     
     # Metadata

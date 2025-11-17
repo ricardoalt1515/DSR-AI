@@ -69,10 +69,6 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int = Field(..., description="Current page number (1-indexed)")
     size: int = Field(..., description="Number of items per page")
     pages: int = Field(..., description="Total number of pages")
-    meta: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Additional metadata (counts, filters, aggregation info)",
-    )
     
     class Config:
         json_schema_extra = {
@@ -82,14 +78,6 @@ class PaginatedResponse(BaseModel, Generic[T]):
                 "page": 1,
                 "size": 20,
                 "pages": 5,
-                "meta": {
-                    "counts": {
-                        "active": 12,
-                        "pipeline": 4,
-                        "completed": 7,
-                        "archived": 2,
-                    }
-                },
             }
         }
 

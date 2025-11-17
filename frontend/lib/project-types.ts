@@ -44,15 +44,9 @@ export interface ProjectSummary {
 	// Standard fields
 	status: ProjectStatus;
 	progress: number;
-	lifecycleState: "active" | "pipeline" | "completed" | "archived";
-	isArchived: boolean;
-	archivedAt?: string | null;
 	createdAt: string;
 	updatedAt: string;
 	type: string;
-	projectType?: string;
-	scheduleSummary?: string;
-	budget?: number;
 	description: string;
 	proposalsCount: number;
 	tags?: string[];
