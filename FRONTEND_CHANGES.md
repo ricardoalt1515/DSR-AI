@@ -17,7 +17,7 @@ Frontend simplified to only send required fields.
 ### 2. **API Types** (`lib/api/projects.ts`)
 - ✅ `CreateProjectPayload` simplified:
   - **Required**: `locationId`, `name`
-  - **Optional**: `projectType`, `description`, `budget`, `scheduleSummary`, `tags`
+  - **Optional**: `projectType`, `description`, `tags`
   - **Removed**: `client`, `sector`, `subsector`, `location` (inherited from backend)
 
 ### 3. **Store** (`lib/stores/project-store.ts`)
@@ -29,8 +29,6 @@ Frontend simplified to only send required fields.
     name: string,            // Required
     projectType: "Assessment",
     description?: string,
-    budget?: number,
-    scheduleSummary?: string,
     tags?: string[]
   }
   ```
@@ -55,7 +53,6 @@ Frontend simplified to only send required fields.
   subsector: "Food & Bev",  // ❌ Redundant
   location: "Factory A",    // ❌ Redundant
   description: "...",
-  budget: 0,
   tags: []
 }
 ```

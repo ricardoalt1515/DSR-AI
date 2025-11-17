@@ -13,7 +13,6 @@ export { ProposalOverview } from "./proposal-overview";
 // Main proposal page component
 export { ProposalPage, ProposalPage as ProposalDetail } from "./proposal-page";
 export { ProposalTechnical } from "./proposal-technical";
-export { ProposalWaterQuality } from "./proposal-water-quality";
 
 // Types
 export type * from "./types";

@@ -1,0 +1,77 @@
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+backend/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+backend/venv/
+
+# Backend specific
+backend/storage/
+backend/logs/
+*.log
+
+# Node.js / Frontend
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Terraform
+infrastructure/**/*.tfstate
+infrastructure/**/*.tfstate.backup
+infrastructure/**/.terraform/
+infrastructure/**/.terraform.lock.hcl

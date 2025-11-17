@@ -8,7 +8,7 @@ import type { PaginatedResponse } from "./index";
 
 type JsonObject = Record<string, unknown>;
 
-type ProjectListParams = {
+export type ProjectListParams = {
 	page?: number;
 	size?: number;
 	search?: string;
@@ -16,6 +16,8 @@ type ProjectListParams = {
 	sector?: string;
 	companyId?: string; // Filter by company
 	locationId?: string; // Filter by location
+	lifecycleState?: "active" | "pipeline" | "completed" | "archived";
+	includeArchived?: boolean;
 };
 
 type CreateProjectPayload = JsonObject & {
@@ -23,8 +25,6 @@ type CreateProjectPayload = JsonObject & {
 	name: string;
 	projectType?: string; // Default: "Assessment"
 	description?: string;
-	budget?: number;
-	scheduleSummary?: string;
 	tags?: string[];
 	// NOTE: sector, subsector, client, location are inherited from Location → Company
 	// No need to send them - backend populates automatically
@@ -36,15 +36,21 @@ type UpdateProjectPayload = JsonObject &
 		progress?: number;
 	};
 
+export type PipelineStageStats = {
+	count: number;
+	avgProgress: number;
+};
+
 export type DashboardStats = {
-	total_projects: number;
-	in_preparation: number;
+	totalProjects: number;
+	inPreparation: number;
 	generating: number;
-	proposal_ready: number;
-	in_development: number;
+	ready: number;
 	completed: number;
-	on_hold: number;
-	avg_progress: number;
+	avgProgress: number;
+	totalBudget: number;
+	lastUpdated: string | null;
+	pipelineStages: Partial<Record<string, PipelineStageStats>>;
 };
 
 export class ProjectsAPI {
@@ -60,6 +66,15 @@ export class ProjectsAPI {
 		if (params?.sector) searchParams.append("sector", params.sector);
 		if (params?.companyId) searchParams.append("company_id", params.companyId);
 		if (params?.locationId) searchParams.append("location_id", params.locationId);
+		if (params?.lifecycleState) {
+			searchParams.append("lifecycle_state", params.lifecycleState);
+		}
+		if (typeof params?.includeArchived === "boolean") {
+			searchParams.append(
+				"include_archived",
+				params.includeArchived ? "true" : "false",
+			);
+		}
 
 		const query = searchParams.toString();
 		const url = query ? `/projects?${query}` : "/projects";
@@ -90,6 +105,14 @@ export class ProjectsAPI {
 
 	static async deleteProject(id: string): Promise<void> {
 		await apiClient.delete<void>(`/projects/${id}`);
+	}
+
+	static async archiveProject(id: string): Promise<ProjectDetail> {
+		return apiClient.post<ProjectDetail>(`/projects/${id}/archive`, {});
+	}
+
+	static async restoreProject(id: string): Promise<ProjectDetail> {
+		return apiClient.post<ProjectDetail>(`/projects/${id}/restore`, {});
 	}
 
 	// ❌ REMOVED: Proposal methods (getProposals, createProposal, updateProposal, deleteProposal)

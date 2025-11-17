@@ -6,11 +6,11 @@ import {
 	Building2,
 	Check,
 	ChevronRight,
-	Droplets,
 	Factory,
 	FileText,
 	Home,
 	MapPin,
+	Recycle,
 	Sparkles,
 	Store,
 	Target,
@@ -433,11 +433,11 @@ export function PremiumProjectWizard({
 							</p>
 						</div>
 
-						<Card className="aqua-panel">
-							<CardContent className="p-6 space-y-4">
-								<div className="flex items-center gap-3">
-									<div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-										<Droplets className="h-6 w-6 text-primary" />
+							<Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+								<CardContent className="p-6 space-y-4">
+									<div className="flex items-center gap-3">
+										<div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+											<Recycle className="h-6 w-6 text-primary" />
 									</div>
 									<div>
 										<h4 className="font-semibold text-lg text-foreground">

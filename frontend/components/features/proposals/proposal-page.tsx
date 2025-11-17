@@ -39,7 +39,6 @@ import { ProposalEconomics } from "./proposal-economics";
 import { ProposalOverview } from "./proposal-overview";
 import { ProposalParameters } from "./proposal-parameters";
 import { ProposalTechnical } from "./proposal-technical";
-import { ProposalWaterQuality } from "./proposal-water-quality";
 import { CompactDecisionHeader } from "./compact-decision-header";
 import {
 	ComplianceSnapshotCard,

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Archive,
 	ArrowLeft,
 	ChevronRight,
 	Download,
@@ -8,6 +9,7 @@ import {
 	FileText,
 	Home,
 	MoreHorizontal,
+	RotateCcw,
 	Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -48,8 +50,9 @@ interface Project {
 	progress: number;
 	updatedAt: string;
 	description?: string;
-	budget?: number;
-	scheduleSummary?: string;
+	isArchived?: boolean;
+	archivedAt?: string | null;
+	lifecycleState?: string;
 }
 
 interface ProjectHeaderProps {
@@ -65,14 +68,20 @@ const statusColors = {
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
 	const router = useRouter();
-	const { deleteProject } = useProjectActions();
+	const { deleteProject, archiveProject, restoreProject } = useProjectActions();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [isArchiving, setIsArchiving] = useState(false);
 
 	// ✅ Calculate progress dynamically from technical sections (same as body)
 	const sections = useTechnicalSections(project.id);
 	const completion = overallCompletion(sections);
+
+	const isArchived = Boolean(project.isArchived);
+	const archivedLabel = project.archivedAt
+		? `Archived ${new Date(project.archivedAt).toLocaleDateString("en-US")}`
+		: "Archived";
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -87,6 +96,29 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 				description: "No se pudo eliminar el proyecto. Intenta nuevamente.",
 			});
 			setIsDeleting(false);
+		}
+	};
+
+	const handleArchiveToggle = async () => {
+		setIsArchiving(true);
+		try {
+			if (isArchived) {
+				await restoreProject(project.id);
+				toast.success("Proyecto restaurado", {
+					description: `"${project.name}" ha vuelto a la vista activa`,
+				});
+			} else {
+				await archiveProject(project.id);
+				toast.success("Proyecto archivado", {
+					description: `"${project.name}" se movió al archivo`,
+				});
+			}
+		} catch (_error) {
+			toast.error(isArchived ? "Error al restaurar" : "Error al archivar", {
+				description: "Intenta nuevamente",
+			});
+		} finally {
+			setIsArchiving(false);
 		}
 	};
 
@@ -132,7 +164,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 							<div className="flex items-center gap-4 text-sm text-muted-foreground">
 								<span>Client: {project.client}</span>
 								<span>•</span>
-								<span>Tipe: {project.type}</span>
+								<span>Type: {project.type}</span>
 								<span>•</span>
 								<span>Progress: {completion.percentage}%</span>
 							</div>
@@ -181,9 +213,42 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
+
+						<Button
+							variant={isArchived ? "secondary" : "ghost"}
+							size="sm"
+							onClick={handleArchiveToggle}
+							disabled={isArchiving}
+						>
+							{isArchived ? (
+								<>
+									<RotateCcw className="mr-1.5 h-4 w-4" />
+									{isArchiving ? "Restoring..." : "Restore"}
+								</>
+							) : (
+								<>
+									<Archive className="mr-1.5 h-4 w-4" />
+									{isArchiving ? "Archiving..." : "Archive"}
+								</>
+							)}
+						</Button>
 					</div>
 				</div>
 			</div>
+
+			{isArchived && (
+				<div className="border-t border-dashed border-muted-foreground/40 bg-muted/40">
+					<div className="container mx-auto px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+						<Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+							Archived
+						</Badge>
+						<span>{archivedLabel}</span>
+						<span className="text-xs text-muted-foreground/80">
+							Este proyecto está en modo de solo lectura hasta que lo restaures.
+						</span>
+					</div>
+				</div>
+			)}
 
 			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
 				<AlertDialogContent>

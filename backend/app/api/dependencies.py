@@ -10,7 +10,7 @@ Best Practices:
     - Clean and minimal
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 from fastapi import Depends
 
 from app.models.user import User
@@ -107,6 +107,24 @@ StatusFilter = Annotated[
         description="Filter by project status",
         examples=["Active", "In Preparation", "Completed"]
     )
+]
+
+LifecycleFilter = Annotated[
+    Literal["active", "pipeline", "completed", "archived"] | None,
+    Query(
+        alias="lifecycle_state",
+        description="Filter by lifecycle grouping (active, pipeline, completed, archived)",
+        examples=["active"],
+    ),
+]
+
+IncludeArchivedFilter = Annotated[
+    bool | None,
+    Query(
+        alias="include_archived",
+        description="Include archived assessments in the response",
+        example=False,
+    ),
 ]
 
 SectorFilter = Annotated[

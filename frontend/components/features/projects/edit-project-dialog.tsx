@@ -60,15 +60,6 @@ const editProjectSchema = z.object({
 		.string()
 		.max(1000, "Description must be less than 1000 characters")
 		.optional(),
-	budget: z.coerce
-		.number()
-		.min(0, "Budget must be a positive number")
-		.optional()
-		.or(z.literal("")),
-	scheduleSummary: z
-		.string()
-		.max(200, "Schedule summary must be less than 200 characters")
-		.optional(),
 });
 
 type EditProjectFormValues = z.infer<typeof editProjectSchema>;
@@ -93,8 +84,6 @@ interface EditProjectDialogProps {
 		location: string;
 		status: string;
 		description?: string;
-		budget?: number;
-		scheduleSummary?: string;
 	};
 }
 
@@ -124,8 +113,6 @@ export function EditProjectDialog({
 			location: project.location,
 			status: project.status as ProjectStatus,
 			description: project.description || "",
-			budget: project.budget ?? ("" as ""),
-			scheduleSummary: project.scheduleSummary || "",
 		},
 	});
 
@@ -143,8 +130,6 @@ export function EditProjectDialog({
 				location: project.location,
 				status: project.status as ProjectStatus,
 				description: project.description || "",
-				budget: project.budget ?? ("" as ""),
-				scheduleSummary: project.scheduleSummary || "",
 			});
 		}, 0);
 
@@ -156,8 +141,6 @@ export function EditProjectDialog({
 		project.location,
 		project.status,
 		project.description,
-		project.budget,
-		project.scheduleSummary,
 		form,
 	]);
 
@@ -174,10 +157,6 @@ export function EditProjectDialog({
 			if (values.status !== project.status) updates.status = values.status;
 			if (values.description !== project.description)
 				updates.description = values.description;
-			if (values.budget !== project.budget)
-				updates.budget = values.budget === "" ? undefined : values.budget;
-			if (values.scheduleSummary !== project.scheduleSummary)
-				updates.scheduleSummary = values.scheduleSummary;
 
 			// Fail fast: Don't make API call if nothing changed
 			if (Object.keys(updates).length === 0) {
@@ -311,41 +290,6 @@ export function EditProjectDialog({
 								</FormItem>
 							)}
 						/>
-
-						{/* Budget and Schedule - Side by side */}
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="budget"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Budget (USD)</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												placeholder="e.g., 500000"
-												{...field}
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-
-							<FormField
-								control={form.control}
-								name="scheduleSummary"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Schedule Summary</FormLabel>
-										<FormControl>
-											<Input placeholder="e.g., 6 months" {...field} />
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
 
 						<DialogFooter>
 							<Button

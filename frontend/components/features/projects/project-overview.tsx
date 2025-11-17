@@ -1,15 +1,7 @@
-import {
-	Building,
-	CalendarDays,
-	Clock,
-	DollarSign,
-	Droplets,
-	MapPin,
-} from "lucide-react";
+import { Building, CalendarDays, Clock, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { formatCurrency } from "@/lib/utils";
 
 interface ProjectOverviewProject {
 	id: string;
@@ -20,8 +12,6 @@ interface ProjectOverviewProject {
 	progress: number;
 	type: string;
 	description: string;
-	budget?: number;
-	scheduleSummary?: string;
 	timeline?: string;
 	updatedAt?: string;
 	team?: Array<{ name: string; role: string; avatar?: string }>;
@@ -42,12 +32,7 @@ export function ProjectOverview({
 	project,
 	onNavigateToTechnical,
 }: ProjectOverviewProps) {
-	const budgetLabel =
-		typeof project.budget === "number"
-			? formatCurrency(project.budget)
-			: "Not defined";
-	const durationLabel =
-		project.timeline ?? project.scheduleSummary ?? "Not defined";
+	const durationLabel = project.timeline ?? "Not defined";
 	const updatedAtLabel = project.updatedAt
 		? new Date(project.updatedAt).toLocaleDateString("en-US")
 		: "Not defined";
@@ -92,7 +77,7 @@ export function ProjectOverview({
 						</div>
 						<Progress value={project.progress} className="w-full" />
 
-						<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+						<div className="grid grid-cols-2 gap-4 md:grid-cols-3">
 							<div className="text-center">
 								<div className="text-2xl font-bold text-primary">
 									{project.progress}%
@@ -116,12 +101,6 @@ export function ProjectOverview({
 								<div className="text-xs text-muted-foreground">
 									Estimated Duration
 								</div>
-							</div>
-							<div className="text-center">
-								<div className="text-2xl font-bold text-chart-1">
-									{budgetLabel}
-								</div>
-								<div className="text-xs text-muted-foreground">Budget</div>
 							</div>
 						</div>
 					</CardContent>
@@ -150,26 +129,6 @@ export function ProjectOverview({
 								<div className="text-sm font-medium">Location</div>
 								<div className="text-sm text-muted-foreground">
 									{project.location}
-								</div>
-							</div>
-						</div>
-
-						<div className="flex items-center gap-3">
-							<Droplets className="h-4 w-4 text-muted-foreground" />
-							<div>
-								<div className="text-sm font-medium">Treatment Type</div>
-								<div className="text-sm text-muted-foreground">
-									{project.type}
-								</div>
-							</div>
-						</div>
-
-						<div className="flex items-center gap-3">
-							<DollarSign className="h-4 w-4 text-muted-foreground" />
-							<div>
-								<div className="text-sm font-medium">Budget</div>
-								<div className="text-sm text-muted-foreground">
-									{budgetLabel}
 								</div>
 							</div>
 						</div>

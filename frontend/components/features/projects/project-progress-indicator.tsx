@@ -9,7 +9,7 @@ import type { ProjectStatus } from "@/lib/project-types";
 import { cn } from "@/lib/utils";
 
 const PROGRESS_STEPS = [
-	{ id: 1, label: "Tecnical data" },
+	{ id: 1, label: "Technical Data" },
 	{ id: 2, label: "Proposal" },
 	{ id: 3, label: "Follow-up" },
 ];

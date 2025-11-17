@@ -1,47 +1,57 @@
 "use client";
 
 import { Building, CheckCircle2, Clock, TrendingUp, Zap } from "lucide-react";
-import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useProjects } from "@/lib/stores";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProjectStatsData } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 
 export function SimplifiedStats() {
-	const projects = useProjects();
+	// Use backend stats instead of client-side calculations
+	const backendStats = useProjectStatsData();
 
-	const stats = useMemo(() => {
-		const total = projects.length;
-		const inPreparation = projects.filter(
-			(p) => p.status === "In Preparation",
-		).length;
-		const generating = projects.filter(
-			(p) => p.status === "Generating Proposal",
-		).length;
-		const ready = projects.filter((p) => p.status === "Proposal Ready").length;
-		const completed = projects.filter((p) => p.status === "Completed").length;
+	// Show skeleton while loading
+	if (!backendStats) {
+		return (
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+				{[1, 2, 3].map((i) => (
+					<Card key={i}>
+						<CardContent className="p-6">
+							<div className="flex items-center gap-4">
+								<Skeleton className="h-12 w-12 rounded-xl" />
+								<div className="flex-1 space-y-2">
+									<Skeleton className="h-4 w-24" />
+									<Skeleton className="h-8 w-16" />
+									<Skeleton className="h-3 w-32" />
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+				))}
+			</div>
+		);
+	}
 
-		// Calculate efficiency metrics
-		const avgProgress =
-			total > 0
-				? Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / total)
-				: 0;
-
-		const activeProjects = total - completed;
-		const completionRate =
-			total > 0 ? Math.round((completed / total) * 100) : 0;
-
-		return {
-			total,
-			inPreparation,
-			generating,
-			ready,
-			completed,
-			avgProgress,
-			activeProjects,
-			completionRate,
-		};
-	}, [projects]);
+	// Map backend stats to component format
+	const stats = {
+		total: backendStats.totalProjects ?? 0,
+		inPreparation: backendStats.inPreparation ?? 0,
+		generating: backendStats.generating ?? 0,
+		ready: backendStats.ready ?? 0,
+		completed: backendStats.completed ?? 0,
+		avgProgress: Math.round(backendStats.avgProgress ?? 0),
+		activeProjects:
+			(backendStats.inPreparation ?? 0) +
+			(backendStats.generating ?? 0) +
+			(backendStats.ready ?? 0),
+		completionRate:
+			backendStats.totalProjects && backendStats.totalProjects > 0
+				? Math.round(
+						((backendStats.completed ?? 0) / backendStats.totalProjects) * 100,
+					)
+				: 0,
+	};
 
 	const statCards = [
 		{

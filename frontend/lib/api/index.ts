@@ -34,4 +34,5 @@ export interface PaginatedResponse<T> {
 	page: number;
 	size: number;
 	pages: number;
+	meta?: Record<string, unknown>;
 }

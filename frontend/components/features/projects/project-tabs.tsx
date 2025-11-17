@@ -92,8 +92,6 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 			progress: base.progress,
 			type: base.type,
 			description: base.description,
-			budget: base.budget,
-			scheduleSummary: base.scheduleSummary,
 			// timeline intentionally omitted to avoid type mismatch (ProjectDetail has TimelineEvent[])
 			updatedAt: base.updatedAt,
 			team:

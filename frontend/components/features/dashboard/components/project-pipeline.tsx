@@ -1,35 +1,29 @@
 "use client";
 
 import {
-	AlertTriangle,
 	ArrowRight,
-	Brain,
 	CheckCircle,
 	FileText,
 	TrendingUp,
 	Zap,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { routes } from "@/lib/routes";
-import { useProjects } from "@/lib/stores";
+import { useProjectStatsData } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 
-interface PipelineStage {
+type StageDefinition = {
 	id: string;
 	title: string;
 	description: string;
 	icon: React.ComponentType<{ className?: string }>;
-	color: string;
+	color: "blue" | "purple" | "green" | "gray";
 	statuses: string[];
-}
+};
 
-const PIPELINE_STAGES: PipelineStage[] = [
+const PIPELINE_STAGES: StageDefinition[] = [
 	{
 		id: "preparation",
 		title: "Preparation",
@@ -42,7 +36,7 @@ const PIPELINE_STAGES: PipelineStage[] = [
 		id: "analysis",
 		title: "Analysis",
 		description: "AI processing",
-		icon: Brain,
+		icon: TrendingUp,
 		color: "purple",
 		statuses: ["Generating Proposal", "In Development"],
 	},
@@ -64,127 +58,121 @@ const PIPELINE_STAGES: PipelineStage[] = [
 	},
 ];
 
+const STAGE_COLOR_MAP = {
+	blue: {
+		card: "border-primary/35 bg-primary/10",
+		iconBg: "bg-primary/15",
+		title: "text-primary",
+		accent: "text-primary",
+		badge: "bg-primary/12 text-primary",
+	},
+	purple: {
+		card: "border-treatment-auxiliary/35 bg-treatment-auxiliary/12",
+		iconBg: "bg-treatment-auxiliary/15",
+		title: "text-treatment-auxiliary",
+		accent: "text-treatment-auxiliary",
+		badge: "bg-treatment-auxiliary/12 text-treatment-auxiliary",
+	},
+	green: {
+		card: "border-success/35 bg-success/12",
+		iconBg: "bg-success/15",
+		title: "text-success",
+		accent: "text-success",
+		badge: "bg-success/12 text-success",
+	},
+	gray: {
+		card: "border-border/40 bg-card/60",
+		iconBg: "bg-card/70 text-muted-foreground",
+		title: "text-foreground",
+		accent: "text-muted-foreground",
+		badge: "bg-card/70 text-muted-foreground",
+	},
+} as const;
+
 export function ProjectPipeline() {
-	const projects = useProjects();
-	const router = useRouter();
+	const stats = useProjectStatsData();
 
-	const pipelineData = useMemo(() => {
-		const stageData = PIPELINE_STAGES.map((stage) => {
-			const stageProjects = projects.filter((p) =>
-				stage.statuses.includes(p.status),
-			);
+	if (!stats || stats.totalProjects === 0) {
+		return null;
+	}
 
-			const avgProgress =
-				stageProjects.length > 0
-					? Math.round(
-							stageProjects.reduce((sum, p) => sum + p.progress, 0) /
-								stageProjects.length,
-						)
-					: 0;
+	const aggregateStageMetrics = (stage: StageDefinition) => {
+		const totals = stage.statuses.reduce(
+			(acc, status) => {
+				const pipelineStage = stats.pipelineStages[status];
+				if (!pipelineStage) {
+					return acc;
+				}
 
-			// Find most urgent project in this stage
-			const urgentProject = stageProjects.sort((a, b) => {
-				const aUpdated = new Date(a.updatedAt).getTime();
-				const bUpdated = new Date(b.updatedAt).getTime();
-				return bUpdated - aUpdated;
-			})[0];
-
-			return {
-				...stage,
-				count: stageProjects.length,
-				projects: stageProjects,
-				avgProgress,
-				urgentProject,
-				isBottleneck: stageProjects.length > 3, // Flag bottlenecks
-			};
-		});
-
-		// Calculate flow metrics
-		const totalActive = projects.filter((p) => p.status !== "Completed").length;
-		const throughput = projects.filter((p) => p.status === "Completed").length;
-		const avgCycleTime = "6.2 weeks"; // Mock - would be calculated from real data
-
-		return {
-			stages: stageData,
-			metrics: {
-				totalActive,
-				throughput,
-				avgCycleTime,
-				bottleneck: stageData.find((s) => s.isBottleneck)?.title || null,
+				return {
+					count: acc.count + pipelineStage.count,
+					progressSum:
+						acc.progressSum +
+						pipelineStage.avgProgress * pipelineStage.count,
+				};
 			},
-		};
-	}, [projects]);
+			{ count: 0, progressSum: 0 },
+		);
 
-	const getStageColors = (color: string) => {
-		const colorMap = {
-			blue: {
-				card: "border-primary/35 bg-primary/10",
-				iconBg: "bg-primary/15",
-				title: "text-primary",
-				accent: "text-primary",
-				badge: "bg-primary/12 text-primary",
-				divider: "border-primary/25",
-			},
-			purple: {
-				card: "border-treatment-auxiliary/35 bg-treatment-auxiliary/12",
-				iconBg: "bg-treatment-auxiliary/15",
-				title: "text-treatment-auxiliary",
-				accent: "text-treatment-auxiliary",
-				badge: "bg-treatment-auxiliary/12 text-treatment-auxiliary",
-				divider: "border-treatment-auxiliary/25",
-			},
-			green: {
-				card: "border-success/35 bg-success/12",
-				iconBg: "bg-success/15",
-				title: "text-success",
-				accent: "text-success",
-				badge: "bg-success/12 text-success",
-				divider: "border-success/25",
-			},
-			gray: {
-				card: "border-border/40 bg-card/60",
-				iconBg: "bg-card/70 text-muted-foreground",
-				title: "text-foreground",
-				accent: "text-muted-foreground",
-				badge: "bg-card/70 text-muted-foreground",
-				divider: "border-border/40",
-			},
-		};
-		return colorMap[color as keyof typeof colorMap] || colorMap.gray;
+		const avgProgress =
+			totals.count > 0 ? Math.round(totals.progressSum / totals.count) : 0;
+
+		return { count: totals.count, avgProgress };
 	};
 
-	if (projects.length === 0) {
-		return null; // Hidden when no projects
-	}
+	const stageData = PIPELINE_STAGES.map((stage) => {
+		const aggregates = aggregateStageMetrics(stage);
+		return {
+			...stage,
+			count: aggregates.count,
+			avgProgress: aggregates.avgProgress,
+		};
+	});
+
+	const totalActive = stageData
+		.filter((stage) => stage.id !== "completed")
+		.reduce((sum, stage) => sum + stage.count, 0);
+	const readyToDeliver =
+		stageData.find((stage) => stage.id === "ready")?.count ?? 0;
+
+	const summaryMetrics = [
+		{ label: "Active", value: totalActive, description: "in progress" },
+		{ label: "Ready", value: readyToDeliver, description: "awaiting review" },
+		{
+			label: "Completed",
+			value: stats.completed ?? 0,
+			description: "delivered to client",
+		},
+	];
+
+	const lastUpdatedText = stats.lastUpdated
+		? new Date(stats.lastUpdated).toLocaleString()
+		: "No recent updates";
 
 	return (
 		<div className="space-y-6">
-			{/* Pipeline Overview */}
 			<Card className="aqua-panel">
 				<CardHeader>
 					<div className="flex items-center justify-between">
 						<div>
 							<CardTitle className="flex items-center gap-2">
 								<TrendingUp className="h-5 w-5 text-primary" />
-								Proyect pipeline
+								Project pipeline
 							</CardTitle>
 							<p className="text-sm text-muted-foreground mt-1">
-								Flow and status of all your active projects
+								Data sourced from server-side lifecycle counts
 							</p>
 						</div>
 						<div className="text-right">
-							<p className="text-2xl font-bold text-primary">
-								{pipelineData.metrics.totalActive}
-							</p>
+							<p className="text-2xl font-bold text-primary">{totalActive}</p>
 							<p className="text-xs text-muted-foreground">active</p>
 						</div>
 					</div>
 				</CardHeader>
 				<CardContent>
-					{/* Stage Cards */}
 					<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-						{pipelineData.stages.map((stage, index) => {
-							const colors = getStageColors(stage.color);
+						{stageData.map((stage, index) => {
+							const colors = STAGE_COLOR_MAP[stage.color];
 							const Icon = stage.icon;
 
 							return (
@@ -193,8 +181,6 @@ export function ProjectPipeline() {
 										className={cn(
 											colors.card,
 											"transition-all duration-200 hover:shadow-md",
-											stage.isBottleneck &&
-												"ring-2 ring-warning/40 animate-pulse",
 										)}
 									>
 										<CardContent className="p-4">
@@ -217,15 +203,12 @@ export function ProjectPipeline() {
 														{stage.description}
 													</p>
 												</div>
-												{stage.isBottleneck && (
-													<AlertTriangle className="h-4 w-4 text-warning" />
-												)}
 											</div>
 
 											<div className="space-y-2">
 												<div className="flex items-center justify-between">
 													<span className="text-xs text-muted-foreground">
-														Proyectos
+														Projects
 													</span>
 													<Badge
 														className={cn(
@@ -241,7 +224,7 @@ export function ProjectPipeline() {
 													<>
 														<div className="flex items-center justify-between">
 															<span className="text-xs text-muted-foreground">
-																Progreso prom.
+																Avg. progress
 															</span>
 															<span
 																className={cn(
@@ -258,36 +241,11 @@ export function ProjectPipeline() {
 														/>
 													</>
 												)}
-
-												{stage.urgentProject && (
-													<div className={cn("pt-2 border-t", colors.divider)}>
-														<Button
-															variant="ghost"
-															size="sm"
-															className="w-full justify-between h-auto p-2 text-xs"
-															onClick={() => {
-																if (stage.urgentProject?.id) {
-																	router.push(
-																		routes.project.detail(
-																			stage.urgentProject.id,
-																		),
-																	);
-																}
-															}}
-														>
-															<span className="truncate">
-																{stage.urgentProject.name}
-															</span>
-															<ArrowRight className="h-3 w-3 ml-1 flex-shrink-0" />
-														</Button>
-													</div>
-												)}
 											</div>
 										</CardContent>
 									</Card>
 
-									{/* Flow Arrow */}
-									{index < pipelineData.stages.length - 1 && (
+									{index < stageData.length - 1 && (
 										<div className="hidden md:block absolute top-1/2 -right-2 z-10">
 											<div className="h-4 w-4 bg-background border border-border rounded-full flex items-center justify-center">
 												<ArrowRight className="h-2 w-2 text-muted-foreground" />
@@ -301,36 +259,22 @@ export function ProjectPipeline() {
 
 					<Separator />
 
-					{/* Flow Metrics */}
-					<div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+					<div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+						{summaryMetrics.map((metric) => (
+							<div key={metric.label} className="text-center">
+								<p className="text-2xl font-semibold text-primary">
+									{metric.value}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{metric.label} · {metric.description}
+								</p>
+							</div>
+						))}
 						<div className="text-center">
-							<p className="text-2xl font-semibold text-primary">
-								{pipelineData.metrics.throughput}
+							<p className="text-xs text-muted-foreground mb-1">
+								Last update
 							</p>
-							<p className="text-xs text-muted-foreground">Complete projects</p>
-						</div>
-						<div className="text-center">
-							<p className="text-2xl font-semibold text-primary">
-								{pipelineData.metrics.avgCycleTime}
-							</p>
-							<p className="text-xs text-muted-foreground">Average time</p>
-						</div>
-						<div className="text-center">
-							{pipelineData.metrics.bottleneck ? (
-								<>
-									<p className="text-2xl font-semibold text-warning">
-										{pipelineData.metrics.bottleneck}
-									</p>
-									<p className="text-xs text-muted-foreground">Bottleneck</p>
-								</>
-							) : (
-								<>
-									<p className="text-2xl font-semibold text-success">Fluent</p>
-									<p className="text-xs text-muted-foreground">
-										No bottlenecks
-									</p>
-								</>
-							)}
+							<p className="text-sm font-medium">{lastUpdatedText}</p>
 						</div>
 					</div>
 				</CardContent>

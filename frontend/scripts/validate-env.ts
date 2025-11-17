@@ -27,7 +27,7 @@ const ENV_VARS: EnvConfig[] = [
 	{
 		name: "NEXT_PUBLIC_API_BASE_URL",
 		required: true,
-		description: "Backend API base URL (e.g., http://localhost:8000/api/v1)",
+		description: "Backend API base URL (e.g., http://localhost:8001/api/v1)",
 		validator: (value) => value.startsWith("http") && value.includes("/api/v1"),
 	},
 	{
