@@ -11,8 +11,8 @@ export const PROJECT_STATUS_FLOW: ProjectStatus[] = [
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 	"In Preparation": "In Preparation",
-	"Generating Proposal": "Generating Proposal",
-	"Proposal Ready": "Proposal Ready",
+	"Generating Proposal": "Generating Report",
+	"Proposal Ready": "Report Ready",
 	"In Development": "In Development",
 	Completed: "Completed",
 	"On Hold": "On Hold",
@@ -20,8 +20,8 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 
 export const PROJECT_STATUS_DESCRIPTIONS: Record<ProjectStatus, string> = {
 	"In Preparation": "Complete the technical sheet and validate base data.",
-	"Generating Proposal": "The agent is generating conceptual engineering.",
-	"Proposal Ready": "Review the generated proposal and share with your team.",
+	"Generating Proposal": "The agent is generating waste upcycling analysis.",
+	"Proposal Ready": "Review the generated report and share with your team.",
 	"In Development": "Iterate with detailed design, BOM, and next phases.",
 	Completed: "Project finalized and documented.",
 	"On Hold": "Project paused pending further notice.",

@@ -1,18 +1,25 @@
 "use client";
 
+import {
+	ArrowLeft,
+	Building2,
+	FolderKanban,
+	Loader2,
+	MapPin,
+	Plus,
+} from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 /**
  * Location detail page - Shows location info and projects
  */
 import { useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { MapPin, ArrowLeft, Loader2, FolderKanban, Plus, Building2 } from "lucide-react";
-import { useLocationStore } from "@/lib/stores/location-store";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { PremiumProjectWizard } from "@/components/features/dashboard/components/premium-project-wizard";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useLocationStore } from "@/lib/stores/location-store";
 
 export default function LocationDetailPage() {
 	const params = useParams();

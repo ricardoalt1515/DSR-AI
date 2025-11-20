@@ -1,15 +1,15 @@
 "use client";
 
+import { Building2, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 /**
  * Companies page - List all client companies
  */
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Building2, Loader2 } from "lucide-react";
-import { useCompanyStore } from "@/lib/stores/company-store";
 import { CompanyCard } from "@/components/features/companies/company-card";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { Button } from "@/components/ui/button";
+import { useCompanyStore } from "@/lib/stores/company-store";
 
 export default function CompaniesPage() {
 	const router = useRouter();

@@ -2,10 +2,10 @@
 
 /**
  * SectorSelector - Reusable sector/subsector selection component
- * 
+ *
  * Beautiful split-view UI for selecting sector and subsector.
  * Extracted from PremiumProjectWizard to follow DRY principles.
- * 
+ *
  * Used in:
  * - CreateCompanyDialog
  * - PremiumProjectWizard (if needed)
@@ -76,7 +76,7 @@ const getSectorColor = (sectorId: string): string => {
 
 /**
  * SectorSelector Component
- * 
+ *
  * Split-view layout: Sectors (left) | Subsectors (right)
  * Auto-resets subsector when sector changes
  */
@@ -94,7 +94,7 @@ export function SectorSelector({
 	// Handle sector change (reset subsector)
 	const handleSectorChange = (newSector: string) => {
 		onSectorChange(newSector as Sector);
-		
+
 		// Auto-select first subsector or reset
 		const newSectorConfig = sectorsConfig.find((s) => s.id === newSector);
 		const firstSubsector = newSectorConfig?.subsectors[0]?.id;
@@ -117,7 +117,9 @@ export function SectorSelector({
 				<Label className="text-sm font-medium">Sector *</Label>
 				<RadioGroup value={sector} onValueChange={handleSectorChange}>
 					{sectorsConfig.map((sectorConfig) => {
-						const Icon = SECTOR_ICONS[sectorConfig.id as keyof typeof SECTOR_ICONS] || Target;
+						const Icon =
+							SECTOR_ICONS[sectorConfig.id as keyof typeof SECTOR_ICONS] ||
+							Target;
 						const colors = getSectorColors(getSectorColor(sectorConfig.id));
 						const isSelected = sector === sectorConfig.id;
 
@@ -168,13 +170,13 @@ export function SectorSelector({
 			{/* Right Panel: Subsectors */}
 			<div className="md:col-span-7 space-y-3">
 				<Label className="text-sm font-medium">Subsector *</Label>
-				
+
 				{sector ? (
 					<RadioGroup value={subsector} onValueChange={handleSubsectorChange}>
 						<div className="grid gap-2">
 							{availableSubsectors.map((subsectorOption) => {
 								const isSelected = subsector === subsectorOption.id;
-								
+
 								return (
 									<div
 										key={subsectorOption.id}

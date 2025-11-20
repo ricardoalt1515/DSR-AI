@@ -1,6 +1,7 @@
 import type {
 	ProjectDetail,
 	ProjectFile,
+	ProjectFileDetail,
 	ProjectSummary,
 } from "../project-types";
 import { apiClient } from "./client";
@@ -45,6 +46,23 @@ export type DashboardStats = {
 	avg_progress: number;
 };
 
+type ProjectFilesListResponse = {
+	project_id: string;
+	files: ProjectFile[];
+	total: number;
+};
+
+type ProjectFileUploadResponse = {
+	id: string;
+	filename: string;
+	file_size: number;
+	file_type: string;
+	category: string;
+	processing_status: string;
+	uploaded_at: string;
+	message: string;
+};
+
 export class ProjectsAPI {
 	static async getProjects(
 		params?: ProjectListParams,
@@ -57,7 +75,8 @@ export class ProjectsAPI {
 		if (params?.status) searchParams.append("status", params.status);
 		if (params?.sector) searchParams.append("sector", params.sector);
 		if (params?.companyId) searchParams.append("company_id", params.companyId);
-		if (params?.locationId) searchParams.append("location_id", params.locationId);
+		if (params?.locationId)
+			searchParams.append("location_id", params.locationId);
 
 		const query = searchParams.toString();
 		const url = query ? `/projects?${query}` : "/projects";
@@ -95,18 +114,21 @@ export class ProjectsAPI {
 	// ProposalsAPI provides complete proposal management with PDF generation, AI metadata, and polling utilities
 
 	static async getFiles(projectId: string): Promise<ProjectFile[]> {
-		return apiClient.get<ProjectFile[]>(`/projects/${projectId}/files`);
+		const response = await apiClient.get<ProjectFilesListResponse>(
+			`/projects/${projectId}/files`,
+		);
+		return response.files ?? [];
 	}
 
 	static async uploadFile(
 		projectId: string,
 		file: File,
 		metadata?: {
-			description?: string;
 			category?: string;
+			process_with_ai?: boolean;
 		},
-	): Promise<ProjectFile> {
-		return apiClient.uploadFile<ProjectFile>(
+	): Promise<ProjectFileUploadResponse> {
+		return apiClient.uploadFile<ProjectFileUploadResponse>(
 			`/projects/${projectId}/files`,
 			file,
 			metadata,
@@ -115,6 +137,15 @@ export class ProjectsAPI {
 
 	static async deleteFile(projectId: string, fileId: string): Promise<void> {
 		await apiClient.delete<void>(`/projects/${projectId}/files/${fileId}`);
+	}
+
+	static async getFileDetail(
+		projectId: string,
+		fileId: string,
+	): Promise<ProjectFileDetail> {
+		return apiClient.get<ProjectFileDetail>(
+			`/projects/${projectId}/files/${fileId}`,
+		);
 	}
 
 	static async getTimeline(

@@ -57,7 +57,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
 									"flex items-center gap-1.5",
 									isLast
 										? "font-medium text-foreground"
-										: "text-muted-foreground"
+										: "text-muted-foreground",
 								)}
 							>
 								{Icon && <Icon className="h-4 w-4" />}

@@ -45,7 +45,8 @@ export function QuickActionsCard({
 	};
 
 	const report = proposal.aiMetadata.proposal;
-	const hasPathways = (report.businessOpportunity?.circularEconomyOptions?.length || 0) > 0;
+	const hasPathways =
+		(report.businessOpportunity?.circularEconomyOptions?.length || 0) > 0;
 
 	return (
 		<Card>
@@ -88,9 +89,7 @@ export function QuickActionsCard({
 					</Tooltip>
 					<div className="space-y-1">
 						<p className="text-sm font-medium">
-							{hasPathways
-								? "Pathways identified"
-								: "Limited opportunities"}
+							{hasPathways ? "Pathways identified" : "Limited opportunities"}
 						</p>
 						<p className="text-xs text-muted-foreground leading-tight">
 							{hasPathways

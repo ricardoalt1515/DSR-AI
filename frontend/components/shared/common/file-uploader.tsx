@@ -10,14 +10,17 @@ import {
 	Upload,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { TIME_MS, UI_DELAYS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { projectsAPI } from "@/lib/api/projects";
+import type { ProjectFile, ProjectFileDetail } from "@/lib/project-types";
 
 // ============================================================================
 // Types
@@ -37,15 +40,6 @@ interface UploadingFile {
 	progress: number;
 	status: "uploading" | "success" | "error";
 	error?: string;
-}
-
-interface UploadedFileInfo {
-	id: string;
-	filename: string;
-	file_size: number;
-	file_type: string;
-	category: string;
-	uploaded_at: string;
 }
 
 // ============================================================================
@@ -79,6 +73,7 @@ const FILE_TYPE_ICONS: Record<string, typeof FileText> = {
 
 const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const DEFAULT_MAX_FILES = 5;
+const STATUS_POLL_INTERVAL_MS = 5000;
 
 // ============================================================================
 // Helper Functions
@@ -121,8 +116,11 @@ export function FileUploader({
 	className,
 }: FileUploaderProps) {
 	const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
-	const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
+	const [uploadedFiles, setUploadedFiles] = useState<ProjectFile[]>([]);
 	const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+	const [selectedFile, setSelectedFile] = useState<ProjectFileDetail | null>(null);
+	const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+	const statusPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// ========================================================================
 	// Fetch uploaded files from backend
@@ -130,16 +128,8 @@ export function FileUploader({
 
 	const fetchUploadedFiles = useCallback(async () => {
 		try {
-			const response = await fetch(`/api/v1/projects/${projectId}/files`, {
-				credentials: "include",
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to fetch files");
-			}
-
-			const data = await response.json();
-			setUploadedFiles(data.files || []);
+			const files = await projectsAPI.getFiles(projectId);
+			setUploadedFiles(files);
 		} catch (_error) {
 			toast.error("Error loading files");
 		} finally {
@@ -157,13 +147,17 @@ export function FileUploader({
 
 	const uploadFile = useCallback(
 		async (file: File, fileId: string) => {
-			const formData = new FormData();
-			formData.append("file", file);
-			formData.append("category", "general");
-			formData.append("process_with_ai", "false");
+			const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+			const isImage =
+				extension === "jpg" ||
+				extension === "jpeg" ||
+				extension === "png";
+
+			const category = isImage ? "photos" : "general";
+			const processWithAi = isImage;
 
 			try {
-				// Simulate progress (since fetch doesn't support upload progress natively)
+				// Simulate progress (since underlying fetch doesn't support upload progress natively)
 				const progressInterval = setInterval(() => {
 					setUploadingFiles((prev) =>
 						prev.map((f) =>
@@ -174,18 +168,12 @@ export function FileUploader({
 					);
 				}, 200);
 
-				const response = await fetch(`/api/v1/projects/${projectId}/files`, {
-					method: "POST",
-					body: formData,
-					credentials: "include",
+				await projectsAPI.uploadFile(projectId, file, {
+					category,
+					process_with_ai: processWithAi,
 				});
 
 				clearInterval(progressInterval);
-
-				if (!response.ok) {
-					const errorData = await response.json();
-					throw new Error(errorData.detail || "Upload failed");
-				}
 
 				// Mark as complete
 				setUploadingFiles((prev) =>
@@ -280,22 +268,28 @@ export function FileUploader({
 
 	const deleteFile = async (fileId: string) => {
 		try {
-			const response = await fetch(
-				`/api/v1/projects/${projectId}/files/${fileId}`,
-				{
-					method: "DELETE",
-					credentials: "include",
-				},
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to delete file");
-			}
+			await projectsAPI.deleteFile(projectId, fileId);
 
 			toast.success("File deleted");
 			await fetchUploadedFiles();
 		} catch (_error) {
 			toast.error("Failed to delete file");
+		}
+	};
+
+	// ========================================================================
+	// File detail
+	// ========================================================================
+
+	const handleSelectFile = async (fileId: string) => {
+		setIsLoadingDetail(true);
+		try {
+			const detail = await projectsAPI.getFileDetail(projectId, fileId);
+			setSelectedFile(detail);
+		} catch (_error) {
+			toast.error("Error loading file details");
+		} finally {
+			setIsLoadingDetail(false);
 		}
 	};
 
@@ -307,6 +301,36 @@ export function FileUploader({
 		setUploadingFiles((prev) => prev.filter((f) => f.id !== fileId));
 		toast.info("Upload cancelled");
 	};
+
+	// ========================================================================
+	// Auto-refresh files while photos are processing
+	// ========================================================================
+
+	useEffect(() => {
+		const hasPendingPhoto = uploadedFiles.some(
+			(file) => file.category === "photos" && file.processing_status !== "completed",
+		);
+
+		if (hasPendingPhoto && !statusPollIntervalRef.current) {
+			statusPollIntervalRef.current = setInterval(() => {
+				void fetchUploadedFiles();
+			}, STATUS_POLL_INTERVAL_MS);
+		}
+
+		if (!hasPendingPhoto && statusPollIntervalRef.current) {
+			clearInterval(statusPollIntervalRef.current);
+			statusPollIntervalRef.current = null;
+		}
+	}, [uploadedFiles, fetchUploadedFiles]);
+
+	useEffect(() => {
+		return () => {
+			if (statusPollIntervalRef.current) {
+				clearInterval(statusPollIntervalRef.current);
+				statusPollIntervalRef.current = null;
+			}
+		};
+	}, []);
 
 	// ========================================================================
 	// Render
@@ -453,11 +477,22 @@ export function FileUploader({
 						<div className="space-y-3">
 							{uploadedFiles.map((file) => {
 								const FileIcon = getFileIcon(file.file_type);
+								const isPhoto = file.category === "photos";
+								const status = file.processing_status;
+								let statusLabel: string | null = null;
+								if (status === "completed") {
+									statusLabel = "Analyzed";
+								} else if (status === "queued" || status === "processing") {
+									statusLabel = "Processing...";
+								} else if (status === "not_processed" && isPhoto) {
+									statusLabel = "Processing...";
+								}
 
 								return (
 									<div
 										key={file.id}
-										className="flex items-center gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors"
+										className="flex items-center gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors cursor-pointer"
+										onClick={() => handleSelectFile(file.id)}
 									>
 										<div className="rounded-lg bg-primary/10 p-2">
 											<FileIcon className="h-5 w-5 text-primary" />
@@ -474,12 +509,20 @@ export function FileUploader({
 												<span>•</span>
 												<span>{formatDate(file.uploaded_at)}</span>
 											</div>
+											{statusLabel && (
+												<Badge variant="outline" className="mt-1 text-[10px]">
+													{statusLabel}
+												</Badge>
+											)}
 										</div>
 
 										<Button
 											variant="ghost"
 											size="sm"
-											onClick={() => deleteFile(file.id)}
+											onClick={(event) => {
+												event.stopPropagation();
+												void deleteFile(file.id);
+											}}
 											className="text-destructive hover:text-destructive"
 										>
 											<X className="h-4 w-4" />
@@ -496,6 +539,46 @@ export function FileUploader({
 						<p className="text-sm text-muted-foreground text-center">
 							No files uploaded yet
 						</p>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* File detail panel */}
+			{selectedFile && (
+				<Card className="aqua-panel">
+					<CardContent className="p-6 space-y-3">
+						<div className="flex items-center justify-between">
+							<h4 className="text-sm font-semibold">File analysis</h4>
+							{isLoadingDetail && (
+								<span className="text-xs text-muted-foreground">
+									Loading...
+								</span>
+							)}
+						</div>
+						<p className="text-xs text-muted-foreground break-words">
+							{selectedFile.filename}
+						</p>
+						{selectedFile.processed_text && (
+							<div className="space-y-1">
+								<p className="text-xs font-semibold">Extracted text</p>
+								<p className="text-xs max-h-40 overflow-y-auto whitespace-pre-wrap">
+									{selectedFile.processed_text}
+								</p>
+							</div>
+						)}
+						{selectedFile.ai_analysis && (
+							<div className="space-y-1">
+								<p className="text-xs font-semibold">AI analysis (raw)</p>
+								<pre className="text-[10px] max-h-40 overflow-y-auto bg-muted rounded-md p-2 whitespace-pre-wrap">
+									{JSON.stringify(selectedFile.ai_analysis, null, 2)}
+								</pre>
+							</div>
+						)}
+						{!selectedFile.processed_text && !selectedFile.ai_analysis && (
+							<p className="text-xs text-muted-foreground">
+								No analysis available for this file yet.
+							</p>
+						)}
 					</CardContent>
 				</Card>
 			)}

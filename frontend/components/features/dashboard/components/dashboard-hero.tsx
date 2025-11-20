@@ -359,8 +359,8 @@ function FirstTimeHero({ onCreateProject }: FirstTimeHeroProps) {
 							Welcome to DSR Platform!
 						</h1>
 						<p className="text-lg text-muted-foreground">
-							Your central hub for waste resource management. Analyze opportunities
-							and identify profitable deals in minutes.
+							Your central hub for waste resource management. Analyze
+							opportunities and identify profitable deals in minutes.
 						</p>
 					</div>
 
@@ -379,9 +379,9 @@ function FirstTimeHero({ onCreateProject }: FirstTimeHeroProps) {
 
 					<div className="pt-6 border-t border-border/40">
 						<p className="text-sm text-muted-foreground">
-							💡 <strong>Tip:</strong> Start by creating your first assessment. Complete
-							the questionnaire to unlock AI-powered deal analysis and profitability
-							reports.
+							💡 <strong>Tip:</strong> Start by creating your first assessment.
+							Complete the questionnaire to unlock AI-powered deal analysis and
+							profitability reports.
 						</p>
 					</div>
 				</div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { Building2, Search, Filter, FolderKanban, Loader2 } from "lucide-react";
-import React, { memo, useCallback, useEffect, useMemo } from "react";
+import { Building2, Filter, FolderKanban, Loader2, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
 	DashboardHero,
 	PremiumProjectWizard,
@@ -11,10 +11,7 @@ import {
 	SmartNotifications,
 } from "@/components/features/dashboard";
 import { ProjectCard } from "@/components/features/dashboard/components/project-card";
-import { useProjectActions, usePagination, useProjects, useProjectLoading } from "@/lib/stores";
-import { useCompanyStore } from "@/lib/stores/company-store";
 import ClientOnly from "@/components/shared/common/client-only";
-import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -25,7 +22,6 @@ import {
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Select,
 	SelectContent,
@@ -33,7 +29,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import type { ProjectSummary } from "@/lib/project-types";
+import {
+	usePagination,
+	useProjectActions,
+	useProjectLoading,
+	useProjects,
+} from "@/lib/stores";
+import { useCompanyStore } from "@/lib/stores/company-store";
 
 /**
  * Memoized Assessment List Component
@@ -124,27 +129,33 @@ const DashboardContent = memo(function DashboardContent() {
 	}, [setFilter, loadCompanies]);
 
 	// Handle status filter change with server-side filtering
-	const handleStatusFilterChange = useCallback((value: string) => {
-		setStatusFilter(value);
+	const handleStatusFilterChange = useCallback(
+		(value: string) => {
+			setStatusFilter(value);
 
-		// Map filter values to backend statuses
-		if (value === "all") {
-			setFilter("status", undefined);
-		} else if (value === "active") {
-			// Send comma-separated list of active statuses
-			const activeStatuses = PROJECT_STATUS_GROUPS.active.join(",");
-			setFilter("status", activeStatuses);
-		} else {
-			// Single status filter
-			setFilter("status", value);
-		}
-	}, [setFilter]);
+			// Map filter values to backend statuses
+			if (value === "all") {
+				setFilter("status", undefined);
+			} else if (value === "active") {
+				// Send comma-separated list of active statuses
+				const activeStatuses = PROJECT_STATUS_GROUPS.active.join(",");
+				setFilter("status", activeStatuses);
+			} else {
+				// Single status filter
+				setFilter("status", value);
+			}
+		},
+		[setFilter],
+	);
 
 	// Handle company filter (server-side via companyId)
-	const handleCompanyFilterChange = useCallback((value: string) => {
-		setCompanyFilter(value);
-		setFilter("companyId", value === "all" ? undefined : value);
-	}, [setFilter]);
+	const handleCompanyFilterChange = useCallback(
+		(value: string) => {
+			setCompanyFilter(value);
+			setFilter("companyId", value === "all" ? undefined : value);
+		},
+		[setFilter],
+	);
 
 	const handleOpenCreateModal = useCallback(() => {
 		setCreateModalOpen(true);
@@ -206,7 +217,10 @@ const DashboardContent = memo(function DashboardContent() {
 
 						{/* Filter Bar */}
 						<div className="flex flex-wrap gap-3">
-							<Select value={companyFilter} onValueChange={handleCompanyFilterChange}>
+							<Select
+								value={companyFilter}
+								onValueChange={handleCompanyFilterChange}
+							>
 								<SelectTrigger className="w-[180px]">
 									<Building2 className="h-4 w-4 mr-2" />
 									<SelectValue placeholder="All Companies" />
@@ -221,7 +235,10 @@ const DashboardContent = memo(function DashboardContent() {
 								</SelectContent>
 							</Select>
 
-							<Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+							<Select
+								value={statusFilter}
+								onValueChange={handleStatusFilterChange}
+							>
 								<SelectTrigger className="w-[180px]">
 									<Filter className="h-4 w-4 mr-2" />
 									<SelectValue placeholder="All Status" />
@@ -274,7 +291,7 @@ const AssessmentListContainer = memo(function AssessmentListContainer({
 				(p) =>
 					p.name.toLowerCase().includes(search) ||
 					(p.companyName || p.client).toLowerCase().includes(search) ||
-					(p.locationName || p.location).toLowerCase().includes(search)
+					(p.locationName || p.location).toLowerCase().includes(search),
 			);
 		}
 
@@ -300,19 +317,19 @@ const AssessmentListContainer = memo(function AssessmentListContainer({
 						variant="outline"
 						size="lg"
 						className="w-full max-w-md"
-						>
-							{loading ? (
-								<>
-									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-									Loading...
-								</>
-							) : (
-								`Load More Assessments (${Math.min(pageSize, remainingProjects)})`
-							)}
-						</Button>
-					</div>
-				)}
-			</div>
+					>
+						{loading ? (
+							<>
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								Loading...
+							</>
+						) : (
+							`Load More Assessments (${Math.min(pageSize, remainingProjects)})`
+						)}
+					</Button>
+				</div>
+			)}
+		</div>
 	);
 });
 

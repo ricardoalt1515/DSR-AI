@@ -9,7 +9,8 @@ import { type DashboardStats, projectsAPI } from "../api/projects";
 import { PROJECT_STATUS_GROUPS } from "../project-status";
 
 export const DEFAULT_PAGE_SIZE = 20;
-const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+const UUID_REGEX =
+	/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
 const sanitizeFilters = (filters: ProjectState["filters"]) => {
 	const next = { ...filters };
@@ -33,10 +34,10 @@ const mapProjectSummary = (
 		name: project.name,
 		locationId: project.locationId,
 		// Hierarchy fields (inherited from Company → Location)
-		companyName: project.companyName || project.client || "",  // Prefer new field
-		locationName: project.locationName || project.location || "",  // Prefer new field
-		client: project.client || project.companyName || "",  // Legacy fallback
-		location: project.location || project.locationName || "",  // Legacy fallback
+		companyName: project.companyName || project.client || "", // Prefer new field
+		locationName: project.locationName || project.location || "", // Prefer new field
+		client: project.client || project.companyName || "", // Legacy fallback
+		location: project.location || project.locationName || "", // Legacy fallback
 		sector: project.sector,
 		subsector: project.subsector || "",
 		// Status & progress
@@ -66,20 +67,20 @@ interface ProjectState {
 	dataSource: "api" | "mock";
 	dashboardStats: DashboardStats | null;
 
-		// Pagination state
-		page: number;
-		pageSize: number;
-		totalPages: number;
-		totalProjects: number;
+	// Pagination state
+	page: number;
+	pageSize: number;
+	totalPages: number;
+	totalProjects: number;
 	hasMore: boolean;
 
-		// Filters state
-		filters: {
-			status?: string;
-			sector?: string;
-			search?: string;
-			companyId?: string;
-		};
+	// Filters state
+	filters: {
+		status?: string;
+		sector?: string;
+		search?: string;
+		companyId?: string;
+	};
 
 	filteredProjects: (
 		filter?: keyof typeof PROJECT_STATUS_GROUPS,
@@ -89,7 +90,10 @@ interface ProjectState {
 	// Actions
 	loadProjects: (page?: number, append?: boolean) => Promise<void>;
 	loadMore: () => Promise<void>;
-	setFilter: (key: "status" | "sector" | "search" | "companyId", value: string | undefined) => void;
+	setFilter: (
+		key: "status" | "sector" | "search" | "companyId",
+		value: string | undefined,
+	) => void;
 	loadProject: (id: string) => Promise<void>;
 	loadDashboardStats: () => Promise<void>;
 	createProject: (
@@ -172,18 +176,18 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// Load projects from API with pagination and filters
-				loadProjects: async (page = 1, append = false) => {
-					const state = get();
-					if (state.loading) {
-						return; // Already loading, skip
-					}
+			loadProjects: async (page = 1, append = false) => {
+				const state = get();
+				if (state.loading) {
+					return; // Already loading, skip
+				}
 
 				// Set loading IMMEDIATELY to prevent race condition
 				set({ loading: true, error: null });
 
-					try {
-						const filters = sanitizeFilters(state.filters);
-						const { pageSize } = state;
+				try {
+					const filters = sanitizeFilters(state.filters);
+					const { pageSize } = state;
 
 					// Build params object, only include defined values
 					const params: {
@@ -197,11 +201,11 @@ export const useProjectStore = create<ProjectState>()(
 						size: pageSize,
 					};
 
-						if (filters.status) params.status = filters.status;
-						if (filters.sector) params.sector = filters.sector;
-						if (filters.companyId) params.companyId = filters.companyId;
+					if (filters.status) params.status = filters.status;
+					if (filters.sector) params.sector = filters.sector;
+					if (filters.companyId) params.companyId = filters.companyId;
 
-						const response = await projectsAPI.getProjects(params);
+					const response = await projectsAPI.getProjects(params);
 
 					const items = response.items?.map(mapProjectSummary) ?? [];
 
@@ -210,7 +214,9 @@ export const useProjectStore = create<ProjectState>()(
 						if (append) {
 							// Deduplicate by ID when appending
 							const existingIds = new Set(draft.projects.map((p) => p.id));
-							const newItems = items.filter((item) => !existingIds.has(item.id));
+							const newItems = items.filter(
+								(item) => !existingIds.has(item.id),
+							);
 							draft.projects = [...draft.projects, ...newItems];
 						} else {
 							draft.projects = items;
@@ -247,19 +253,22 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// Set filter and reload from page 1
-				setFilter: (key: "status" | "sector" | "search" | "companyId", value: string | undefined) => {
-					set((draft) => {
-						if (value === undefined) {
-							delete draft.filters[key];
-						} else {
-							draft.filters[key] = value;
-						}
-						draft.filters = sanitizeFilters(draft.filters);
-						draft.page = 1;
-					});
-					// Trigger reload with new filters
-					void get().loadProjects(1, false);
-				},
+			setFilter: (
+				key: "status" | "sector" | "search" | "companyId",
+				value: string | undefined,
+			) => {
+				set((draft) => {
+					if (value === undefined) {
+						delete draft.filters[key];
+					} else {
+						draft.filters[key] = value;
+					}
+					draft.filters = sanitizeFilters(draft.filters);
+					draft.page = 1;
+				});
+				// Trigger reload with new filters
+				void get().loadProjects(1, false);
+			},
 
 			loadProject: async (id: string) => {
 				set((state) => {
@@ -303,7 +312,7 @@ export const useProjectStore = create<ProjectState>()(
 					// Simplified payload: only locationId and name required
 					// sector, subsector, client, location inherited from Location → Company
 					const payload = {
-						locationId: projectData.locationId!,  // Required
+						locationId: projectData.locationId!, // Required
 						name: projectData.name ?? "New Assessment",
 						projectType: "Assessment",
 						description: projectData.description ?? "",
@@ -486,8 +495,7 @@ export const usePagination = () =>
 		})),
 	);
 
-export const useFilters = () =>
-	useProjectStore((state) => state.filters);
+export const useFilters = () => useProjectStore((state) => state.filters);
 
 export const useLoadProjectAction = () =>
 	useProjectStore((state) => state.loadProject);
@@ -521,7 +529,9 @@ export const useEnsureProjectsLoaded = () => {
  */
 export const useProjectStatsData = () => {
 	const stats = useDashboardStats();
-	const loadDashboardStats = useProjectStore((state) => state.loadDashboardStats);
+	const loadDashboardStats = useProjectStore(
+		(state) => state.loadDashboardStats,
+	);
 
 	useEffect(() => {
 		// Load stats if not already loaded

@@ -238,25 +238,25 @@ export function useProposalGeneration(
 							setReasoning((prev) => [
 								...prev,
 								"🔍 Analyzing technical data...",
-								"💧 Evaluating water quality parameters",
+								"♻️ Evaluating waste composition",
 							]);
 						} else if (jobStatus.progress >= 40 && jobStatus.progress < 60) {
 							setReasoning((prev) => [
 								...prev,
-								"🏗️ Selecting optimal treatment technology",
-								"📐 Performing hydraulic calculations",
+								"🎯 Identifying upcycling opportunities",
+								"📊 Calculating volume projections",
 							]);
 						} else if (jobStatus.progress >= 60 && jobStatus.progress < 80) {
 							setReasoning((prev) => [
 								...prev,
-								"💰 Calculating CAPEX and OPEX",
-								"⚙️ Optimizing equipment configuration",
+								"💰 Estimating revenue potential",
+								"🌱 Evaluating environmental impact",
 							]);
 						} else if (jobStatus.progress >= 80) {
 							setReasoning((prev) => [
 								...prev,
 								"📝 Generating technical documentation",
-								"✅ Finalizing proposal",
+								"✅ Finalizing report",
 							]);
 						}
 

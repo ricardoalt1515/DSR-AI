@@ -1,17 +1,18 @@
 /**
  * Companies API client
  */
-import { apiClient } from "./client";
+
 import type {
 	CompanyCreate,
-	CompanyUpdate,
-	CompanySummary,
 	CompanyDetail,
+	CompanySummary,
+	CompanyUpdate,
 	LocationCreate,
-	LocationUpdate,
-	LocationSummary,
 	LocationDetail,
+	LocationSummary,
+	LocationUpdate,
 } from "@/lib/types/company";
+import { apiClient } from "./client";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // COMPANIES
@@ -36,17 +37,20 @@ export class CompaniesAPI {
 	 * Create a new company
 	 */
 	static async create(data: CompanyCreate): Promise<CompanyDetail> {
-		return apiClient.post<CompanyDetail>("/companies", data as unknown as Record<string, unknown>);
+		return apiClient.post<CompanyDetail>(
+			"/companies",
+			data as unknown as Record<string, unknown>,
+		);
 	}
 
 	/**
 	 * Update company
 	 */
-	static async update(
-		id: string,
-		data: CompanyUpdate,
-	): Promise<CompanyDetail> {
-		return apiClient.put<CompanyDetail>(`/companies/${id}`, data as unknown as Record<string, unknown>);
+	static async update(id: string, data: CompanyUpdate): Promise<CompanyDetail> {
+		return apiClient.put<CompanyDetail>(
+			`/companies/${id}`,
+			data as unknown as Record<string, unknown>,
+		);
 	}
 
 	/**
@@ -93,7 +97,7 @@ export class LocationsAPI {
 			`/companies/${companyId}/locations`,
 			data as unknown as Record<string, unknown>,
 		);
-		
+
 		// Backend already returns camelCase - no transformation needed
 		return response;
 	}
@@ -105,7 +109,10 @@ export class LocationsAPI {
 		id: string,
 		data: LocationUpdate,
 	): Promise<LocationDetail> {
-		return apiClient.put<LocationDetail>(`/companies/locations/${id}`, data as unknown as Record<string, unknown>);
+		return apiClient.put<LocationDetail>(
+			`/companies/locations/${id}`,
+			data as unknown as Record<string, unknown>,
+		);
 	}
 
 	/**

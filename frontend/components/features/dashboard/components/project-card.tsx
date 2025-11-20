@@ -19,10 +19,10 @@ import type React from "react";
 import { memo, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ProjectProgressIndicator } from "@/components/features/projects";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -331,7 +331,7 @@ const ProjectCard = memo(function ProjectCard({
 				onOpenChange={setShowDeleteDialog}
 				onConfirm={handleDelete}
 				title="Delete Assessment"
-				description={`This will permanently delete all technical information, ${proposalsCount} proposal${proposalsCount !== 1 ? 's' : ''}, attached files, and change history. This action cannot be undone.`}
+				description={`This will permanently delete all technical information, ${proposalsCount} proposal${proposalsCount !== 1 ? "s" : ""}, attached files, and change history. This action cannot be undone.`}
 				itemName={name}
 				loading={isDeleting}
 			/>

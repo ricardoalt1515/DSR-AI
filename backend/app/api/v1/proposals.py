@@ -388,26 +388,37 @@ async def get_proposal_pdf(
         
         # Generate new PDF using existing ProfessionalPDFGenerator
         logger.info(f"🔄 Generating new PDF for proposal {proposal_id}")
-        
-        # Prepare metadata for PDF generator (matches existing interface)
+
+        # Prepare metadata for PDF generator.
+        # metadata["proposal"] feeds the new waste-upcycling layout (ProposalOutput-compatible),
+        # while metadata["data_for_charts"] is kept for legacy chart generation.
+        proposal_data = None
+        if proposal.ai_metadata and isinstance(proposal.ai_metadata, dict):
+            proposal_data = proposal.ai_metadata.get("proposal")
+
+        legacy_technical = getattr(proposal, "technical_data", None)
+
         metadata = {
-            "data_for_charts": proposal.technical_data if hasattr(proposal, 'technical_data') else {
+            "proposal": proposal_data or {},
+            "data_for_charts": legacy_technical
+            if legacy_technical is not None
+            else {
                 "client_info": {
                     "company_name": project.client,
                     "industry": project.sector,
                     "location": project.location,
                 },
-                "flow_rate_m3_day": 0,  # Extract from proposal data
+                "flow_rate_m3_day": 0,  # Kept for backward-compatible charts
                 "capex_usd": proposal.capex,
                 "annual_opex_usd": proposal.opex,
-                "main_equipment": proposal.equipment_list or [],
-                "treatment_efficiency": proposal.treatment_efficiency or {},
-                "capex_breakdown": proposal.cost_breakdown or {},
-                "opex_breakdown": proposal.operational_costs or {},
+                "main_equipment": getattr(proposal, "equipment_list", None) or [],
+                "treatment_efficiency": getattr(proposal, "treatment_efficiency", None) or {},
+                "capex_breakdown": getattr(proposal, "cost_breakdown", None) or {},
+                "opex_breakdown": getattr(proposal, "operational_costs", None) or {},
                 "problem_analysis": {},
                 "alternative_analysis": [],
                 "implementation_months": 12,
-            }
+            },
         }
         
         # ✅ Generate charts BEFORE creating PDF (like backend-chatbot)

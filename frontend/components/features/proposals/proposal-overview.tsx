@@ -1,13 +1,25 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, DollarSign, Leaf, Recycle, Target, XCircle } from "lucide-react";
+import {
+	AlertCircle,
+	CheckCircle2,
+	DollarSign,
+	Leaf,
+	Recycle,
+	Target,
+	XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { MetricCard } from "@/components/ui/metric-card";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import {
+	extractCO2Avoided,
+	extractHighRevenue,
+	extractLandfillDiversion,
+} from "./metrics-helpers";
 import type { Proposal } from "./types";
-import { extractHighRevenue, extractLandfillDiversion, extractCO2Avoided } from "./metrics-helpers";
 
 interface ProposalOverviewProps {
 	proposal: Proposal;
@@ -25,7 +37,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 
 	const getDecisionConfig = () => {
 		if (!businessOpp?.overallRecommendation) return null;
-		
+
 		switch (businessOpp.overallRecommendation) {
 			case "GO":
 				return {
@@ -33,7 +45,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 					color: "text-green-600 dark:text-green-400",
 					bg: "bg-green-50 dark:bg-green-950/30",
 					border: "border-green-500",
-					label: "GO"
+					label: "GO",
 				};
 			case "NO-GO":
 				return {
@@ -41,7 +53,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 					color: "text-red-600 dark:text-red-400",
 					bg: "bg-red-50 dark:bg-red-950/30",
 					border: "border-red-500",
-					label: "NO-GO"
+					label: "NO-GO",
 				};
 			default:
 				return {
@@ -49,7 +61,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 					color: "text-yellow-600 dark:text-yellow-400",
 					bg: "bg-yellow-50 dark:bg-yellow-950/30",
 					border: "border-yellow-500",
-					label: "INVESTIGATE FURTHER"
+					label: "INVESTIGATE FURTHER",
 				};
 		}
 	};
@@ -60,12 +72,21 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 		<div className="space-y-6">
 			{/* DECISION BANNER - Most Important */}
 			{decisionConfig && businessOpp && (
-				<Card className={cn("border-2", decisionConfig.border, decisionConfig.bg)}>
+				<Card
+					className={cn("border-2", decisionConfig.border, decisionConfig.bg)}
+				>
 					<CardContent className="pt-6 pb-6">
 						<div className="flex items-start gap-4">
-							<decisionConfig.icon className={cn("h-12 w-12 flex-shrink-0", decisionConfig.color)} />
+							<decisionConfig.icon
+								className={cn("h-12 w-12 flex-shrink-0", decisionConfig.color)}
+							/>
 							<div className="flex-1 min-w-0">
-								<div className={cn("text-3xl font-bold mb-2", decisionConfig.color)}>
+								<div
+									className={cn(
+										"text-3xl font-bold mb-2",
+										decisionConfig.color,
+									)}
+								>
 									{decisionConfig.label}
 								</div>
 								<p className="text-base font-medium leading-relaxed">
@@ -141,31 +162,41 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 			)}
 
 			{/* Strategic Recommendations */}
-			{businessOpp?.strategicRecommendations && businessOpp.strategicRecommendations.length > 0 && (
-				<Card className="border-l-4 border-l-primary">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Target className="h-5 w-5 text-primary" />
-							Next Steps for DSR
-						</CardTitle>
-						<p className="text-sm text-muted-foreground mt-1">
-							Action items to move this opportunity forward
-						</p>
-					</CardHeader>
-					<CardContent>
-						<div className="space-y-3">
-							{businessOpp.strategicRecommendations.map((recommendation: string, idx: number) => (
-								<div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
-									<div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-										<span className="text-sm font-semibold text-primary">{idx + 1}</span>
-									</div>
-									<span className="text-sm leading-relaxed pt-0.5">{recommendation}</span>
-								</div>
-							))}
-						</div>
-					</CardContent>
-				</Card>
-			)}
+			{businessOpp?.strategicRecommendations &&
+				businessOpp.strategicRecommendations.length > 0 && (
+					<Card className="border-l-4 border-l-primary">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Target className="h-5 w-5 text-primary" />
+								Next Steps for DSR
+							</CardTitle>
+							<p className="text-sm text-muted-foreground mt-1">
+								Action items to move this opportunity forward
+							</p>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-3">
+								{businessOpp.strategicRecommendations.map(
+									(recommendation: string, idx: number) => (
+										<div
+											key={idx}
+											className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
+										>
+											<div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+												<span className="text-sm font-semibold text-primary">
+													{idx + 1}
+												</span>
+											</div>
+											<span className="text-sm leading-relaxed pt-0.5">
+												{recommendation}
+											</span>
+										</div>
+									),
+								)}
+							</div>
+						</CardContent>
+					</Card>
+				)}
 		</div>
 	);
 }

@@ -1,8 +1,14 @@
 "use client";
 
+import {
+	AlertCircle,
+	CheckCircle2,
+	Leaf,
+	TrendingUp,
+	XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, XCircle, AlertCircle, TrendingUp, Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DecisionRecommendationCardProps {
@@ -57,7 +63,9 @@ export function DecisionRecommendationCard({
 		<Card className={cn("border-2", config.borderColor, config.bgColor)}>
 			<CardHeader className="pb-3">
 				<div className="flex items-center justify-between">
-					<CardTitle className="text-sm font-medium">Decision Recommendation</CardTitle>
+					<CardTitle className="text-sm font-medium">
+						Decision Recommendation
+					</CardTitle>
 					<Badge
 						variant={config.variant}
 						className={cn("font-bold text-xs", config.badgeBg, "text-white")}
@@ -77,7 +85,9 @@ export function DecisionRecommendationCard({
 				<div className="flex items-start gap-2 rounded-md bg-background/50 p-3">
 					<TrendingUp className="mt-0.5 h-4 w-4 text-muted-foreground flex-shrink-0" />
 					<div>
-						<p className="text-xs font-medium text-muted-foreground">Financial</p>
+						<p className="text-xs font-medium text-muted-foreground">
+							Financial
+						</p>
 						<p className="text-sm font-semibold">{keyFinancials}</p>
 					</div>
 				</div>
@@ -86,7 +96,9 @@ export function DecisionRecommendationCard({
 				<div className="flex items-start gap-2 rounded-md bg-background/50 p-3">
 					<Leaf className="mt-0.5 h-4 w-4 text-muted-foreground flex-shrink-0" />
 					<div>
-						<p className="text-xs font-medium text-muted-foreground">Environmental</p>
+						<p className="text-xs font-medium text-muted-foreground">
+							Environmental
+						</p>
 						<p className="text-sm font-semibold">{keyEnvironmentalImpact}</p>
 					</div>
 				</div>

@@ -1,0 +1,45 @@
+# ============================================================================
+# H2O Allegiant - Production Environment Variables
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to git
+# ============================================================================
+
+# AWS Configuration
+aws_region = "us-east-1"
+environment = "prod"
+
+# Network Configuration
+vpc_cidr = "10.0.0.0/16"
+public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.11.0/24"]
+enable_nat_gateway = true
+
+# Database Configuration
+db_name = "h2o_allegiant"
+db_username = "h2o_admin"
+rds_instance_class = "db.t4g.micro"
+rds_allocated_storage = 20
+
+# Redis Configuration
+redis_node_type = "cache.t4g.micro"
+
+# ECS Configuration
+ecs_task_cpu = "2048"     # 2 vCPU
+ecs_task_memory = "4096"  # 4 GB
+ecs_min_capacity = 1
+ecs_max_capacity = 3
+
+# Domain & HTTPS
+domain_name = "api.h2o-allegiant.com"  # Update with your domain
+cors_origins = "https://app.h2o-allegiant.com,https://www.h2o-allegiant.com"
+enable_https = true
+acm_certificate_arn = ""  # Add after creating ACM certificate
+
+# Secrets (use environment variables or AWS SSM)
+# DO NOT commit these values!
+openai_api_key = ""  # Set via: export TF_VAR_openai_api_key="sk-xxx"
+jwt_secret_key = ""  # Set via: export TF_VAR_jwt_secret_key="$(openssl rand -hex 32)"
+
+# Monitoring
+alarm_email = "devops@h2o-allegiant.com"

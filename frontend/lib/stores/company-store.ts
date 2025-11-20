@@ -7,9 +7,9 @@ import { immer } from "zustand/middleware/immer";
 import { CompaniesAPI } from "@/lib/api/companies";
 import type {
 	CompanyCreate,
-	CompanyUpdate,
-	CompanySummary,
 	CompanyDetail,
+	CompanySummary,
+	CompanyUpdate,
 } from "@/lib/types/company";
 import { logger } from "@/lib/utils/logger";
 

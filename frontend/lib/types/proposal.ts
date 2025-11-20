@@ -83,17 +83,17 @@ export interface BusinessOpportunity {
 	// Decision (GO/NO-GO)
 	overallRecommendation: "GO" | "NO-GO" | "INVESTIGATE FURTHER";
 	decisionSummary: string;
-	
+
 	// Financial Analysis
 	landfillReduction: LandfillReduction;
 	wasteHandlingCostSavings: WasteHandlingCostSavings;
 	potentialRevenue: PotentialRevenue;
-	
+
 	// Strategic Guidance
 	strategicRecommendations: string[];
 	circularEconomyOptions: string[];
 	risks: string[];
-	
+
 	// Material Intelligence
 	resourceConsiderations: ResourceConsiderations;
 }
@@ -154,12 +154,12 @@ export interface WasteUpcyclingReport {
 	primaryWasteTypes: string[];
 	dailyMonthlyVolume: string;
 	existingDisposalMethod: string;
-	
+
 	// Core Structured Data
 	businessOpportunity: BusinessOpportunity;
 	lca: LifeCycleAssessment;
 	aiInsights: string[];
-	
+
 	// Display & Metadata
 	markdownContent: string;
 	confidenceLevel: "High" | "Medium" | "Low";
@@ -185,55 +185,4 @@ export interface AIMetadata {
 	recommendations?: string[];
 	generated_at: string;
 	report_type: string; // e.g., "waste_upcycling_feasibility"
-}
-
-// ==============================================
-// LEGACY WATER TREATMENT TYPES (Deprecated)
-// ==============================================
-// These types are kept for backward compatibility but should not be used
-// in new code. Use WasteUpcyclingReport types instead.
-
-/** @deprecated Use WasteInventoryItem instead */
-export interface TreatmentEfficiency {
-	parameters: Array<{
-		parameterName: string;
-		influentConcentration?: number;
-		effluentConcentration?: number;
-		removalEfficiencyPercent: number;
-		unit: string;
-		treatmentStage?: string;
-	}>;
-	overallCompliance?: boolean;
-	criticalParameters?: string[];
-}
-
-/** @deprecated Not used in waste upcycling reports */
-export interface Equipment {
-	type: string;
-	specifications: string;
-	capacityM3Day: number;
-	powerConsumptionKw: number;
-	capexUsd: number;
-	dimensions: string;
-	justification?: string;
-	criticality?: string;
-	stage?: string;
-	riskFactor?: number;
-}
-
-/** @deprecated Use ROIMetric instead */
-export interface OperationalCosts {
-	electricalEnergy: number;
-	chemicals: number;
-	personnel: number;
-	maintenanceSpareParts: number;
-}
-
-/** @deprecated Use CostEstimate instead */
-export interface CostBreakdown {
-	equipmentCost?: number;
-	civilWorks?: number;
-	installationPiping?: number;
-	engineeringSupervision?: number;
-	contingency?: number;
 }

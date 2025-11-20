@@ -46,6 +46,9 @@ class FileInfo(BaseModel):
     uploaded_at: datetime
     processed_text: bool = Field(description="Whether text has been extracted")
     ai_analysis: bool = Field(description="Whether AI analysis is available")
+    processing_status: str = Field(
+        description="Processing state: queued, processing, completed, not_processed",
+    )
 
 
 class FileListResponse(BaseModel):
@@ -69,6 +72,7 @@ class FileListResponse(BaseModel):
                         "uploaded_at": "2025-09-30T18:00:00Z",
                         "processed_text": True,
                         "ai_analysis": True,
+                        "processing_status": "completed",
                     }
                 ],
                 "total": 1,

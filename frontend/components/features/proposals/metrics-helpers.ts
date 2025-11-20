@@ -17,7 +17,8 @@ const CO2_CONVERSIONS = {
  * @returns Formatted revenue string (e.g., "$43.8k/yr") or "N/A"
  */
 export function extractHighRevenue(report: WasteUpcyclingReport): string {
-	const annualPotential = report.businessOpportunity?.potentialRevenue?.annualPotential?.[0];
+	const annualPotential =
+		report.businessOpportunity?.potentialRevenue?.annualPotential?.[0];
 
 	if (!annualPotential) {
 		// Fallback: try to extract from first circular economy option
@@ -45,8 +46,10 @@ export function extractHighRevenue(report: WasteUpcyclingReport): string {
  * @returns Formatted percentage (e.g., "80%") or tonnage string
  */
 export function extractLandfillDiversion(report: WasteUpcyclingReport): string {
-	const beforeText = report.businessOpportunity?.landfillReduction?.before?.[0] || "";
-	const afterText = report.businessOpportunity?.landfillReduction?.after?.[0] || "";
+	const beforeText =
+		report.businessOpportunity?.landfillReduction?.before?.[0] || "";
+	const afterText =
+		report.businessOpportunity?.landfillReduction?.after?.[0] || "";
 
 	// Try to extract percentage from after text
 	if (afterText.includes("%")) {

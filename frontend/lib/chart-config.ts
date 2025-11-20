@@ -12,9 +12,9 @@ import type { ChartConfig } from "@/components/ui/chart";
 
 // Chart color palette - maps to CSS variables in globals.css
 export const CHART_COLORS = {
-	// Water quality colors
-	influent: "hsl(20, 90%, 55%)", // Dirty water (orange/brown)
-	effluent: "hsl(180, 85%, 55%)", // Clean water (cyan)
+	// Waste material colors
+	input: "hsl(20, 90%, 55%)", // Raw material (orange/brown)
+	output: "hsl(180, 85%, 55%)", // Processed material (cyan)
 	target: "hsl(120, 70%, 50%)", // Target/limit (green)
 
 	// Economics colors (vibrant for dark mode)
@@ -42,20 +42,20 @@ export const CHART_COLORS = {
 } as const;
 
 /**
- * Water Quality Chart Config
- * Used in: proposal-water-quality.tsx
+ * Waste Material Chart Config
+ * Used in: proposal-waste-analysis.tsx
  */
-export const waterQualityChartConfig = {
-	Influent: {
-		label: "Influent (dirty)",
-		color: CHART_COLORS.influent,
+export const wasteAnalysisChartConfig = {
+	Input: {
+		label: "Input Material",
+		color: CHART_COLORS.input,
 	},
-	Effluent: {
-		label: "Effluent (clean)",
-		color: CHART_COLORS.effluent,
+	Output: {
+		label: "Output Product",
+		color: CHART_COLORS.output,
 	},
 	Target: {
-		label: "Regulatory Limit",
+		label: "Recovery Target",
 		color: CHART_COLORS.target,
 	},
 } satisfies ChartConfig;

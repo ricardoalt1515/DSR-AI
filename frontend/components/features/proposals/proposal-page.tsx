@@ -33,13 +33,14 @@ import {
 } from "@/components/ui/resizable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CompactDecisionHeader } from "./compact-decision-header";
+import { CONFIDENCE_PERCENT_BY_LEVEL } from "./confidence-helpers";
 import { ProposalAISection } from "./proposal-ai-section";
 import { ProposalAssumptions } from "./proposal-assumptions";
 import { ProposalEconomics } from "./proposal-economics";
 import { ProposalOverview } from "./proposal-overview";
 import { ProposalParameters } from "./proposal-parameters";
 import { ProposalTechnical } from "./proposal-technical";
-import { CompactDecisionHeader } from "./compact-decision-header";
 import {
 	ComplianceSnapshotCard,
 	DecisionSidebar,
@@ -77,15 +78,6 @@ const _PROVEN_CASES_SCROLL_HEIGHT = 220;
 
 // Criticality threshold for equipment
 const HIGH_CRITICALITY = "high" as const;
-
-const CONFIDENCE_PERCENT_BY_LEVEL: Record<
-	NonNullable<AIMetadata["proposal"]["confidenceLevel"]>,
-	number
-> = {
-	High: 90,
-	Medium: 65,
-	Low: 35,
-};
 
 const STATUS_BADGE_VARIANT: Record<
 	Proposal["status"],
@@ -222,9 +214,18 @@ export function ProposalPage({
 							{/* Compact decision header for non-summary tabs */}
 							{report.businessOpportunity && (
 								<CompactDecisionHeader
-									recommendation={report.businessOpportunity.overallRecommendation}
-									keyFinancials={report.businessOpportunity.potentialRevenue.annualPotential[0] || "Revenue analysis pending"}
-									keyEnvironmentalImpact={report.lca?.co2Reduction?.tons?.[0] || report.lca?.environmentalNotes || "Environmental assessment in progress"}
+									recommendation={
+										report.businessOpportunity.overallRecommendation
+									}
+									keyFinancials={
+										report.businessOpportunity.potentialRevenue
+											.annualPotential[0] || "Revenue analysis pending"
+									}
+									keyEnvironmentalImpact={
+										report.lca?.co2Reduction?.tons?.[0] ||
+										report.lca?.environmentalNotes ||
+										"Environmental assessment in progress"
+									}
 									riskCount={report.businessOpportunity.risks?.length || 0}
 								/>
 							)}
@@ -235,9 +236,18 @@ export function ProposalPage({
 							{/* Compact decision header for non-summary tabs */}
 							{report.businessOpportunity && (
 								<CompactDecisionHeader
-									recommendation={report.businessOpportunity.overallRecommendation}
-									keyFinancials={report.businessOpportunity.potentialRevenue.annualPotential[0] || "Revenue analysis pending"}
-									keyEnvironmentalImpact={report.lca?.co2Reduction?.tons?.[0] || report.lca?.environmentalNotes || "Environmental assessment in progress"}
+									recommendation={
+										report.businessOpportunity.overallRecommendation
+									}
+									keyFinancials={
+										report.businessOpportunity.potentialRevenue
+											.annualPotential[0] || "Revenue analysis pending"
+									}
+									keyEnvironmentalImpact={
+										report.lca?.co2Reduction?.tons?.[0] ||
+										report.lca?.environmentalNotes ||
+										"Environmental assessment in progress"
+									}
 									riskCount={report.businessOpportunity.risks?.length || 0}
 								/>
 							)}

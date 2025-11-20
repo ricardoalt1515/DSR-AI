@@ -1,13 +1,9 @@
-import {
-	CalendarClock,
-	FileText,
-	Recycle,
-} from "lucide-react";
+import { CalendarClock, FileText, Recycle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Proposal } from "../types";
 import { AIConfidenceCard } from "./ai-confidence-card";
-import { QuickActionsCard } from "./quick-actions-card";
 import { DecisionRecommendationCard } from "./decision-recommendation-card";
+import { QuickActionsCard } from "./quick-actions-card";
 
 interface DecisionSidebarProps {
 	proposal: Proposal;
@@ -33,7 +29,10 @@ export function DecisionSidebar({
 	const pathwaysCount = businessOpp?.circularEconomyOptions?.length || 0;
 
 	// Extract environmental summary from LCA
-	const envSummary = report.lca?.co2Reduction?.tons?.[0] || report.lca?.environmentalNotes || "Environmental assessment in progress";
+	const envSummary =
+		report.lca?.co2Reduction?.tons?.[0] ||
+		report.lca?.environmentalNotes ||
+		"Environmental assessment in progress";
 
 	return (
 		<div className="h-full space-y-4">
@@ -42,7 +41,10 @@ export function DecisionSidebar({
 				<DecisionRecommendationCard
 					recommendation={businessOpp.overallRecommendation}
 					rationale={businessOpp.decisionSummary}
-					keyFinancials={businessOpp.potentialRevenue.annualPotential[0] || "Revenue analysis pending"}
+					keyFinancials={
+						businessOpp.potentialRevenue.annualPotential[0] ||
+						"Revenue analysis pending"
+					}
 					keyEnvironmentalImpact={envSummary}
 				/>
 			)}

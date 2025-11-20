@@ -46,6 +46,7 @@ from app.agents.proposal_agent import (
     ProposalGenerationError,
     generate_enhanced_proposal,
 )
+from app.models.file import ProjectFile
 from app.models.project import Project
 from app.models.project_input import FlexibleWaterProjectData
 from app.models.proposal import Proposal
@@ -214,6 +215,60 @@ class ProposalService:
         )
 
     @staticmethod
+    async def _load_attachments_summary(
+        db: AsyncSession,
+        project_id: UUID,
+    ) -> dict[str, Any] | None:
+        """Load summary of AI-processed project files (photos) for agent context."""
+        try:
+            result = await db.execute(
+                select(ProjectFile)
+                .where(
+                    ProjectFile.project_id == project_id,
+                    ProjectFile.category == "photos",
+                    ProjectFile.ai_analysis.isnot(None),
+                )
+                .order_by(ProjectFile.created_at.desc())
+                .limit(5)
+            )
+            files = result.scalars().all()
+
+            if not files:
+                return None
+
+            photo_insights: list[dict[str, Any]] = []
+
+            for project_file in files:
+                analysis = project_file.ai_analysis
+                if not isinstance(analysis, dict):
+                    continue
+
+                photo_insights.append(
+                    {
+                        "fileId": str(project_file.id),
+                        "filename": project_file.filename,
+                        "uploadedAt": project_file.created_at.isoformat()
+                        if project_file.created_at
+                        else None,
+                        "analysis": analysis,
+                    }
+                )
+
+            if not photo_insights:
+                return None
+
+            return {"photoInsights": photo_insights}
+
+        except Exception as exc:
+            logger.error(
+                "attachments_summary_error",
+                exc_info=True,
+                project_id=str(project_id),
+                error_type=type(exc).__name__,
+            )
+            return None
+
+    @staticmethod
     async def start_proposal_generation(
         db: AsyncSession,
         project_id: uuid.UUID,
@@ -371,6 +426,13 @@ class ProposalService:
             # Add user preferences if provided
             if request.preferences:
                 client_metadata["preferences"] = request.preferences
+
+            attachments_summary = await ProposalService._load_attachments_summary(
+                db=db,
+                project_id=project_id,
+            )
+            if attachments_summary:
+                client_metadata["attachmentsSummary"] = attachments_summary
 
             # Log client metadata
             logger.info(

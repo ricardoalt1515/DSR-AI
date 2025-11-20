@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CompanyCombobox } from "@/components/ui/company-combobox";
 import {
 	Dialog,
 	DialogContent,
@@ -29,7 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CompanyCombobox } from "@/components/ui/company-combobox";
 import { LocationCombobox } from "@/components/ui/location-combobox";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -145,18 +145,18 @@ export function PremiumProjectWizard({
 	// Initialize with defaults when provided (contextual creation)
 	useEffect(() => {
 		if (open && defaultCompanyId) {
-			const company = companies.find(c => c.id === defaultCompanyId);
+			const company = companies.find((c) => c.id === defaultCompanyId);
 			if (company) {
-				setProjectData(prev => ({
+				setProjectData((prev) => ({
 					...prev,
 					companyId: defaultCompanyId,
 					client: company.name,
 				}));
 
 				if (defaultLocationId) {
-					const location = locations.find(l => l.id === defaultLocationId);
+					const location = locations.find((l) => l.id === defaultLocationId);
 					if (location) {
-						setProjectData(prev => ({
+						setProjectData((prev) => ({
 							...prev,
 							locationId: defaultLocationId,
 							location: location.city,
@@ -170,8 +170,8 @@ export function PremiumProjectWizard({
 	const progress = (currentStep / STEPS.length) * 100;
 
 	// Get contextual names for breadcrumb
-	const contextCompany = companies.find(c => c.id === defaultCompanyId);
-	const contextLocation = locations.find(l => l.id === defaultLocationId);
+	const contextCompany = companies.find((c) => c.id === defaultCompanyId);
+	const contextLocation = locations.find((l) => l.id === defaultLocationId);
 	const hasContext = defaultCompanyId && defaultLocationId;
 
 	const canContinue = useMemo(() => {
@@ -179,8 +179,8 @@ export function PremiumProjectWizard({
 			case 1:
 				// Step 1: Require company, location, and name
 				return (
-					projectData.name.trim() !== "" && 
-					projectData.companyId !== "" && 
+					projectData.name.trim() !== "" &&
+					projectData.companyId !== "" &&
 					projectData.locationId !== ""
 				);
 			case 2:
@@ -320,13 +320,13 @@ export function PremiumProjectWizard({
 							</div>
 
 							<div className="space-y-2">
-								<Label className="text-sm font-medium">
-									Company *
-								</Label>
+								<Label className="text-sm font-medium">Company *</Label>
 								{defaultCompanyId ? (
 									<div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border">
 										<Building2 className="h-4 w-4 text-muted-foreground" />
-										<span className="text-sm">{contextCompany?.name || "Loading..."}</span>
+										<span className="text-sm">
+											{contextCompany?.name || "Loading..."}
+										</span>
 										<Badge variant="secondary" className="ml-auto text-xs">
 											Pre-selected
 										</Badge>
@@ -336,12 +336,14 @@ export function PremiumProjectWizard({
 										value={projectData.companyId}
 										onValueChange={(id) => {
 											// Get company name for legacy field
-											const company = useCompanyStore.getState().companies.find(c => c.id === id);
-											updateProjectData({ 
+											const company = useCompanyStore
+												.getState()
+												.companies.find((c) => c.id === id);
+											updateProjectData({
 												companyId: id,
 												client: company?.name || "",
 												locationId: "", // Reset location when company changes
-												location: ""
+												location: "",
 											});
 										}}
 										placeholder="Select or create company..."
@@ -351,13 +353,13 @@ export function PremiumProjectWizard({
 
 							{projectData.companyId && (
 								<div className="space-y-2">
-									<Label className="text-sm font-medium">
-										Location *
-									</Label>
+									<Label className="text-sm font-medium">Location *</Label>
 									{defaultLocationId ? (
 										<div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border">
 											<MapPin className="h-4 w-4 text-muted-foreground" />
-											<span className="text-sm">{contextLocation?.name || "Loading..."}</span>
+											<span className="text-sm">
+												{contextLocation?.name || "Loading..."}
+											</span>
 											<Badge variant="secondary" className="ml-auto text-xs">
 												Pre-selected
 											</Badge>
@@ -368,10 +370,12 @@ export function PremiumProjectWizard({
 											value={projectData.locationId}
 											onValueChange={(id) => {
 												// Get location city for legacy field
-												const location = useLocationStore.getState().locations.find(l => l.id === id);
-												updateProjectData({ 
+												const location = useLocationStore
+													.getState()
+													.locations.find((l) => l.id === id);
+												updateProjectData({
 													locationId: id,
-													location: location?.city || ""
+													location: location?.city || "",
 												});
 											}}
 											placeholder="Select or create location..."
@@ -433,11 +437,11 @@ export function PremiumProjectWizard({
 							</p>
 						</div>
 
-							<Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
-								<CardContent className="p-6 space-y-4">
-									<div className="flex items-center gap-3">
-										<div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-											<Recycle className="h-6 w-6 text-primary" />
+						<Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+							<CardContent className="p-6 space-y-4">
+								<div className="flex items-center gap-3">
+									<div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+										<Recycle className="h-6 w-6 text-primary" />
 									</div>
 									<div>
 										<h4 className="font-semibold text-lg text-foreground">

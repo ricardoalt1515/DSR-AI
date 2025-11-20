@@ -1,8 +1,8 @@
 "use client";
 
+import { AlertCircle, Leaf, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Leaf, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CompactDecisionHeaderProps {

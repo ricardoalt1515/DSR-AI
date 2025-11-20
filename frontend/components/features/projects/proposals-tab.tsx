@@ -326,25 +326,6 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 									</div>
 								</CardHeader>
 								<CardContent className="space-y-4">
-									<div className="grid grid-cols-2 gap-4">
-										<div>
-											<div className="text-sm font-medium text-muted-foreground">
-												CAPEX
-											</div>
-											<div className="text-lg font-semibold">
-												{formatCurrency(proposal.capex)}
-											</div>
-										</div>
-										<div>
-											<div className="text-sm font-medium text-muted-foreground">
-												OPEX Anual
-											</div>
-											<div className="text-lg font-semibold">
-												{formatCurrency(proposal.opex)}
-											</div>
-										</div>
-									</div>
-
 									<div className="text-sm text-muted-foreground">
 										Creado el{" "}
 										{new Date(proposal.createdAt).toLocaleDateString("es-ES")}

@@ -3,21 +3,28 @@
 /**
  * CompanyCard - Display company summary in a card
  */
-import { Building2, MapPin, MoreVertical, Trash2, FolderKanban, Edit } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+	Building2,
+	Edit,
+	FolderKanban,
+	MapPin,
+	MoreVertical,
+	Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { CompanySummary } from "@/lib/types/company";
 import type { ProjectSummary } from "@/lib/project-types";
 import { useProjects } from "@/lib/stores";
+import type { CompanySummary } from "@/lib/types/company";
 import { CreateCompanyDialog } from "./create-company-dialog";
 
 interface CompanyCardProps {
@@ -29,14 +36,19 @@ interface CompanyCardProps {
 export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 	const router = useRouter();
 	const allProjects = useProjects();
-	const [recentAssessments, setRecentAssessments] = useState<ProjectSummary[]>([]);
+	const [recentAssessments, setRecentAssessments] = useState<ProjectSummary[]>(
+		[],
+	);
 	const [editDialogOpen, setEditDialogOpen] = useState(false);
 
 	// Filter assessments for this company
 	useEffect(() => {
 		const companyAssessments = allProjects
-			.filter(p => p.client === company.name)
-			.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+			.filter((p) => p.client === company.name)
+			.sort(
+				(a, b) =>
+					new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+			)
 			.slice(0, 2);
 		setRecentAssessments(companyAssessments);
 	}, [allProjects, company.name]);
@@ -79,11 +91,7 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 						{onDelete && (
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild onClick={handleMenuClick}>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8"
-									>
+									<Button variant="ghost" size="icon" className="h-8 w-8">
 										<MoreVertical className="h-4 w-4" />
 									</Button>
 								</DropdownMenuTrigger>
@@ -114,27 +122,32 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 							{company.sector}
 						</Badge>
 						<Badge variant="outline" className="text-xs">
-							{company.subsector.replace(/_/g, ' ')}
+							{company.subsector.replace(/_/g, " ")}
 						</Badge>
 					</div>
 				)}
 
 				{/* Contact Info */}
-				{(company.contactName || company.contactEmail || company.contactPhone) && (
+				{(company.contactName ||
+					company.contactEmail ||
+					company.contactPhone) && (
 					<div className="space-y-1 text-sm">
 						{company.contactName && (
 							<div className="text-muted-foreground">
-								<span className="font-medium">Contact:</span> {company.contactName}
+								<span className="font-medium">Contact:</span>{" "}
+								{company.contactName}
 							</div>
 						)}
 						{company.contactEmail && (
 							<div className="text-muted-foreground">
-								<span className="font-medium">Email:</span> {company.contactEmail}
+								<span className="font-medium">Email:</span>{" "}
+								{company.contactEmail}
 							</div>
 						)}
 						{company.contactPhone && (
 							<div className="text-muted-foreground">
-								<span className="font-medium">Phone:</span> {company.contactPhone}
+								<span className="font-medium">Phone:</span>{" "}
+								{company.contactPhone}
 							</div>
 						)}
 					</div>
@@ -185,7 +198,9 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 									}}
 								>
 									<div className="flex-1 min-w-0">
-										<p className="text-sm font-medium truncate">{assessment.name}</p>
+										<p className="text-sm font-medium truncate">
+											{assessment.name}
+										</p>
 										<p className="text-xs text-muted-foreground truncate">
 											{assessment.location}
 										</p>

@@ -195,10 +195,10 @@ export function TechnicalDataSummary({
 				: "outline";
 	const readinessLabel =
 		completion.percentage >= 80
-			? "Listo para propuesta"
+			? "Ready for report"
 			: completion.percentage >= 50
-				? "Buen avance"
-				: "En progreso";
+				? "Good progress"
+				: "In progress";
 
 	const prioritySections = sectionStats
 		.filter(({ stats }) => stats.percentage < 100)
@@ -348,47 +348,6 @@ export function TechnicalDataSummary({
 								</div>
 							);
 						})}
-					</div>
-					<Separator />
-					<div className="grid gap-3 sm:grid-cols-3">
-						<div className="rounded-2xl bg-muted/30 p-4">
-							<p className="text-xs uppercase text-muted-foreground">
-								Estimated Daily Volume
-							</p>
-							<p className="text-lg font-semibold text-foreground">
-								{Number.isFinite(derived.dailyVolume)
-									? `${derived.dailyVolume.toFixed(1)} m³/day`
-									: "–"}
-							</p>
-						</div>
-						<div className="rounded-2xl bg-muted/30 p-4">
-							<p className="text-xs uppercase text-muted-foreground">
-								Per Capita Consumption
-							</p>
-							<p className="text-lg font-semibold text-foreground">
-								{Number.isFinite(derived.perCapitaConsumption)
-									? `${derived.perCapitaConsumption.toFixed(1)} L/person·day`
-									: "–"}
-							</p>
-						</div>
-						<div className="rounded-2xl bg-muted/30 p-4">
-							<p className="text-xs uppercase text-muted-foreground">
-								Pending Suggestions
-							</p>
-							<p className="text-lg font-semibold text-foreground">
-								{sections.reduce(
-									(pending, section) =>
-										pending +
-										section.fields.filter(
-											(field) =>
-												!field.value &&
-												field.suggestedValue !== undefined &&
-												field.suggestedValue !== null,
-										).length,
-									0,
-								)}
-							</p>
-						</div>
 					</div>
 				</CardContent>
 			</Card>

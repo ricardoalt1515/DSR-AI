@@ -107,8 +107,7 @@ export function ProjectPipeline() {
 				return {
 					count: acc.count + pipelineStage.count,
 					progressSum:
-						acc.progressSum +
-						pipelineStage.avgProgress * pipelineStage.count,
+						acc.progressSum + pipelineStage.avgProgress * pipelineStage.count,
 				};
 			},
 			{ count: 0, progressSum: 0 },
@@ -271,9 +270,7 @@ export function ProjectPipeline() {
 							</div>
 						))}
 						<div className="text-center">
-							<p className="text-xs text-muted-foreground mb-1">
-								Last update
-							</p>
+							<p className="text-xs text-muted-foreground mb-1">Last update</p>
 							<p className="text-sm font-medium">{lastUpdatedText}</p>
 						</div>
 					</div>

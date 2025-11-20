@@ -51,7 +51,8 @@ def load_proposal_prompt() -> str:
     Load waste upcycling report prompt from external markdown file.
     Follows 2025 best practices for prompt management in production AI applications.
     """
-    prompt_path = Path(__file__).parent.parent / "prompts" / "dsr-bussiness-opportunity.v2.md"
+    # Use the aligned V3 prompt that matches ProposalOutput schema
+    prompt_path = Path(__file__).parent.parent / "prompts" / "waste-upcycling-report.v3.md"
 
     try:
         with open(prompt_path, encoding="utf-8") as f:
@@ -77,7 +78,7 @@ proposal_agent = Agent(
     output_type=ProposalOutput,
     instructions=load_proposal_prompt(),
     model_settings=ModelSettings(
-        temperature=0.3,  # Slightly higher for creative business recommendations
+        temperature=0.8,  # Slightly higher for creative business recommendations
     ),
     retries=1,
 )

@@ -16,6 +16,7 @@ You receive:
 
 1. Waste assessment questionnaire (types, volumes, handling, objectives, constraints)
 2. Project context (client name, sector, location, metadata)
+3. Optional photo analysis summary (attachmentsSummary.photoInsights) when resource photos are available
 
 If data is missing: make conservative assumptions and label them clearly with "Assumption: [explanation]"
 </context_available>
@@ -58,35 +59,33 @@ If data is missing: make conservative assumptions and label them clearly with "A
 
 ### Business Ideas
 
-- `circularEconomyOptions`: **[array of strings]** MAX 3 different pathways with revenue estimates
+- Internally, brainstorm 5-7 circular economy ideas. Rank by: (1) expected margin, (2) viability within 12 months, (3) ESG impact.
+- `circularEconomyOptions`: **[array of strings]** Return ONLY the **top 3** pathways.
 
-**Critical Format**: "What to do → who buys it (generic industry type) → approx revenue"
+**Format (one line, 20-30 words each)**:  
+`What to do → buyer type @ price range/ton → ≈annual net range (Assumption: key driver)`
 
 Examples:
-- ✅ GOOD: "Grind to sawdust → lumber mills @ $180/ton → ≈$8k/yr profit (low CapEx)"
-- ✅ GOOD: "Compress to pellets → biomass plants @ $120/ton → ≈$14k/yr (requires pelletizer)"
+- ✅ GOOD: "Grind to sawdust → lumber mills @ $180/ton → ≈$8k/yr net profit (low CapEx) (Assumption: 40-60 t/yr clean material)."
+- ✅ GOOD: "Compress to pellets → biomass plants @ $120/ton → ≈$14k/yr net (requires pelletizer) (Assumption: toll-wash partner available)."
 - ❌ BAD: "Sell to ABC Lumber Inc. at $200/ton" (no invented company names)
 
-### Material Intelligence
-
-- `hazardousConcerns`: **[array of strings]** Health/handling info for buyers (or ["No hazards identified"])
+### Material Intelligence (Resource Considerations)
 
 - `resourceConsiderations`:
   - `environmentalImpact`:
-    - currentSituation: **[array of strings]** What happens if waste continues as-is?
-    - benefitIfDiverted: **[array of strings]** What improves if DSR acquires?
+    - currentSituation: **[single string]** What happens if waste continues as-is?
+    - benefitIfDiverted: **[single string]** What improves if DSR acquires?
     - esgStory: **[single string]** One-line ESG narrative for pitching
   
-  - `materialSafety`:
+  - `materialHandling`:
     - hazardLevel: **[single string]** None / Low / Moderate / High
     - specificHazards: **[array of strings]** List concerns (e.g., ["Wood dust - inhalable particulates"])
     - ppeRequirements: **[array of strings]** What workers need (e.g., ["N95 mask when cutting"])
     - regulatoryNotes: **[array of strings]** Permits or restrictions if applicable
-  
-  - `storageHandling`:
-    - storageRequirements: **[single string]** How to store properly (one sentence)
-    - degradationRisks: **[single string]** What degrades quality (one sentence)
-    - qualityPriceImpact: **[single string]** How storage affects value (one sentence)
+    - storageRequirements: **[array of strings]** How to store properly (e.g., ["Store dry, under roof", "Keep off ground on pallets"])
+    - degradationRisks: **[array of strings]** What degrades quality (e.g., ["UV exposure", "High humidity"])
+    - qualityPriceImpact: **[array of strings]** How storage affects value (e.g., ["Wet material loses ~40% value"])
   
   - `marketIntelligence`:
     - buyerTypes: **[array of strings]** Generic industry segments only (e.g., ["Lumber yards", "Biomass plants"])
@@ -102,9 +101,10 @@ Examples:
 **CRITICAL**: Follow data types exactly. Use EPA WaRM factors from <reference> below. Flag assumptions clearly.
 
 - `co2Reduction`: **[object with arrays]** percent, tons, method (calculation explanation with factor used)
-- `waterReduction`: **[object with arrays]** litersSaved, reuseEfficiency, method (if relevant; else ["N/A"])
-- `toxicityImpact`: **[object]** level (string: None/Low/Moderate/High), notes (string: paragraph on hazards)
-- `resourceEfficiency`: **[object with arrays]** materialRecoveredPercent, energySaved, notes (direct reuse vs processing)
+- `toxicityImpact`: **[object]** level (string: None/Low/Moderate/High), notes (string: paragraph on hazards & safe use)
+- `resourceEfficiency`: **[object]**
+    - materialRecoveredPercent: **[array of strings]** Recovery rate percentages
+    - notes: **[single string]** Additional efficiency notes (can mention energy savings, direct reuse, etc.)
 - `environmentalNotes`: **[single string]** 2-4 sentences tying pollution avoided + ESG story
 
 </lca_schema>
@@ -113,14 +113,10 @@ Examples:
 
 <aiInsights_schema>
 
-**[array of strings]** Provide 3-6 quick, creative observations:
-
-- Non-obvious opportunities (e.g., "Hardwood segregation adds 30% value")
-- Alternative buyers or pathways
-- Practical tips (e.g., "Pellet partnerships avoid CapEx")
-- Assumption callouts (e.g., "Assumption: disposal fee $150/ton based on regional averages")
-
-Keep bullets punchy and actionable.
+**[array of strings]** Provide **3-6** short, creative observations.
+- Each item is a single sentence (no numbering or markdown bullets).
+- Focus on non-obvious opportunities, buyer/pathway ideas, practical tips and clearly labeled assumptions
+  (e.g., "Assumption: disposal fee $150/ton based on regional averages.").
 
 </aiInsights_schema>
 
@@ -209,20 +205,18 @@ Keep bullets punchy and actionable.
   
   "resourceConsiderations": {
     "environmentalImpact": {
-      "currentSituation": ["120 tons/yr river dumping → aquatic contamination"],
-      "benefitIfDiverted": ["Eliminates 100% pollution", "Reduces ≈144 tCO₂e/yr vs landfill"],
+      "currentSituation": "120 tons/yr river dumping → aquatic contamination",
+      "benefitIfDiverted": "Eliminates 100% pollution and reduces ≈144 tCO₂e/yr vs landfill",
       "esgStory": "From river waste to renewable energy - circular economy in action"
     },
-    "materialSafety": {
+    "materialHandling": {
       "hazardLevel": "Low",
       "specificHazards": ["Wood dust - inhalable particulates", "Pine resin - skin irritant"],
       "ppeRequirements": ["N95 mask when cutting", "Gloves for handling"],
-      "regulatoryNotes": ["Untreated wood - no special permits"]
-    },
-    "storageHandling": {
-      "storageRequirements": "Store dry, under roof; use pallets - avoid ground contact",
-      "degradationRisks": "Humidity >20%: fungus, 40% value loss; direct sun: board cracking",
-      "qualityPriceImpact": "Dry (<15% humidity): $180/ton; Wet (>20%): $100/ton (-45%)"
+      "regulatoryNotes": ["Untreated wood - no special permits"],
+      "storageRequirements": ["Store dry, under roof", "Use pallets - avoid ground contact"],
+      "degradationRisks": ["Humidity >20%: fungus, 40% value loss", "Direct sun: board cracking"],
+      "qualityPriceImpact": ["Dry (<15% humidity): $180/ton", "Wet (>20%): $100/ton (-45%)"]
     },
     "marketIntelligence": {
       "buyerTypes": ["Lumber yards", "Biomass plants", "Pellet manufacturers"],

@@ -65,9 +65,9 @@ export function ProposalParameters({
 					{operationalData.sludgeProductionKgDay && (
 						<MetricCard
 							icon={Droplet}
-							label="Sludge"
+							label="Byproduct"
 							value={`${formatNumber(operationalData.sludgeProductionKgDay)} kg/d`}
-							subtitle="Daily production"
+							subtitle="Daily generation"
 							variant="warning"
 						/>
 					)}
@@ -226,7 +226,7 @@ export function ProposalParameters({
 							</Card>
 						)}
 
-						{/* Sludge Production */}
+						{/* Byproduct Production */}
 						{operationalData.sludgeProductionKgDay !== undefined && (
 							<Card className="hover:shadow-md transition-shadow">
 								<CardHeader className="pb-2">
@@ -235,7 +235,7 @@ export function ProposalParameters({
 											<Activity className="h-4 w-4 text-[hsl(var(--chart-2))]" />
 										</div>
 										<CardTitle className="text-sm font-medium">
-											Sludge Production
+											Byproduct Production
 										</CardTitle>
 									</div>
 								</CardHeader>

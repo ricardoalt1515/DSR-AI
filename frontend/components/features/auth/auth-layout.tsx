@@ -101,9 +101,7 @@ export function AuthLayout({
 
 							{/* Brand text */}
 							<div>
-								<h1 className="text-3xl font-bold text-foreground">
-									DSR Inc.
-								</h1>
+								<h1 className="text-3xl font-bold text-foreground">DSR Inc.</h1>
 								<p className="text-muted-foreground text-sm">
 									Waste Resource Management
 								</p>
@@ -121,8 +119,9 @@ export function AuthLayout({
 								Analyze Opportunities in Minutes
 							</h2>
 							<p className="text-foreground/80 dark:text-white/90 text-lg leading-relaxed">
-								Transform waste into revenue. AI-powered deal analysis identifies
-								profitable circularity opportunities in industrial waste streams.
+								Transform waste into revenue. AI-powered deal analysis
+								identifies profitable circularity opportunities in industrial
+								waste streams.
 							</p>
 						</motion.div>
 

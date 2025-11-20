@@ -56,10 +56,8 @@ export function IntelligentProposalGeneratorComponent({
 	// Track start time for time estimation
 	const startTimeRef = useRef<number>(Date.now());
 
-	// State
-	const [proposalType, setProposalType] = useState<
-		"Conceptual" | "Technical" | "Detailed"
-	>("Conceptual");
+	// Hardcode to Conceptual for waste reports
+	const proposalType = "Conceptual" as const;
 
 	// Project validation
 	const project: ProjectDetail | null = useMemo(() => {
@@ -243,28 +241,6 @@ export function IntelligentProposalGeneratorComponent({
 						</Alert>
 					)}
 
-					{/* Proposal Type Selector */}
-					{canGenerate && (
-						<div className="space-y-2">
-							<p className="text-sm font-medium">Proposal Type</p>
-							<div className="grid grid-cols-3 gap-2">
-								{(["Conceptual", "Technical", "Detailed"] as const).map(
-									(type) => (
-										<Button
-											key={type}
-											variant={proposalType === type ? "default" : "outline"}
-											size="sm"
-											onClick={() => setProposalType(type)}
-											disabled={isGenerating}
-										>
-											{type}
-										</Button>
-									),
-								)}
-							</div>
-						</div>
-					)}
-
 					{/* Generate Button */}
 					<Button
 						onClick={handleStartGeneration}
@@ -284,7 +260,7 @@ export function IntelligentProposalGeneratorComponent({
 						) : (
 							<>
 								<Zap className="mr-2 h-5 w-5" />
-								Generate {proposalType} Proposal
+								Generate Waste Assessment Report
 							</>
 						)}
 					</Button>

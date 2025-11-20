@@ -152,12 +152,12 @@ export function QuickActionButton({
 			children: "Calculate CAPEX",
 			estimatedTime: "15s",
 		},
-			"generate-proposal": {
-				variant: "generate" as const,
-				icon: "generate" as const,
-				children: "Generate proposal",
-				estimatedTime: "2-3min",
-			},
+		"generate-proposal": {
+			variant: "generate" as const,
+			icon: "generate" as const,
+			children: "Generate proposal",
+			estimatedTime: "2-3min",
+		},
 		"validate-parameters": {
 			variant: "technical" as const,
 			icon: "check" as const,

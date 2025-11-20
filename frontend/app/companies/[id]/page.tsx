@@ -1,29 +1,38 @@
 "use client";
 
+import {
+	ArrowLeft,
+	Building2,
+	Edit,
+	Loader2,
+	MapPin,
+	MoreVertical,
+	Plus,
+	Trash2,
+} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 /**
  * Company detail page - Shows company info and locations
  * Combines company details and location management in one view
  */
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Building2, MapPin, ArrowLeft, Loader2, Plus, MoreVertical, Trash2, Edit } from "lucide-react";
 import { toast } from "sonner";
-import { useCompanyStore } from "@/lib/stores/company-store";
-import { useLocationStore } from "@/lib/stores/location-store";
+import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
+import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
+import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
-import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
-import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
-import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import { useCompanyStore } from "@/lib/stores/company-store";
+import { useLocationStore } from "@/lib/stores/location-store";
 import type { LocationSummary } from "@/lib/types/company";
 
 export default function CompanyDetailPage() {
@@ -32,9 +41,11 @@ export default function CompanyDetailPage() {
 	const companyId = params.id as string;
 
 	const { currentCompany, loading, loadCompany } = useCompanyStore();
-	const { locations, loadLocationsByCompany, deleteLocation } = useLocationStore();
+	const { locations, loadLocationsByCompany, deleteLocation } =
+		useLocationStore();
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [locationToDelete, setLocationToDelete] = useState<LocationSummary | null>(null);
+	const [locationToDelete, setLocationToDelete] =
+		useState<LocationSummary | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const [editCompanyDialogOpen, setEditCompanyDialogOpen] = useState(false);
 
@@ -46,7 +57,10 @@ export default function CompanyDetailPage() {
 	}, [companyId, loadCompany, loadLocationsByCompany]);
 
 	// Handle location delete request
-	const handleLocationDelete = (location: LocationSummary, e: React.MouseEvent) => {
+	const handleLocationDelete = (
+		location: LocationSummary,
+		e: React.MouseEvent,
+	) => {
 		e.stopPropagation();
 		setLocationToDelete(location);
 		setDeleteDialogOpen(true);
@@ -67,9 +81,7 @@ export default function CompanyDetailPage() {
 			await loadLocationsByCompany(companyId);
 		} catch (error) {
 			toast.error(
-				error instanceof Error
-					? error.message
-					: "Failed to delete location"
+				error instanceof Error ? error.message : "Failed to delete location",
 			);
 		} finally {
 			setDeleting(false);
@@ -144,7 +156,7 @@ export default function CompanyDetailPage() {
 										{currentCompany.sector}
 									</Badge>
 									<Badge variant="outline" className="text-sm">
-										{currentCompany.subsector.replace(/_/g, ' ')}
+										{currentCompany.subsector.replace(/_/g, " ")}
 									</Badge>
 								</div>
 							</div>
@@ -261,7 +273,7 @@ export default function CompanyDetailPage() {
 							>
 								<CardHeader className="pb-3">
 									<div className="flex items-start justify-between">
-										<div 
+										<div
 											className="flex-1 cursor-pointer"
 											onClick={() =>
 												router.push(
@@ -277,14 +289,22 @@ export default function CompanyDetailPage() {
 											</p>
 										</div>
 										<div className="flex items-center gap-2">
-											<Badge 
-												variant={location.projectCount > 0 ? "default" : "outline"}
+											<Badge
+												variant={
+													location.projectCount > 0 ? "default" : "outline"
+												}
 												className="text-xs"
 											>
-												{location.projectCount} {location.projectCount === 1 ? "assessment" : "assessments"}
+												{location.projectCount}{" "}
+												{location.projectCount === 1
+													? "assessment"
+													: "assessments"}
 											</Badge>
 											<DropdownMenu>
-												<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+												<DropdownMenuTrigger
+													asChild
+													onClick={(e) => e.stopPropagation()}
+												>
 													<Button
 														variant="ghost"
 														size="icon"
@@ -314,7 +334,7 @@ export default function CompanyDetailPage() {
 											<p>{location.address}</p>
 										</div>
 									)}
-									
+
 									{/* Quick Actions */}
 									<div className="flex gap-2 pt-2">
 										<Button
@@ -372,9 +392,15 @@ export default function CompanyDetailPage() {
 						industry: currentCompany.industry,
 						sector: currentCompany.sector,
 						subsector: currentCompany.subsector,
-						...(currentCompany.contactName && { contactName: currentCompany.contactName }),
-						...(currentCompany.contactEmail && { contactEmail: currentCompany.contactEmail }),
-						...(currentCompany.contactPhone && { contactPhone: currentCompany.contactPhone }),
+						...(currentCompany.contactName && {
+							contactName: currentCompany.contactName,
+						}),
+						...(currentCompany.contactEmail && {
+							contactEmail: currentCompany.contactEmail,
+						}),
+						...(currentCompany.contactPhone && {
+							contactPhone: currentCompany.contactPhone,
+						}),
 						...(currentCompany.notes && { notes: currentCompany.notes }),
 					}}
 					onSuccess={async () => {

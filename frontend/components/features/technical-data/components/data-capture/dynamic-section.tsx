@@ -9,10 +9,7 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type {
-	TableField,
-	TableSection,
-} from "@/lib/types/technical-data";
+import type { TableField, TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 
 interface DynamicSectionProps {
@@ -42,11 +39,7 @@ interface EditableCellProps {
 	) => void;
 }
 
-function EditableCell({
-	field,
-	sectionId,
-	onFieldChange,
-}: EditableCellProps) {
+function EditableCell({ field, sectionId, onFieldChange }: EditableCellProps) {
 	return (
 		<FieldEditor
 			field={field}

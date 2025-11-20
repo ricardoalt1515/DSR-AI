@@ -1,0 +1,91 @@
+# ============================================================================
+# Terraform Variables - Production Environment
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to git
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+# General Configuration
+# -----------------------------------------------------------------------------
+
+aws_region  = "us-east-1"
+environment = "prod"
+owner_email = "devops@dsr-inc.com"
+
+# Project name (used for resource naming)
+project_name = "dsr-waste-platform"
+
+# -----------------------------------------------------------------------------
+# Network Configuration
+# -----------------------------------------------------------------------------
+
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+enable_nat_gateway = true
+
+# -----------------------------------------------------------------------------
+# ECS Configuration
+# -----------------------------------------------------------------------------
+
+ecs_task_cpu      = 1024  # 1 vCPU (same as local development)
+ecs_task_memory   = 2048  # 2 GB (same as local development)
+ecs_desired_count = 2
+ecs_min_capacity  = 1
+ecs_max_capacity  = 3
+
+# Container image (update after first ECR push)
+# Format: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/dsr-waste-platform-prod-backend:latest
+container_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/dsr-waste-platform-prod-backend:latest"
+
+# -----------------------------------------------------------------------------
+# Database Configuration
+# -----------------------------------------------------------------------------
+
+db_name               = "dsr_waste_platform"
+db_username           = "waste_admin"
+db_instance_class     = "db.t4g.micro"
+db_allocated_storage  = 20
+db_multi_az           = true  # Enable for production
+
+# -----------------------------------------------------------------------------
+# Redis Configuration
+# -----------------------------------------------------------------------------
+
+redis_node_type = "cache.t4g.micro"
+
+# -----------------------------------------------------------------------------
+# Domain & SSL (optional)
+# -----------------------------------------------------------------------------
+
+domain_name         = ""  # Update with your domain when ready
+enable_https        = false
+acm_certificate_arn = ""  # Add ARN after creating ACM certificate
+cors_origins        = "http://localhost:3000"  # Update with your frontend URL
+
+# -----------------------------------------------------------------------------
+# Monitoring
+# -----------------------------------------------------------------------------
+
+alarm_email = "alerts@dsr-inc.com"
+
+# -----------------------------------------------------------------------------
+# Application Configuration
+# -----------------------------------------------------------------------------
+
+openai_model = "gpt-4o-mini"
+
+# -----------------------------------------------------------------------------
+# Secrets (via environment variables - DO NOT COMMIT)
+# -----------------------------------------------------------------------------
+# Set these via environment variables:
+#
+# export TF_VAR_openai_api_key="sk-proj-xxxxx"
+# export TF_VAR_jwt_secret_key="$(openssl rand -hex 32)"
+#
+# Or pass via command line:
+# terraform apply -var="openai_api_key=sk-xxx" -var="jwt_secret_key=xxx"
+#
+# DO NOT uncomment below - secrets must be passed via env vars
+# openai_api_key = ""  # Set via TF_VAR_openai_api_key
+# jwt_secret_key = ""  # Set via TF_VAR_jwt_secret_key

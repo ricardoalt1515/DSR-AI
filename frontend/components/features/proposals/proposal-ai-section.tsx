@@ -4,6 +4,7 @@ import { Brain, Clock, Lightbulb, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CircularGauge } from "@/components/ui/circular-gauge";
+import { type ConfidenceLevel, getConfidenceScore } from "./confidence-helpers";
 import type { Proposal } from "./types";
 
 interface ProposalAISectionProps {
@@ -12,20 +13,13 @@ interface ProposalAISectionProps {
 
 export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 	const aiMetadata = proposal.aiMetadata;
-	const report = aiMetadata.proposal;
 
 	if (!aiMetadata) {
 		return null;
 	}
 
-	const confidence = report.confidenceLevel || "Medium";
-	
-	// Map confidence to score
-	const getConfidenceScore = (level: string): number => {
-		const scores = { High: 85, Medium: 65, Low: 45 };
-		return scores[level as keyof typeof scores] || 65;
-	};
-
+	const report = aiMetadata.proposal;
+	const confidence: ConfidenceLevel = report.confidenceLevel ?? "Medium";
 	const confidenceScore = getConfidenceScore(confidence);
 
 	return (
@@ -52,8 +46,7 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 					<div className="flex items-center gap-6">
 						<CircularGauge
 							value={confidenceScore}
-							size={120}
-							strokeWidth={12}
+							size="lg"
 							label={confidence}
 						/>
 						<div className="flex-1">
@@ -111,28 +104,32 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 						<div>
 							<p className="text-xs text-muted-foreground mb-1">Generated At</p>
 							<p className="text-sm font-medium">
-								{new Date(aiMetadata.transparency.generatedAt).toLocaleString()}
+								{formatDateTime(aiMetadata.transparency.generatedAt)}
 							</p>
 						</div>
 						<div>
-							<p className="text-xs text-muted-foreground mb-1">Generation Time</p>
+							<p className="text-xs text-muted-foreground mb-1">
+								Generation Time
+							</p>
 							<p className="text-sm font-medium">
 								{aiMetadata.transparency.generationTimeSeconds}s
 							</p>
 						</div>
 						<div>
 							<p className="text-xs text-muted-foreground mb-1">Report Type</p>
-							<Badge variant="outline">{aiMetadata.transparency.reportType}</Badge>
+							<Badge variant="outline">
+								{aiMetadata.transparency.reportType}
+							</Badge>
 						</div>
 						<div>
 							<p className="text-xs text-muted-foreground mb-1">Confidence</p>
-							<Badge 
+							<Badge
 								variant={
-									confidence === "High" 
-										? "default" 
-										: confidence === "Low" 
-										? "destructive" 
-										: "secondary"
+									confidence === "High"
+										? "default"
+										: confidence === "Low"
+											? "destructive"
+											: "secondary"
 								}
 							>
 								{confidence}
@@ -162,4 +159,11 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 			)}
 		</div>
 	);
+}
+
+function formatDateTime(value: string): string {
+	return new Intl.DateTimeFormat("en-US", {
+		dateStyle: "medium",
+		timeStyle: "short",
+	}).format(new Date(value));
 }

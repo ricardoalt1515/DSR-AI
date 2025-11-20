@@ -207,7 +207,7 @@ export function EditProjectDialog({
 									<FormLabel>Project Name *</FormLabel>
 									<FormControl>
 										<Input
-											placeholder="e.g., Municipal Water Treatment Plant"
+											placeholder="e.g., Food Processing Waste Diversion Project"
 											{...field}
 										/>
 									</FormControl>

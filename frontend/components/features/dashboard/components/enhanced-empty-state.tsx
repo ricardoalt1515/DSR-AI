@@ -251,8 +251,8 @@ export function EnhancedEmptyState({
 					<div className="text-center">
 						<p className="text-sm text-muted-foreground mb-4">
 							<strong className="text-foreground">💡 Tip:</strong> Start with
-							company info and waste data. AI will analyze profitability and suggest
-							optimal deal structures.
+							company info and waste data. AI will analyze profitability and
+							suggest optimal deal structures.
 						</p>
 						<Button
 							onClick={onCreateProject}

@@ -3,7 +3,7 @@ File upload and management endpoints.
 """
 
 from uuid import UUID
-from typing import List
+from typing import Any, BinaryIO, List
 from fastapi import (
     APIRouter,
     Depends,
@@ -15,21 +15,25 @@ from fastapi import (
     BackgroundTasks,
     Request,
 )
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pathlib import Path
 import aiofiles
 import os
 
-from app.core.database import get_async_db
+from app.core.database import get_async_db, AsyncSessionLocal
 from app.api.dependencies import CurrentUser
 from app.models.project import Project
 from app.models.file import ProjectFile
+from app.models.timeline import TimelineEvent
 from app.schemas.file import FileUploadResponse, FileDetailResponse, FileListResponse
 from app.schemas.common import ErrorResponse
 from app.core.config import settings
+from app.services.s3_service import upload_file_to_s3, get_presigned_url, USE_S3, delete_file_from_s3
+from app.services.document_processor import DocumentProcessor
 import logging
+import mimetypes
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +42,34 @@ router = APIRouter()
 # Import limiter for rate limiting
 from app.main import limiter
 
-# Allowed file extensions
-ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.txt'}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# Allowed file extensions and max size (single source of truth via settings)
+ALLOWED_EXTENSIONS = {
+	(ext if ext.startswith("." ) else f".{ext}").lower()
+	for ext in settings.allowed_extensions_list
+}
+MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE
+
+
+def validate_file(upload_file: UploadFile) -> None:
+	"""Basic validation for uploaded files.
+
+	Ensures the file has a name and an allowed extension.
+	Raises HTTPException with 400 status on invalid files.
+	"""
+	filename = upload_file.filename or ""
+	if not filename:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Filename is required",
+		)
+
+	file_ext = Path(filename).suffix.lower()
+	if file_ext not in ALLOWED_EXTENSIONS:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail=f"Unsupported file type: {file_ext or 'unknown'}",
+		)
 
 
 @router.post(
@@ -129,6 +158,15 @@ async def upload_file(
         # Generate unique filename
         import uuid
         file_ext = Path(file.filename).suffix.lower()
+        
+        # AI processing is only supported for image files (JPG, JPEG, PNG)
+        is_image = file_ext in {".jpg", ".jpeg", ".png"}
+        if process_with_ai and not is_image:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="AI processing is only supported for image files (JPG, JPEG, PNG)",
+            )
+        
         unique_filename = f"{uuid.uuid4()}{file_ext}"
         
         # Store file
@@ -170,7 +208,6 @@ async def upload_file(
                 file_id=project_file.id,
                 file_path=file_path,
                 file_type=file_ext,
-                db=db,
             )
             processing_status = "queued"
         else:
@@ -180,7 +217,9 @@ async def upload_file(
         event = TimelineEvent(
             project_id=project_id,
             event_type="file_uploaded",
+            title="File uploaded",
             description=f"Uploaded file: {file.filename}",
+            actor=f"user_{current_user.id}",
             event_metadata={
                 "file_id": str(project_file.id),
                 "filename": file.filename,
@@ -255,22 +294,28 @@ async def list_files(
         .order_by(ProjectFile.created_at.desc())
     )
     files = result.scalars().all()
-    
+
     # Convert to response
-    file_list = [
-        {
-            "id": f.id,
-            "filename": f.filename,
-            "file_size": f.file_size,
-            "file_type": f.file_type,
-            "category": f.category,
-            "uploaded_at": f.created_at,
-            "processed_text": f.processed_text is not None,
-            "ai_analysis": f.ai_analysis is not None,
-        }
-        for f in files
-    ]
-    
+    file_list = []
+    for f in files:
+        has_text = f.processed_text is not None
+        has_ai = f.ai_analysis is not None
+        processing_status = "completed" if (has_text or has_ai) else "not_processed"
+
+        file_list.append(
+            {
+                "id": f.id,
+                "filename": f.filename,
+                "file_size": f.file_size,
+                "file_type": f.file_type,
+                "category": f.category,
+                "uploaded_at": f.created_at,
+                "processed_text": has_text,
+                "ai_analysis": has_ai,
+                "processing_status": processing_status,
+            }
+        )
+
     return FileListResponse(
         project_id=project_id,
         files=file_list,
@@ -441,8 +486,7 @@ async def delete_file(
     # Delete physical file
     try:
         if USE_S3:
-            # TODO: Implement S3 delete
-            pass
+            await delete_file_from_s3(file.file_path)
         else:
             if os.path.exists(file.file_path):
                 os.remove(file.file_path)
@@ -456,7 +500,9 @@ async def delete_file(
     event = TimelineEvent(
         project_id=project_id,
         event_type="file_deleted",
+        title="File deleted",
         description=f"Deleted file: {file.filename}",
+        actor=f"user_{current_user.id}",
         event_metadata={
             "filename": file.filename,
             "user_id": str(current_user.id),
@@ -475,9 +521,8 @@ async def process_file_with_ai(
     file_id: UUID,
     file_path: str,
     file_type: str,
-    db: AsyncSession,
 ):
-    """Process file with AI in background."""
+    """Process file with AI in background using its own DB session."""
     try:
         logger.info(f"🤖 Processing file {file_id} with AI...")
         
@@ -489,21 +534,25 @@ async def process_file_with_ai(
             result = await processor.process(
                 file_content=file_content,
                 filename=os.path.basename(file_path),
-                file_type=file_type
+                file_type=file_type,
             )
         
-        # Update file record
-        result_db = await db.execute(
-            select(ProjectFile).where(ProjectFile.id == file_id)
-        )
-        file = result_db.scalar_one_or_none()
-        
-        if file:
-            file.processed_text = result.get("text")
-            file.ai_analysis = result.get("analysis")
-            await db.commit()
-            
-            logger.info(f"✅ File {file_id} processed successfully")
+        # Update file record in its own async DB session
+        async with AsyncSessionLocal() as db:
+            try:
+                result_db = await db.execute(
+                    select(ProjectFile).where(ProjectFile.id == file_id)
+                )
+                file = result_db.scalar_one_or_none()
+                
+                if file:
+                    file.processed_text = result.get("text")
+                    file.ai_analysis = result.get("analysis")
+                    await db.commit()
+                    logger.info(f"✅ File {file_id} processed successfully")
+            except Exception:
+                await db.rollback()
+                raise
     
     except Exception as e:
         logger.error(f"Error processing file {file_id}: {e}", exc_info=True)

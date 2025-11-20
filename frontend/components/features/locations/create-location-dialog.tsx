@@ -1,11 +1,12 @@
 "use client";
 
+import { Loader2, MapPin } from "lucide-react";
 /**
  * CreateLocationDialog - Modal for creating locations
  * Reusable component with minimal props
  */
 import { useState } from "react";
-import { MapPin, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -15,12 +16,11 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useLocationStore } from "@/lib/stores/location-store";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useLocationStore } from "@/lib/stores/location-store";
 import type { LocationFormData } from "@/lib/types/company";
 
 interface CreateLocationDialogProps {
@@ -52,10 +52,19 @@ export function CreateLocationDialog({
 		setLoading(true);
 
 		try {
-			console.log('[CreateLocationDialog] Creating location with data:', { companyId, formData });
-			const location = await createLocation(companyId, { ...formData, companyId });
-			console.log('[CreateLocationDialog] Location created successfully:', location);
-			
+			console.log("[CreateLocationDialog] Creating location with data:", {
+				companyId,
+				formData,
+			});
+			const location = await createLocation(companyId, {
+				...formData,
+				companyId,
+			});
+			console.log(
+				"[CreateLocationDialog] Location created successfully:",
+				location,
+			);
+
 			toast({
 				title: "Location created",
 				description: `${formData.name} has been created successfully.`,
@@ -68,11 +77,11 @@ export function CreateLocationDialog({
 				address: "",
 				notes: "",
 			});
-			
-			console.log('[CreateLocationDialog] Calling onSuccess callback');
+
+			console.log("[CreateLocationDialog] Calling onSuccess callback");
 			onSuccess?.(location);
 		} catch (error) {
-			console.error('[CreateLocationDialog] Error creating location:', error);
+			console.error("[CreateLocationDialog] Error creating location:", error);
 			toast({
 				title: "Error",
 				description:

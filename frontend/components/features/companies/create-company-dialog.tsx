@@ -1,11 +1,13 @@
 "use client";
 
+import { ArrowLeft, ArrowRight, Building2, Loader2 } from "lucide-react";
 /**
  * CreateCompanyDialog - Modal for creating or editing a company
  * Dual-mode component (DRY): handles both create and edit operations
  */
-import { useState, useEffect } from "react";
-import { ArrowLeft, ArrowRight, Building2, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { SectorSelector } from "@/components/shared/forms/sector-selector";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -15,16 +17,14 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useCompanyStore } from "@/lib/stores/company-store";
-import { useToast } from "@/lib/hooks/use-toast";
-import type { CompanyFormData } from "@/lib/types/company";
-import type { Sector, Subsector } from "@/lib/sectors-config";
-import { SectorSelector } from "@/components/shared/forms/sector-selector";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/lib/hooks/use-toast";
+import type { Sector, Subsector } from "@/lib/sectors-config";
+import { useCompanyStore } from "@/lib/stores/company-store";
+import type { CompanyFormData } from "@/lib/types/company";
 
 interface CreateCompanyDialogProps {
 	onSuccess?: (company: any) => void;
@@ -92,9 +92,11 @@ export function CreateCompanyDialog({
 			// Auto-fill industry from sector if empty
 			const dataToSubmit = {
 				...formData,
-				industry: formData.industry || formData.sector.charAt(0).toUpperCase() + formData.sector.slice(1),
+				industry:
+					formData.industry ||
+					formData.sector.charAt(0).toUpperCase() + formData.sector.slice(1),
 			};
-			
+
 			let company;
 			if (isEditMode) {
 				// Update existing company
@@ -111,7 +113,7 @@ export function CreateCompanyDialog({
 					description: `${formData.name} has been created successfully.`,
 				});
 			}
-			
+
 			setOpen(false);
 			setFormData({
 				name: "",
@@ -150,7 +152,7 @@ export function CreateCompanyDialog({
 	};
 
 	// For edit mode, use external open control
-	const dialogOpen = isEditMode ? (companyToEdit !== undefined) : open;
+	const dialogOpen = isEditMode ? companyToEdit !== undefined : open;
 	const handleOpenChange = (newOpen: boolean) => {
 		if (!newOpen) {
 			handleCancel();
@@ -185,7 +187,9 @@ export function CreateCompanyDialog({
 						</DialogTitle>
 						<DialogDescription>
 							{currentStep === 1
-								? isEditMode ? "Update company information" : "Add basic company information"
+								? isEditMode
+									? "Update company information"
+									: "Add basic company information"
 								: "Select the company's business sector"}
 						</DialogDescription>
 						<Progress value={(currentStep / 2) * 100} className="mt-2" />
@@ -214,7 +218,10 @@ export function CreateCompanyDialog({
 								{/* Industry (optional - auto-filled from sector) */}
 								<div className="grid gap-2">
 									<Label htmlFor="industry">
-										Industry <span className="text-xs text-muted-foreground">(optional)</span>
+										Industry{" "}
+										<span className="text-xs text-muted-foreground">
+											(optional)
+										</span>
 									</Label>
 									<Input
 										id="industry"
@@ -303,62 +310,67 @@ export function CreateCompanyDialog({
 					</div>
 
 					<DialogFooter className="gap-2">
-					{/* Cancel / Back button */}
-					{currentStep === 1 ? (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={handleCancel}
-							disabled={loading}
-						>
-							Cancel
-						</Button>
-					) : (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setCurrentStep(1)}
-							disabled={loading}
-						>
-							<ArrowLeft className="mr-2 h-4 w-4" />
-							Back
-						</Button>
-					)}
-
-					{/* Next / Save buttons */}
-					{currentStep === 1 ? (
-						<>
-							{isEditMode && (
-								<Button
-									type="submit"
-									disabled={loading || !formData.name}
-									variant="secondary"
-								>
-									{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-									Save Changes
-								</Button>
-							)}
+						{/* Cancel / Back button */}
+						{currentStep === 1 ? (
 							<Button
 								type="button"
-								onClick={() => setCurrentStep(2)}
-								disabled={!formData.name}
+								variant="outline"
+								onClick={handleCancel}
+								disabled={loading}
 							>
-								{isEditMode ? "Edit" : "Next:"} Sector
-								<ArrowRight className="ml-2 h-4 w-4" />
+								Cancel
 							</Button>
-						</>
-					) : (
-						<Button
-							type="submit"
-							disabled={loading || (!isEditMode && (!formData.sector || !formData.subsector))}
-						>
-							{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-							{isEditMode ? "Update Company" : "Create Company"}
-						</Button>
-					)}
-				</DialogFooter>
-			</form>
-		</DialogContent>
-	</Dialog>
+						) : (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setCurrentStep(1)}
+								disabled={loading}
+							>
+								<ArrowLeft className="mr-2 h-4 w-4" />
+								Back
+							</Button>
+						)}
+
+						{/* Next / Save buttons */}
+						{currentStep === 1 ? (
+							<>
+								{isEditMode && (
+									<Button
+										type="submit"
+										disabled={loading || !formData.name}
+										variant="secondary"
+									>
+										{loading && (
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										)}
+										Save Changes
+									</Button>
+								)}
+								<Button
+									type="button"
+									onClick={() => setCurrentStep(2)}
+									disabled={!formData.name}
+								>
+									{isEditMode ? "Edit" : "Next:"} Sector
+									<ArrowRight className="ml-2 h-4 w-4" />
+								</Button>
+							</>
+						) : (
+							<Button
+								type="submit"
+								disabled={
+									loading ||
+									(!isEditMode && (!formData.sector || !formData.subsector))
+								}
+							>
+								{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+								{isEditMode ? "Update Company" : "Create Company"}
+							</Button>
+						)}
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }

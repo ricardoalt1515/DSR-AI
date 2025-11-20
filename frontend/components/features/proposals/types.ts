@@ -4,9 +4,9 @@
  */
 
 import type {
-	WasteUpcyclingReport,
 	BusinessOpportunity,
-	LifeCycleAssessment
+	LifeCycleAssessment,
+	WasteUpcyclingReport,
 } from "@/lib/types/proposal";
 
 // Re-export for convenience
@@ -21,7 +21,6 @@ export interface ProjectRequirements {
 	siteConstraints: string[];
 }
 
-
 /**
  * AI Metadata structure for waste upcycling reports
  */
@@ -34,7 +33,6 @@ export interface AIMetadata {
 		reportType: string;
 	};
 }
-
 
 export interface Project {
 	id: string;
@@ -53,11 +51,11 @@ export interface Proposal {
 	proposalType: "Conceptual" | "Technical" | "Detailed";
 	author: string;
 	createdAt: string;
-	
+
 	// For waste reports, these are 0 (costs in tables)
 	capex: number;
 	opex: number;
-	
+
 	executiveSummary: string;
 	technicalApproach: string;
 

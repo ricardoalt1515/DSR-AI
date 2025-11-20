@@ -102,17 +102,26 @@ class APIClient {
 			try {
 				const url = `${this.baseURL}${endpoint}`;
 
+				const isFormData =
+					body instanceof FormData;
+
+				const mergedHeaders: Record<string, string> = {
+					...this.defaultHeaders,
+					...headers,
+				};
+				// Para uploads multipart, dejar que el navegador establezca Content-Type
+				if (isFormData && "Content-Type" in mergedHeaders) {
+					delete mergedHeaders["Content-Type"];
+				}
+
 				const requestConfig: RequestInit = {
 					method,
-					headers: {
-						...this.defaultHeaders,
-						...headers,
-					},
+					headers: mergedHeaders,
 					signal: AbortSignal.timeout(timeout),
 				};
 
 				const shouldAttachBody = body !== undefined && method !== "GET";
-
+				
 				if (shouldAttachBody) {
 					if (
 						body instanceof FormData ||
@@ -152,11 +161,16 @@ class APIClient {
 				}
 
 				// Handle empty responses
+				// No-content responses: don't attempt to parse JSON
+				if (response.status === 204 || response.status === 205) {
+					return null as T;
+				}
+				
 				const contentType = response.headers.get("content-type");
 				if (!contentType?.includes("application/json")) {
 					return null as T;
 				}
-
+				
 				const data = await response.json();
 				return data;
 			} catch (error: unknown) {

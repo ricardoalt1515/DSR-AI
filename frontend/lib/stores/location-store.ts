@@ -7,9 +7,9 @@ import { immer } from "zustand/middleware/immer";
 import { LocationsAPI } from "@/lib/api/companies";
 import type {
 	LocationCreate,
-	LocationUpdate,
-	LocationSummary,
 	LocationDetail,
+	LocationSummary,
+	LocationUpdate,
 } from "@/lib/types/company";
 import { logger } from "@/lib/utils/logger";
 
@@ -27,10 +27,7 @@ interface LocationState {
 		companyId: string,
 		data: LocationCreate,
 	) => Promise<LocationSummary>;
-	updateLocation: (
-		id: string,
-		data: LocationUpdate,
-	) => Promise<LocationDetail>;
+	updateLocation: (id: string, data: LocationUpdate) => Promise<LocationDetail>;
 	deleteLocation: (id: string) => Promise<void>;
 	clearError: () => void;
 	setLoading: (loading: boolean) => void;
@@ -54,29 +51,32 @@ export const useLocationStore = create<LocationState>()(
 
 				try {
 					const locations = await LocationsAPI.listByCompany(companyId);
-					
+
 					set((state) => {
 						state.locations = locations;
 						state.loading = false;
 					});
-					
-					logger.info(`Loaded ${locations.length} locations for company ${companyId}`, "LocationStore");
+
+					logger.info(
+						`Loaded ${locations.length} locations for company ${companyId}`,
+						"LocationStore",
+					);
 				} catch (error) {
 					const message =
 						error instanceof Error ? error.message : "Failed to load locations";
-					
+
 					logger.error(
 						`Failed to load locations for company ${companyId}`,
 						error,
 						"LocationStore",
 					);
-					
+
 					set((state) => {
 						state.error = message;
 						state.loading = false;
 						state.locations = [];
 					});
-					
+
 					throw error;
 				}
 			},
@@ -124,7 +124,9 @@ export const useLocationStore = create<LocationState>()(
 					return location;
 				} catch (error) {
 					const message =
-						error instanceof Error ? error.message : "Failed to create location";
+						error instanceof Error
+							? error.message
+							: "Failed to create location";
 					logger.error("Failed to create location", error, "LocationStore");
 					set((state) => {
 						state.error = message;
@@ -157,8 +159,14 @@ export const useLocationStore = create<LocationState>()(
 					return location;
 				} catch (error) {
 					const message =
-						error instanceof Error ? error.message : "Failed to update location";
-					logger.error(`Failed to update location ${id}`, error, "LocationStore");
+						error instanceof Error
+							? error.message
+							: "Failed to update location";
+					logger.error(
+						`Failed to update location ${id}`,
+						error,
+						"LocationStore",
+					);
 					set((state) => {
 						state.error = message;
 						state.loading = false;
@@ -186,8 +194,14 @@ export const useLocationStore = create<LocationState>()(
 					logger.info(`Location deleted: ${id}`, "LocationStore");
 				} catch (error) {
 					const message =
-						error instanceof Error ? error.message : "Failed to delete location";
-					logger.error(`Failed to delete location ${id}`, error, "LocationStore");
+						error instanceof Error
+							? error.message
+							: "Failed to delete location";
+					logger.error(
+						`Failed to delete location ${id}`,
+						error,
+						"LocationStore",
+					);
 					set((state) => {
 						state.error = message;
 						state.loading = false;

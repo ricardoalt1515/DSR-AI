@@ -1,8 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import * as React from "react";
+import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -19,7 +19,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { useLocationStore } from "@/lib/stores/location-store";
-import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
+import { cn } from "@/lib/utils";
 
 interface LocationComboboxProps {
 	companyId: string;

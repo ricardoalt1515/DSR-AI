@@ -7,25 +7,12 @@
  * - Automatic retry logic for resilience
  * - Proper error handling and logging
  */
-
-import type {
-	AIMetadata,
-	CostBreakdown,
-	Equipment,
-	OperationalCosts,
-	TreatmentEfficiency,
-} from "@/lib/types/proposal";
+import type { AIMetadata } from "@/lib/types/proposal";
 import { logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
 
 // Re-export types for convenience
-export type {
-	AIMetadata,
-	CostBreakdown,
-	Equipment,
-	OperationalCosts,
-	TreatmentEfficiency,
-};
+export type { AIMetadata };
 
 // ============================================================================
 // Types & Schemas
@@ -71,11 +58,7 @@ export interface ProposalResponse {
 	executiveSummary?: string;
 	technicalApproach?: string;
 	implementationPlan?: string;
-	costBreakdown?: CostBreakdown;
 	risks?: string[];
-	equipmentList?: Equipment[];
-	treatmentEfficiency?: TreatmentEfficiency;
-	operationalCosts?: OperationalCosts;
 	pdfPath?: string;
 	aiMetadata?: AIMetadata;
 }

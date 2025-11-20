@@ -123,3 +123,30 @@ async def download_file_content(filename: str) -> bytes:
     except Exception as e:
         logger.error(f"Error descargando archivo {filename}: {str(e)}")
         raise
+
+async def delete_file_from_s3(filename: str) -> None:
+    """Elimina un archivo de S3.
+
+    En modo desarrollo (sin S3_BUCKET configurado) no realiza ninguna acción,
+    la eliminación local se maneja desde los endpoints que gestionan archivos.
+    """
+    try:
+        if not USE_S3:
+            # Nada que hacer: el archivo se gestiona localmente por el caller
+            return
+
+        logger.info(f"Eliminando archivo de S3: {filename}")
+        session = aioboto3.Session()
+        client_args = {"region_name": S3_REGION}
+        if S3_ACCESS_KEY and S3_SECRET_KEY:
+            logger.warning(
+                "Usando credenciales explícitas de S3 para delete; evita esto en producción en AWS."
+            )
+            client_args["aws_access_key_id"] = S3_ACCESS_KEY
+            client_args["aws_secret_access_key"] = S3_SECRET_KEY
+
+        async with session.client("s3", **client_args) as s3:
+            await s3.delete_object(Bucket=S3_BUCKET, Key=filename)
+    except Exception as e:
+        logger.error(f"Error eliminando archivo {filename} de S3: {str(e)}")
+        raise

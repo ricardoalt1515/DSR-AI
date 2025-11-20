@@ -100,31 +100,28 @@ class ProfessionalPDFGenerator:
         self, markdown_content: str, metadata: Dict[str, Any], charts: Dict[str, str]
     ) -> str:
         """
-        Create complete HTML with specialized technical sections
+        Create complete HTML for waste upcycling business reports.
+
+        The new agent output (ProposalOutput) is passed in metadata["proposal"].
+        Legacy water-treatment structures (metadata["data_for_charts"]) are ignored
+        for content rendering, but may still be used by chart generators.
         """
-        # Convert markdown to HTML
+        # Convert markdown to HTML (for optional full report section)
         md_html = markdown.markdown(
-            markdown_content, extensions=["tables", "fenced_code"]
+            markdown_content or "", extensions=["tables", "fenced_code"]
         )
 
-        # Get client information with defensive validation
-        agent_data = metadata.get("data_for_charts", {})
-        client_info = agent_data.get("client_info", {})
+        # Extract ProposalOutput-based data (defensive against missing keys)
+        proposal_data = metadata.get("proposal") or {}
 
-        # Defensive validation for client_info
-        if client_info is None:
-            client_info = {}
-            logger.warning("client_info is None, using empty dictionary")
+        client_name = proposal_data.get("client_name") or proposal_data.get("clientName") or "Client"
+        facility_type = proposal_data.get("facility_type") or proposal_data.get("facilityType") or "Facility"
+        location = proposal_data.get("location") or "Location not specified"
 
-        # Extract client information with fallbacks
-        company = client_info.get("company_name", "Client")
-        sector = client_info.get("industry", "Industrial")
-        location = client_info.get("location", "USA")
+        # Build new business-focused sections
+        business_sections = self._create_business_sections(proposal_data)
 
-        # Create additional technical sections from `data_for_charts`
-        technical_sections = self._create_technical_sections(agent_data)
-
-        # Create charts section
+        # Charts section (may still rely on legacy metadata structure)
         charts_section = self._create_charts_section(charts)
 
         html_content = f"""
@@ -133,63 +130,65 @@ class ProfessionalPDFGenerator:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Technical Proposal - {company}</title>
+            <title>Waste Upcycling Report - {client_name}</title>
         </head>
         <body>
             <!-- COVER PAGE -->
             <div class="cover-page">
                 <div class="header-logo">
-                    <!-- RESERVED SPACE FOR H2O ALLEGIANT LOGO -->
                     <div class="company-logo">
                         <div class="logo-placeholder">
-                            {f'<img src="{self.logo_base64}" alt="H₂O Allegiant Logo">' if self.logo_base64 else "[H₂O ALLEGIANT LOGO]"}
+                            {f'<img src="{self.logo_base64}" alt="DSR Inc. Logo">' if self.logo_base64 else "[DSR INC. LOGO]"}
                         </div>
                     </div>
-                    <h1>H₂O ALLEGIANT</h1>
-                    <p class="subtitle">Water Treatment Solutions</p>
+                    <h1>DSR INC.</h1>
+                    <p class="subtitle">The Disruptor - Behind Your Success</p>
                 </div>
                 
                 <div class="cover-content">
-                    <h2 class="proposal-title">TECHNICAL PROPOSAL</h2>
-                    <h3 class="client-name">Water Treatment System</h3>
-                    <h4 class="company-name">{company}</h4>
+                    <h2 class="proposal-title">WASTE UPCYCLING FEASIBILITY REPORT</h2>
+                    <h3 class="client-name">{facility_type}</h3>
+                    <h4 class="company-name">{client_name}</h4>
                     
                     <div class="cover-details">
                         <p><strong>Date:</strong> {datetime.now().strftime("%B %d, %Y")}</p>
-                        <p><strong>Sector:</strong> {sector}</p>
                         <p><strong>Location:</strong> {location}</p>
                     </div>
                 </div>
                 
                 <div class="cover-footer">
-                    <p>Confidential Document - Client Exclusive Use</p>
+                    <p>Confidential Document - For Client and DSR Internal Use Only</p>
                 </div>
             </div>
             
-            <!-- MAIN PROPOSAL CONTENT (no executive summary in target PDF) -->
+            <!-- BUSINESS OPPORTUNITY & LCA SECTIONS -->
+            {business_sections}
             
-            <!-- SPECIALIZED TECHNICAL SECTIONS -->
-            {technical_sections}
-            
-            <!-- VISUALIZATIONS AND CHARTS -->
+            <!-- VISUALIZATIONS AND CHARTS (optional) -->
             {charts_section}
+            
+            <!-- FULL MARKDOWN REPORT (optional) -->
+            <div class="technical-section">
+                <h2 class="section-title">Full AI-Generated Report</h2>
+                {md_html}
+            </div>
             
             <!-- FOOTER PAGE -->
             <div class="footer-page">
                 <div class="contact-info">
-                    <h3>H₂O ALLEGIANT</h3>
-                    <p>📧 info@hydrous.com</p>
-                    <p>🌐 www.hydrousalliant.com</p>
-                    <p>📱 Contact via email for inquiries</p>
+                    <h3>DSR INC.</h3>
+                    <p>📧 info@dsr-inc.com</p>
+                    <p>🌐 www.dsr-inc.com</p>
+                    <p>📱 Contact your DSR representative for next steps</p>
                 </div>
                 
                 <div class="disclaimer">
                     <h4>Legal Notice</h4>
-                    <p>This technical proposal was generated using artificial intelligence based on information 
-                    provided by the client and industry standards. While every effort has been made to 
-                    ensure accuracy, data, cost estimates and technical recommendations may contain 
-                    errors and are not legally binding. It is recommended that all details be validated by 
-                    H₂O Allegiant before implementation.</p>
+                    <p>This business opportunity report was generated using artificial intelligence based on 
+                    information provided by the client and public market data. While every effort has been made to 
+                    ensure accuracy, financial estimates and strategic recommendations may contain errors and are 
+                    not legally binding. All investment decisions should be validated by DSR Inc. and the client 
+                    before execution.</p>
                 </div>
             </div>
         </body>
@@ -197,6 +196,316 @@ class ProfessionalPDFGenerator:
         """
 
         return html_content
+
+    def _create_business_sections(self, proposal_data: Dict[str, Any]) -> str:
+        """Create business-focused sections from ProposalOutput-compatible data."""
+        sections: list[str] = []
+
+        # Executive decision summary
+        business = proposal_data.get("business_opportunity") or proposal_data.get("businessOpportunity") or {}
+        lca = proposal_data.get("lca") or proposal_data.get("lifeCycleAssessment") or {}
+
+        overall_recommendation = business.get("overall_recommendation") or business.get("overallRecommendation")
+        decision_summary = business.get("decision_summary") or business.get("decisionSummary")
+        confidence_level = proposal_data.get("confidence_level") or proposal_data.get("confidenceLevel")
+
+        primary_waste_types = proposal_data.get("primary_waste_types") or proposal_data.get("primaryWasteTypes") or []
+        daily_volume = proposal_data.get("daily_monthly_volume") or proposal_data.get("dailyMonthlyVolume")
+        disposal_method = proposal_data.get("existing_disposal_method") or proposal_data.get("existingDisposalMethod")
+
+        exec_html = """
+        <div class="technical-section">
+            <h2 class="section-title">Executive Decision Summary</h2>
+        """
+
+        if overall_recommendation or decision_summary or confidence_level:
+            exec_html += "<div class=\"executive-content\">"
+            if overall_recommendation:
+                exec_html += f"<p><strong>Decision:</strong> {overall_recommendation}</p>"
+            if confidence_level:
+                exec_html += f"<p><strong>Confidence Level:</strong> {confidence_level}</p>"
+            if decision_summary:
+                exec_html += f"<p>{decision_summary}</p>"
+            exec_html += "</div>"
+
+        # Basic waste context
+        if primary_waste_types or daily_volume or disposal_method:
+            exec_html += """
+            <h3>Waste Context</h3>
+            <table class="equipment-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            if primary_waste_types:
+                joined_types = ", ".join(primary_waste_types)
+                exec_html += f"<tr><td class=\"stage-name\">Primary Waste Types</td><td>{joined_types}</td></tr>"
+            if daily_volume:
+                exec_html += f"<tr><td class=\"stage-name\">Total Volume</td><td>{daily_volume}</td></tr>"
+            if disposal_method:
+                exec_html += f"<tr><td class=\"stage-name\">Current Disposal Method</td><td>{disposal_method}</td></tr>"
+            exec_html += """
+                </tbody>
+            </table>
+            """
+
+        exec_html += "</div>"
+        sections.append(exec_html)
+
+        # Landfill reduction & cost savings
+        landfill = business.get("landfill_reduction") or business.get("landfillReduction") or {}
+        savings = business.get("waste_handling_cost_savings") or business.get("wasteHandlingCostSavings") or {}
+        revenue = business.get("potential_revenue") or business.get("potentialRevenue") or {}
+
+        if landfill or savings or revenue:
+            econ_html = """
+            <div class="technical-section">
+                <h2 class="section-title">Financial Opportunity Overview</h2>
+            """
+
+            # Landfill reduction
+            if landfill:
+                before = landfill.get("before") or []
+                after = landfill.get("after") or []
+                annual = landfill.get("annual_savings") or landfill.get("annualSavings") or []
+                econ_html += """
+                <h3>Landfill Diversion</h3>
+                <table class="equipment-table">
+                    <thead>
+                        <tr>
+                            <th>Current Situation</th>
+                            <th>After DSR Deal</th>
+                            <th>Annual Benefits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                """
+                econ_html += f"<tr><td>{'<br/>'.join(before) if before else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(after) if after else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(annual) if annual else 'N/A'}</td></tr>"
+                econ_html += """
+                    </tbody>
+                </table>
+                """
+
+            # Cost savings
+            if savings:
+                before = savings.get("before") or []
+                after = savings.get("after") or []
+                annual = savings.get("annual_savings") or savings.get("annualSavings") or []
+                econ_html += """
+                <h3>Waste Handling Cost Savings (Generator)</h3>
+                <table class="equipment-table">
+                    <thead>
+                        <tr>
+                            <th>Current Disposal Costs</th>
+                            <th>After DSR Deal</th>
+                            <th>Annual Savings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                """
+                econ_html += f"<tr><td>{'<br/>'.join(before) if before else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(after) if after else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(annual) if annual else 'N/A'}</td></tr>"
+                econ_html += """
+                    </tbody>
+                </table>
+                """
+
+            # Revenue potential
+            if revenue:
+                per_kg = revenue.get("per_kg") or revenue.get("perKg") or []
+                annual = revenue.get("annual_potential") or revenue.get("annualPotential") or []
+                market_rate = revenue.get("market_rate") or revenue.get("marketRate") or []
+                notes = revenue.get("notes") or []
+                econ_html += """
+                <h3>DSR Revenue Potential</h3>
+                <table class="equipment-table">
+                    <thead>
+                        <tr>
+                            <th>Revenue per Unit</th>
+                            <th>Annual Revenue Potential</th>
+                            <th>Market Rates</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                """
+                econ_html += "<tr>"
+                econ_html += f"<td>{'<br/>'.join(per_kg) if per_kg else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(annual) if annual else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(market_rate) if market_rate else 'N/A'}</td>"
+                econ_html += f"<td>{'<br/>'.join(notes) if notes else 'N/A'}</td>"
+                econ_html += "</tr>"
+                econ_html += """
+                    </tbody>
+                </table>
+                """
+
+            econ_html += "</div>"
+            sections.append(econ_html)
+
+        # Strategic guidance
+        strategic_recommendations = business.get("strategic_recommendations") or business.get("strategicRecommendations") or []
+        circular_options = business.get("circular_economy_options") or business.get("circularEconomyOptions") or []
+        risks = business.get("risks") or []
+
+        if strategic_recommendations or circular_options or risks:
+            strat_html = """
+            <div class="technical-section">
+                <h2 class="section-title">Strategic Guidance</h2>
+            """
+            if strategic_recommendations:
+                strat_html += "<h3>Recommendations for DSR</h3><ul>"
+                for item in strategic_recommendations:
+                    strat_html += f"<li>{item}</li>"
+                strat_html += "</ul>"
+            if circular_options:
+                strat_html += "<h3>Circular Economy Pathways</h3><ul>"
+                for item in circular_options:
+                    strat_html += f"<li>{item}</li>"
+                strat_html += "</ul>"
+            if risks:
+                strat_html += "<h3>Key Risks</h3><ul>"
+                for item in risks:
+                    strat_html += f"<li>{item}</li>"
+                strat_html += "</ul>"
+            strat_html += "</div>"
+            sections.append(strat_html)
+
+        # Resource considerations
+        resource_considerations = business.get("resource_considerations") or business.get("resourceConsiderations") or {}
+        if resource_considerations:
+            env = resource_considerations.get("environmental_impact") or resource_considerations.get("environmentalImpact") or {}
+            handling = resource_considerations.get("material_handling") or resource_considerations.get("materialHandling") or {}
+            market = resource_considerations.get("market_intelligence") or resource_considerations.get("marketIntelligence") or {}
+
+            res_html = """
+            <div class="technical-section">
+                <h2 class="section-title">Resource & Handling Considerations</h2>
+            """
+            if env:
+                res_html += "<h3>Environmental Impact</h3>"
+                current = env.get("current_situation") or env.get("currentSituation")
+                benefit = env.get("benefit_if_diverted") or env.get("benefitIfDiverted")
+                esg = env.get("esg_story") or env.get("esgStory")
+                if current:
+                    res_html += f"<p><strong>Current Situation:</strong> {current}</p>"
+                if benefit:
+                    res_html += f"<p><strong>Benefit if Diverted:</strong> {benefit}</p>"
+                if esg:
+                    res_html += f"<p><strong>ESG Story:</strong> {esg}</p>"
+            if handling:
+                res_html += "<h3>Material Handling & Safety</h3>"
+                hazard_level = handling.get("hazard_level") or handling.get("hazardLevel")
+                if hazard_level:
+                    res_html += f"<p><strong>Hazard Level:</strong> {hazard_level}</p>"
+                for key, label in [
+                    ("specific_hazards", "Specific Hazards"),
+                    ("ppe_requirements", "PPE Requirements"),
+                    ("regulatory_notes", "Regulatory Notes"),
+                    ("storage_requirements", "Storage Requirements"),
+                    ("degradation_risks", "Degradation Risks"),
+                    ("quality_price_impact", "Quality/Price Impact"),
+                ]:
+                    values = handling.get(key) or handling.get("".join([key.split("_")[0], "".join([p.capitalize() for p in key.split("_")[1:]])])) or []
+                    if values:
+                        res_html += f"<p><strong>{label}:</strong> {'; '.join(values)}</p>"
+            if market:
+                res_html += "<h3>Market Intelligence</h3>"
+                buyer_types = market.get("buyer_types") or market.get("buyerTypes") or []
+                typical_reqs = market.get("typical_requirements") or market.get("typicalRequirements") or []
+                pricing_factors = market.get("pricing_factors") or market.get("pricingFactors") or []
+                if buyer_types:
+                    res_html += f"<p><strong>Buyer Types:</strong> {'; '.join(buyer_types)}</p>"
+                if typical_reqs:
+                    res_html += f"<p><strong>Typical Requirements:</strong> {'; '.join(typical_reqs)}</p>"
+                if pricing_factors:
+                    res_html += f"<p><strong>Pricing Factors:</strong> {'; '.join(pricing_factors)}</p>"
+            res_html += "</div>"
+            sections.append(res_html)
+
+        # LCA summary
+        if lca:
+            co2 = lca.get("co2_reduction") or lca.get("co2Reduction") or {}
+            toxicity = lca.get("toxicity_impact") or lca.get("toxicityImpact") or {}
+            efficiency = lca.get("resource_efficiency") or lca.get("resourceEfficiency") or {}
+            env_notes = lca.get("environmental_notes") or lca.get("environmentalNotes")
+
+            lca_html = """
+            <div class="technical-section">
+                <h2 class="section-title">Life Cycle Assessment (LCA)</h2>
+            """
+            if co2:
+                percent = co2.get("percent") or []
+                tons = co2.get("tons") or []
+                method = co2.get("method") or []
+                lca_html += """
+                <h3>CO₂ Reduction</h3>
+                <table class="equipment-table">
+                    <thead>
+                        <tr>
+                            <th>Percentage Reduction</th>
+                            <th>Absolute tCO₂e Avoided</th>
+                            <th>Methodology</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                """
+                lca_html += "<tr>"
+                lca_html += f"<td>{'<br/>'.join(percent) if percent else 'N/A'}</td>"
+                lca_html += f"<td>{'<br/>'.join(tons) if tons else 'N/A'}</td>"
+                lca_html += f"<td>{'<br/>'.join(method) if method else 'N/A'}</td>"
+                lca_html += "</tr>"
+                lca_html += """
+                    </tbody>
+                </table>
+                """
+            if toxicity:
+                level = toxicity.get("level")
+                notes = toxicity.get("notes")
+                if level or notes:
+                    lca_html += "<h3>Toxicity & Safety</h3>"
+                    if level:
+                        lca_html += f"<p><strong>Toxicity Level:</strong> {level}</p>"
+                    if notes:
+                        lca_html += f"<p>{notes}</p>"
+            if efficiency:
+                mat_percent = efficiency.get("material_recovered_percent") or efficiency.get("materialRecoveredPercent") or []
+                eff_notes = efficiency.get("notes")
+                if mat_percent or eff_notes:
+                    lca_html += "<h3>Resource Efficiency</h3>"
+                    if mat_percent:
+                        lca_html += f"<p><strong>Material Recovered:</strong> {'; '.join(mat_percent)}</p>"
+                    if eff_notes:
+                        lca_html += f"<p>{eff_notes}</p>"
+            if env_notes:
+                lca_html += f"<p><strong>Environmental Summary:</strong> {env_notes}</p>"
+            lca_html += "</div>"
+            sections.append(lca_html)
+
+        # AI insights
+        ai_insights = proposal_data.get("ai_insights") or proposal_data.get("aiInsights") or []
+        if ai_insights:
+            insights_html = """
+            <div class="technical-section">
+                <h2 class="section-title">AI Insights & Non-Obvious Opportunities</h2>
+                <ul>
+            """
+            for insight in ai_insights:
+                insights_html += f"<li>{insight}</li>"
+            insights_html += """
+                </ul>
+            </div>
+            """
+            sections.append(insights_html)
+
+        return "\n".join(sections)
 
     def _get_logo_base64(self) -> str:
         """
@@ -975,9 +1284,9 @@ class ProfessionalPDFGenerator:
 
         html = """
         <div class="charts-section">
-            <h2 class="section-title">📊 TECHNICAL AND FINANCIAL ANALYSIS</h2>
+            <h2 class="section-title">📊 WASTE UPCYCLING ANALYTICS</h2>
             <p style="text-align: center; margin-bottom: 30px; font-style: italic; color: #666;">
-                Specialized technical visualizations for water treatment systems
+                Data-driven visualizations of waste streams, diversion, savings, and revenue opportunities
             </p>
         """
 
@@ -985,13 +1294,13 @@ class ProfessionalPDFGenerator:
         essential_charts = [
             (
                 "process_flow",
-                "🏭 PROFESSIONAL P&ID DIAGRAM - TREATMENT TRAIN",
-                "Premium adaptive process diagram with AI agent semantic analysis, complete technical specifications and optimized intelligent layout",
+                "♻️ WASTE STREAMS & UPCYCLING PATHWAYS",
+                "High-level flow of waste generation, segregation, and upcycling pathways designed for circular economy deals.",
             ),
             (
                 "financial_executive",
-                "💰 EXECUTIVE FINANCIAL ANALYSIS WITH CASH FLOW",
-                "Premium financial dashboard with complete CAPEX/OPEX breakdown, cash flow projection and professional ROI metrics",
+                "💰 ECONOMIC ANALYSIS: SAVINGS & REVENUE",
+                "Executive view of generator savings, DSR revenue potential, and landfill diversion benefits.",
             ),
         ]
 
@@ -1043,7 +1352,7 @@ class ProfessionalPDFGenerator:
             size: A4;
             margin: 2cm 1.5cm;
             @bottom-center {
-                content: "H₂O Allegiant - Technical Proposal | Page " counter(page);
+                content: "DSR Inc. - Waste Upcycling Report | Page " counter(page);
                 font-size: 10px;
                 color: #666;
             }
@@ -1087,7 +1396,7 @@ class ProfessionalPDFGenerator:
         .header-logo .subtitle {
             font-size: 18px;
             font-weight: 300;
-            color: #3b82f6;
+            color: #f97316;
         }
         
         .company-logo {
@@ -1144,7 +1453,7 @@ class ProfessionalPDFGenerator:
             font-size: 32px;
             font-weight: bold;
             margin-bottom: 40px;
-            color: #0ea5e9;
+            color: #16a34a;
         }
         
         .cover-details {
@@ -1196,10 +1505,10 @@ class ProfessionalPDFGenerator:
         .section-title {
             font-size: 20px;
             font-weight: bold;
-            color: #1e3a8a;
+            color: #166534;
             margin: 30px 0 20px 0;
             padding-bottom: 10px;
-            border-bottom: 3px solid #3b82f6;
+            border-bottom: 3px solid #16a34a;
             page-break-after: avoid;
         }
         
@@ -1249,7 +1558,7 @@ class ProfessionalPDFGenerator:
         }
         
         th {
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 50%, #334155 100%);
             color: white;
             padding: 15px 12px;
             text-align: left;
@@ -1308,7 +1617,7 @@ class ProfessionalPDFGenerator:
         }
         
         .equipment-table th, .financial-table th, .phases-table th {
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #1e40af 100%);
+            background: linear-gradient(135deg, #166534 0%, #16a34a 40%, #f97316 100%);
             color: white;
             padding: 16px 12px;
             text-align: left;

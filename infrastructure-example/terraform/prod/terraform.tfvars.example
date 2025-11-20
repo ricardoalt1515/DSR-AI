@@ -1,0 +1,87 @@
+# ============================================================================
+# Terraform Variables - Production Environment
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to git
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+# General Configuration
+# -----------------------------------------------------------------------------
+
+aws_region  = "us-east-1"
+environment = "prod"
+owner_email = "devops@tu-empresa.com"
+
+# -----------------------------------------------------------------------------
+# Network Configuration
+# -----------------------------------------------------------------------------
+
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+enable_nat_gateway = true
+
+# -----------------------------------------------------------------------------
+# ECS Configuration
+# -----------------------------------------------------------------------------
+
+ecs_task_cpu      = 2048  # 2 vCPU
+ecs_task_memory   = 4096  # 4 GB
+ecs_desired_count = 2
+ecs_min_capacity  = 1
+ecs_max_capacity  = 3
+
+# Container image (update after first ECR push)
+container_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/h2o-allegiant-prod-backend:latest"
+
+# -----------------------------------------------------------------------------
+# Database Configuration
+# -----------------------------------------------------------------------------
+
+db_name               = "h2o_allegiant"
+db_username           = "h2o_admin"
+db_instance_class     = "db.t4g.micro"
+db_allocated_storage  = 20
+db_multi_az           = true  # Enable for production
+
+# -----------------------------------------------------------------------------
+# Redis Configuration
+# -----------------------------------------------------------------------------
+
+redis_node_type = "cache.t4g.micro"
+
+# -----------------------------------------------------------------------------
+# Domain & SSL (optional)
+# -----------------------------------------------------------------------------
+
+domain_name         = "api.tu-dominio.com"  # Update with your domain
+enable_https        = true
+acm_certificate_arn = ""  # Add ARN after creating ACM certificate
+cors_origins        = "https://app.tu-dominio.com,https://www.tu-dominio.com"
+
+# -----------------------------------------------------------------------------
+# Monitoring
+# -----------------------------------------------------------------------------
+
+alarm_email = "alerts@tu-empresa.com"
+
+# -----------------------------------------------------------------------------
+# Application Configuration
+# -----------------------------------------------------------------------------
+
+openai_model = "gpt-5-mini"
+
+# -----------------------------------------------------------------------------
+# Secrets (via environment variables - DO NOT COMMIT)
+# -----------------------------------------------------------------------------
+# Set these via environment variables:
+#
+# export TF_VAR_openai_api_key="sk-proj-xxxxx"
+# export TF_VAR_jwt_secret_key="$(openssl rand -hex 32)"
+#
+# Or pass via command line:
+# terraform apply -var="openai_api_key=sk-xxx" -var="jwt_secret_key=xxx"
+# -----------------------------------------------------------------------------
+
+# openai_api_key = ""  # Set via TF_VAR_openai_api_key
+# jwt_secret_key = ""  # Set via TF_VAR_jwt_secret_key

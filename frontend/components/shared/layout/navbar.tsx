@@ -295,13 +295,9 @@ export function NavBar() {
 										<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/90 text-primary-foreground shadow-md">
 											<Recycle className="h-4 w-4" />
 										</div>
-										<span className="ml-2 text-lg font-bold">
-											DSR Inc.
-										</span>
+										<span className="ml-2 text-lg font-bold">DSR Inc.</span>
 									</SheetTitle>
-									<SheetDescription>
-										Waste Resource Management
-									</SheetDescription>
+									<SheetDescription>Waste Resource Management</SheetDescription>
 								</SheetHeader>
 								<div className="my-6 flex flex-col space-y-4 pl-1">
 									{PRIMARY_NAV_LINKS.map((link) => {

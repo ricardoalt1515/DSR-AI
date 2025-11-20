@@ -1,8 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import * as React from "react";
+import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -19,7 +19,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { useCompanyStore } from "@/lib/stores/company-store";
-import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
+import { cn } from "@/lib/utils";
 
 interface CompanyComboboxProps {
 	value?: string;

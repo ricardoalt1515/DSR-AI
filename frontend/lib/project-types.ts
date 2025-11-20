@@ -1,12 +1,6 @@
 import type { DataSource } from "@/lib/constants";
 import type { Sector } from "@/lib/sectors-config";
-import type {
-	AIMetadata,
-	CostBreakdown,
-	Equipment,
-	OperationalCosts,
-	TreatmentEfficiency,
-} from "@/lib/types/proposal";
+import type { AIMetadata } from "@/lib/types/proposal";
 import type { TableSection } from "@/lib/types/technical-data";
 
 // Define ProjectStatus here (moved from constants to avoid circular dependency)
@@ -35,10 +29,10 @@ export interface ProjectSummary {
 	// Inherited from Location → Company (read-only)
 	sector: ProjectSector;
 	subsector?: string;
-	client: string;  // Inherited from Company.name
-	location: string;  // Inherited from Location (name, city)
+	client: string; // Inherited from Company.name
+	location: string; // Inherited from Location (name, city)
 	// Required: Location relationship
-	locationId: string;  // Required - source of truth
+	locationId: string; // Required - source of truth
 	companyName?: string; // Computed from location.company
 	locationName?: string; // Computed from location_rel
 	// Standard fields
@@ -55,7 +49,6 @@ export interface ProjectSummary {
 export interface ProposalSnapshot {
 	executiveSummary: string;
 	technicalApproach: string;
-	costBreakdown: CostBreakdown;
 	implementationPlan: string;
 	risks: string[];
 	metrics?: {
@@ -81,9 +74,6 @@ export interface ProposalVersion {
 
 	// AI-generated data (from backend)
 	aiMetadata?: AIMetadata;
-	treatmentEfficiency?: TreatmentEfficiency;
-	equipmentList?: Equipment[];
-	operationalCosts?: OperationalCosts;
 	pdfPath?: string;
 }
 
@@ -157,13 +147,25 @@ export interface TimelineEvent {
 
 export interface ProjectFile {
 	id: string;
-	name: string;
-	type: string;
-	size: number;
-	uploadedAt: string;
-	uploadedBy: string;
-	url?: string;
-	status?: "processing" | "ready" | "error";
+	filename: string;
+	file_size: number;
+	file_type: string;
+	category: string;
+	uploaded_at: string;
+	processed_text: boolean;
+	ai_analysis: boolean;
+}
+
+export interface ProjectFileDetail {
+	id: string;
+	project_id: string;
+	filename: string;
+	file_size: number;
+	file_type: string;
+	category: string;
+	uploaded_at: string;
+	processed_text: string | null;
+	ai_analysis: Record<string, unknown> | null;
 }
 
 export interface ProjectDetail extends ProjectSummary {

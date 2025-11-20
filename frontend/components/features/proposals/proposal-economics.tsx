@@ -1,17 +1,33 @@
 "use client";
 
-import { AlertCircle, ArrowRight, Car, DollarSign, Leaf, TrendingDown, TrendingUp, TreeDeciduous, Zap } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import {
+	AlertCircle,
+	ArrowRight,
+	Car,
+	DollarSign,
+	Leaf,
+	TreeDeciduous,
+	TrendingDown,
+	TrendingUp,
+	Zap,
+} from "lucide-react";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+	co2ToCars,
+	co2ToCoalKwh,
+	co2ToTrees,
+	extractCO2Tons,
+	formatNumber,
+} from "./metrics-helpers";
 import type { Proposal } from "./types";
-import { extractCO2Tons, co2ToCars, co2ToTrees, co2ToCoalKwh, formatNumber } from "./metrics-helpers";
 
 interface ProposalEconomicsProps {
 	proposal: Proposal;
@@ -20,7 +36,10 @@ interface ProposalEconomicsProps {
 // Helper component for assumption badges (DRY)
 function AssumptionBadge() {
 	return (
-		<Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-700 dark:text-yellow-400 bg-yellow-50/50 dark:bg-yellow-950/30">
+		<Badge
+			variant="outline"
+			className="text-xs border-yellow-500/50 text-yellow-700 dark:text-yellow-400 bg-yellow-50/50 dark:bg-yellow-950/30"
+		>
 			<AlertCircle className="h-3 w-3 mr-1" />
 			Assumption
 		</Badge>
@@ -28,15 +47,17 @@ function AssumptionBadge() {
 }
 
 // Helper to parse revenue strings like "$8.8k/yr" or "$43.8k/yr"
-function parseRevenue(revenueStr: string): { value: string; detail: string } | null {
-	const match = revenueStr.match(/^([\$\d.,k]+\/yr)/i);
+function parseRevenue(
+	revenueStr: string,
+): { value: string; detail: string } | null {
+	const match = revenueStr.match(/^([$\d.,k]+\/yr)/i);
 	if (match) {
 		return {
 			value: match[1],
-			detail: revenueStr.replace(match[1], '').trim()
+			detail: revenueStr.replace(match[1], "").trim(),
 		};
 	}
-	return { value: revenueStr, detail: '' };
+	return { value: revenueStr, detail: "" };
 }
 
 export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
@@ -48,14 +69,18 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h2 className="text-3xl font-bold mb-2">Economics & Environmental Impact</h2>
+					<h2 className="text-3xl font-bold mb-2">
+						Economics & Environmental Impact
+					</h2>
 					<p className="text-muted-foreground">
 						Financial analysis and environmental benefits
 					</p>
 				</div>
 				<Card>
 					<CardContent className="pt-6">
-						<p className="text-sm text-muted-foreground">No economic data available</p>
+						<p className="text-sm text-muted-foreground">
+							No economic data available
+						</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -64,16 +89,22 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 
 	// Parse annual potential for visual range
 	const annualPotentialItems = businessOpp.potentialRevenue.annualPotential;
-	const lowCase = annualPotentialItems.find((item: string) => item.toLowerCase().includes('low'));
-	const highCase = annualPotentialItems.find((item: string) => item.toLowerCase().includes('high'));
-	
+	const lowCase = annualPotentialItems.find((item: string) =>
+		item.toLowerCase().includes("low"),
+	);
+	const highCase = annualPotentialItems.find((item: string) =>
+		item.toLowerCase().includes("high"),
+	);
+
 	const lowParsed = lowCase ? parseRevenue(lowCase) : null;
 	const highParsed = highCase ? parseRevenue(highCase) : null;
 
 	return (
 		<div className="space-y-6">
 			<div>
-				<h2 className="text-3xl font-bold mb-2">Financial & Environmental Impact</h2>
+				<h2 className="text-3xl font-bold mb-2">
+					Financial & Environmental Impact
+				</h2>
 				<p className="text-muted-foreground">
 					Revenue potential, cost savings, and environmental benefits
 				</p>
@@ -97,7 +128,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							{/* Assumption Badge for Revenue */}
 							<div className="flex items-center gap-2">
 								<AssumptionBadge />
-								<span className="text-xs text-muted-foreground">Based on volume and market rate estimates</span>
+								<span className="text-xs text-muted-foreground">
+									Based on volume and market rate estimates
+								</span>
 							</div>
 							{/* Range Bar */}
 							<div className="relative p-6 rounded-xl bg-gradient-to-r from-yellow-500/10 via-green-500/10 to-green-600/15 border border-primary/20">
@@ -116,10 +149,10 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 											</div>
 										)}
 									</div>
-									
+
 									{/* Arrow */}
 									<ArrowRight className="h-8 w-8 text-muted-foreground/50 flex-shrink-0 mx-4" />
-									
+
 									{/* High Case */}
 									<div className="text-center flex-1">
 										<div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
@@ -140,11 +173,13 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							{/* Per-unit pricing */}
 							{businessOpp.potentialRevenue.perKg.length > 0 && (
 								<div className="flex flex-wrap gap-2">
-									{businessOpp.potentialRevenue.perKg.map((price: string, idx: number) => (
-										<Badge key={idx} variant="outline" className="text-sm">
-											{price}
-										</Badge>
-									))}
+									{businessOpp.potentialRevenue.perKg.map(
+										(price: string, idx: number) => (
+											<Badge key={idx} variant="outline" className="text-sm">
+												{price}
+											</Badge>
+										),
+									)}
 								</div>
 							)}
 						</div>
@@ -168,11 +203,16 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{businessOpp.potentialRevenue.marketRate.map((rate: string, idx: number) => (
-											<p key={idx} className="text-sm text-muted-foreground leading-relaxed">
-												{rate}
-											</p>
-										))}
+										{businessOpp.potentialRevenue.marketRate.map(
+											(rate: string, idx: number) => (
+												<p
+													key={idx}
+													className="text-sm text-muted-foreground leading-relaxed"
+												>
+													{rate}
+												</p>
+											),
+										)}
 									</div>
 								</AccordionContent>
 							</AccordionItem>
@@ -185,11 +225,13 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<ul className="space-y-1 pt-2">
-										{businessOpp.potentialRevenue.notes.map((note: string, idx: number) => (
-											<li key={idx} className="text-sm text-muted-foreground">
-												• {note}
-											</li>
-										))}
+										{businessOpp.potentialRevenue.notes.map(
+											(note: string, idx: number) => (
+												<li key={idx} className="text-sm text-muted-foreground">
+													• {note}
+												</li>
+											),
+										)}
 									</ul>
 								</AccordionContent>
 							</AccordionItem>
@@ -222,29 +264,39 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Baseline
 							</p>
-							{businessOpp.landfillReduction.before.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold">{item}</p>
-							))}
+							{businessOpp.landfillReduction.before.map(
+								(item: string, idx: number) => (
+									<p key={idx} className="text-lg font-semibold">
+										{item}
+									</p>
+								),
+							)}
 						</div>
-						
+
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-green-600 font-medium">
 								After DSR Acquisition
 							</p>
-							{businessOpp.landfillReduction.after.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold text-green-600">{item}</p>
-							))}
+							{businessOpp.landfillReduction.after.map(
+								(item: string, idx: number) => (
+									<p key={idx} className="text-lg font-semibold text-green-600">
+										{item}
+									</p>
+								),
+							)}
 						</div>
-						
+
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{businessOpp.landfillReduction.annualSavings.map((item: string, idx: number) => (
-								<Badge key={idx} variant="default" className="mb-1 text-sm">
-									{item}
-								</Badge>
-							))}
+							{businessOpp.landfillReduction.annualSavings.map(
+								(item: string, idx: number) => (
+									<Badge key={idx} variant="default" className="mb-1 text-sm">
+										{item}
+									</Badge>
+								),
+							)}
 						</div>
 					</div>
 				</CardContent>
@@ -272,29 +324,42 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Costs
 							</p>
-							{businessOpp.wasteHandlingCostSavings.before.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold">{item}</p>
-							))}
+							{businessOpp.wasteHandlingCostSavings.before.map(
+								(item: string, idx: number) => (
+									<p key={idx} className="text-lg font-semibold">
+										{item}
+									</p>
+								),
+							)}
 						</div>
-						
+
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-blue-600 font-medium">
 								After DSR
 							</p>
-							{businessOpp.wasteHandlingCostSavings.after.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold text-blue-600 dark:text-blue-400">{item}</p>
-							))}
+							{businessOpp.wasteHandlingCostSavings.after.map(
+								(item: string, idx: number) => (
+									<p
+										key={idx}
+										className="text-lg font-semibold text-blue-600 dark:text-blue-400"
+									>
+										{item}
+									</p>
+								),
+							)}
 						</div>
-						
+
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{businessOpp.wasteHandlingCostSavings.annualSavings.map((item: string, idx: number) => (
-								<Badge key={idx} variant="secondary" className="mb-1 text-sm">
-									{item}
-								</Badge>
-							))}
+							{businessOpp.wasteHandlingCostSavings.annualSavings.map(
+								(item: string, idx: number) => (
+									<Badge key={idx} variant="secondary" className="mb-1 text-sm">
+										{item}
+									</Badge>
+								),
+							)}
 						</div>
 					</div>
 				</CardContent>
@@ -326,14 +391,20 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								Annual CO₂ Avoided
 							</div>
 							{lca.co2Reduction.tons.map((item: string, idx: number) => (
-								<div key={idx} className="text-5xl font-bold text-green-600 dark:text-green-400">
+								<div
+									key={idx}
+									className="text-5xl font-bold text-green-600 dark:text-green-400"
+								>
 									{item}
 								</div>
 							))}
 							{lca.co2Reduction.percent.length > 0 && (
 								<div className="mt-4 flex justify-center gap-2">
 									{lca.co2Reduction.percent.map((pct: string, idx: number) => (
-										<Badge key={idx} className="bg-green-600 text-base px-4 py-1">
+										<Badge
+											key={idx}
+											className="bg-green-600 text-base px-4 py-1"
+										>
 											{pct}
 										</Badge>
 									))}
@@ -418,11 +489,16 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{lca.co2Reduction.method.map((method: string, idx: number) => (
-											<p key={idx} className="text-sm text-muted-foreground leading-relaxed">
-												{method}
-											</p>
-										))}
+										{lca.co2Reduction.method.map(
+											(method: string, idx: number) => (
+												<p
+													key={idx}
+													className="text-sm text-muted-foreground leading-relaxed"
+												>
+													{method}
+												</p>
+											),
+										)}
 									</div>
 								</AccordionContent>
 							</AccordionItem>
