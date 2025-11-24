@@ -12,7 +12,21 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { formatNumber } from "@/lib/utils";
-import type { DesignParameters, OperationalData } from "./types";
+
+// Legacy types from water treatment model (kept for backward compatibility)
+interface DesignParameters {
+	peakFactor: number;
+	safetyFactor: number;
+	operatingHours: number;
+	designLifeYears: number;
+	regulatoryMarginPercent?: number;
+}
+
+interface OperationalData {
+	requiredAreaM2?: number;
+	energyConsumptionKwhM3?: number;
+	sludgeProductionKgDay?: number;
+}
 
 interface ProposalParametersProps {
 	designParameters?: DesignParameters | undefined;

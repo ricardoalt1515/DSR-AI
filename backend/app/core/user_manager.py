@@ -1,18 +1,8 @@
 """
 FastAPI Users User Manager.
 
-The UserManager handles user lifecycle events and business logic:
-- Registration
-- Password reset
-- Email verification
-- Custom user operations
-
-Best Practices:
-    - Extends FastAPI Users BaseUserManager
-    - Uses UUID for type-safe IDs
-    - Implements lifecycle hooks for extensibility
-    - Follows async/await patterns
-    - Proper logging for audit trail
+Handles user lifecycle events: registration, password reset, email verification.
+Integrates with EmailService for transactional emails.
 """
 
 import uuid
@@ -26,24 +16,19 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from app.models.user import User
 from app.core.config import settings
 from app.core.auth_db import get_user_db
+from app.services.email_service import email_service
 
 logger = logging.getLogger(__name__)
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     """
-    Custom user manager for H2O Allegiant.
+    Custom user manager with email notifications.
     
-    Handles user lifecycle events and implements custom business logic.
-    
-    Best Practices:
-        - UUIDIDMixin for type-safe UUID handling
-        - Logging for audit trail
-        - Hooks for extensibility (email sending, etc.)
-        - Clean separation from routes
+    Lifecycle hooks send transactional emails via EmailService.
+    Email failures are logged but don't break auth flow.
     """
     
-    # Token secrets (use same SECRET_KEY as JWT for consistency)
     reset_password_token_secret = settings.SECRET_KEY
     verification_token_secret = settings.SECRET_KEY
 
@@ -52,30 +37,16 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         user: User, 
         request: Optional[Request] = None
     ) -> None:
-        """
-        Called after a user successfully registers.
+        """Send welcome email after registration."""
+        logger.info("✅ User registered: %s", user.email)
         
-        Use this hook to:
-        - Send welcome email
-        - Log registration event
-        - Trigger analytics
-        - Initialize user resources
-        
-        Args:
-            user: The newly registered user
-            request: Optional request object for context
-        """
-        logger.info(
-            f"✅ User registered successfully",
-            extra={
-                "user_id": str(user.id),
-                "email": user.email,
-                "full_name": user.full_name
-            }
+        # Send welcome email (non-blocking)
+        login_url = f"{settings.FRONTEND_URL}/login"
+        await email_service.send_welcome(
+            to_email=user.email,
+            first_name=user.first_name or "there",
+            login_url=login_url
         )
-        
-        # TODO: Send welcome email
-        # await send_welcome_email(user.email, user.first_name)
 
     async def on_after_forgot_password(
         self, 
@@ -83,30 +54,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         token: str, 
         request: Optional[Request] = None
     ) -> None:
-        """
-        Called after a user requests password reset.
+        """Send password reset email with token."""
+        logger.info("🔑 Password reset requested: %s", user.email)
         
-        Use this hook to:
-        - Send password reset email
-        - Log reset request
-        - Monitor for abuse
-        
-        Args:
-            user: User requesting password reset
-            token: Reset token to include in email
-            request: Optional request object for context
-        """
-        logger.info(
-            f"🔑 Password reset requested",
-            extra={
-                "user_id": str(user.id),
-                "email": user.email
-            }
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        await email_service.send_password_reset(
+            to_email=user.email,
+            reset_url=reset_url
         )
-        
-        # TODO: Send password reset email
-        # reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-        # await send_reset_password_email(user.email, reset_url)
 
     async def on_after_request_verify(
         self, 
@@ -114,49 +69,22 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         token: str, 
         request: Optional[Request] = None
     ) -> None:
-        """
-        Called after a user requests email verification.
+        """Send email verification link."""
+        logger.info("📧 Verification requested: %s", user.email)
         
-        Use this hook to:
-        - Send verification email
-        - Log verification request
-        
-        Args:
-            user: User requesting verification
-            token: Verification token to include in email
-            request: Optional request object for context
-        """
-        logger.info(
-            f"📧 Email verification requested",
-            extra={
-                "user_id": str(user.id),
-                "email": user.email
-            }
+        verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+        await email_service.send_verification(
+            to_email=user.email,
+            verify_url=verify_url
         )
-        
-        # TODO: Send verification email
-        # verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
-        # await send_verification_email(user.email, verify_url)
 
     async def on_after_verify(
         self, 
         user: User, 
         request: Optional[Request] = None
     ) -> None:
-        """
-        Called after a user successfully verifies their email.
-        
-        Args:
-            user: User who verified their email
-            request: Optional request object for context
-        """
-        logger.info(
-            f"✅ Email verified successfully",
-            extra={
-                "user_id": str(user.id),
-                "email": user.email
-            }
-        )
+        """Log successful email verification."""
+        logger.info("✅ Email verified: %s", user.email)
 
     async def on_after_update(
         self,
@@ -164,22 +92,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         update_dict: dict,
         request: Optional[Request] = None
     ) -> None:
-        """
-        Called after a user successfully updates their profile.
-        
-        Args:
-            user: User who updated their profile
-            update_dict: Dictionary of updated fields
-            request: Optional request object for context
-        """
-        logger.info(
-            f"✏️ User profile updated",
-            extra={
-                "user_id": str(user.id),
-                "email": user.email,
-                "updated_fields": list(update_dict.keys())
-            }
-        )
+        """Log profile updates."""
+        logger.info("✏️ Profile updated: %s, fields: %s", user.email, list(update_dict.keys()))
 
 
 async def get_user_manager(

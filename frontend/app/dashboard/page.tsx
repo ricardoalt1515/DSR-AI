@@ -260,7 +260,6 @@ const DashboardContent = memo(function DashboardContent() {
 			<PremiumProjectWizard
 				open={createModalOpen}
 				onOpenChange={setCreateModalOpen}
-				onProjectCreated={(_projectId) => {}}
 			/>
 		</div>
 	);

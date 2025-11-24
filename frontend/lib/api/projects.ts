@@ -148,6 +148,13 @@ export class ProjectsAPI {
 		);
 	}
 
+	static async downloadFileBlob(fileId: string): Promise<Blob> {
+		// Backend files router is mounted under /api/v1/projects
+		// download_file endpoint path: /files/{file_id}/download
+		// → Full URL: /api/v1/projects/files/{file_id}/download
+		return apiClient.downloadBlob(`/projects/files/${fileId}/download`);
+	}
+
 	static async getTimeline(
 		projectId: string,
 		limit: number = 50,

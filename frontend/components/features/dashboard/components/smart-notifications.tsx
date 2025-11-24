@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { ProjectSummary } from "@/lib/project-types";
+import { DASHBOARD_THRESHOLDS } from "@/lib/project-status";
 import { routes } from "@/lib/routes";
 import { useProjects } from "@/lib/stores";
 import { cn } from "@/lib/utils";
@@ -45,7 +46,9 @@ export function SmartNotifications() {
 
 		// High-priority: Projects ready for proposals
 		const readyForProposal = projects.filter(
-			(p) => p.status === "In Preparation" && p.progress >= 70,
+			(p) =>
+				p.status === "In Preparation" &&
+				p.progress >= DASHBOARD_THRESHOLDS.readyForProposalProgress,
 		);
 		readyForProposal.forEach((project) => {
 			alerts.push({
@@ -68,7 +71,10 @@ export function SmartNotifications() {
 			const daysSinceUpdate = Math.floor(
 				(Date.now() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
 			);
-			return p.status === "In Preparation" && daysSinceUpdate > 7;
+			return (
+				p.status === "In Preparation" &&
+				daysSinceUpdate > DASHBOARD_THRESHOLDS.stalledDaysWithoutUpdate
+			);
 		});
 		stalledProjects.forEach((project) => {
 			const daysSinceUpdate = Math.floor(
@@ -92,7 +98,9 @@ export function SmartNotifications() {
 
 		// Low-priority: Incomplete projects needing attention
 		const incompleteProjects = projects.filter(
-			(p) => p.status === "In Preparation" && p.progress < 50,
+			(p) =>
+				p.status === "In Preparation" &&
+				p.progress < DASHBOARD_THRESHOLDS.lowProgressAttention,
 		);
 		if (incompleteProjects.length > 0) {
 			alerts.push({
@@ -114,7 +122,9 @@ export function SmartNotifications() {
 			const daysSinceUpdate = Math.floor(
 				(Date.now() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
 			);
-			return daysSinceUpdate <= 7;
+			return (
+				daysSinceUpdate <= DASHBOARD_THRESHOLDS.weeklyInsightWindowDays
+			);
 		}).length;
 
 		if (thisWeekUpdates > 0) {

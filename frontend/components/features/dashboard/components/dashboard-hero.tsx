@@ -23,7 +23,7 @@ import {
 	QuickActionButton,
 } from "@/components/ui/engineering-button";
 import { Progress } from "@/components/ui/progress";
-import { getProjectStatusLabel } from "@/lib/project-status";
+import { DASHBOARD_STATUS_PRIORITY, getProjectStatusLabel } from "@/lib/project-status";
 import { routes } from "@/lib/routes";
 import { useProjects, useTechnicalSections } from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";
@@ -54,19 +54,8 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 
 		// Priority logic: In Preparation > Proposal Ready > others, then by recent update
 		const sorted = [...projects].sort((a, b) => {
-			const statusPriority = {
-				"In Preparation": 3,
-				"Proposal Ready": 2,
-				"Generating Proposal": 1,
-				"In Development": 1,
-				Completed: 0,
-				"On Hold": 0,
-			};
-
-			const aPriority =
-				statusPriority[a.status as keyof typeof statusPriority] || 0;
-			const bPriority =
-				statusPriority[b.status as keyof typeof statusPriority] || 0;
+			const aPriority = DASHBOARD_STATUS_PRIORITY[a.status] ?? 0;
+			const bPriority = DASHBOARD_STATUS_PRIORITY[b.status] ?? 0;
 
 			if (aPriority !== bPriority) {
 				return bPriority - aPriority;

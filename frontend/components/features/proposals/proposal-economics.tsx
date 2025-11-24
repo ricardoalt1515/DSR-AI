@@ -51,7 +51,7 @@ function parseRevenue(
 	revenueStr: string,
 ): { value: string; detail: string } | null {
 	const match = revenueStr.match(/^([$\d.,k]+\/yr)/i);
-	if (match) {
+	if (match?.[1]) {
 		return {
 			value: match[1],
 			detail: revenueStr.replace(match[1], "").trim(),

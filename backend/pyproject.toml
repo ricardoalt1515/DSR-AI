@@ -62,6 +62,9 @@ dependencies = [
     "aiofiles>=24.0.0",
     "python-dotenv>=1.0.0",
     "tenacity>=8.3.0",
+    
+    # Email
+    "aiosmtplib>=3.0.0",
 ]
 
 [project.optional-dependencies]

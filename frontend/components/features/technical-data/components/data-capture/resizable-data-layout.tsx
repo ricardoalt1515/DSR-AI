@@ -6,7 +6,7 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import type { TableSection } from "@/lib/types/technical-data";
+import type { TableField, TableSection } from "@/lib/types/technical-data";
 import { FlexibleDataCapture } from "./flexible-data-capture";
 import { TechnicalDataSummary } from "./technical-data-summary";
 
@@ -15,7 +15,7 @@ interface ResizableDataLayoutProps {
 	onFieldChange: (
 		sectionId: string,
 		fieldId: string,
-		value: any,
+		value: unknown,
 		unit?: string,
 		notes?: string,
 	) => void;
@@ -26,6 +26,11 @@ interface ResizableDataLayoutProps {
 	onFocusSectionFromSummary?: (sectionId: string) => void;
 	onFocusFieldFromSummary?: (sectionId: string, fieldId: string) => void;
 	onUpdateSectionNotes?: (sectionId: string, notes: string) => void;
+	// Section/field CRUD operations (passed through to FlexibleDataCapture)
+	onAddSection?: (section: Omit<TableSection, "id">) => void;
+	onRemoveSection?: (sectionId: string) => void;
+	onAddField?: (sectionId: string, field: Omit<TableField, "id">) => void;
+	onRemoveField?: (sectionId: string, fieldId: string) => void;
 }
 
 export function ResizableDataLayout({

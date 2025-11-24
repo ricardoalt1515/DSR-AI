@@ -11,11 +11,13 @@ interface ProposalAssumptionsProps {
 }
 
 export function ProposalAssumptions({ proposal }: ProposalAssumptionsProps) {
-	const technicalData = proposal.aiMetadata.proposal.technicalData;
-	const assumptions = technicalData.assumptions || [];
+	// Note: technicalData is from legacy water treatment model
+	// Waste upcycling reports use a different structure (ai_insights, recommendations)
+	const technicalData = (proposal.aiMetadata?.proposal as any)?.technicalData;
+	const assumptions = technicalData?.assumptions || [];
 	const alternatives =
-		technicalData.technologySelection?.rejectedAlternatives || [];
-	const designParams = technicalData.designParameters;
+		technicalData?.technologySelection?.rejectedAlternatives || [];
+	const designParams = technicalData?.designParameters;
 
 	return (
 		<div className="space-y-6">
@@ -84,7 +86,7 @@ export function ProposalAssumptions({ proposal }: ProposalAssumptionsProps) {
 				<CardContent>
 					{assumptions.length > 0 ? (
 						<ul className="space-y-2">
-							{assumptions.map((assumption) => (
+							{assumptions.map((assumption: string) => (
 								<li key={assumption} className="flex items-start gap-2">
 									<span className="text-muted-foreground mt-1">•</span>
 									<span className="text-sm">{assumption}</span>
@@ -110,7 +112,7 @@ export function ProposalAssumptions({ proposal }: ProposalAssumptionsProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-4">
-							{alternatives.map((alt) => (
+							{alternatives.map((alt: { technology: string; reasonRejected: string }) => (
 								<Alert key={alt.technology}>
 									<AlertDescription>
 										<div className="space-y-1">

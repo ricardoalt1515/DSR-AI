@@ -316,8 +316,6 @@ export const useProjectStore = create<ProjectState>()(
 						name: projectData.name ?? "New Assessment",
 						projectType: "Assessment",
 						description: projectData.description ?? "",
-						budget: projectData.budget ?? 0,
-						scheduleSummary: projectData.scheduleSummary ?? "To be defined",
 						tags: projectData.tags ?? [],
 					};
 

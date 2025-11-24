@@ -285,6 +285,88 @@ class APIClient {
 		});
 	}
 
+	// File download helper (returns raw Blob, used for image previews)
+	async downloadBlob(
+		endpoint: string,
+		config: Omit<RequestConfig, "body"> = {},
+	): Promise<Blob> {
+		if (API_DISABLED) {
+			throw new APIClientError({
+				message: "API disabled in FE-only mode",
+				code: "API_DISABLED",
+			});
+		}
+
+		const {
+			method = "GET",
+			headers = {},
+			timeout = API_TIMEOUT.DEFAULT,
+		} = config;
+
+		let lastError: Error | undefined;
+		let delay: number = RETRY.INITIAL_DELAY;
+
+		for (let attempt = 0; attempt <= RETRY.MAX_ATTEMPTS; attempt++) {
+			try {
+				const url = `${this.baseURL}${endpoint}`;
+				const mergedHeaders: Record<string, string> = {
+					...this.defaultHeaders,
+					...headers,
+				};
+				const requestConfig: RequestInit = {
+					method,
+					headers: mergedHeaders,
+					signal: AbortSignal.timeout(timeout),
+				};
+
+				const response = await fetch(url, requestConfig);
+
+				if (!response.ok) {
+					let message = `HTTP ${response.status}: ${response.statusText}`;
+					try {
+						const errorData = await response.json();
+						if (errorData?.message) message = errorData.message;
+					} catch {
+						// Ignore JSON parse error for non-JSON bodies
+					}
+
+					if (response.status === 401 && this.onUnauthorized) {
+						logger.warn("401 Unauthorized - Clearing session", "APIClient");
+						this.onUnauthorized();
+					}
+
+					throw new APIClientError({
+						message,
+						code: `HTTP_${response.status}`,
+					});
+				}
+
+				return await response.blob();
+			} catch (error: unknown) {
+				lastError = error instanceof Error ? error : new Error(String(error));
+
+				if (attempt === RETRY.MAX_ATTEMPTS) {
+					break;
+				}
+
+				const shouldRetry = this.isRetryableError(error);
+				if (!shouldRetry) {
+					throw lastError;
+				}
+
+				logger.warn(
+					`Retrying download (attempt ${attempt + 1}): ${endpoint}`,
+					"APIClient",
+				);
+
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				delay = Math.min(delay * RETRY.BACKOFF_FACTOR, RETRY.MAX_DELAY);
+			}
+		}
+
+		throw lastError || new Error("Download failed");
+	}
+
 	// File upload helper
 	async uploadFile<T>(
 		endpoint: string,

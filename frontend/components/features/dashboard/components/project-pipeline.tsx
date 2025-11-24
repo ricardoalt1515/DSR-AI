@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useProjectStatsData } from "@/lib/stores";
 import { cn } from "@/lib/utils";
+import type { ProjectStatus } from "@/lib/project-status";
 
 type StageDefinition = {
 	id: string;
@@ -20,7 +21,7 @@ type StageDefinition = {
 	description: string;
 	icon: React.ComponentType<{ className?: string }>;
 	color: "blue" | "purple" | "green" | "gray";
-	statuses: string[];
+	statuses: ProjectStatus[];
 };
 
 const PIPELINE_STAGES: StageDefinition[] = [
@@ -89,44 +90,45 @@ const STAGE_COLOR_MAP = {
 	},
 } as const;
 
+// Map ProjectStatus to DashboardStats property names
+const STATUS_TO_STAT_KEY: Record<ProjectStatus, keyof typeof STAT_KEYS> = {
+	"In Preparation": "in_preparation",
+	"Generating Proposal": "generating",
+	"Proposal Ready": "proposal_ready",
+	"In Development": "in_development",
+	Completed: "completed",
+	"On Hold": "on_hold",
+};
+
+const STAT_KEYS = {
+	in_preparation: true,
+	generating: true,
+	proposal_ready: true,
+	in_development: true,
+	completed: true,
+	on_hold: true,
+} as const;
+
 export function ProjectPipeline() {
 	const stats = useProjectStatsData();
 
-	if (!stats || stats.totalProjects === 0) {
+	if (!stats || stats.total_projects === 0) {
 		return null;
 	}
 
-	const aggregateStageMetrics = (stage: StageDefinition) => {
-		const totals = stage.statuses.reduce(
-			(acc, status) => {
-				const pipelineStage = stats.pipelineStages[status];
-				if (!pipelineStage) {
-					return acc;
-				}
-
-				return {
-					count: acc.count + pipelineStage.count,
-					progressSum:
-						acc.progressSum + pipelineStage.avgProgress * pipelineStage.count,
-				};
-			},
-			{ count: 0, progressSum: 0 },
-		);
-
-		const avgProgress =
-			totals.count > 0 ? Math.round(totals.progressSum / totals.count) : 0;
-
-		return { count: totals.count, avgProgress };
+	// Calculate stage counts from flat stats properties
+	const getStageCount = (stage: StageDefinition): number => {
+		return stage.statuses.reduce((sum, status) => {
+			const key = STATUS_TO_STAT_KEY[status];
+			return sum + (stats[key] ?? 0);
+		}, 0);
 	};
 
-	const stageData = PIPELINE_STAGES.map((stage) => {
-		const aggregates = aggregateStageMetrics(stage);
-		return {
-			...stage,
-			count: aggregates.count,
-			avgProgress: aggregates.avgProgress,
-		};
-	});
+	const stageData = PIPELINE_STAGES.map((stage) => ({
+		...stage,
+		count: getStageCount(stage),
+		avgProgress: stats.avg_progress ?? 0,
+	}));
 
 	const totalActive = stageData
 		.filter((stage) => stage.id !== "completed")
@@ -143,10 +145,6 @@ export function ProjectPipeline() {
 			description: "delivered to client",
 		},
 	];
-
-	const lastUpdatedText = stats.lastUpdated
-		? new Date(stats.lastUpdated).toLocaleString()
-		: "No recent updates";
 
 	return (
 		<div className="space-y-6">
@@ -269,10 +267,6 @@ export function ProjectPipeline() {
 								</p>
 							</div>
 						))}
-						<div className="text-center">
-							<p className="text-xs text-muted-foreground mb-1">Last update</p>
-							<p className="text-sm font-medium">{lastUpdatedText}</p>
-						</div>
 					</div>
 				</CardContent>
 			</Card>

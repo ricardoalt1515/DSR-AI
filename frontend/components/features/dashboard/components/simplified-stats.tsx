@@ -33,32 +33,47 @@ export function SimplifiedStats() {
 		);
 	}
 
-	// Map backend stats to component format
+	// Map backend stats (snake_case) to component format
 	const stats = {
-		total: backendStats.totalProjects ?? 0,
-		inPreparation: backendStats.inPreparation ?? 0,
+		total: backendStats.total_projects ?? 0,
+		inPreparation: backendStats.in_preparation ?? 0,
 		generating: backendStats.generating ?? 0,
-		ready: backendStats.ready ?? 0,
+		ready: backendStats.proposal_ready ?? 0,
 		completed: backendStats.completed ?? 0,
-		avgProgress: Math.round(backendStats.avgProgress ?? 0),
+		avgProgress: Math.round(backendStats.avg_progress ?? 0),
 		activeProjects:
-			(backendStats.inPreparation ?? 0) +
+			(backendStats.in_preparation ?? 0) +
 			(backendStats.generating ?? 0) +
-			(backendStats.ready ?? 0),
+			(backendStats.proposal_ready ?? 0),
 		completionRate:
-			backendStats.totalProjects && backendStats.totalProjects > 0
+			backendStats.total_projects && backendStats.total_projects > 0
 				? Math.round(
-						((backendStats.completed ?? 0) / backendStats.totalProjects) * 100,
+						((backendStats.completed ?? 0) / backendStats.total_projects) * 100,
 					)
 				: 0,
 	};
+
+	const activeDescription =
+		stats.activeProjects === 0
+			? "All projects are up to date"
+			: "Require attention";
+
+	const readyDescription =
+		stats.ready === 0
+			? "No proposals ready yet"
+			: "For review and delivery";
+
+	const efficiencyDescription =
+		stats.total === 0
+			? "Start by creating your first project"
+			: "Overall completion";
 
 	const statCards = [
 		{
 			id: "active",
 			title: "Active Projects",
 			value: stats.activeProjects,
-			description: "Require attention",
+			description: activeDescription,
 			icon: Building,
 			color: "blue",
 			priority: stats.inPreparation > 0 ? "high" : "normal",
@@ -67,7 +82,7 @@ export function SimplifiedStats() {
 			id: "ready",
 			title: "Ready Proposals",
 			value: stats.ready,
-			description: "For review and delivery",
+			description: readyDescription,
 			icon: Zap,
 			color: "green",
 			priority: stats.ready > 0 ? "high" : "normal",
@@ -76,7 +91,7 @@ export function SimplifiedStats() {
 			id: "efficiency",
 			title: "Average Progress",
 			value: `${stats.avgProgress}%`,
-			description: "Overall completion",
+			description: efficiencyDescription,
 			icon: TrendingUp,
 			color: "purple",
 			priority: "normal",

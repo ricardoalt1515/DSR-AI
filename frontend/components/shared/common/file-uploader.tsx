@@ -74,6 +74,7 @@ const FILE_TYPE_ICONS: Record<string, typeof FileText> = {
 const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const DEFAULT_MAX_FILES = 5;
 const STATUS_POLL_INTERVAL_MS = 5000;
+const MAX_ANALYSIS_INSIGHTS = 5;
 
 // ============================================================================
 // Helper Functions
@@ -104,6 +105,64 @@ function getFileIcon(fileType: string): typeof FileText {
 	return FILE_TYPE_ICONS[fileType.toLowerCase()] || FileText;
 }
 
+function extractPhotoInsights(
+	analysis: Record<string, unknown> | null | undefined,
+): string[] {
+	if (!analysis || typeof analysis !== "object") {
+		return [];
+	}
+
+	const data = analysis as {
+		summary?: unknown;
+		materialAppearance?: unknown;
+		visibleContaminants?: unknown;
+		packaging?: unknown;
+		moistureLevel?: unknown;
+		estimatedHomogeneity?: unknown;
+		safetyRisks?: unknown;
+		commentsForUpcycling?: unknown;
+		confidence?: unknown;
+	};
+
+	const insights: string[] = [];
+
+	if (typeof data.summary === "string" && data.summary.trim()) {
+		insights.push(data.summary.trim());
+	}
+
+	const addIfString = (label: string, value: unknown) => {
+		if (
+			typeof value === "string" &&
+			value.trim() &&
+			insights.length < MAX_ANALYSIS_INSIGHTS
+		) {
+			insights.push(`${label}: ${value.trim()}`);
+		}
+	};
+
+	const addIfStringArray = (label: string, value: unknown) => {
+		if (Array.isArray(value) && insights.length < MAX_ANALYSIS_INSIGHTS) {
+			const items = value
+				.map((item) => (typeof item === "string" ? item.trim() : ""))
+				.filter(Boolean);
+			if (items.length > 0) {
+				insights.push(`${label}: ${items.join(", ")}`);
+			}
+		}
+	};
+
+	addIfString("Material appearance", data.materialAppearance);
+	addIfStringArray("Visible contaminants", data.visibleContaminants);
+	addIfString("Packaging", data.packaging);
+	addIfString("Moisture level", data.moistureLevel);
+	addIfString("Estimated homogeneity", data.estimatedHomogeneity);
+	addIfStringArray("Safety risks", data.safetyRisks);
+	addIfString("Upcycling comments", data.commentsForUpcycling);
+	addIfString("Confidence", data.confidence);
+
+	return insights.slice(0, MAX_ANALYSIS_INSIGHTS);
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -120,6 +179,8 @@ export function FileUploader({
 	const [isLoadingFiles, setIsLoadingFiles] = useState(true);
 	const [selectedFile, setSelectedFile] = useState<ProjectFileDetail | null>(null);
 	const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+	const [showRawAnalysis, setShowRawAnalysis] = useState(false);
+	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const statusPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// ========================================================================
@@ -282,10 +343,31 @@ export function FileUploader({
 	// ========================================================================
 
 	const handleSelectFile = async (fileId: string) => {
+		setShowRawAnalysis(false);
 		setIsLoadingDetail(true);
 		try {
 			const detail = await projectsAPI.getFileDetail(projectId, fileId);
 			setSelectedFile(detail);
+			// Load image preview only for photos; errors here shouldn't block details
+			if (
+				detail.file_type &&
+				["jpg", "jpeg", "png"].includes(detail.file_type.toLowerCase())
+			) {
+				try {
+					// Cleanup previous URL if exists
+					if (previewUrl) {
+						URL.revokeObjectURL(previewUrl);
+					}
+					const blob = await projectsAPI.downloadFileBlob(detail.id);
+					const url = URL.createObjectURL(blob);
+					setPreviewUrl(url);
+				} catch (_error) {
+					toast.error("Error loading image preview");
+				}
+			} else if (previewUrl) {
+				URL.revokeObjectURL(previewUrl);
+				setPreviewUrl(null);
+			}
 		} catch (_error) {
 			toast.error("Error loading file details");
 		} finally {
@@ -329,8 +411,11 @@ export function FileUploader({
 				clearInterval(statusPollIntervalRef.current);
 				statusPollIntervalRef.current = null;
 			}
+			if (previewUrl) {
+				URL.revokeObjectURL(previewUrl);
+			}
 		};
-	}, []);
+	}, [previewUrl]);
 
 	// ========================================================================
 	// Render
@@ -558,6 +643,15 @@ export function FileUploader({
 						<p className="text-xs text-muted-foreground break-words">
 							{selectedFile.filename}
 						</p>
+						{previewUrl && (
+							<div className="mt-2">
+								<img
+									src={previewUrl}
+									alt={selectedFile.filename}
+									className="max-h-64 w-full object-contain rounded-md border bg-black/20"
+								/>
+							</div>
+						)}
 						{selectedFile.processed_text && (
 							<div className="space-y-1">
 								<p className="text-xs font-semibold">Extracted text</p>
@@ -567,11 +661,39 @@ export function FileUploader({
 							</div>
 						)}
 						{selectedFile.ai_analysis && (
-							<div className="space-y-1">
-								<p className="text-xs font-semibold">AI analysis (raw)</p>
-								<pre className="text-[10px] max-h-40 overflow-y-auto bg-muted rounded-md p-2 whitespace-pre-wrap">
-									{JSON.stringify(selectedFile.ai_analysis, null, 2)}
-								</pre>
+							<div className="space-y-2">
+								{extractPhotoInsights(selectedFile.ai_analysis).length > 0 && (
+									<div className="space-y-1">
+										<p className="text-xs font-semibold">Key insights</p>
+										<ul className="list-disc pl-4 space-y-1">
+											{extractPhotoInsights(selectedFile.ai_analysis).map(
+												(insight) => (
+													<li
+														key={insight}
+														className="text-xs text-muted-foreground"
+													>
+														{insight}
+													</li>
+												),
+											)}
+										</ul>
+									</div>
+								)}
+								<div className="space-y-1">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-7 px-2 text-[10px]"
+										onClick={() => setShowRawAnalysis((prev) => !prev)}
+									>
+										{showRawAnalysis ? "Hide raw JSON" : "View raw JSON"}
+									</Button>
+									{showRawAnalysis && (
+										<pre className="text-[10px] max-h-40 overflow-y-auto bg-muted rounded-md p-2 whitespace-pre-wrap">
+											{JSON.stringify(selectedFile.ai_analysis, null, 2)}
+										</pre>
+									)}
+								</div>
 							</div>
 						)}
 						{!selectedFile.processed_text && !selectedFile.ai_analysis && (

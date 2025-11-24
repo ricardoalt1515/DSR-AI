@@ -154,6 +154,7 @@ export interface ProjectFile {
 	uploaded_at: string;
 	processed_text: boolean;
 	ai_analysis: boolean;
+	processing_status: string;
 }
 
 export interface ProjectFileDetail {

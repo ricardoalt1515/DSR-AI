@@ -17,16 +17,11 @@ interface ProjectOverviewProject {
 	team?: Array<{ name: string; role: string; avatar?: string }>;
 }
 
+
 interface ProjectOverviewProps {
 	project: ProjectOverviewProject;
 	onNavigateToTechnical?: () => void;
 }
-
-const DEFAULT_TEAM: Array<{ name: string; role: string; avatar: string }> = [
-	{ name: "Juan Pérez", role: "Lead Engineer", avatar: "JP" },
-	{ name: "María González", role: "Environmental Engineer", avatar: "MG" },
-	{ name: "Carlos Rodríguez", role: "Specialist Technician", avatar: "CR" },
-];
 
 export function ProjectOverview({
 	project,
@@ -37,7 +32,7 @@ export function ProjectOverview({
 		? new Date(project.updatedAt).toLocaleDateString("en-US")
 		: "Not defined";
 	const teamMembers =
-		project.team && project.team.length > 0 ? project.team : DEFAULT_TEAM;
+		project.team && project.team.length > 0 ? project.team : [];
 
 	return (
 		<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -152,32 +147,6 @@ export function ProjectOverview({
 								</div>
 							</div>
 						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader>
-						<CardTitle>Project Team</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-3">
-						{teamMembers.map((member, index) => (
-							<div
-								key={`${member.name}-${index}`}
-								className="flex items-center gap-3"
-							>
-								<div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
-									{member.avatar ??
-										member.name?.slice(0, 2).toUpperCase() ??
-										"--"}
-								</div>
-								<div>
-									<div className="text-sm font-medium">{member.name}</div>
-									<div className="text-xs text-muted-foreground">
-										{member.role}
-									</div>
-								</div>
-							</div>
-						))}
 					</CardContent>
 				</Card>
 			</div>

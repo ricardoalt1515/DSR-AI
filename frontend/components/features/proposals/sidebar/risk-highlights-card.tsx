@@ -7,7 +7,17 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { formatNumber } from "@/lib/utils";
-import type { EquipmentSpec, OperationalData } from "../types";
+
+// Legacy types from water treatment model (kept for backward compatibility)
+interface EquipmentSpec {
+	name: string;
+	criticality?: "high" | "medium" | "low";
+}
+
+interface OperationalData {
+	energyConsumptionKwhM3?: number;
+	sludgeProductionKgDay?: number;
+}
 
 interface RiskHighlightsCardProps {
 	equipment: EquipmentSpec[];

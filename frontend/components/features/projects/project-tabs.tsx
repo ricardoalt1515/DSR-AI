@@ -4,7 +4,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
-import { useCurrentProject, useLoadProjectAction } from "@/lib/stores";
+import { useCurrentProject, useLoadProjectAction, useTechnicalSections } from "@/lib/stores";
+import { overallCompletion } from "@/lib/technical-sheet-data";
 import { FilesTabEnhanced } from "./files-tab-enhanced";
 import { ProjectOverview } from "./project-overview";
 import { ProposalsTab } from "./proposals-tab";
@@ -79,6 +80,10 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 		return project;
 	}, [storeProject, project]);
 
+	// Use the same dynamic completion calculation as header / dashboard
+	const sections = useTechnicalSections(project.id);
+	const completion = overallCompletion(sections);
+
 	const overviewProject = useMemo(() => {
 		const base = projectData as ProjectSummary;
 		const detail = projectData as Partial<ProjectDetail>;
@@ -89,7 +94,8 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 			client: base.client,
 			location: base.location,
 			status: base.status,
-			progress: base.progress,
+			// Keep Overview progress in sync with technical sheet completeness
+			progress: completion.percentage,
 			type: base.type,
 			description: base.description,
 			// timeline intentionally omitted to avoid type mismatch (ProjectDetail has TimelineEvent[])
@@ -99,7 +105,7 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 					| { name: string; role: string; avatar?: string }[]
 					| undefined) ?? [],
 		};
-	}, [projectData]);
+	}, [projectData, completion.percentage]);
 
 	return (
 		<div className="space-y-6">

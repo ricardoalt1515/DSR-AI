@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi.responses import Response, StreamingResponse
 import logging
+import os
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
@@ -25,7 +26,12 @@ from app.schemas.proposal import (
 from app.schemas.common import ErrorResponse
 from app.services.proposal_service import ProposalService
 from app.visualization.pdf_generator import pdf_generator
-from app.services.s3_service import get_presigned_url, USE_S3
+from app.services.s3_service import (
+    get_presigned_url,
+    USE_S3,
+    LOCAL_UPLOADS_DIR,
+    delete_file_from_s3,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -541,14 +547,10 @@ async def delete_proposal(
     # Delete PDF file from storage (best effort - don't fail if file doesn't exist)
     if pdf_path:
         try:
-            from app.services.s3_service import USE_S3, LOCAL_UPLOADS_DIR
-            import os
-
             if USE_S3:
-                # TODO: Implement S3 deletion when S3 is configured
-                logger.info(f"📄 Would delete from S3: {pdf_path}")
+                await delete_file_from_s3(pdf_path)
+                logger.info(f"🗑️ Deleted PDF from S3: {pdf_path}")
             else:
-                # Delete local file
                 local_file_path = os.path.join(LOCAL_UPLOADS_DIR, pdf_path)
                 if os.path.exists(local_file_path):
                     os.remove(local_file_path)

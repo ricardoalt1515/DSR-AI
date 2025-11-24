@@ -1,5 +1,8 @@
 import type { ProjectStatus } from "./project-types";
 
+// Re-export for convenience
+export type { ProjectStatus };
+
 export const PROJECT_STATUS_FLOW: ProjectStatus[] = [
 	"In Preparation",
 	"Generating Proposal",
@@ -59,3 +62,21 @@ export const getProjectStatusDescription = (status: ProjectStatus) =>
 
 export const getProjectStatusStep = (status: ProjectStatus) =>
 	PROJECT_STATUS_STEP[status] ?? 1;
+
+// Dashboard-specific configuration (centralized to avoid magic numbers)
+
+export const DASHBOARD_STATUS_PRIORITY: Record<ProjectStatus, number> = {
+	"In Preparation": 3,
+	"Proposal Ready": 2,
+	"Generating Proposal": 1,
+	"In Development": 1,
+	Completed: 0,
+	"On Hold": 0,
+};
+
+export const DASHBOARD_THRESHOLDS = {
+	readyForProposalProgress: 70,
+	stalledDaysWithoutUpdate: 7,
+	lowProgressAttention: 50,
+	weeklyInsightWindowDays: 7,
+} as const;
