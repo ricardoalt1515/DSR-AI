@@ -2,7 +2,7 @@
 Companies API endpoints.
 CRUD operations for companies and their locations.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_async_db
-from app.models import Company, Location, User
+from app.models import Company, Location
 from app.schemas.company import (
     CompanyCreate,
     CompanyUpdate,
@@ -24,7 +24,7 @@ from app.schemas.location import (
     LocationDetail,
 )
 from app.schemas.common import SuccessResponse
-from app.api.dependencies import CurrentUser
+from app.api.dependencies import CurrentSuperUser, CurrentUser
 
 router = APIRouter()
 
@@ -90,7 +90,7 @@ async def update_company(
     company_id: UUID,
     company_data: CompanyUpdate,
     db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    current_user: CurrentSuperUser = None,
 ):
     """Update company information."""
     result = await db.execute(select(Company).where(Company.id == company_id))
@@ -116,7 +116,7 @@ async def update_company(
 async def delete_company(
     company_id: UUID,
     db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    current_user: CurrentSuperUser = None,
 ):
     """
     Delete company.
@@ -158,7 +158,11 @@ async def list_company_locations(
     return locations
 
 
-@router.post("/{company_id}/locations", response_model=LocationSummary, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{company_id}/locations",
+    response_model=LocationSummary,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_location(
     company_id: UUID,
     location_data: LocationCreate,
@@ -229,7 +233,7 @@ async def update_location(
     location_id: UUID,
     location_data: LocationUpdate,
     db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    current_user: CurrentSuperUser = None,
 ):
     """Update location information."""
     result = await db.execute(select(Location).where(Location.id == location_id))
@@ -266,7 +270,7 @@ async def update_location(
 async def delete_location(
     location_id: UUID,
     db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    current_user: CurrentSuperUser = None,
 ):
     """
     Delete location.
@@ -285,3 +289,26 @@ async def delete_location(
     await db.commit()
     
     return SuccessResponse(message=f"Location {location.name} deleted successfully")
+
+
+@router.get("/locations", response_model=List[LocationSummary])
+async def list_all_locations(
+    company_id: Optional[UUID] = None,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: CurrentUser = None,
+):
+    """List all locations, optionally filtered by company."""
+    query = (
+        select(Location)
+        .options(
+            selectinload(Location.company),
+            selectinload(Location.projects),
+        )
+        .order_by(Location.name)
+    )
+
+    if company_id:
+        query = query.where(Location.company_id == company_id)
+
+    result = await db.execute(query)
+    return result.scalars().all()

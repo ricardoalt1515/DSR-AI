@@ -21,6 +21,7 @@ interface LocationState {
 	error: string | null;
 
 	// Actions
+	loadAllLocations: () => Promise<void>;
 	loadLocationsByCompany: (companyId: string) => Promise<void>;
 	loadLocation: (id: string) => Promise<void>;
 	createLocation: (
@@ -42,6 +43,35 @@ export const useLocationStore = create<LocationState>()(
 			loading: false,
 			error: null,
 
+			// Load all locations (optionally cached in store)
+			loadAllLocations: async () => {
+				set((state) => {
+					state.loading = true;
+					state.error = null;
+				});
+
+				try {
+					const locations = await LocationsAPI.listAll();
+					set((state) => {
+						state.locations = locations;
+						state.loading = false;
+					});
+					logger.info(
+						`Loaded ${locations.length} total locations`,
+						"LocationStore",
+					);
+				} catch (error) {
+					const message =
+						error instanceof Error ? error.message : "Failed to load locations";
+					logger.error("Failed to load locations", error, "LocationStore");
+					set((state) => {
+						state.error = message;
+						state.loading = false;
+					});
+					throw error;
+				}
+			},
+
 			// Load locations for a company
 			loadLocationsByCompany: async (companyId: string) => {
 				set((state) => {
@@ -53,7 +83,13 @@ export const useLocationStore = create<LocationState>()(
 					const locations = await LocationsAPI.listByCompany(companyId);
 
 					set((state) => {
-						state.locations = locations;
+						const otherCompanies = state.locations.filter(
+							(location) => location.companyId !== companyId,
+						);
+						const merged = [...otherCompanies, ...locations];
+						state.locations = Array.from(
+							new Map(merged.map((location) => [location.id, location])).values(),
+						);
 						state.loading = false;
 					});
 
@@ -74,7 +110,6 @@ export const useLocationStore = create<LocationState>()(
 					set((state) => {
 						state.error = message;
 						state.loading = false;
-						state.locations = [];
 					});
 
 					throw error;

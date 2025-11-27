@@ -66,15 +66,30 @@ export class CompaniesAPI {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class LocationsAPI {
+
+	private static buildListUrl(companyId?: string) {
+		const searchParams = new URLSearchParams();
+		if (companyId) {
+			searchParams.append("company_id", companyId);
+		}
+
+		const query = searchParams.toString();
+		return query ? `/companies/locations?${query}` : "/companies/locations";
+	}
+
+	/**
+	 * List all locations (optionally filtered by company)
+	 */
+	static async listAll(companyId?: string): Promise<LocationSummary[]> {
+		const url = this.buildListUrl(companyId);
+		return apiClient.get<LocationSummary[]>(url);
+	}
+
 	/**
 	 * List all locations for a company
 	 */
 	static async listByCompany(companyId: string): Promise<LocationSummary[]> {
-		// Backend already serializes to camelCase via BaseSchema
-		// No transformation needed - just return as-is
-		return apiClient.get<LocationSummary[]>(
-			`/companies/${companyId}/locations`,
-		);
+		return this.listAll(companyId);
 	}
 
 	/**

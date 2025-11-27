@@ -26,6 +26,12 @@ export {
 	pollProposalStatus,
 	proposalsAPI,
 } from "./proposals";
+export {
+	type AdminCreateUserInput,
+	type AdminUpdateUserInput,
+	AdminUsersAPI,
+	adminUsersAPI,
+} from "./admin-users";
 
 // Response type helpers
 export interface PaginatedResponse<T> {

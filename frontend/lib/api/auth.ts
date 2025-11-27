@@ -1,11 +1,18 @@
 import { apiClient } from "./client";
 
-// Auth types
+// Auth types - matches backend UserRead schema
 interface User {
 	id: string;
 	email: string;
-	name: string;
-	company?: string;
+	firstName: string;
+	lastName: string;
+	companyName?: string;
+	location?: string;
+	sector?: string;
+	subsector?: string;
+	isVerified: boolean;
+	createdAt: string;
+	isSuperuser: boolean;
 }
 
 interface LoginRequest {
@@ -37,8 +44,12 @@ interface PasswordResetConfirmRequest {
 }
 
 interface UpdateProfileRequest {
-	name?: string;
-	company?: string;
+	first_name?: string;
+	last_name?: string;
+	company_name?: string;
+	location?: string;
+	sector?: string;
+	subsector?: string;
 }
 
 // Auth API service
@@ -138,18 +149,34 @@ export class AuthAPI {
 	static async getCurrentUser(): Promise<User> {
 		const response = await apiClient.get<any>("/auth/me");
 
-		// Transform backend response to frontend User type
+		// Transform backend snake_case to frontend camelCase
 		return {
 			id: response.id,
 			email: response.email,
-			name: `${response.first_name} ${response.last_name}`,
-			company: response.company_name || undefined,
+			firstName: response.first_name,
+			lastName: response.last_name,
+			companyName: response.company_name || undefined,
+			location: response.location || undefined,
+			sector: response.sector || undefined,
+			subsector: response.subsector || undefined,
+			isVerified: response.is_verified ?? false,
+			createdAt: response.created_at || new Date().toISOString(),
+			isSuperuser: response.is_superuser ?? false,
 		};
 	}
 
 	static async updateProfile(data: UpdateProfileRequest): Promise<User> {
-		await apiClient.patch<User>("/auth/me", data as any);
+		// Send only non-undefined fields to backend
+		const payload = Object.fromEntries(
+			Object.entries(data).filter(([_, v]) => v !== undefined)
+		);
+		await apiClient.patch("/auth/me", payload);
 		return AuthAPI.getCurrentUser();
+	}
+
+	static async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+		// FastAPI Users allows password change via PATCH /auth/me
+		await apiClient.patch("/auth/me", { password: newPassword });
 	}
 
 	static async deleteAccount(): Promise<void> {

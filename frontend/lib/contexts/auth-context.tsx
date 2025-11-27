@@ -5,12 +5,14 @@ import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiClient, authAPI, type User } from "@/lib/api";
+import { useProjectStore } from "@/lib/stores/project-store";
 import { logger } from "@/lib/utils/logger";
 
 interface AuthContextType {
 	user: User | null;
 	isLoading: boolean;
 	isAuthenticated: boolean;
+	isAdmin: boolean;
 	login: (email: string, password: string) => Promise<void>;
 	register: (
 		email: string,
@@ -20,6 +22,8 @@ interface AuthContextType {
 		company?: string,
 	) => Promise<void>;
 	logout: () => void;
+	updateUser: (data: Partial<User>) => Promise<void>;
+	refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [isLoading, setIsLoading] = useState(true);
 	const router = useRouter();
 	const pathname = usePathname();
+	const resetProjectStore = useProjectStore((state) => state.resetStore);
 
 	// Initialize auth on mount
 	useEffect(() => {
@@ -116,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			// 🔒 SECURITY FIX: Clear ALL user data before login
 			// This prevents previous user's data from persisting in localStorage
 			clearUserData();
+			resetProjectStore();
 
 			const response = await authAPI.login({ email, password });
 			setUser(response.user);
@@ -143,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			// 🔒 SECURITY FIX: Clear ALL user data before registration
 			// This prevents previous user's data from persisting in localStorage
 			clearUserData();
+			resetProjectStore();
 
 			const response = await authAPI.register({
 				email,
@@ -165,18 +172,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		authAPI.logout();
 		setUser(null);
 		clearUserData();
+		resetProjectStore();
 
 		toast.success("Session closed");
 		router.push("/login");
+	};
+
+	// Update user profile - syncs with backend and updates local state
+	const updateUser = async (data: Partial<User>) => {
+		try {
+			// Convert camelCase to snake_case for backend
+			const backendData: Record<string, string | undefined> = {};
+			if (data.firstName !== undefined) backendData.first_name = data.firstName;
+			if (data.lastName !== undefined) backendData.last_name = data.lastName;
+			if (data.companyName !== undefined) backendData.company_name = data.companyName;
+			if (data.location !== undefined) backendData.location = data.location;
+			if (data.sector !== undefined) backendData.sector = data.sector;
+			if (data.subsector !== undefined) backendData.subsector = data.subsector;
+
+			const updatedUser = await authAPI.updateProfile(backendData);
+			setUser(updatedUser);
+		} catch (error) {
+			logger.error("Update profile error", error, "AuthContext");
+			throw error;
+		}
+	};
+
+	// Refresh user data from backend
+	const refreshUser = async () => {
+		try {
+			const currentUser = await authAPI.getCurrentUser();
+			setUser(currentUser);
+		} catch (error) {
+			logger.error("Refresh user error", error, "AuthContext");
+		}
 	};
 
 	const value: AuthContextType = {
 		user,
 		isLoading,
 		isAuthenticated: !!user,
+		isAdmin: !!user?.isSuperuser,
 		login,
 		register,
 		logout,
+		updateUser,
+		refreshUser,
 	};
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

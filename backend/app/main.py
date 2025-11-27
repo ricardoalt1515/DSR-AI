@@ -337,7 +337,16 @@ async def root():
 
 
 # Import and include routers
-from app.api.v1 import auth, health, companies, projects, proposals, files, project_data
+from app.api.v1 import (
+    auth,
+    health,
+    companies,
+    projects,
+    proposals,
+    files,
+    project_data,
+    admin_users,
+)
 
 # Health checks (available at root and API prefix)
 app.include_router(
@@ -379,6 +388,12 @@ app.include_router(
     project_data.router,
     prefix=f"{settings.API_V1_PREFIX}/projects",
     tags=["Project Data"],
+)
+
+app.include_router(
+    admin_users.router,
+    prefix=f"{settings.API_V1_PREFIX}/admin/users",
+    tags=["Admin Users"],
 )
 
 # ============================================================================

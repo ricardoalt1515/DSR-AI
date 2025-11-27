@@ -10,6 +10,7 @@ import {
 	Recycle,
 	Search,
 	Settings,
+	Shield,
 	User,
 	Zap,
 } from "lucide-react";
@@ -104,7 +105,7 @@ export function NavBar() {
 	const projects = useProjects();
 	const loadingProjects = useProjectLoading();
 	useEnsureProjectsLoaded();
-	const { user, logout } = useAuth();
+	const { user, logout, isAdmin } = useAuth();
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
@@ -120,13 +121,15 @@ export function NavBar() {
 	// Get user initials for avatar
 	const getUserInitials = () => {
 		if (!authedUser) return "?";
-		const names = authedUser.name.split(" ").filter((n) => n.length > 0);
-		if (names.length >= 2) {
-			const first = names[0]?.[0] ?? "";
-			const last = names[names.length - 1]?.[0] ?? "";
-			return (first + last).toUpperCase();
-		}
-		return authedUser.name.substring(0, 2).toUpperCase();
+		const first = authedUser.firstName?.[0] ?? "";
+		const last = authedUser.lastName?.[0] ?? "";
+		return (first + last).toUpperCase() || "?";
+	};
+
+	// Get full name for display
+	const getFullName = () => {
+		if (!authedUser) return "";
+		return `${authedUser.firstName} ${authedUser.lastName}`.trim();
 	};
 
 	useEffect(() => {
@@ -242,27 +245,39 @@ export function NavBar() {
 									<DropdownMenuLabel className="font-normal">
 										<div className="flex flex-col space-y-1">
 											<p className="text-sm font-medium leading-none">
-												{authedUser.name}
+												{getFullName()}
 											</p>
 											<p className="text-xs leading-none text-muted-foreground">
 												{authedUser.email}
 											</p>
-											{authedUser.company && (
+											{authedUser.companyName && (
 												<p className="text-xs leading-none text-muted-foreground">
-													{authedUser.company}
+													{authedUser.companyName}
 												</p>
 											)}
 										</div>
 									</DropdownMenuLabel>
 									<DropdownMenuSeparator />
-									<DropdownMenuItem>
-										<User className="mr-2 h-4 w-4" />
-										<span>Profile</span>
+									<DropdownMenuItem asChild>
+										<Link href="/profile">
+											<User className="mr-2 h-4 w-4" />
+											<span>Profile</span>
+										</Link>
 									</DropdownMenuItem>
-									<DropdownMenuItem>
-										<Settings className="mr-2 h-4 w-4" />
-										<span>Settings</span>
+									<DropdownMenuItem asChild>
+										<Link href="/settings">
+											<Settings className="mr-2 h-4 w-4" />
+											<span>Settings</span>
+										</Link>
 									</DropdownMenuItem>
+									{isAdmin && (
+										<DropdownMenuItem asChild>
+											<Link href="/admin/users">
+												<Shield className="mr-2 h-4 w-4" />
+												<span>Admin</span>
+											</Link>
+										</DropdownMenuItem>
+									)}
 									<DropdownMenuSeparator />
 									<DropdownMenuItem
 										onClick={logout}

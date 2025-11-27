@@ -108,6 +108,7 @@ interface ProjectState {
 	// Utility actions
 	clearError: () => void;
 	setLoading: (loading: boolean) => void;
+	resetStore: () => void;
 }
 
 const storage =
@@ -435,6 +436,22 @@ export const useProjectStore = create<ProjectState>()(
 			setLoading: (loading: boolean) => {
 				set((state) => {
 					state.loading = loading;
+				});
+			},
+
+			resetStore: () => {
+				set((state) => {
+					state.projects = [];
+					state.currentProject = null;
+					state.loading = false;
+					state.error = null;
+					state.dashboardStats = null;
+					state.page = 1;
+					state.totalPages = 0;
+					state.totalProjects = 0;
+					state.hasMore = false;
+					state.filters = {};
+					state.dataSource = "api";
 				});
 			},
 		})),

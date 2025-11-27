@@ -75,7 +75,6 @@ async def list_projects(
     from app.models.location import Location
     query = (
         select(Project)
-        .where(Project.user_id == current_user.id)
         .options(
             selectinload(Project.proposals).load_only(Proposal.id),  # Only load IDs for count
             selectinload(Project.location_rel).selectinload(Location.company),  # For computed fields
@@ -83,6 +82,10 @@ async def list_projects(
             raiseload(Project.timeline),
         )
     )
+
+    # Permission filter: admins see all projects, members only their own
+    if not current_user.is_superuser:
+        query = query.where(Project.user_id == current_user.id)
 
     # Add search filter
     if search:
