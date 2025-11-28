@@ -130,6 +130,15 @@ class Settings(BaseSettings):
     # Monitoring
     SENTRY_DSN: Optional[str] = None
 
+    # Auth Flow Toggles
+    AUTH_ENABLE_REGISTRATION: bool = False
+    AUTH_ENABLE_PASSWORD_RESET: bool = False
+    AUTH_ENABLE_EMAIL_VERIFICATION: bool = False
+
+    # Foundational Superuser (for initial bootstrap only)
+    FIRST_SUPERUSER_EMAIL: Optional[str] = None
+    FIRST_SUPERUSER_PASSWORD: Optional[str] = None
+
 
 # Create global settings instance
 settings = Settings()

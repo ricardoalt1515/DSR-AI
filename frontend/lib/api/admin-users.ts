@@ -15,9 +15,27 @@ export interface AdminUpdateUserInput {
 	password?: string;
 }
 
+function transformUser(response: any): User {
+	return {
+		id: response.id,
+		email: response.email,
+		firstName: response.first_name,
+		lastName: response.last_name,
+		companyName: response.company_name || undefined,
+		location: response.location || undefined,
+		sector: response.sector || undefined,
+		subsector: response.subsector || undefined,
+		isVerified: response.is_verified ?? false,
+		isActive: response.is_active ?? true,
+		createdAt: response.created_at || new Date().toISOString(),
+		isSuperuser: response.is_superuser ?? false,
+	};
+}
+
 export class AdminUsersAPI {
 	static async list(): Promise<User[]> {
-		return apiClient.get<User[]>("/admin/users");
+		const data = await apiClient.get<any[]>("/admin/users");
+		return data.map(transformUser);
 	}
 
 	static async create(payload: AdminCreateUserInput): Promise<User> {
@@ -29,7 +47,8 @@ export class AdminUsersAPI {
 			is_superuser: payload.isSuperuser ?? false,
 			is_active: true,
 		};
-		return apiClient.post<User>("/admin/users", body);
+		const response = await apiClient.post<any>("/admin/users", body);
+		return transformUser(response);
 	}
 
 	static async update(userId: string, payload: AdminUpdateUserInput): Promise<User> {
@@ -40,7 +59,8 @@ export class AdminUsersAPI {
 				password: payload.password,
 			}).filter(([, value]) => value !== undefined && value !== null && value !== ""),
 		);
-		return apiClient.patch<User>(`/admin/users/${userId}`, body);
+		const response = await apiClient.patch<any>(`/admin/users/${userId}`, body);
+		return transformUser(response);
 	}
 }
 

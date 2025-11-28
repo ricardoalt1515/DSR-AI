@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -54,18 +53,10 @@ export default function LoginPage() {
 	return (
 		<AuthLayout
 			title="Welcome back"
-			subtitle="Sign in to your account to continue"
+			subtitle="Sign in with the credentials provided by your admin"
 			footer={
-				<div className="text-center text-sm">
-					<span className="text-muted-foreground">
-						Don&apos;t have an account?{" "}
-					</span>
-					<Link
-						href="/register"
-						className="font-medium text-primary hover:underline transition-colors"
-					>
-						Sign up
-					</Link>
+				<div className="text-center text-sm text-muted-foreground">
+					Accounts are created by your organization admin. If you need access or forgot your password, please contact your admin.
 				</div>
 			}
 		>
@@ -122,12 +113,9 @@ export default function LoginPage() {
 						</label>
 					</div>
 
-					<Link
-						href="/forgot-password"
-						className="text-sm font-medium text-primary hover:underline"
-					>
-						Forgot password?
-					</Link>
+					<span className="text-xs text-muted-foreground">
+						Forgot your password? Ask your admin to reset it.
+					</span>
 				</div>
 
 				{/* Submit Button */}

@@ -11,6 +11,7 @@ interface User {
 	sector?: string;
 	subsector?: string;
 	isVerified: boolean;
+	isActive: boolean;
 	createdAt: string;
 	isSuperuser: boolean;
 }
@@ -160,6 +161,7 @@ export class AuthAPI {
 			sector: response.sector || undefined,
 			subsector: response.subsector || undefined,
 			isVerified: response.is_verified ?? false,
+			isActive: response.is_active ?? true,
 			createdAt: response.created_at || new Date().toISOString(),
 			isSuperuser: response.is_superuser ?? false,
 		};

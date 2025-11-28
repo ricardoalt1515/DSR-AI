@@ -1,146 +1,37 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-	ArrowLeft,
-	ArrowRight,
-	Building2,
-	CheckCircle2,
-	Loader2,
-	Mail,
-	User,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import {
-	AuthFormField,
-	AuthLayout,
-	PasswordInput,
-} from "@/components/features/auth";
+import { AuthLayout } from "@/components/features/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { useAuth } from "@/lib/contexts";
-import {
-	type RegisterStep1Data,
-	type RegisterStep2Data,
-	registerStep1Schema,
-	registerStep2Schema,
-} from "@/lib/validation/auth-schemas";
+import Link from "next/link";
 
 export default function RegisterPage() {
-	const [currentStep, setCurrentStep] = useState<1 | 2>(1);
-	const [isLoading, setIsLoading] = useState(false);
-	const [step1Data, setStep1Data] = useState<RegisterStep1Data | null>(null);
-	const { register: registerUser } = useAuth();
-	const router = useRouter();
-
-	// Form for Step 1 (Email & Password)
-	const step1Form = useForm<RegisterStep1Data>({
-		resolver: zodResolver(registerStep1Schema),
-		defaultValues: {
-			email: "",
-			password: "",
-			confirmPassword: "",
-		},
-	});
-
-	// Form for Step 2 (Personal Info)
-	const step2Form = useForm<RegisterStep2Data>({
-		resolver: zodResolver(registerStep2Schema),
-		defaultValues: {
-			firstName: "",
-			lastName: "",
-			company: "",
-		},
-	});
-
-	const progressPercentage = currentStep === 1 ? 50 : 100;
-
-	// Handle Step 1 submission (go to next step)
-	const onStep1Submit = (data: RegisterStep1Data) => {
-		setStep1Data(data);
-		setCurrentStep(2);
-	};
-
-	// Handle Step 2 submission (final registration)
-	const onStep2Submit = async (data: RegisterStep2Data) => {
-		if (!step1Data) {
-			toast.error("Please complete step 1 first");
-			setCurrentStep(1);
-			return;
-		}
-
-		setIsLoading(true);
-
-		try {
-			// Combine data from both steps
-			await registerUser(
-				step1Data.email,
-				step1Data.password,
-				data.firstName,
-				data.lastName,
-				data.company || undefined,
-			);
-			// Success toast is handled by AuthContext
-			router.push("/dashboard");
-		} catch (_error) {
-			// Error toast is handled by AuthContext
-			// Logging handled by AuthContext
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	// Go back to previous step
-	const goToPreviousStep = () => {
-		if (currentStep === 2) {
-			setCurrentStep(1);
-		}
-	};
-
 	return (
 		<AuthLayout
-			title="Create your account"
-			subtitle={`Step ${currentStep} of 2: ${currentStep === 1 ? "Account credentials" : "Personal information"}`}
+			title="Registration disabled"
+			subtitle="Accounts are created and managed by your organization admin."
 			footer={
-				<div className="text-center text-sm">
-					<span className="text-muted-foreground">
-						Already have an account?{" "}
-					</span>
-					<Link
-						href="/login"
-						className="font-medium text-primary hover:underline transition-colors"
-					>
-						Sign in
-					</Link>
-				</div>
+				<Link
+					href="/login"
+					className="flex items-center justify-center gap-2 text-sm font-medium text-primary hover:underline"
+				>
+					Back to sign in
+				</Link>
 			}
 		>
-			{/* Progress Indicator */}
-			<div className="mb-6 space-y-2">
-				<div className="flex items-center justify-between text-sm">
-					<span className="font-medium text-foreground">
-						Step {currentStep} of 2
-					</span>
-					<span className="text-muted-foreground">
-						{progressPercentage}% complete
-					</span>
-				</div>
-				<Progress value={progressPercentage} className="h-2" />
+			<div className="space-y-4 text-sm text-muted-foreground">
+				<p>
+					Self-service registration is not available. To access the platform, please contact your
+					team admin so they can create an account for you.
+				</p>
+				<Button asChild variant="outline" className="w-full mt-2">
+					<Link href="/login">Go to sign in</Link>
+				</Button>
 			</div>
+		</AuthLayout>
+	);
+}
 
-			{/* Step Indicators */}
-			<div className="flex items-center justify-center gap-2 mb-8">
-				<div
-					className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-						currentStep === 1
-							? "bg-primary text-primary-foreground"
-							: "bg-success/10 text-success"
+/*
 					}`}
 				>
 					{currentStep > 1 ? (
@@ -354,3 +245,4 @@ export default function RegisterPage() {
 		</AuthLayout>
 	);
 }
+*/

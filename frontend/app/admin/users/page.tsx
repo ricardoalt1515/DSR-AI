@@ -5,6 +5,7 @@ import { Ban, Crown, RefreshCcw, Shield, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
 	Dialog,
 	DialogContent,
@@ -35,6 +36,12 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
 	adminUsersAPI,
 	type AdminCreateUserInput,
 	type AdminUpdateUserInput,
@@ -45,7 +52,7 @@ import { useAuth } from "@/lib/contexts";
 const PASSWORD_HINT = "Min 8 chars, 1 uppercase, 1 number";
 
 export default function AdminUsersPage() {
-	const { isAdmin } = useAuth();
+	const { isAdmin, user: currentUser } = useAuth();
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [modalOpen, setModalOpen] = useState(false);
@@ -59,6 +66,10 @@ export default function AdminUsersPage() {
 	});
 	const [submitting, setSubmitting] = useState(false);
 	const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+	const [resetUserId, setResetUserId] = useState<string | null>(null);
+	const [resetPassword, setResetPassword] = useState("");
+	const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+	const [resetSubmitting, setResetSubmitting] = useState(false);
 
 	useEffect(() => {
 		if (!isAdmin) return;
@@ -102,6 +113,15 @@ export default function AdminUsersPage() {
 		);
 	}, [form]);
 
+	const canSubmitReset = useMemo(
+		() =>
+			resetPassword.length >= 8 &&
+			/[A-Z]/.test(resetPassword) &&
+			/[0-9]/.test(resetPassword) &&
+			resetPassword === resetConfirmPassword,
+		[resetPassword, resetConfirmPassword],
+	);
+
 	const handleCreateUser = async () => {
 		if (!canSubmitForm) return;
 		setSubmitting(true);
@@ -125,6 +145,31 @@ export default function AdminUsersPage() {
 		}
 	};
 
+	const handleOpenResetDialog = (userId: string) => {
+		setResetUserId(userId);
+		setResetPassword("");
+		setResetConfirmPassword("");
+	};
+
+	const handleResetPassword = async () => {
+		if (!resetUserId || !canSubmitReset) return;
+		setResetSubmitting(true);
+		const targetUser = users.find((user) => user.id === resetUserId);
+		const name = targetUser ? targetUser.firstName : "User";
+		try {
+			await handleUpdateUser(
+				resetUserId,
+				{ password: resetPassword },
+				`Password for ${name} updated`,
+			);
+			setResetUserId(null);
+			setResetPassword("");
+			setResetConfirmPassword("");
+		} finally {
+			setResetSubmitting(false);
+		}
+	};
+
 	const handleUpdateUser = async (
 		userId: string,
 		updates: AdminUpdateUserInput,
@@ -135,8 +180,12 @@ export default function AdminUsersPage() {
 			const updated = await adminUsersAPI.update(userId, updates);
 			setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
 			toast.success(successMessage);
-		} catch {
-			toast.error("Failed to update user");
+		} catch (error) {
+			const message =
+				error instanceof Error && error.message
+					? error.message
+					: "Failed to update user";
+			toast.error(message);
 		} finally {
 			setUpdatingUserId(null);
 		}
@@ -154,6 +203,18 @@ export default function AdminUsersPage() {
 			</div>
 		);
 	}
+
+	const formatMemberSince = (dateString: string) => {
+		const date = new Date(dateString);
+		if (Number.isNaN(date.getTime())) return "--";
+		return date.toLocaleDateString(undefined, {
+			month: "short",
+			year: "numeric",
+		});
+	};
+
+	const activeAdmins = users.filter((user) => user.isSuperuser && user.isActive);
+	const lastActiveAdminId = activeAdmins.length === 1 ? activeAdmins[0]?.id ?? null : null;
 
 	return (
 		<div className="container mx-auto py-8 space-y-6">
@@ -187,7 +248,8 @@ export default function AdminUsersPage() {
 							<p>No users yet. Create the first one.</p>
 						</div>
 					) : (
-						<Table>
+						<TooltipProvider delayDuration={200}>
+							<Table>
 							<TableHeader>
 								<TableRow>
 									<TableHead>Name</TableHead>
@@ -201,11 +263,23 @@ export default function AdminUsersPage() {
 								{users.map((user) => (
 									<TableRow key={user.id}>
 										<TableCell>
-											<div className="font-medium">
-												{user.firstName} {user.lastName}
+											<div className="flex items-center gap-2 flex-wrap">
+												<div className="font-medium">
+													{user.firstName} {user.lastName}
+												</div>
+												{currentUser?.id === user.id && (
+													<Badge variant="outline" className="text-xs">
+														You
+													</Badge>
+												)}
+												{user.isSuperuser && (
+													<Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/40">
+														Admin
+													</Badge>
+												)}
 											</div>
 											<div className="text-xs text-muted-foreground">
-												Member since {new Date(user.createdAt).toLocaleDateString()}
+												Member since {formatMemberSince(user.createdAt)}
 											</div>
 										</TableCell>
 										<TableCell className="font-mono text-sm">{user.email}</TableCell>
@@ -220,50 +294,110 @@ export default function AdminUsersPage() {
 											</span>
 										</TableCell>
 										<TableCell>
-											<span className={user.isVerified ? "text-green-600" : "text-muted-foreground"}>
-												{user.isVerified ? "Active" : "Pending"}
-											</span>
+											<div className="flex flex-col space-y-0.5">
+												<span className={user.isActive ? "text-green-600" : "text-muted-foreground"}>
+													{user.isActive ? "Active · Can sign in" : "Disabled · Login blocked"}
+												</span>
+												{!user.isVerified && (
+													<span className="text-xs text-muted-foreground">Email not verified</span>
+												)}
+											</div>
 										</TableCell>
 										<TableCell className="text-right space-x-2">
-											<Button
-												variant={user.isSuperuser ? "outline" : "secondary"}
-												size="sm"
-												disabled={updatingUserId === user.id}
-												onClick={() =>
-													handleUpdateUser(
-														user.id,
-														{ isSuperuser: !user.isSuperuser },
-														user.isSuperuser ? "Role set to member" : "Role set to admin",
-													)
-												}
-											>
-												{updatingUserId === user.id ? (
-													<RefreshCcw className="h-4 w-4 animate-spin" />
-												) : user.isSuperuser ? (
-													"Make Member"
+											{(() => {
+												const isSelf = currentUser?.id === user.id;
+												const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
+												const disableRoleChange = isSelf || isLastActiveAdmin;
+												const roleTooltipMessage = isSelf
+													? "You can't change your own role"
+													: isLastActiveAdmin
+														? "Keep at least one active admin"
+													: "";
+
+												const roleButton = (
+													<Button
+														variant={user.isSuperuser ? "outline" : "secondary"}
+														size="sm"
+														disabled={disableRoleChange || updatingUserId === user.id}
+														onClick={() =>
+															handleUpdateUser(
+																user.id,
+																{ isSuperuser: !user.isSuperuser },
+																user.isSuperuser
+																	? `${user.firstName} is now Member`
+																	: `${user.firstName} promoted to Admin`,
+															)
+														}
+													>
+														{updatingUserId === user.id ? (
+															<RefreshCcw className="h-4 w-4 animate-spin" />
+														) : user.isSuperuser ? (
+															"Make Member"
+														) : (
+															"Make Admin"
+														)}
+													</Button>
+												);
+
+												return roleTooltipMessage ? (
+													<Tooltip>
+														<TooltipTrigger asChild>{roleButton}</TooltipTrigger>
+														<TooltipContent>{roleTooltipMessage}</TooltipContent>
+													</Tooltip>
 												) : (
-													"Make Admin"
-												)}
-											</Button>
-											<Button
-												variant={user.isVerified ? "destructive" : "secondary"}
-												size="sm"
-												disabled={updatingUserId === user.id}
-												onClick={() =>
-													handleUpdateUser(
-														user.id,
-														{ isActive: !user.isVerified },
-														user.isVerified ? "User deactivated" : "User activated",
-													)
-												}
-											>
-												{updatingUserId === user.id ? (
-													<RefreshCcw className="h-4 w-4 animate-spin" />
-												) : user.isVerified ? (
-													<Ban className="h-4 w-4" />
+													roleButton
+												);
+											})()}
+											{(() => {
+												const isSelf = currentUser?.id === user.id;
+												const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
+												const disableStatusChange = isSelf || isLastActiveAdmin;
+												const statusTooltipMessage = isSelf
+													? "You can't deactivate your own account"
+													: isLastActiveAdmin
+														? "Keep at least one active admin"
+													: "";
+
+												const statusButton = (
+													<Button
+														variant={user.isActive ? "destructive" : "secondary"}
+														size="sm"
+														disabled={disableStatusChange || updatingUserId === user.id}
+														onClick={() =>
+															handleUpdateUser(
+																user.id,
+																{ isActive: !user.isActive },
+																user.isActive
+																	? `${user.firstName} deactivated`
+																	: `${user.firstName} reactivated`,
+															)
+														}
+													>
+														{updatingUserId === user.id ? (
+															<RefreshCcw className="h-4 w-4 animate-spin" />
+														) : user.isActive ? (
+															<Ban className="h-4 w-4" />
+														) : (
+															"Activate"
+														)}
+													</Button>
+												);
+
+												return statusTooltipMessage ? (
+													<Tooltip>
+														<TooltipTrigger asChild>{statusButton}</TooltipTrigger>
+														<TooltipContent>{statusTooltipMessage}</TooltipContent>
+													</Tooltip>
 												) : (
-													"Activate"
-												)}
+													statusButton
+												);
+											})()}
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => handleOpenResetDialog(user.id)}
+											>
+												Reset password
 											</Button>
 										</TableCell>
 									</TableRow>
@@ -271,6 +405,7 @@ export default function AdminUsersPage() {
 							</TableBody>
 							<TableCaption>Only admins can manage users.</TableCaption>
 						</Table>
+						</TooltipProvider>
 					)}
 				</CardContent>
 			</Card>
@@ -359,6 +494,70 @@ export default function AdminUsersPage() {
 						<Button onClick={handleCreateUser} disabled={!canSubmitForm || submitting}>
 							{submitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
 							Create User
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={resetUserId !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setResetUserId(null);
+						setResetPassword("");
+						setResetConfirmPassword("");
+					}
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Reset password</DialogTitle>
+						<DialogDescription>
+							Set a new password for this user. Share it securely with them.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-4">
+						<div className="grid gap-2">
+							<Label htmlFor="resetPassword">New password</Label>
+							<Input
+								id="resetPassword"
+								type="password"
+								value={resetPassword}
+								onChange={(e) => setResetPassword(e.target.value)}
+								placeholder="StrongPassword1"
+							/>
+							<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
+						</div>
+						<div className="grid gap-2">
+							<Label htmlFor="resetConfirmPassword">Confirm password</Label>
+							<Input
+								id="resetConfirmPassword"
+								type="password"
+								value={resetConfirmPassword}
+								onChange={(e) => setResetConfirmPassword(e.target.value)}
+								placeholder="StrongPassword1"
+							/>
+							{resetConfirmPassword && resetPassword !== resetConfirmPassword && (
+								<p className="text-xs text-destructive">Passwords do not match</p>
+							)}
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+								variant="outline"
+								onClick={() => {
+									setResetUserId(null);
+									setResetPassword("");
+									setResetConfirmPassword("");
+								}}
+							>
+								Cancel
+							</Button>
+						<Button onClick={handleResetPassword} disabled={!canSubmitReset || resetSubmitting}>
+							{resetSubmitting ? (
+								<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+							) : null}
+							{resetSubmitting ? "Updating..." : "Update password"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

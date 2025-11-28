@@ -26,6 +26,7 @@ from fastapi import APIRouter
 
 from app.core.fastapi_users_instance import fastapi_users, auth_backend
 from app.schemas.user_fastapi import UserRead, UserCreate, UserUpdate
+from app.core.config import settings
 
 import logging
 
@@ -54,14 +55,17 @@ router.include_router(
 )
 logger.info("✅ Registered JWT auth router: /auth/jwt/login, /auth/jwt/logout")
 
-# Register Router
-# Endpoints:
-#   POST /auth/register - Register new user
-router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    tags=["auth"],
-)
-logger.info("✅ Registered register router: /auth/register")
+if settings.AUTH_ENABLE_REGISTRATION:
+    # Register Router
+    # Endpoints:
+    #   POST /auth/register - Register new user
+    router.include_router(
+        fastapi_users.get_register_router(UserRead, UserCreate),
+        tags=["auth"],
+    )
+    logger.info("✅ Registered register router: /auth/register (public registration enabled)")
+else:
+    logger.info("⚠️ Public registration disabled (AUTH_ENABLE_REGISTRATION=false)")
 
 # Users Router - Profile Management
 # Endpoints:
@@ -75,25 +79,31 @@ router.include_router(
 )
 logger.info("✅ Registered users router: /auth/me")
 
-# Password Reset Router
-# Endpoints:
-#   POST /auth/forgot-password - Request password reset
-#   POST /auth/reset-password  - Reset password with token
-router.include_router(
-    fastapi_users.get_reset_password_router(),
-    tags=["auth"],
-)
-logger.info("✅ Registered password reset router")
+if settings.AUTH_ENABLE_PASSWORD_RESET:
+    # Password Reset Router
+    # Endpoints:
+    #   POST /auth/forgot-password - Request password reset
+    #   POST /auth/reset-password  - Reset password with token
+    router.include_router(
+        fastapi_users.get_reset_password_router(),
+        tags=["auth"],
+    )
+    logger.info("✅ Registered password reset router (public reset enabled)")
+else:
+    logger.info("⚠️ Public password reset disabled (AUTH_ENABLE_PASSWORD_RESET=false)")
 
-# Verification Router
-# Endpoints:
-#   POST /auth/request-verify-token - Request email verification token
-#   POST /auth/verify               - Verify email with token
-router.include_router(
-    fastapi_users.get_verify_router(UserRead),
-    tags=["auth"],
-)
-logger.info("✅ Registered email verification router")
+if settings.AUTH_ENABLE_EMAIL_VERIFICATION:
+    # Verification Router
+    # Endpoints:
+    #   POST /auth/request-verify-token - Request email verification token
+    #   POST /auth/verify               - Verify email with token
+    router.include_router(
+        fastapi_users.get_verify_router(UserRead),
+        tags=["auth"],
+    )
+    logger.info("✅ Registered email verification router (public verification enabled)")
+else:
+    logger.info("⚠️ Email verification endpoints disabled (AUTH_ENABLE_EMAIL_VERIFICATION=false)")
 
 # ==============================================================================
 # Summary of Available Endpoints

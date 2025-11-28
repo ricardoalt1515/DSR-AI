@@ -11,14 +11,18 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from fastapi_users.password import PasswordHelper
 import logging
 import os
 from pathlib import Path
 import structlog
 
 from app.core.config import settings
-from app.core.database import init_db, close_db
+from app.core.database import init_db, close_db, AsyncSessionLocal
 from app.schemas.common import ErrorResponse, APIError
+from app.models.user import User
 
 # ============================================================================
 # Structured Logging Configuration (Best Practice 2025)
@@ -103,6 +107,50 @@ except Exception as e:
     logger.info("✅ Rate limiter initialized with in-memory storage (local only)")
 
 
+async def create_initial_superuser() -> None:
+    """Create foundational superuser from env vars if configured and missing.
+
+    This is intended for initial bootstrap only. It is safe to run on every
+    startup: if the user already exists, nothing is changed.
+    """
+
+    email = settings.FIRST_SUPERUSER_EMAIL
+    password = settings.FIRST_SUPERUSER_PASSWORD
+
+    if not email or not password:
+        logger.info("Skipping initial superuser creation - FIRST_SUPERUSER_* not set")
+        return
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+
+            if user:
+                logger.info("Initial superuser already exists", email=email)
+                return
+
+            password_helper = PasswordHelper()
+            hashed_password = password_helper.hash(password)
+
+            user = User(
+                email=email,
+                hashed_password=hashed_password,
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+                first_name="Admin",
+                last_name="User",
+            )
+
+            session.add(user)
+            await session.commit()
+            logger.info("Initial superuser created", email=email)
+
+    except SQLAlchemyError as e:
+        logger.error("Failed to create initial superuser", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -127,7 +175,10 @@ async def lifespan(app: FastAPI):
     # Initialize Redis cache
     from app.services.cache_service import cache_service
     await cache_service.connect()
-    
+
+    # Create initial superuser (idempotent)
+    await create_initial_superuser()
+
     # Ensure storage directory exists
     if settings.USE_LOCAL_STORAGE:
         os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
