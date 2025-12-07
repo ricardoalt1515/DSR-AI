@@ -117,7 +117,7 @@ export function ProposalPage({
 
 			{/* Main Content - Single Page Scroll */}
 			<main className="container mx-auto px-4 py-6 lg:py-8">
-				<ProposalOverview proposal={proposal} projectId={project.id} />
+				<ProposalOverview proposal={proposal} />
 			</main>
 		</div>
 	);

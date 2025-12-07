@@ -15,10 +15,9 @@ import type { Proposal } from "./types";
 
 interface ProposalOverviewProps {
 	proposal: Proposal;
-	projectId: string;
 }
 
-export function ProposalOverview({ proposal, projectId }: ProposalOverviewProps) {
+export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 	const report = proposal.aiMetadata.proposal;
 
 	// Extract photo insights from metadata with fileId for real images

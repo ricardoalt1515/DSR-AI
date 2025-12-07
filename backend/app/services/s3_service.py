@@ -14,6 +14,7 @@ S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY") or os.getenv("AWS_ACCESS_KEY_ID")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
 
 # Configuración para almacenamiento local en desarrollo
+# Se usará settings.LOCAL_STORAGE_PATH para rutas reales
 LOCAL_UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
 Path(LOCAL_UPLOADS_DIR).mkdir(exist_ok=True, parents=True)
 
@@ -59,7 +60,7 @@ async def upload_file_to_s3(file_obj: Union[IO[bytes], BytesIO], filename: str, 
         raise
 
 async def get_presigned_url(filename: str, expires: int = 3600) -> str:
-    """Genera una URL firmada para S3 o una URL local en desarrollo"""
+    """Genera una URL firmada para S3 o una URL local en desarrollo."""
     try:
         if USE_S3:  # Modo producción: URL de S3
             session = aioboto3.Session()
@@ -77,15 +78,29 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
                     ExpiresIn=expires,
                 )
             return url
-        else:  # Modo desarrollo: URL local
-            local_path = os.path.join(LOCAL_UPLOADS_DIR, filename)
-            if os.path.exists(local_path):
-                # Full URL for cross-origin access (frontend:3000 -> backend:8001)
-                backend_url = os.getenv("BACKEND_URL", "http://localhost:8001")
-                return f"{backend_url}/uploads/{filename}"
-            else:
-                logger.warning(f"Archivo local no encontrado: {local_path}")
+
+        # Modo desarrollo/local: construir URL estática servible desde LOCAL_STORAGE_PATH
+        from app.core.config import settings
+
+        storage_path = Path(settings.LOCAL_STORAGE_PATH).resolve()
+        file_path_obj = Path(filename)
+
+        # Convertir ruta absoluta a relativa respecto a storage_path
+        if file_path_obj.is_absolute():
+            try:
+                rel_path = file_path_obj.relative_to(storage_path)
+            except ValueError:
+                logger.warning(f"File outside storage: {filename}")
                 return ""
+        else:
+            rel_path = file_path_obj
+
+        full_path = storage_path / rel_path
+        if full_path.exists():
+            return f"{settings.BACKEND_URL}/uploads/{rel_path}"
+
+        logger.warning(f"Archivo local no encontrado: {full_path}")
+        return ""
     except Exception as e:
         logger.error(f"Error al generar URL: {str(e)}")
         return ""

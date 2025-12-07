@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Camera, CheckCircle2, ImageIcon, ImageOff, Upload } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Camera, CheckCircle2, ImageIcon, ImageOff, Upload, X, ZoomIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,67 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+// Image Lightbox Modal
+function ImageLightbox({
+    src,
+    alt,
+    onClose
+}: {
+    src: string;
+    alt: string;
+    onClose: () => void;
+}) {
+    // Close on Escape key
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+    }, [onClose]);
+
+    useEffect(() => {
+        document.addEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+            document.body.style.overflow = "";
+        };
+    }, [handleKeyDown]);
+
+    // Use portal to render at document.body level (escapes parent transforms)
+    if (typeof document === "undefined") return null;
+
+    return createPortal(
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <button
+                type="button"
+                onClick={onClose}
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
+            >
+                <X className="h-6 w-6 text-white" />
+            </button>
+            <motion.img
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                src={src}
+                alt={alt}
+                className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            />
+            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
+                {alt} - Click outside or press Escape to close
+            </p>
+        </motion.div>,
+        document.body
+    );
+}
 
 export interface ResourceInsight {
     id: string;
@@ -72,6 +134,12 @@ function TopResourcesEmpty({ onUploadClick }: { onUploadClick?: (() => void) | u
 }
 
 export function TopResources({ insights = [], onUploadClick }: TopResourcesProps) {
+    const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
+
+    const handleImageClick = (url: string, alt: string) => {
+        setLightboxImage({ url, alt });
+    };
+
     // Show empty state when no insights
     if (insights.length === 0) {
         return (
@@ -93,32 +161,54 @@ export function TopResources({ insights = [], onUploadClick }: TopResourcesProps
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Camera className="h-5 w-5 text-primary" />
-                        Photo Evidence
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                        Resources identified from site photos
-                    </p>
+        <>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                            <Camera className="h-5 w-5 text-primary" />
+                            Photo Evidence
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            Resources identified from site photos
+                        </p>
+                    </div>
+                    <Badge variant="outline" className="h-7">
+                        {insights.length} Detected
+                    </Badge>
                 </div>
-                <Badge variant="outline" className="h-7">
-                    {insights.length} Detected
-                </Badge>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {insights.map((item, idx) => (
+                        <ResourceCard
+                            key={item.id}
+                            item={item}
+                            index={idx}
+                            onImageClick={handleImageClick}
+                        />
+                    ))}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {insights.map((item, idx) => (
-                    <ResourceCard key={item.id} item={item} index={idx} />
-                ))}
-            </div>
-        </div>
+            {/* Image Lightbox Modal */}
+            <AnimatePresence>
+                {lightboxImage && (
+                    <ImageLightbox
+                        src={lightboxImage.url}
+                        alt={lightboxImage.alt}
+                        onClose={() => setLightboxImage(null)}
+                    />
+                )}
+            </AnimatePresence>
+        </>
     );
 }
 
-function ResourceCard({ item, index }: { item: ResourceInsight; index: number }) {
+function ResourceCard({ item, index, onImageClick }: {
+    item: ResourceInsight;
+    index: number;
+    onImageClick?: (url: string, alt: string) => void;
+}) {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
 
@@ -127,6 +217,7 @@ function ResourceCard({ item, index }: { item: ResourceInsight; index: number })
 
     // Use presigned URL from backend (no auth required)
     const imageUrl = item.imageUrl || null;
+    const canExpand = imageUrl && !imageError && imageLoaded;
 
     return (
         <motion.div
@@ -140,12 +231,18 @@ function ResourceCard({ item, index }: { item: ResourceInsight; index: number })
                 qualityConfig.border
             )}>
                 <CardContent className="p-0">
-                    {/* Photo Area */}
-                    <div className="h-32 bg-muted/30 relative flex items-center justify-center group-hover:bg-muted/50 transition-colors overflow-hidden">
+                    {/* Photo Area - increased height */}
+                    <div
+                        className={cn(
+                            "h-40 bg-muted/30 relative flex items-center justify-center transition-colors overflow-hidden",
+                            canExpand && "cursor-pointer"
+                        )}
+                        onClick={() => canExpand && onImageClick?.(imageUrl, item.material)}
+                    >
                         {/* Gradient overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent z-10" />
 
-                        {/* Real Image */}
+                        {/* Real Image with hover zoom */}
                         {imageUrl && !imageError ? (
                             <>
                                 {!imageLoaded && (
@@ -155,12 +252,21 @@ function ResourceCard({ item, index }: { item: ResourceInsight; index: number })
                                     src={imageUrl}
                                     alt={item.material}
                                     className={cn(
-                                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-                                        imageLoaded ? "opacity-100" : "opacity-0"
+                                        "absolute inset-0 w-full h-full object-cover transition-all duration-300",
+                                        imageLoaded ? "opacity-100" : "opacity-0",
+                                        canExpand && "group-hover:scale-105"
                                     )}
                                     onLoad={() => setImageLoaded(true)}
                                     onError={() => setImageError(true)}
                                 />
+                                {/* Zoom indicator on hover */}
+                                {canExpand && (
+                                    <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="p-1.5 rounded-full bg-black/50 backdrop-blur-sm">
+                                            <ZoomIn className="h-4 w-4 text-white" />
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         ) : (
                             // Placeholder when no image or error
@@ -220,10 +326,10 @@ function ResourceCard({ item, index }: { item: ResourceInsight; index: number })
                             </span>
                         </div>
 
-                        {/* Insight */}
+                        {/* Insight - full text, no truncation */}
                         <div className="flex gap-2 items-start">
                             <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                            <p className="text-sm text-muted-foreground leading-snug line-clamp-2">
+                            <p className="text-sm text-muted-foreground leading-snug">
                                 {item.insight}
                             </p>
                         </div>

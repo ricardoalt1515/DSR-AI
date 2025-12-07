@@ -450,15 +450,16 @@ app.include_router(
 # ============================================================================
 # Static Files (Development Only)
 # ============================================================================
-# Serve uploaded files (PDFs, images) in development mode
-# In production, these are served directly from S3
+# Serve uploaded files (PDFs, images) in development mode.
+# In production, these are served directly from S3.
 # ============================================================================
-UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
-UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
+from app.services.s3_service import USE_S3  # re-use same detection as storage service
 
-if not os.getenv("S3_BUCKET"):  # Only in local development
-    app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
-    logger.info(f"Local storage path: {UPLOADS_DIR}")
+if not USE_S3:
+    storage_dir = Path(settings.LOCAL_STORAGE_PATH).resolve()
+    storage_dir.mkdir(exist_ok=True, parents=True)
+    app.mount("/uploads", StaticFiles(directory=str(storage_dir)), name="uploads")
+    logger.info(f"Local storage path (mounted at /uploads): {storage_dir}")
 
 logger.info("✅ All API routes registered")
 

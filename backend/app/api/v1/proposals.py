@@ -17,6 +17,7 @@ import io
 from app.core.database import get_async_db
 from app.api.dependencies import CurrentUser
 from app.models.project import Project
+from app.models.file import ProjectFile
 from app.schemas.proposal import (
     ProposalGenerationRequest,
     ProposalJobStatus,
@@ -288,7 +289,37 @@ async def get_proposal(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Proposal not found",
         )
-    
+
+    # ✅ Regenerate fresh image URLs for photo insights (presigned URLs expire)
+    try:
+        ai_meta = proposal.ai_metadata or {}
+        transparency = ai_meta.get("transparency")
+        if isinstance(transparency, dict):
+            client_meta = transparency.get("clientMetadata")
+            if isinstance(client_meta, dict):
+                attachments = client_meta.get("attachmentsSummary")
+                if isinstance(attachments, dict):
+                    photo_insights = attachments.get("photoInsights")
+                    if isinstance(photo_insights, list):
+                        for insight in photo_insights:
+                            if not isinstance(insight, dict):
+                                continue
+                            file_id = insight.get("fileId")
+                            if not file_id:
+                                continue
+                            try:
+                                file_uuid = UUID(str(file_id))
+                            except Exception:
+                                continue
+                            file = await db.get(ProjectFile, file_uuid)
+                            if not file:
+                                continue
+                            image_url = await get_presigned_url(file.file_path, expires=86400)
+                            if image_url:
+                                insight["imageUrl"] = image_url
+    except Exception as exc:  # Best-effort refresh; do not block response
+        logger.warning("photo_insight_refresh_failed", exc_info=True, error=str(exc))
+
     # ✅ Build response with snapshot using helper method
     return ProposalResponse.from_model_with_snapshot(proposal)
 
