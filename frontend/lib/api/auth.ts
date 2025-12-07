@@ -1,5 +1,8 @@
 import { apiClient } from "./client";
 
+// User role type
+export type UserRole = "admin" | "field_agent" | "contractor" | "compliance" | "sales";
+
 // Auth types - matches backend UserRead schema
 interface User {
 	id: string;
@@ -14,6 +17,7 @@ interface User {
 	isActive: boolean;
 	createdAt: string;
 	isSuperuser: boolean;
+	role: UserRole;
 }
 
 interface LoginRequest {
@@ -164,6 +168,7 @@ export class AuthAPI {
 			isActive: response.is_active ?? true,
 			createdAt: response.created_at || new Date().toISOString(),
 			isSuperuser: response.is_superuser ?? false,
+			role: response.role ?? "field_agent",
 		};
 	}
 

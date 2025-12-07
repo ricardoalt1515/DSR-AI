@@ -78,11 +78,11 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
                 )
             return url
         else:  # Modo desarrollo: URL local
-            # Crear una URL local para acceso al archivo
             local_path = os.path.join(LOCAL_UPLOADS_DIR, filename)
             if os.path.exists(local_path):
-                # En desarrollo, podemos usar una URL relativa
-                return f"/uploads/{filename}"
+                # Full URL for cross-origin access (frontend:3000 -> backend:8001)
+                backend_url = os.getenv("BACKEND_URL", "http://localhost:8001")
+                return f"{backend_url}/uploads/{filename}"
             else:
                 logger.warning(f"Archivo local no encontrado: {local_path}")
                 return ""

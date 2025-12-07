@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { User } from "./auth";
+import type { User, UserRole } from "./auth";
 
 export interface AdminCreateUserInput {
 	email: string;
@@ -7,12 +7,14 @@ export interface AdminCreateUserInput {
 	firstName: string;
 	lastName: string;
 	isSuperuser?: boolean;
+	role?: UserRole;
 }
 
 export interface AdminUpdateUserInput {
 	isSuperuser?: boolean;
 	isActive?: boolean;
 	password?: string;
+	role?: UserRole;
 }
 
 function transformUser(response: any): User {
@@ -29,6 +31,7 @@ function transformUser(response: any): User {
 		isActive: response.is_active ?? true,
 		createdAt: response.created_at || new Date().toISOString(),
 		isSuperuser: response.is_superuser ?? false,
+		role: response.role ?? "field_agent",
 	};
 }
 
@@ -46,6 +49,7 @@ export class AdminUsersAPI {
 			last_name: payload.lastName,
 			is_superuser: payload.isSuperuser ?? false,
 			is_active: true,
+			role: payload.role ?? "field_agent",
 		};
 		const response = await apiClient.post<any>("/admin/users", body);
 		return transformUser(response);
@@ -57,6 +61,7 @@ export class AdminUsersAPI {
 				is_superuser: payload.isSuperuser,
 				is_active: payload.isActive,
 				password: payload.password,
+				role: payload.role,
 			}).filter(([, value]) => value !== undefined && value !== null && value !== ""),
 		);
 		const response = await apiClient.patch<any>(`/admin/users/${userId}`, body);

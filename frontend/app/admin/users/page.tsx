@@ -62,7 +62,7 @@ export default function AdminUsersPage() {
 		confirmPassword: "",
 		firstName: "",
 		lastName: "",
-		role: "member" as "admin" | "member",
+		role: "field_agent" as "admin" | "field_agent" | "contractor" | "compliance" | "sales",
 	});
 	const [submitting, setSubmitting] = useState(false);
 	const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
@@ -97,7 +97,7 @@ export default function AdminUsersPage() {
 			confirmPassword: "",
 			firstName: "",
 			lastName: "",
-			role: "member",
+			role: "field_agent",
 		});
 	};
 
@@ -131,6 +131,7 @@ export default function AdminUsersPage() {
 			firstName: form.firstName.trim(),
 			lastName: form.lastName.trim(),
 			isSuperuser: form.role === "admin",
+			role: form.role,
 		};
 		try {
 			const newUser = await adminUsersAPI.create(payload);
@@ -250,161 +251,166 @@ export default function AdminUsersPage() {
 					) : (
 						<TooltipProvider delayDuration={200}>
 							<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Name</TableHead>
-									<TableHead>Email</TableHead>
-									<TableHead>Role</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead className="text-right">Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{users.map((user) => (
-									<TableRow key={user.id}>
-										<TableCell>
-											<div className="flex items-center gap-2 flex-wrap">
-												<div className="font-medium">
-													{user.firstName} {user.lastName}
-												</div>
-												{currentUser?.id === user.id && (
-													<Badge variant="outline" className="text-xs">
-														You
-													</Badge>
-												)}
-												{user.isSuperuser && (
-													<Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/40">
-														Admin
-													</Badge>
-												)}
-											</div>
-											<div className="text-xs text-muted-foreground">
-												Member since {formatMemberSince(user.createdAt)}
-											</div>
-										</TableCell>
-										<TableCell className="font-mono text-sm">{user.email}</TableCell>
-										<TableCell>
-											<span className="inline-flex items-center gap-2">
-												{user.isSuperuser ? (
-													<Crown className="h-4 w-4 text-amber-500" />
-												) : (
-													<Shield className="h-4 w-4 text-muted-foreground" />
-												)}
-												{user.isSuperuser ? "Admin" : "Member"}
-											</span>
-										</TableCell>
-										<TableCell>
-											<div className="flex flex-col space-y-0.5">
-												<span className={user.isActive ? "text-green-600" : "text-muted-foreground"}>
-													{user.isActive ? "Active · Can sign in" : "Disabled · Login blocked"}
-												</span>
-												{!user.isVerified && (
-													<span className="text-xs text-muted-foreground">Email not verified</span>
-												)}
-											</div>
-										</TableCell>
-										<TableCell className="text-right space-x-2">
-											{(() => {
-												const isSelf = currentUser?.id === user.id;
-												const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
-												const disableRoleChange = isSelf || isLastActiveAdmin;
-												const roleTooltipMessage = isSelf
-													? "You can't change your own role"
-													: isLastActiveAdmin
-														? "Keep at least one active admin"
-													: "";
-
-												const roleButton = (
-													<Button
-														variant={user.isSuperuser ? "outline" : "secondary"}
-														size="sm"
-														disabled={disableRoleChange || updatingUserId === user.id}
-														onClick={() =>
-															handleUpdateUser(
-																user.id,
-																{ isSuperuser: !user.isSuperuser },
-																user.isSuperuser
-																	? `${user.firstName} is now Member`
-																	: `${user.firstName} promoted to Admin`,
-															)
-														}
-													>
-														{updatingUserId === user.id ? (
-															<RefreshCcw className="h-4 w-4 animate-spin" />
-														) : user.isSuperuser ? (
-															"Make Member"
-														) : (
-															"Make Admin"
-														)}
-													</Button>
-												);
-
-												return roleTooltipMessage ? (
-													<Tooltip>
-														<TooltipTrigger asChild>{roleButton}</TooltipTrigger>
-														<TooltipContent>{roleTooltipMessage}</TooltipContent>
-													</Tooltip>
-												) : (
-													roleButton
-												);
-											})()}
-											{(() => {
-												const isSelf = currentUser?.id === user.id;
-												const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
-												const disableStatusChange = isSelf || isLastActiveAdmin;
-												const statusTooltipMessage = isSelf
-													? "You can't deactivate your own account"
-													: isLastActiveAdmin
-														? "Keep at least one active admin"
-													: "";
-
-												const statusButton = (
-													<Button
-														variant={user.isActive ? "destructive" : "secondary"}
-														size="sm"
-														disabled={disableStatusChange || updatingUserId === user.id}
-														onClick={() =>
-															handleUpdateUser(
-																user.id,
-																{ isActive: !user.isActive },
-																user.isActive
-																	? `${user.firstName} deactivated`
-																	: `${user.firstName} reactivated`,
-															)
-														}
-													>
-														{updatingUserId === user.id ? (
-															<RefreshCcw className="h-4 w-4 animate-spin" />
-														) : user.isActive ? (
-															<Ban className="h-4 w-4" />
-														) : (
-															"Activate"
-														)}
-													</Button>
-												);
-
-												return statusTooltipMessage ? (
-													<Tooltip>
-														<TooltipTrigger asChild>{statusButton}</TooltipTrigger>
-														<TooltipContent>{statusTooltipMessage}</TooltipContent>
-													</Tooltip>
-												) : (
-													statusButton
-												);
-											})()}
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => handleOpenResetDialog(user.id)}
-											>
-												Reset password
-											</Button>
-										</TableCell>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Name</TableHead>
+										<TableHead>Email</TableHead>
+										<TableHead>Role</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
-								))}
-							</TableBody>
-							<TableCaption>Only admins can manage users.</TableCaption>
-						</Table>
+								</TableHeader>
+								<TableBody>
+									{users.map((user) => (
+										<TableRow key={user.id}>
+											<TableCell>
+												<div className="flex items-center gap-2 flex-wrap">
+													<div className="font-medium">
+														{user.firstName} {user.lastName}
+													</div>
+													{currentUser?.id === user.id && (
+														<Badge variant="outline" className="text-xs">
+															You
+														</Badge>
+													)}
+													{user.isSuperuser && (
+														<Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/40">
+															Admin
+														</Badge>
+													)}
+												</div>
+												<div className="text-xs text-muted-foreground">
+													Member since {formatMemberSince(user.createdAt)}
+												</div>
+											</TableCell>
+											<TableCell className="font-mono text-sm">{user.email}</TableCell>
+											<TableCell>
+												<span className="inline-flex items-center gap-2">
+													{user.role === "admin" || user.isSuperuser ? (
+														<Crown className="h-4 w-4 text-amber-500" />
+													) : (
+														<Shield className="h-4 w-4 text-muted-foreground" />
+													)}
+													{user.role?.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase()) ?? (user.isSuperuser ? "Admin" : "Field Agent")}
+												</span>
+											</TableCell>
+											<TableCell>
+												<div className="flex flex-col space-y-0.5">
+													<span className={user.isActive ? "text-green-600" : "text-muted-foreground"}>
+														{user.isActive ? "Active · Can sign in" : "Disabled · Login blocked"}
+													</span>
+													{!user.isVerified && (
+														<span className="text-xs text-muted-foreground">Email not verified</span>
+													)}
+												</div>
+											</TableCell>
+											<TableCell className="text-right space-x-2">
+												{(() => {
+													const isSelf = currentUser?.id === user.id;
+													const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
+													const disableRoleChange = isSelf || isLastActiveAdmin;
+													const roleTooltipMessage = isSelf
+														? "You can't change your own role"
+														: isLastActiveAdmin
+															? "Keep at least one active admin"
+															: "";
+
+													const roleButton = (
+														<Button
+															variant={user.isSuperuser ? "outline" : "secondary"}
+															size="sm"
+															disabled={disableRoleChange || updatingUserId === user.id}
+															onClick={() => {
+																const nextIsSuperuser = !user.isSuperuser;
+																const updates: AdminUpdateUserInput = nextIsSuperuser
+																	? { isSuperuser: true, role: "admin" }
+																	: { isSuperuser: false, role: "field_agent" };
+
+																handleUpdateUser(
+																	user.id,
+																	updates,
+																	nextIsSuperuser
+																		? `${user.firstName} promoted to Admin`
+																		: `${user.firstName} is now Member`,
+																);
+															}}
+														>
+															{updatingUserId === user.id ? (
+																<RefreshCcw className="h-4 w-4 animate-spin" />
+															) : user.isSuperuser ? (
+																"Make Member"
+															) : (
+																"Make Admin"
+															)}
+														</Button>
+													);
+
+													return roleTooltipMessage ? (
+														<Tooltip>
+															<TooltipTrigger asChild>{roleButton}</TooltipTrigger>
+															<TooltipContent>{roleTooltipMessage}</TooltipContent>
+														</Tooltip>
+													) : (
+														roleButton
+													);
+												})()}
+												{(() => {
+													const isSelf = currentUser?.id === user.id;
+													const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
+													const disableStatusChange = isSelf || isLastActiveAdmin;
+													const statusTooltipMessage = isSelf
+														? "You can't deactivate your own account"
+														: isLastActiveAdmin
+															? "Keep at least one active admin"
+															: "";
+
+													const statusButton = (
+														<Button
+															variant={user.isActive ? "destructive" : "secondary"}
+															size="sm"
+															disabled={disableStatusChange || updatingUserId === user.id}
+															onClick={() =>
+																handleUpdateUser(
+																	user.id,
+																	{ isActive: !user.isActive },
+																	user.isActive
+																		? `${user.firstName} deactivated`
+																		: `${user.firstName} reactivated`,
+																)
+															}
+														>
+															{updatingUserId === user.id ? (
+																<RefreshCcw className="h-4 w-4 animate-spin" />
+															) : user.isActive ? (
+																<Ban className="h-4 w-4" />
+															) : (
+																"Activate"
+															)}
+														</Button>
+													);
+
+													return statusTooltipMessage ? (
+														<Tooltip>
+															<TooltipTrigger asChild>{statusButton}</TooltipTrigger>
+															<TooltipContent>{statusTooltipMessage}</TooltipContent>
+														</Tooltip>
+													) : (
+														statusButton
+													);
+												})()}
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => handleOpenResetDialog(user.id)}
+												>
+													Reset password
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+								<TableCaption>Only admins can manage users.</TableCaption>
+							</Table>
 						</TooltipProvider>
 					)}
 				</CardContent>
@@ -481,7 +487,10 @@ export default function AdminUsersPage() {
 									<SelectValue placeholder="Select role" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="member">Member</SelectItem>
+									<SelectItem value="field_agent">Field Agent</SelectItem>
+									<SelectItem value="contractor">Contractor</SelectItem>
+									<SelectItem value="compliance">Compliance</SelectItem>
+									<SelectItem value="sales">Sales</SelectItem>
 									<SelectItem value="admin">Admin</SelectItem>
 								</SelectContent>
 							</Select>
@@ -544,15 +553,15 @@ export default function AdminUsersPage() {
 					</div>
 					<DialogFooter>
 						<Button
-								variant="outline"
-								onClick={() => {
-									setResetUserId(null);
-									setResetPassword("");
-									setResetConfirmPassword("");
-								}}
-							>
-								Cancel
-							</Button>
+							variant="outline"
+							onClick={() => {
+								setResetUserId(null);
+								setResetPassword("");
+								setResetConfirmPassword("");
+							}}
+						>
+							Cancel
+						</Button>
 						<Button onClick={handleResetPassword} disabled={!canSubmitReset || resetSubmitting}>
 							{resetSubmitting ? (
 								<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />

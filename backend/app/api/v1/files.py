@@ -2,38 +2,42 @@
 File upload and management endpoints.
 """
 
+import logging
+import os
+from pathlib import Path
 from uuid import UUID
-from typing import Any, BinaryIO, List
+
+import aiofiles
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
     HTTPException,
+    Request,
     UploadFile,
     status,
-    BackgroundTasks,
-    Request,
 )
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy import select
-from pathlib import Path
-import aiofiles
-import os
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_async_db, AsyncSessionLocal
 from app.api.dependencies import CurrentUser
-from app.models.project import Project
-from app.models.file import ProjectFile
-from app.models.timeline import TimelineEvent
-from app.schemas.file import FileUploadResponse, FileDetailResponse, FileListResponse
-from app.schemas.common import ErrorResponse
 from app.core.config import settings
-from app.services.s3_service import upload_file_to_s3, get_presigned_url, USE_S3, delete_file_from_s3
+from app.core.database import AsyncSessionLocal, get_async_db
+from app.models.file import ProjectFile
+from app.models.project import Project
+from app.models.timeline import TimelineEvent
+from app.schemas.common import ErrorResponse
+from app.schemas.file import FileDetailResponse, FileListResponse, FileUploadResponse
 from app.services.document_processor import DocumentProcessor
-import logging
-import mimetypes
+from app.services.s3_service import (
+    USE_S3,
+    delete_file_from_s3,
+    get_presigned_url,
+    upload_file_to_s3,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,34 +46,32 @@ router = APIRouter()
 # Import limiter for rate limiting
 from app.main import limiter
 
-
 # Allowed file extensions and max size (single source of truth via settings)
 ALLOWED_EXTENSIONS = {
-	(ext if ext.startswith("." ) else f".{ext}").lower()
-	for ext in settings.allowed_extensions_list
+    (ext if ext.startswith(".") else f".{ext}").lower() for ext in settings.allowed_extensions_list
 }
 MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE
 
 
 def validate_file(upload_file: UploadFile) -> None:
-	"""Basic validation for uploaded files.
+    """Basic validation for uploaded files.
 
-	Ensures the file has a name and an allowed extension.
-	Raises HTTPException with 400 status on invalid files.
-	"""
-	filename = upload_file.filename or ""
-	if not filename:
-		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Filename is required",
-		)
+    Ensures the file has a name and an allowed extension.
+    Raises HTTPException with 400 status on invalid files.
+    """
+    filename = upload_file.filename or ""
+    if not filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required",
+        )
 
-	file_ext = Path(filename).suffix.lower()
-	if file_ext not in ALLOWED_EXTENSIONS:
-		raise HTTPException(
-			status_code=status.HTTP_400_BAD_REQUEST,
-			detail=f"Unsupported file type: {file_ext or 'unknown'}",
-		)
+    file_ext = Path(filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file_ext or 'unknown'}",
+        )
 
 
 @router.post(
@@ -127,38 +129,38 @@ async def upload_file(
     """
     # Validate file
     validate_file(file)
-    
+
     # Verify project access
-    result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
-    )
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
+    result = await db.execute(select(Project).where(*conditions))
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
+
     try:
         # Read file content
         file_content = await file.read()
         file_size = len(file_content)
-        
+
         # Check size
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024} MB",
             )
-        
+
         # Generate unique filename
         import uuid
+
         file_ext = Path(file.filename).suffix.lower()
-        
+
         # AI processing is only supported for image files (JPG, JPEG, PNG)
         is_image = file_ext in {".jpg", ".jpeg", ".png"}
         if process_with_ai and not is_image:
@@ -166,14 +168,15 @@ async def upload_file(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="AI processing is only supported for image files (JPG, JPEG, PNG)",
             )
-        
+
         unique_filename = f"{uuid.uuid4()}{file_ext}"
-        
+
         # Store file
         if USE_S3:
             # Upload to S3
             s3_key = f"projects/{project_id}/files/{unique_filename}"
             from io import BytesIO
+
             file_buffer = BytesIO(file_content)
             await upload_file_to_s3(file_buffer, s3_key, file.content_type)
             file_path = s3_key
@@ -182,25 +185,25 @@ async def upload_file(
             storage_dir = Path(settings.LOCAL_STORAGE_PATH) / "projects" / str(project_id) / "files"
             storage_dir.mkdir(parents=True, exist_ok=True)
             file_path = str(storage_dir / unique_filename)
-            
-            async with aiofiles.open(file_path, 'wb') as f:
+
+            async with aiofiles.open(file_path, "wb") as f:
                 await f.write(file_content)
-        
+
         # Create database record
         project_file = ProjectFile(
             project_id=project_id,
             filename=file.filename,
             file_path=file_path,
             file_size=file_size,
-            file_type=file_ext.lstrip('.'),
+            file_type=file_ext.lstrip("."),
             mime_type=file.content_type or "application/octet-stream",
             category=category,
             uploaded_by=current_user.id,
         )
-        
+
         db.add(project_file)
         await db.flush()  # Get the ID
-        
+
         # Process with AI if requested
         if process_with_ai:
             background_tasks.add_task(
@@ -212,7 +215,7 @@ async def upload_file(
             processing_status = "queued"
         else:
             processing_status = "not_processed"
-        
+
         # Create timeline event
         event = TimelineEvent(
             project_id=project_id,
@@ -231,9 +234,9 @@ async def upload_file(
         db.add(event)
         await db.commit()
         await db.refresh(project_file)
-        
+
         logger.info(f"✅ File uploaded: {file.filename} to project {project_id}")
-        
+
         return FileUploadResponse(
             id=project_file.id,
             filename=project_file.filename,
@@ -244,7 +247,7 @@ async def upload_file(
             uploaded_at=project_file.created_at,
             message="File uploaded successfully",
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -268,25 +271,24 @@ async def list_files(
 ):
     """
     List all files for a project.
-    
+
     Returns files sorted by upload date (newest first).
     Includes file metadata and processing status.
     """
     # Verify project access
-    result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
-    )
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
+    result = await db.execute(select(Project).where(*conditions))
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
-    
+
     # Get files
     result = await db.execute(
         select(ProjectFile)
@@ -337,7 +339,7 @@ async def get_file_detail(
 ):
     """
     Get detailed information about a file.
-    
+
     Includes:
     - File metadata
     - Processing status
@@ -345,23 +347,22 @@ async def get_file_detail(
     - AI analysis (if available)
     """
     # Verify access
-    result = await db.execute(
-        select(ProjectFile)
-        .join(Project)
-        .where(
-            ProjectFile.id == file_id,
-            ProjectFile.project_id == project_id,
-            Project.user_id == current_user.id,
-        )
-    )
+    conditions = [
+        ProjectFile.id == file_id,
+        ProjectFile.project_id == project_id,
+    ]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
+    result = await db.execute(select(ProjectFile).join(Project).where(*conditions))
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     return FileDetailResponse(
         id=file.id,
         project_id=file.project_id,
@@ -387,10 +388,10 @@ async def download_file(
 ):
     """
     Download a file.
-    
+
     - **S3**: Returns redirect to presigned URL (24h expiry)
     - **Local**: Streams file directly
-    
+
     **Usage:**
     ```javascript
     const response = await fetch(`/api/v1/files/${fileId}/download`);
@@ -403,22 +404,21 @@ async def download_file(
     ```
     """
     # Get file (verify access through join)
-    result = await db.execute(
-        select(ProjectFile)
-        .join(Project)
-        .where(
-            ProjectFile.id == file_id,
-            Project.user_id == current_user.id,
-        )
-    )
+    conditions = [
+        ProjectFile.id == file_id,
+    ]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
+    result = await db.execute(select(ProjectFile).join(Project).where(*conditions))
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     if USE_S3:
         # Generate presigned URL and redirect
         url = await get_presigned_url(file.file_path, expires=86400)
@@ -430,14 +430,14 @@ async def download_file(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="File not found on disk",
             )
-        
+
         async def file_generator():
-            async with aiofiles.open(file.file_path, 'rb') as f:
+            async with aiofiles.open(file.file_path, "rb") as f:
                 chunk = await f.read(8192)
                 while chunk:
                     yield chunk
                     chunk = await f.read(8192)
-        
+
         return StreamingResponse(
             file_generator(),
             media_type=file.mime_type,
@@ -462,7 +462,7 @@ async def delete_file(
 ):
     """
     Delete a file from a project.
-    
+
     Deletes both the database record and the physical file.
     """
     # Verify access
@@ -476,13 +476,13 @@ async def delete_file(
         )
     )
     file = result.scalar_one_or_none()
-    
+
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    
+
     # Delete physical file
     try:
         if USE_S3:
@@ -492,10 +492,10 @@ async def delete_file(
                 os.remove(file.file_path)
     except Exception as e:
         logger.warning(f"Could not delete physical file: {e}")
-    
+
     # Delete database record
     await db.delete(file)
-    
+
     # Create timeline event
     event = TimelineEvent(
         project_id=project_id,
@@ -510,9 +510,9 @@ async def delete_file(
     )
     db.add(event)
     await db.commit()
-    
+
     logger.info(f"✅ File deleted: {file.filename} from project {project_id}")
-    
+
     return None
 
 
@@ -522,37 +522,57 @@ async def process_file_with_ai(
     file_path: str,
     file_type: str,
 ):
-    """Process file with AI in background using its own DB session."""
+    """Process file with AI in background using its own DB session.
+    
+    Loads project context (sector/subsector) to provide industry-specific
+    analysis for waste materials.
+    """
     try:
         logger.info(f"🤖 Processing file {file_id} with AI...")
-        
-        # Create document processor and process file
+
+        # Load file and project context for industry-specific analysis
+        async with AsyncSessionLocal() as db:
+            result_db = await db.execute(
+                select(ProjectFile, Project)
+                .join(Project, ProjectFile.project_id == Project.id)
+                .where(ProjectFile.id == file_id)
+            )
+            row = result_db.one_or_none()
+            
+            if not row:
+                logger.error(f"File {file_id} not found")
+                return
+            
+            project_file, project = row
+            project_sector = project.sector
+            project_subsector = project.subsector
+
+        # Create document processor and process file with context
         processor = DocumentProcessor()
-        
-        # Open file and process
-        with open(file_path, 'rb') as file_content:
+
+        with open(file_path, "rb") as file_content:
             result = await processor.process(
                 file_content=file_content,
                 filename=os.path.basename(file_path),
                 file_type=file_type,
+                project_sector=project_sector,      # NEW: Industry context
+                project_subsector=project_subsector,  # NEW: Subsector context
             )
-        
+
         # Update file record in its own async DB session
         async with AsyncSessionLocal() as db:
             try:
-                result_db = await db.execute(
-                    select(ProjectFile).where(ProjectFile.id == file_id)
-                )
+                result_db = await db.execute(select(ProjectFile).where(ProjectFile.id == file_id))
                 file = result_db.scalar_one_or_none()
-                
+
                 if file:
                     file.processed_text = result.get("text")
                     file.ai_analysis = result.get("analysis")
                     await db.commit()
-                    logger.info(f"✅ File {file_id} processed successfully")
+                    logger.info(f"✅ File {file_id} processed successfully (sector: {project_sector})")
             except Exception:
                 await db.rollback()
                 raise
-    
+
     except Exception as e:
         logger.error(f"Error processing file {file_id}: {e}", exc_info=True)

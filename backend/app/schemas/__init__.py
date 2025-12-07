@@ -1,7 +1,6 @@
 """Pydantic schemas for request/response validation."""
 
 from app.schemas.common import PaginatedResponse, APIError, SuccessResponse
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
 from app.schemas.company import (
     CompanyCreate,
     CompanyUpdate,
@@ -31,11 +30,6 @@ __all__ = [
     "PaginatedResponse",
     "APIError",
     "SuccessResponse",
-    # User
-    "UserCreate",
-    "UserLogin",
-    "UserResponse",
-    "TokenResponse",
     # Company
     "CompanyCreate",
     "CompanyUpdate",

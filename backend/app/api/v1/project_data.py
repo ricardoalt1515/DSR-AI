@@ -38,16 +38,19 @@ async def get_project_data(
     Returns the complete JSONB structure.
     
     Requires authentication and ownership validation.
+    Superusers can access any project; members only their own.
     """
-    # Verify project ownership  (404 prevents info leakage)
+    # Verify project access  (404 prevents info leakage)
     project = await db.get(Project, project_id)
-    if not project or project.user_id != current_user.id:
+    if not project:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     data = await ProjectDataService.get_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id
+        user_id=project.user_id
     )
     
     return {
@@ -73,32 +76,19 @@ async def update_project_data(
     Set merge=false to replace completely.
     
     Requires authentication and ownership validation.
-    
-    **Example:**
-    ```json
-    {
-      "basic_info": {
-        "company_name": "IBYMA",
-        "location": "Los Mochis"
-      },
-      "quality": {
-        "BOD": {
-          "value": 3700,
-          "unit": "mg/L"
-        }
-      }
-    }
-    ```
+    Superusers can modify any project; members only their own.
     """
-    # Verify project ownership (404 prevents info leakage)
+    # Verify project access (404 prevents info leakage)
     project_check = await db.get(Project, project_id)
-    if not project_check or project_check.user_id != current_user.id:
+    if not project_check:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project_check.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     project = await ProjectDataService.update_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id,
+        user_id=project_check.user_id,
         updates=updates,
         merge=merge
     )
@@ -126,16 +116,19 @@ async def replace_project_data(
     Use this for full updates, not partial.
     
     Requires authentication and ownership validation.
+    Superusers can modify any project; members only their own.
     """
-    # Verify project ownership (404 prevents info leakage)
+    # Verify project access (404 prevents info leakage)
     project_check = await db.get(Project, project_id)
-    if not project_check or project_check.user_id != current_user.id:
+    if not project_check:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project_check.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     project = await ProjectDataService.update_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id,
+        user_id=project_check.user_id,
         updates=data,
         merge=False  # Complete replacement
     )
@@ -164,6 +157,7 @@ async def add_quality_parameter(
     Quick endpoint to add/update a water quality parameter.
     
     Requires authentication and ownership validation.
+    Superusers can modify any project; members only their own.
     
     **Example:**
     POST /projects/{id}/quality-parameter
@@ -171,14 +165,16 @@ async def add_quality_parameter(
     """
     # Verify project ownership (404 prevents info leakage)
     project_check = await db.get(Project, project_id)
-    if not project_check or project_check.user_id != current_user.id:
+    if not project_check:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project_check.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     # Get current data
     data = await ProjectDataService.get_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id
+        user_id=project_check.user_id
     )
     
     # Update quality parameter
@@ -194,7 +190,7 @@ async def add_quality_parameter(
     project = await ProjectDataService.update_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id,
+        user_id=project_check.user_id,
         updates={"quality": data["quality"]},
         merge=True
     )
@@ -224,17 +220,20 @@ async def delete_quality_parameter(
     Delete a water quality parameter.
     
     Requires authentication and ownership validation.
+    Superusers can modify any project; members only their own.
     """
-    # Verify project ownership (404 prevents info leakage)
+    # Verify project access (404 prevents info leakage)
     project = await db.get(Project, project_id)
-    if not project or project.user_id != current_user.id:
+    if not project:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     # Get current data
     data = await ProjectDataService.get_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id
+        user_id=project.user_id
     )
     
     # Remove parameter
@@ -246,7 +245,7 @@ async def delete_quality_parameter(
         await ProjectDataService.update_project_data(
             db=db,
             project_id=project_id,
-            user_id=current_user.id,
+            user_id=project.user_id,
             updates={"quality": quality},
             merge=True
         )
@@ -289,9 +288,11 @@ async def add_custom_section(
     }
     ```
     """
-    # Get project to find user_id
+    # Get project to find user_id (superusers can modify any project; members only their own)
     project = await db.get(Project, project_id)
     if not project:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     # Get current data
@@ -314,7 +315,7 @@ async def add_custom_section(
     await ProjectDataService.update_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id,
+        user_id=project.user_id,
         updates={"sections": sections},
         merge=True
     )
@@ -339,17 +340,20 @@ async def delete_custom_section(
     """
     Delete a custom section.
     Requires authentication and ownership validation.
+    Superusers can modify any project; members only their own.
     """
-    # Verify project ownership (404 prevents info leakage)
+    # Verify project access (404 prevents info leakage)
     project = await db.get(Project, project_id)
-    if not project or project.user_id != current_user.id:
+    if not project:
+        raise HTTPException(404, "Project not found")
+    if not current_user.is_superuser and project.user_id != current_user.id:
         raise HTTPException(404, "Project not found")
     
     # Get current data
     data = await ProjectDataService.get_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id
+        user_id=project.user_id
     )
     
     # Filter section
@@ -367,7 +371,7 @@ async def delete_custom_section(
     await ProjectDataService.update_project_data(
         db=db,
         project_id=project_id,
-        user_id=current_user.id,
+        user_id=project.user_id,
         updates={"sections": filtered_sections},
         merge=True
     )

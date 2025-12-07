@@ -114,14 +114,11 @@ function extractPhotoInsights(
 
 	const data = analysis as {
 		summary?: unknown;
-		materialAppearance?: unknown;
-		visibleContaminants?: unknown;
-		packaging?: unknown;
-		moistureLevel?: unknown;
-		estimatedHomogeneity?: unknown;
-		safetyRisks?: unknown;
-		commentsForUpcycling?: unknown;
 		confidence?: unknown;
+		materialType?: unknown;
+		qualityGrade?: unknown;
+		priceBandHint?: unknown;
+		businessIdeas?: unknown;
 	};
 
 	const insights: string[] = [];
@@ -151,14 +148,11 @@ function extractPhotoInsights(
 		}
 	};
 
-	addIfString("Material appearance", data.materialAppearance);
-	addIfStringArray("Visible contaminants", data.visibleContaminants);
-	addIfString("Packaging", data.packaging);
-	addIfString("Moisture level", data.moistureLevel);
-	addIfString("Estimated homogeneity", data.estimatedHomogeneity);
-	addIfStringArray("Safety risks", data.safetyRisks);
-	addIfString("Upcycling comments", data.commentsForUpcycling);
 	addIfString("Confidence", data.confidence);
+	addIfString("Material type", data.materialType);
+	addIfString("Quality grade", data.qualityGrade);
+	addIfString("Price band", data.priceBandHint);
+	addIfStringArray("Business ideas", data.businessIdeas);
 
 	return insights.slice(0, MAX_ANALYSIS_INSIGHTS);
 }

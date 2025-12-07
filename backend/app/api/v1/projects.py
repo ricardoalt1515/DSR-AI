@@ -236,12 +236,14 @@ async def get_project(
     from app.models.location import Location
     from app.models.company import Company
     
+    # Permission: superusers can access any project; members only their own
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+        
     result = await db.execute(
         select(Project)
-        .where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        .where(*conditions)
         .options(
             selectinload(Project.location_rel).selectinload(Location.company),
             selectinload(Project.proposals),
@@ -404,11 +406,13 @@ async def update_project(
     """Update project fields and log timeline event."""
     from app.services.timeline_service import create_timeline_event
     
+    # Permission: superusers can update any project; members only their own
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+    
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
 
@@ -475,12 +479,13 @@ async def delete_project(
     This will also delete all related data (technical data, proposals, files, timeline).
     Cascade delete is configured in the database models.
     """
-    # Get project
+    # Get project (superusers can delete any project; members only their own)
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+    
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
 
@@ -523,12 +528,13 @@ async def get_project_timeline(
     from app.models.timeline import TimelineEvent
     from app.schemas.timeline import TimelineEventResponse
     
-    # Verify project access
+    # Verify project access (superusers can view any project; members only their own)
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+    
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
     

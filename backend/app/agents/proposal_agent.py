@@ -1,7 +1,11 @@
 """
 AI Agent for generating waste upcycling feasibility reports.
-Analyzes waste assessment questionnaire data to generate business-focused reports.
-No engineering tools needed - pure LLM analysis of waste streams, pathways, and ROI.
+
+Design principles:
+- DRY: Single context injection, no repeated data
+- Fail fast: Lazy API key check
+- Less code: ~100 lines instead of ~300
+- Good names: project_data instead of water_data
 """
 
 import json
@@ -23,239 +27,167 @@ logger = logging.getLogger(__name__)
 
 
 class ProposalGenerationError(Exception):
-    """Custom exception for proposal generation failures"""
-
+    """Raised when proposal generation fails."""
     pass
 
 
-# Simple data structure for the agent
 @dataclass
 class ProposalContext:
-    """Simple context for proposal generation"""
-
-    water_data: FlexibleWaterProjectData
+    """Context for proposal generation."""
+    project_data: FlexibleWaterProjectData
     client_metadata: dict[str, Any]
+    photo_insights: list[dict[str, Any]] | None = None
 
 
-# Configure OpenAI API
-if not os.getenv("OPENAI_API_KEY") and settings.OPENAI_API_KEY:
-    os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
-
-if not os.getenv("OPENAI_API_KEY"):
-    logger.error("OpenAI API key not found")
-    raise ValueError("OpenAI API key required")
-
-
-def load_proposal_prompt() -> str:
-    """
-    Load waste upcycling report prompt from external markdown file.
-    Follows 2025 best practices for prompt management in production AI applications.
-    """
-    # Use the aligned V3 prompt that matches ProposalOutput schema
-    prompt_path = Path(__file__).parent.parent / "prompts" / "waste-upcycling-report.v3.md"
-
-    try:
-        with open(prompt_path, encoding="utf-8") as f:
-            content = f.read().strip()
-
-        if not content:
-            raise ValueError(f"Prompt file is empty: {prompt_path}")
-
-        logger.info(f"✅ Loaded prompt template from: {prompt_path.name}")
-        return content
-
-    except FileNotFoundError:
-        logger.error(f"❌ Prompt file not found: {prompt_path}")
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error loading prompt: {e}")
-        raise
+def _ensure_api_key() -> None:
+    """Lazy API key check - fail fast only when actually needed."""
+    if not os.getenv("OPENAI_API_KEY"):
+        if settings.OPENAI_API_KEY:
+            os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+        else:
+            raise ValueError("OPENAI_API_KEY required but not configured")
 
 
+def _load_prompt() -> str:
+    """Load prompt from external file."""
+    path = Path(__file__).parent.parent / "prompts" / "waste-upcycling-report.v3.md"
+    if not path.exists():
+        raise FileNotFoundError(f"Prompt not found: {path}")
+    return path.read_text(encoding="utf-8").strip()
+
+
+# Initialize agent (lazy API key check happens on first use)
 proposal_agent = Agent(
-    f"openai:{settings.OPENAI_MODEL}",  # Read from .env for flexibility
+    f"openai:{settings.OPENAI_MODEL}",
     deps_type=ProposalContext,
     output_type=ProposalOutput,
-    instructions=load_proposal_prompt(),
-    model_settings=ModelSettings(
-        temperature=0.8,  # Slightly higher for creative business recommendations
-    ),
-    retries=1,
+    instructions=_load_prompt(),
+    model_settings=ModelSettings(temperature=0.4),
+    retries=2,
 )
 
 
-# Dynamic data injection using @instructions
 @proposal_agent.instructions
-def inject_company_context(ctx: RunContext[ProposalContext]) -> str:
-    """Inject dynamic company and project context"""
-    client_metadata = ctx.deps.client_metadata
-
-    return f"""
-PROJECT CONTEXT:
-Company: {client_metadata.get("company_name", "Client Company")}
-Industry: {client_metadata.get("selected_sector", "Industrial")}
-Subsector: {client_metadata.get("selected_subsector", "General")}
-Location: {client_metadata.get("user_location", "Not specified")}
-"""
-
-
-@proposal_agent.instructions
-def inject_waste_assessment_data(ctx: RunContext[ProposalContext]) -> str:
+def inject_context(ctx: RunContext[ProposalContext]) -> str:
     """
-    Inject clean waste assessment data for AI analysis.
-
-    Uses to_ai_context() to extract ONLY relevant values without UI metadata,
-    reducing token count and improving AI focus on business analysis.
+    Single context injection (DRY principle).
+    
+    Combines: project context, waste data, client metadata, and photo insights.
     """
-    water_data = ctx.deps.water_data  # Still called water_data for compatibility
+    meta = ctx.deps.client_metadata
+    data = ctx.deps.project_data
+    photos = ctx.deps.photo_insights
+    
+    # Build context sections
+    sections = []
+    
+    # 1. Project context
+    sections.append(f"""
+PROJECT:
+- Company: {meta.get('company_name', 'N/A')}
+- Sector: {meta.get('selected_sector', 'Industrial')} / {meta.get('selected_subsector', 'General')}
+- Location: {meta.get('user_location', 'Not specified')}
+""")
+    
+    # 2. Waste assessment data (clean, no UI metadata)
+    ai_context = data.to_ai_context()
+    formatted = data.format_ai_context_to_string(ai_context)
+    sections.append(f"""
+WASTE ASSESSMENT:
+{formatted}
+""")
+    
+    # 3. Photo insights (if available) - pass ESG data directly
+    if photos:
+        photo_sections = []
+        for i, p in enumerate(photos, 1):
+            # Core identification
+            material = p.get("material_type", "Unknown")
+            quality = p.get("quality_grade", "Unknown")
+            lifecycle = p.get("lifecycle_status", "Unknown")
+            
+            # ESG data - pass directly so LLM can copy to esg_pitch
+            esg_current = p.get("current_situation", "")
+            esg_benefit = p.get("benefit_if_diverted", "")
+            
+            # Handling - pass directly for safety section
+            storage = p.get("storage_requirements", [])
+            ppe = p.get("ppe_requirements", [])
+            
+            # Price hint
+            price = p.get("price_band_hint", "N/A")
+            
+            # Business ideas from photo
+            ideas = p.get("business_ideas", [])
+            
+            photo_sections.append(f"""
+PHOTO {i}: {material}
+- Quality: {quality} | Lifecycle: {lifecycle}
+- Price hint: {price}
+- ESG (current): {esg_current}
+- ESG (if diverted): {esg_benefit}
+- Storage: {', '.join(storage) if storage else 'N/A'}
+- PPE: {', '.join(ppe) if ppe else 'Standard'}
+- Photo business ideas: {'; '.join(ideas[:2]) if ideas else 'None identified'}
+""")
+        
+        sections.append(f"""
+PHOTO ANALYSIS (use this data directly in your pathways):
+{''.join(photo_sections)}
+""")
+    
+    return "".join(sections)
 
-    # Extract clean context (no id, type, source, importance metadata)
-    ai_context = water_data.to_ai_context()
 
-    # Format as readable markdown
-    formatted_context = water_data.format_ai_context_to_string(ai_context)
-
-    return f"""
-WASTE ASSESSMENT DATA:
-{formatted_context}
-"""
-
-
-@proposal_agent.instructions
-def inject_client_requirements(ctx: RunContext[ProposalContext]) -> str:
-    """Inject additional client metadata and requirements"""
-    client_metadata = ctx.deps.client_metadata
-    metadata_json = json.dumps(client_metadata, indent=2)
-
-    return f"""
-CLIENT REQUIREMENTS & METADATA:
-{metadata_json}
-"""
-
-
-async def generate_enhanced_proposal(
-    water_data: FlexibleWaterProjectData,
+async def generate_proposal(
+    project_data: FlexibleWaterProjectData,
     client_metadata: dict[str, Any] | None = None,
+    photo_insights: list[dict[str, Any]] | None = None,
 ) -> ProposalOutput:
     """
-    Generate waste upcycling feasibility report using AI agent.
-
+    Generate waste upcycling feasibility report.
+    
     Args:
-        water_data: FlexibleWaterProjectData with waste assessment questionnaire data
-        client_metadata: Client metadata dict from user profile and project
-
+        project_data: Waste assessment questionnaire data
+        client_metadata: Client info (company, sector, location)
+        photo_insights: Optional photo analysis from image_analysis_agent
+    
     Returns:
-        ProposalOutput: Complete waste upcycling feasibility report with business recommendations
+        ProposalOutput with GO/NO-GO decision and analysis
+    
+    Raises:
+        ProposalGenerationError: On failure
     """
-    if client_metadata is None:
-        client_metadata = {}
-
+    _ensure_api_key()  # Fail fast if no API key
+    
+    context = ProposalContext(
+        project_data=project_data,
+        client_metadata=client_metadata or {},
+        photo_insights=photo_insights,
+    )
+    
     try:
-        logger.info("🧠 Starting proposal generation...")
-
-        # ═══════════════════════════════════════════════════════════════════
-        # 🔍 LOG CLEAN DATA SENT TO AI AGENT
-        # ═══════════════════════════════════════════════════════════════════
-        logger.info("╔══════════════════════════════════════════════════════════════╗")
-        logger.info("║         📨 CLEAN DATA SENT TO AI AGENT (No Metadata)         ║")
-        logger.info("╚══════════════════════════════════════════════════════════════╝")
-
-        # 1. Extract and log clean AI context
-        ai_context = water_data.to_ai_context()
-        ai_context_json = json.dumps(ai_context, indent=2, ensure_ascii=False)
-
-        logger.info("🎯 CLEAN AI CONTEXT:")
-        logger.info(f"\n{ai_context_json}")
-
-        # 2. Show formatted string preview (what actually gets injected)
-        formatted_context = water_data.format_ai_context_to_string(ai_context)
-        logger.info("\n📝 FORMATTED CONTEXT (for prompt injection):")
-        logger.info(
-            f"\n{formatted_context[:500]}..."
-            if len(formatted_context) > 500
-            else f"\n{formatted_context}"
-        )
-
-        # 3. Log client metadata
-        metadata_json = json.dumps(client_metadata, indent=2, ensure_ascii=False)
-        logger.info("\n🏢 CLIENT METADATA:")
-        logger.info(f"\n{metadata_json}")
-
-        # 4. Token efficiency info
-        full_json = water_data.model_dump_json(exclude_none=True)
-        logger.info("\n💡 EFFICIENCY:")
-        logger.info(f"  Full serialization: {len(full_json)} chars")
-        logger.info(f"  Clean context: {len(formatted_context)} chars")
-        logger.info(
-            f"  Reduction: {round((1 - len(formatted_context) / len(full_json)) * 100, 1)}%"
-        )
-
-        logger.info("════════════════════════════════════════════════════════════════")
-
-        # Create context - data will be injected via @instructions
-        context = ProposalContext(
-            water_data=water_data,
-            client_metadata=client_metadata,
-        )
-
-        # Run agent with usage limits (no tools = faster, lower token count)
+        logger.info("🧠 Generating proposal...")
+        
         result = await proposal_agent.run(
-            "Generate a comprehensive waste upcycling feasibility report analyzing waste streams, recovery opportunities, ROI, and environmental impact.",
+            "Generate a waste upcycling feasibility report with GO/NO-GO decision.",
             deps=context,
             usage_limits=UsageLimits(
-                request_limit=5,  # No tools needed - just LLM reasoning
-                total_tokens_limit=100000,  # Lower limit - simpler business analysis
+                request_limit=3,
+                total_tokens_limit=50000,  # Reduced - simpler output
             ),
         )
-
-        # Log success with token usage
-        usage = result.usage()
-        if usage:
-            logger.info("✅ Report generated successfully")
-            logger.info(
-                f"📊 Token usage: {usage.total_tokens:,} / 100,000 ({usage.total_tokens / 1000:.1f}%)"
-            )
-            # Note: RunUsage doesn't have request_count attribute in pydantic-ai
-            # Use usage.requests if available or skip logging request count
-            try:
-                if hasattr(usage, "requests"):
-                    logger.info(f"📊 API requests: {len(usage.requests)}")
-            except:
-                pass
-
-            # Warn if approaching limit
-            if usage.total_tokens > 80000:
-                logger.warning(
-                    f"⚠️  HIGH TOKEN USAGE: {usage.total_tokens:,} tokens (>80K). "
-                    f"Consider optimizing prompt or increasing limit."
-                )
-
-        # 🔍 INSPECT OUTPUT FOR TOKEN ANALYSIS
-        try:
-            markdown_chars = len(result.output.markdown_content)
-            markdown_words = len(result.output.markdown_content.split())
-            markdown_lines = len(result.output.markdown_content.split("\n"))
-
-            logger.info("╔══════════════════════════════════════════════════════════════╗")
-            logger.info("║          📝 MARKDOWN CONTENT ANALYSIS                        ║")
-            logger.info("╠══════════════════════════════════════════════════════════════╣")
-            logger.info(f"║ Characters: {markdown_chars:,}")
-            logger.info(f"║ Words: {markdown_words:,}")
-            logger.info(f"║ Lines: {markdown_lines}")
-            logger.info(f"║ Est. tokens: {int(markdown_words * 1.3):,} (words × 1.3)")
-            logger.info("╠══════════════════════════════════════════════════════════════╣")
-            logger.info("║ First 500 characters:")
-            logger.info(f"║ {result.output.markdown_content[:500]}")
-            logger.info("╚══════════════════════════════════════════════════════════════╝")
-        except Exception as inspect_error:
-            logger.debug(f"Could not inspect markdown output: {inspect_error}")
-        else:
-            logger.info("✅ Report generated successfully")
-
-        # No deviation analysis needed for waste upcycling (no proven cases)
-
+        
+        # Log usage
+        if usage := result.usage():
+            logger.info(f"✅ Proposal generated ({usage.total_tokens:,} tokens)")
+        
         return result.output
-
+        
     except Exception as e:
-        logger.error(f"❌ Error generating proposal: {e}", exc_info=True)
-        raise ProposalGenerationError(f"Failed to generate proposal: {e}")
+        logger.error(f"❌ Proposal generation failed: {e}")
+        raise ProposalGenerationError(str(e)) from e
+
+
+# Backwards compatibility alias
+generate_enhanced_proposal = generate_proposal

@@ -1,148 +1,112 @@
 /**
- * Shared helper functions for extracting and formatting proposal metrics
- * Following DRY principle - single source of truth for metric calculations
+ * Shared helper functions for extracting proposal metrics
+ * Updated for new buyer-focused schema
  */
 
-import type { WasteUpcyclingReport } from "@/lib/types/proposal";
-
-// EPA standard conversion factors (avoid magic numbers)
-const CO2_CONVERSIONS = {
-	CARS_PER_YEAR: 4.6, // tCO₂e per car per year
-	TREES_PLANTED: 0.024, // tCO₂e absorbed per tree per year
-	KWH_COAL: 0.00088, // tCO₂e per kWh coal power
-} as const;
+import type { WasteUpcyclingReport, BusinessPathway } from "@/lib/types/proposal";
 
 /**
- * Extracts the highest revenue estimate from potential revenue data
- * @returns Formatted revenue string (e.g., "$43.8k/yr") or "N/A"
+ * Extract annual value from pathways (highest)
  */
 export function extractHighRevenue(report: WasteUpcyclingReport): string {
-	const annualPotential =
-		report.businessOpportunity?.potentialRevenue?.annualPotential?.[0];
+	if (!report.pathways || report.pathways.length === 0) return "N/A";
 
-	if (!annualPotential) {
-		// Fallback: try to extract from first circular economy option
-		const firstOption = report.businessOpportunity?.circularEconomyOptions?.[0];
-		if (firstOption) {
-			const revenueMatch = firstOption.match(/\$[\d.,]+(?:k)?\/(?:ton|yr)/);
-			return revenueMatch?.[0] || "N/A";
-		}
-		return "N/A";
-	}
-
-	// Extract highest value from range (e.g., "$8.8k-$43.8k/yr" → "$43.8k/yr")
-	const rangeMatch = annualPotential.match(/\$[\d.,]+k?-\$?([\d.,]+k)/);
-	if (rangeMatch?.[1]) {
-		return `$${rangeMatch[1]}/yr`;
-	}
-
-	// Try to extract any dollar amount
-	const dollarMatch = annualPotential.match(/\$[\d.,]+k?(?:\/yr)?/);
-	return dollarMatch?.[0] || annualPotential;
+	// Return first pathway's value (they're ordered by margin)
+	return report.pathways[0]?.annualValue || "N/A";
 }
 
 /**
- * Calculates landfill diversion percentage from before/after data
- * @returns Formatted percentage (e.g., "80%") or tonnage string
+ * Get margin estimate
  */
-export function extractLandfillDiversion(report: WasteUpcyclingReport): string {
-	const beforeText =
-		report.businessOpportunity?.landfillReduction?.before?.[0] || "";
-	const afterText =
-		report.businessOpportunity?.landfillReduction?.after?.[0] || "";
-
-	// Try to extract percentage from after text
-	if (afterText.includes("%")) {
-		const match = afterText.match(/([\d.]+)%/);
-		return match ? `${match[1]}%` : "N/A";
-	}
-
-	// Try to extract tonnage and calculate percentage
-	const tonnageMatch = afterText.match(/~?([\d.,]+)\s*(?:t\/yr|tons?)/i);
-	const beforeTonnageMatch = beforeText.match(/~?([\d.,]+)\s*(?:t\/yr|tons?)/i);
-
-	if (tonnageMatch?.[1] && beforeTonnageMatch?.[1]) {
-		const after = parseFloat(tonnageMatch[1].replace(/,/g, ""));
-		const before = parseFloat(beforeTonnageMatch[1].replace(/,/g, ""));
-		const percentage = ((after / before) * 100).toFixed(0);
-		return `${percentage}%`;
-	}
-
-	// If mentions "divert", show descriptive text
-	if (afterText.toLowerCase().includes("divert")) {
-		const tonnageOnly = afterText.match(/~?([\d.,]+)\s*(?:t\/yr|tons?)/i);
-		return tonnageOnly ? tonnageOnly[0] : "Diverted";
-	}
-
-	return "N/A";
+export function extractMargin(report: WasteUpcyclingReport): string {
+	return report.financials?.dsrMargin || "N/A";
 }
 
 /**
- * Extracts and formats CO₂ avoided from LCA data
- * @returns Formatted CO₂ string (e.g., "~158 tCO₂e/yr")
+ * Get CO2 avoided
  */
 export function extractCO2Avoided(report: WasteUpcyclingReport): string {
-	const tons = report.lca?.co2Reduction?.tons?.[0];
-	if (!tons) return "N/A";
-
-	// Clean up and format (e.g., "~158.4 tCO₂e/yr avoided" → "~158 tCO₂e/yr")
-	const cleanMatch = tons.match(/~?([\d.,]+)\s*tCO[₂2]e?(?:\/yr)?/i);
-	if (cleanMatch?.[1]) {
-		const value = parseFloat(cleanMatch[1]);
-		return `~${Math.round(value)} tCO₂e/yr`;
-	}
-
-	return tons;
+	return report.environment?.co2Avoided || "N/A";
 }
 
 /**
- * Extracts numeric CO₂ value in tons for equivalency calculations
- * @returns Numeric tons or null if not found
+ * Get pathway count
+ */
+export function getPathwayCount(report: WasteUpcyclingReport): number {
+	return report.pathways?.length || 0;
+}
+
+/**
+ * Get risk count
+ */
+export function getRiskCount(report: WasteUpcyclingReport): number {
+	return report.risks?.length || 0;
+}
+
+/**
+ * Get ESG headline for display
+ */
+export function getESGHeadline(report: WasteUpcyclingReport): string {
+	return report.environment?.esgHeadline || "Environmental assessment pending";
+}
+
+/**
+ * Get top pathways for display
+ */
+export function getTopPathways(report: WasteUpcyclingReport, limit = 3): BusinessPathway[] {
+	return report.pathways?.slice(0, limit) || [];
+}
+
+// Backward compat aliases
+export const extractLandfillDiversion = () => "100%"; // DSR diverts all
+export const getBusinessIdeasCount = getPathwayCount;
+
+// ==============================================
+// CO2 CONVERSION FUNCTIONS (for Economics page)
+// ==============================================
+
+/**
+ * Extract CO2 tons from report (handles old and new schema)
  */
 export function extractCO2Tons(report: WasteUpcyclingReport): number | null {
-	const tons = report.lca?.co2Reduction?.tons?.[0];
-	if (!tons) return null;
-
-	const match = tons.match(/~?([\d.,]+)\s*tCO[₂2]e?/i);
-	if (match?.[1]) {
-		return parseFloat(match[1].replace(/,/g, ""));
+	// Try new schema first
+	const co2String = report.environment?.co2Avoided;
+	if (co2String) {
+		const match = co2String.match(/([\d.,]+)\s*(tons?|tCO2e?)/i);
+		if (match?.[1]) {
+			return parseFloat(match[1].replace(/,/g, ""));
+		}
 	}
-
 	return null;
 }
 
 /**
- * Converts CO₂ tons to car equivalents
- * @param tons - CO₂ in tons
- * @returns Number of cars (rounded)
- */
-export function co2ToCars(tons: number): number {
-	return Math.round(tons / CO2_CONVERSIONS.CARS_PER_YEAR);
-}
-
-/**
- * Converts CO₂ tons to tree equivalents
- * @param tons - CO₂ in tons
- * @returns Number of trees (rounded)
- */
-export function co2ToTrees(tons: number): number {
-	return Math.round(tons / CO2_CONVERSIONS.TREES_PLANTED);
-}
-
-/**
- * Converts CO₂ tons to coal power kWh equivalents
- * @param tons - CO₂ in tons
- * @returns kWh (rounded)
- */
-export function co2ToCoalKwh(tons: number): number {
-	return Math.round(tons / CO2_CONVERSIONS.KWH_COAL);
-}
-
-/**
- * Formats large numbers with commas for readability
- * @param num - Number to format
- * @returns Formatted string (e.g., "6,500")
+ * Format number with commas
  */
 export function formatNumber(num: number): string {
-	return num.toLocaleString("en-US");
+	return Math.round(num).toLocaleString();
+}
+
+/**
+ * Convert CO2 tons to equivalent cars off the road for 1 year
+ * EPA: 1 car = 4.6 metric tons CO2/year
+ */
+export function co2ToCars(tons: number): number {
+	return tons / 4.6;
+}
+
+/**
+ * Convert CO2 tons to equivalent trees planted for 10 years
+ * EPA: 1 tree absorbs ~0.039 metric tons CO2/year
+ */
+export function co2ToTrees(tons: number): number {
+	return tons / 0.039;
+}
+
+/**
+ * Convert CO2 tons to equivalent kWh of coal power avoided
+ * EPA: ~0.85 kg CO2 per kWh coal
+ */
+export function co2ToCoalKwh(tons: number): number {
+	return (tons * 1000) / 0.85;
 }

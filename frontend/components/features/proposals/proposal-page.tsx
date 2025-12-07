@@ -1,21 +1,8 @@
 "use client";
 
-import {
-	Activity,
-	AlertCircle,
-	ArrowLeft,
-	Bot,
-	Brain,
-	ClipboardList,
-	Download,
-	LayoutDashboard,
-	LineChart,
-	ListChecks,
-	ShieldAlert,
-	SlidersHorizontal,
-} from "lucide-react";
+import { ArrowLeft, Download, ListChecks } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
@@ -25,29 +12,10 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
-import { EmptyState } from "@/components/ui/empty-state";
-import {
-	ResizableHandle,
-	ResizablePanel,
-	ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CompactDecisionHeader } from "./compact-decision-header";
-import { CONFIDENCE_PERCENT_BY_LEVEL } from "./confidence-helpers";
-import { ProposalAISection } from "./proposal-ai-section";
-import { ProposalAssumptions } from "./proposal-assumptions";
-import { ProposalEconomics } from "./proposal-economics";
 import { ProposalOverview } from "./proposal-overview";
-import { ProposalParameters } from "./proposal-parameters";
-import { ProposalTechnical } from "./proposal-technical";
-import {
-	ComplianceSnapshotCard,
-	DecisionSidebar,
-	QuickActionsCard,
-	RiskHighlightsCard,
-} from "./sidebar";
-import type { AIMetadata, Project, Proposal } from "./types";
+import { QuickActionsCard } from "./sidebar";
+import type { Project, Proposal } from "./types";
 
 interface ProposalPageProps {
 	proposal: Proposal;
@@ -56,28 +24,6 @@ interface ProposalPageProps {
 	onStatusChange?: (newStatus: string) => void;
 	onDownloadPDF?: () => void;
 }
-
-// Tab sections configuration for Waste Upcycling Reports
-const PROPOSAL_SECTIONS = [
-	{ value: "summary", label: "Summary", icon: LayoutDashboard },
-	{ value: "inventory", label: "Waste & Pathways", icon: SlidersHorizontal },
-	{ value: "economics", label: "Economics & ROI", icon: LineChart },
-	{ value: "ai", label: "AI & Audit", icon: Bot },
-] as const;
-
-type ProposalSection = (typeof PROPOSAL_SECTIONS)[number]["value"];
-
-// Layout constants
-const MAIN_PANEL_DEFAULT_SIZE = 72;
-const SIDEBAR_DEFAULT_SIZE = 28;
-const SIDEBAR_MIN_HEIGHT = 400;
-
-// Proven cases display limits
-const _PROVEN_CASES_MAX_ITEMS = 4;
-const _PROVEN_CASES_SCROLL_HEIGHT = 220;
-
-// Criticality threshold for equipment
-const HIGH_CRITICALITY = "high" as const;
 
 const STATUS_BADGE_VARIANT: Record<
 	Proposal["status"],
@@ -95,27 +41,15 @@ export function ProposalPage({
 	onStatusChange,
 	onDownloadPDF,
 }: ProposalPageProps) {
-	const [activeTab, setActiveTab] = useState<ProposalSection>("summary");
-	const [isChecklistOpen, setIsChecklistOpen] = useState<boolean>(false);
-
-	// Extract waste upcycling report data
-	const report = proposal.aiMetadata.proposal;
-	const confidenceLevel = report.confidenceLevel;
-
-	const confidenceProgress = confidenceLevel
-		? CONFIDENCE_PERCENT_BY_LEVEL[confidenceLevel]
-		: undefined;
+	const [isChecklistOpen, setIsChecklistOpen] = useState(false);
 
 	if (isLoading) {
 		return <ProposalPageSkeleton />;
 	}
 
 	return (
-		<Tabs
-			value={activeTab}
-			onValueChange={(value) => setActiveTab(value as ProposalSection)}
-			className="min-h-screen bg-muted/10"
-		>
+		<div className="min-h-screen bg-muted/10">
+			{/* Header */}
 			<header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-md">
 				<div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-4">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
@@ -139,7 +73,7 @@ export function ProposalPage({
 								</div>
 							</div>
 							<div className="mt-1 text-xs text-muted-foreground md:text-sm">
-								Generated on {formatDateTime(proposal.createdAt)} • Version{" "}
+								Generated on {formatDateTime(proposal.createdAt)} · Version{" "}
 								{proposal.version}
 							</div>
 						</div>
@@ -179,116 +113,13 @@ export function ProposalPage({
 						</Drawer>
 					</div>
 				</div>
-				<div className="border-t border-border/70 bg-background/80">
-					<div className="container mx-auto px-4 py-3">
-						<TabsList className="w-full justify-start gap-2 overflow-x-auto bg-transparent p-0">
-							{PROPOSAL_SECTIONS.map((section) => {
-								const Icon = section.icon;
-								return (
-									<TabsTrigger
-										key={section.value}
-										value={section.value}
-										className="gap-2 rounded-full border border-transparent px-4 py-2 text-xs font-medium text-muted-foreground transition-all data-[state=active]:border-primary/40 data-[state=active]:text-foreground md:text-sm"
-									>
-										<Icon className="h-4 w-4" />
-										{section.label}
-									</TabsTrigger>
-								);
-							})}
-						</TabsList>
-					</div>
-				</div>
 			</header>
 
+			{/* Main Content - Single Page Scroll */}
 			<main className="container mx-auto px-4 py-6 lg:py-8">
-				<ResizablePanelGroup direction="horizontal" className="gap-6">
-					<ResizablePanel
-						defaultSize={MAIN_PANEL_DEFAULT_SIZE}
-						className="space-y-6"
-					>
-						<TabsContent value="summary" className="space-y-6">
-							<ProposalOverview proposal={proposal} />
-						</TabsContent>
-
-						<TabsContent value="inventory" className="space-y-6">
-							{/* Compact decision header for non-summary tabs */}
-							{report.businessOpportunity && (
-								<CompactDecisionHeader
-									recommendation={
-										report.businessOpportunity.overallRecommendation
-									}
-									keyFinancials={
-										report.businessOpportunity.potentialRevenue
-											.annualPotential[0] || "Revenue analysis pending"
-									}
-									keyEnvironmentalImpact={
-										report.lca?.co2Reduction?.tons?.[0] ||
-										report.lca?.environmentalNotes ||
-										"Environmental assessment in progress"
-									}
-									riskCount={report.businessOpportunity.risks?.length || 0}
-								/>
-							)}
-							<ProposalTechnical proposal={proposal} />
-						</TabsContent>
-
-						<TabsContent value="economics" className="space-y-6">
-							{/* Compact decision header for non-summary tabs */}
-							{report.businessOpportunity && (
-								<CompactDecisionHeader
-									recommendation={
-										report.businessOpportunity.overallRecommendation
-									}
-									keyFinancials={
-										report.businessOpportunity.potentialRevenue
-											.annualPotential[0] || "Revenue analysis pending"
-									}
-									keyEnvironmentalImpact={
-										report.lca?.co2Reduction?.tons?.[0] ||
-										report.lca?.environmentalNotes ||
-										"Environmental assessment in progress"
-									}
-									riskCount={report.businessOpportunity.risks?.length || 0}
-								/>
-							)}
-							<ProposalEconomics proposal={proposal} />
-						</TabsContent>
-
-						<TabsContent value="ai" className="space-y-6">
-							{proposal.aiMetadata ? (
-								<ProposalAISection proposal={proposal} />
-							) : (
-								<EmptyState
-									icon={Brain}
-									title="No agent log"
-									description="This run did not publish AI metadata or the workflow was completed externally."
-								/>
-							)}
-						</TabsContent>
-					</ResizablePanel>
-
-					{/* Sidebar only on Summary tab */}
-					{activeTab === "summary" && (
-						<>
-							<ResizableHandle className="hidden lg:flex" withHandle />
-							<ResizablePanel
-								defaultSize={SIDEBAR_DEFAULT_SIZE}
-								className="hidden flex-col space-y-4 lg:flex"
-								style={{ minHeight: SIDEBAR_MIN_HEIGHT }}
-							>
-								<DecisionSidebar
-									proposal={proposal}
-									confidenceLevel={confidenceLevel}
-									confidenceProgress={confidenceProgress}
-									onDownloadPDF={onDownloadPDF}
-									onStatusChange={onStatusChange}
-								/>
-							</ResizablePanel>
-						</>
-					)}
-				</ResizablePanelGroup>
+				<ProposalOverview proposal={proposal} projectId={project.id} />
 			</main>
-		</Tabs>
+		</div>
 	);
 }
 

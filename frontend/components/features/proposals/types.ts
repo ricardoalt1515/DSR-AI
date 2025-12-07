@@ -3,14 +3,7 @@
  * @module ProposalTypes
  */
 
-import type {
-	BusinessOpportunity,
-	LifeCycleAssessment,
-	WasteUpcyclingReport,
-} from "@/lib/types/proposal";
-
-// Re-export for convenience
-export type { BusinessOpportunity, LifeCycleAssessment };
+import type { WasteUpcyclingReport } from "@/lib/types/proposal";
 
 // Project requirements for waste assessment
 export interface ProjectRequirements {
@@ -27,7 +20,7 @@ export interface ProjectRequirements {
 export interface AIMetadata {
 	proposal: WasteUpcyclingReport;
 	transparency: {
-		clientMetadata?: Record<string, any>;
+		clientMetadata?: Record<string, unknown>;
 		generatedAt: string;
 		generationTimeSeconds: number;
 		reportType: string;

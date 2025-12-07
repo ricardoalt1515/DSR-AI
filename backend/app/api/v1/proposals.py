@@ -89,12 +89,12 @@ async def generate_proposal(
     - **status**: "queued" (initial state)
     - **estimated_time**: Estimated completion time in seconds
     """
-    # Verify project exists and belongs to user
+    conditions = [Project.id == proposal_request.project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
     result = await db.execute(
-        select(Project).where(
-            Project.id == proposal_request.project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
 
@@ -217,12 +217,12 @@ async def list_proposals(
     Returns proposals ordered by creation date (newest first).
     Each proposal includes version, costs, and status.
     """
-    # Verify project access
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
     
@@ -258,12 +258,12 @@ async def get_proposal(
     
     Includes full markdown content, equipment specs, costs, and efficiency data.
     """
-    # Verify project access
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
     
@@ -341,12 +341,12 @@ async def get_proposal_pdf(
     - PDF file as `application/pdf`
     - Filename: `Proposal_{version}_{project_name}.pdf`
     """
-    # Verify project access
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
     
@@ -506,12 +506,12 @@ async def delete_proposal(
     - Returns 404 if proposal doesn't exist (prevents info leakage)
     - Atomic operation (DB + file deletion)
     """
-    # Verify project access and ownership
+    conditions = [Project.id == project_id]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
     result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
+        select(Project).where(*conditions)
     )
     project = result.scalar_one_or_none()
 

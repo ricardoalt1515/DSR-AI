@@ -53,6 +53,7 @@ from app.models.proposal import Proposal
 from app.models.proposal_output import ProposalOutput
 from app.schemas.proposal import ProposalGenerationRequest
 from app.services.cache_service import cache_service
+from app.services.s3_service import get_presigned_url
 
 logger = structlog.get_logger(__name__)
 
@@ -91,9 +92,10 @@ logger = structlog.get_logger(__name__)
     reraise=True,
 )
 async def _generate_with_retry(
-    water_data: FlexibleWaterProjectData,
+    project_data: FlexibleWaterProjectData,
     client_metadata: dict,
     job_id: str,
+    photo_insights: list[dict] | None = None,
 ) -> Any:
     """
     Generate proposal with automatic retry on transient failures.
@@ -107,9 +109,10 @@ async def _generate_with_retry(
     Permanent errors (validation, schema) are NOT retried and fail immediately.
     
     Args:
-        water_data: Project technical data
+        project_data: Project technical data
         client_metadata: Client and project metadata
         job_id: Unique job identifier for tracking
+        photo_insights: Optional photo analysis from images
     
     Returns:
         ProposalOutput from AI agent
@@ -124,8 +127,9 @@ async def _generate_with_retry(
         # Add timeout to AI agent call (fail fast - 8 minutes)
         proposal_output = await asyncio.wait_for(
             generate_enhanced_proposal(
-                water_data=water_data,
+                project_data=project_data,
                 client_metadata=client_metadata,
+                photo_insights=photo_insights,
             ),
             timeout=480  # 8 minutes (fail before frontend 10min timeout)
         )
@@ -243,10 +247,14 @@ class ProposalService:
                 if not isinstance(analysis, dict):
                     continue
 
+                # Generate presigned URL for image (24h expiry)
+                image_url = await get_presigned_url(project_file.file_path, expires=86400)
+
                 photo_insights.append(
                     {
                         "fileId": str(project_file.id),
                         "filename": project_file.filename,
+                        "imageUrl": image_url,
                         "uploadedAt": project_file.created_at.isoformat()
                         if project_file.created_at
                         else None,
@@ -469,10 +477,26 @@ class ProposalService:
 
             start_time = time.time()
             try:
+                # Extract photo insights for the agent
+                photo_insights = None
+                if attachments_summary and "photoInsights" in attachments_summary:
+                    photo_insights = [
+                        insight.get("analysis", {})
+                        for insight in attachments_summary["photoInsights"]
+                        if isinstance(insight.get("analysis"), dict)
+                    ]
+                    if photo_insights:
+                        logger.info(
+                            "photo_insights_extracted",
+                            count=len(photo_insights),
+                            materials=[i.get("material_type", "unknown") for i in photo_insights],
+                        )
+
                 proposal_output = await _generate_with_retry(
-                    water_data=technical_data,
+                    project_data=technical_data,
                     client_metadata=client_metadata,
                     job_id=job_id,
+                    photo_insights=photo_insights,
                 )
                 generation_duration = time.time() - start_time
 
@@ -566,7 +590,7 @@ class ProposalService:
             logger.info(
                 "waste_report_created",
                 project_id=str(project_id),
-                confidence_level=proposal.ai_metadata['proposal']['confidenceLevel']
+                confidence_level=proposal.ai_metadata['proposal'].get('confidence', 'Medium')
             )
 
             db.add(proposal)
@@ -679,17 +703,9 @@ class ProposalService:
                 user_id=user_id,
             )
 
-
 # ============================================================================
 # HELPER FUNCTIONS - Proposal Building
 # ============================================================================
-
-def extract_summary(markdown_content: str, max_length: int = 500) -> str:
-    """Extract summary from markdown (truncates at max_length)."""
-    if not markdown_content:
-        return ""
-    return markdown_content[:max_length]
-
 
 def create_proposal(
     proposal_output: ProposalOutput,
@@ -701,47 +717,114 @@ def create_proposal(
     request: ProposalGenerationRequest,
     new_version: str
 ) -> Proposal:
-    """
-    Create Proposal with JSONB-only storage (single source of truth).
-    
-    Structure:
-        ai_metadata = {
-            "proposal": {...},      # Complete AI output (ProposalOutput)
-            "transparency": {...}   # Audit metadata (cases, timing, context)
-        }
-    
-    Benefits:
-        - Single serialization (by_alias=True once)
-        - No data duplication
-        - Clear separation: AI output vs audit metadata
-    """
-    # Single serialization point (DRY principle)
+    """Create Proposal from ProposalOutput (DRY principle)."""
     proposal_data = proposal_output.model_dump(by_alias=True, exclude_none=True)
     
-    # Build complete metadata: AI output + transparency
     ai_metadata = {
         "proposal": proposal_data,
         "transparency": {
             "clientMetadata": client_metadata,
             "generatedAt": datetime.utcnow().isoformat(),
             "generationTimeSeconds": round(generation_duration, 2),
-            "reportType": "waste_upcycling_feasibility"
+            "reportType": "waste_opportunity"
         }
     }
+    
+    markdown = _generate_markdown_report(proposal_output)
     
     return Proposal(
         project_id=project_id,
         version=new_version,
-        title=f"Waste Upcycling Report {request.proposal_type} - {project_name}",
+        title=f"Opportunity Report - {project_name}",
         proposal_type=request.proposal_type,
         status="Draft",
-        author="DSR-AI Waste Consultant",
-        capex=0.0,  # Waste reports don't have single CAPEX - costs are in estimates table
-        opex=0.0,   # Waste reports don't have single OPEX - savings shown in ROI metrics
-        executive_summary=extract_summary(proposal_output.markdown_content),
-        technical_approach=proposal_output.markdown_content,
+        author="DSR-AI",
+        capex=0.0,
+        opex=0.0,
+        executive_summary=proposal_output.headline,
+        technical_approach=markdown,
         ai_metadata=ai_metadata,
     )
+
+
+def _generate_markdown_report(output: ProposalOutput) -> str:
+    """Generate buyer-focused markdown from structured data."""
+    
+    # Format pathways
+    pathway_lines = []
+    for i, p in enumerate(output.pathways, 1):
+        pathway_lines.append(f"""
+### Pathway {i}: {p.action}
+
+- **Buyers:** {p.buyer_types}
+- **Price:** {p.price_range}
+- **Annual Value:** {p.annual_value}
+- **ESG Pitch for Buyer:** _{p.esg_pitch}_
+- **Handling:** {p.handling}
+""")
+    
+    pathways_md = "".join(pathway_lines)
+    
+    return f"""# DSR Opportunity Report
+
+## {output.recommendation}: {output.headline}
+
+**Confidence:** {output.confidence}
+
+---
+
+## Client: {output.client}
+- **Location:** {output.location}
+- **Material:** {output.material}
+- **Volume:** {output.volume}
+
+---
+
+## Financials
+
+| Current Cost | DSR Offer | DSR Margin |
+|-------------|-----------|------------|
+| {output.financials.current_cost} | {output.financials.dsr_offer} | {output.financials.dsr_margin} |
+
+---
+
+## Environmental Impact
+
+- **CO₂ Avoided:** {output.environment.co2_avoided}
+- **ESG Headline:** {output.environment.esg_headline}
+- **If Not Diverted:** {output.environment.current_harm}
+
+---
+
+## Safety & Handling
+
+- **Hazard:** {output.safety.hazard}
+- **Warnings:** {output.safety.warnings}
+- **Storage:** {output.safety.storage}
+
+---
+
+## Business Pathways
+{pathways_md}
+
+---
+
+## Risks
+
+{chr(10).join(f'- {r}' for r in output.risks)}
+
+---
+
+## Next Steps
+
+{chr(10).join(f'{i}. {s}' for i, s in enumerate(output.next_steps, 1))}
+
+---
+
+## ROI Summary
+
+💰 **{output.roi_summary or 'ROI calculation pending'}**
+"""
 
 
 # Global service instance

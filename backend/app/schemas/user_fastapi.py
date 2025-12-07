@@ -36,7 +36,10 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
         - is_verified (bool)
     """
     
-    # Custom H2O Allegiant fields
+    # Role for business logic
+    role: str = Field(default="field_agent", description="User role")
+    
+    # Custom profile fields
     first_name: str = Field(..., description="User's first name")
     last_name: str = Field(..., description="User's last name")
     company_name: Optional[str] = Field(None, description="Company or organization name")

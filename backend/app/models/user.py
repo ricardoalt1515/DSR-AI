@@ -4,12 +4,23 @@ Represents system users with authentication and profile information.
 Integrated with FastAPI Users for production-ready authentication.
 """
 
+from enum import Enum
 from typing import Optional
-from sqlalchemy import Boolean, Column, String
+from sqlalchemy import String
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
 from app.models.base import BaseModel
+
+
+class UserRole(str, Enum):
+    """User roles for access control."""
+    ADMIN = "admin"
+    FIELD_AGENT = "field_agent"
+    CONTRACTOR = "contractor"
+    COMPLIANCE = "compliance"
+    SALES = "sales"
+
 
 class User(SQLAlchemyBaseUserTableUUID, BaseModel):
     """
@@ -23,27 +34,26 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         - is_superuser (bool): Whether user has admin privileges
         - is_verified (bool): Whether user email is verified
     
-    Custom H2O Allegiant fields:
-        - first_name: User's first name
-        - last_name: User's last name
-        - company_name: Optional company name
-        - location: Optional location
-        - sector: Optional industry sector
-        - subsector: Optional industry subsector
-    
-    Best Practices:
-        - Uses FastAPI Users for battle-tested auth
-        - Maintains existing UUID primary key
-        - Preserves custom business fields
-        - Type-safe with Mapped annotations
+    Custom fields:
+        - role: User role for business logic (admin, field_agent, contractor, compliance, sales)
+        - first_name, last_name: User's name
+        - company_name, location: Optional profile info
+        - sector, subsector: Industry context
     """
     
     __tablename__ = "users"
     
-    # Custom H2O Allegiant Profile Fields
-    # Note: Authentication fields (email, hashed_password, is_active, etc.) 
-    # are inherited from SQLAlchemyBaseUserTableUUID
+    # Role field for business access control
+    # Note: is_superuser is kept for FastAPI Users compatibility
+    role: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=UserRole.FIELD_AGENT,
+        index=True,
+        comment="User role: admin, field_agent, contractor, compliance, sales"
+    )
     
+    # Profile fields
     first_name: Mapped[str] = mapped_column(
         String(100), 
         nullable=False,
@@ -92,3 +102,19 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
     def full_name(self) -> str:
         """Get user's full name."""
         return f"{self.first_name} {self.last_name}"
+    
+    def is_admin(self) -> bool:
+        """Check if user has admin privileges."""
+        return self.is_superuser or self.role == UserRole.ADMIN
+    
+    def can_create_projects(self) -> bool:
+        """Check if user can create projects."""
+        return self.role in (UserRole.ADMIN, UserRole.FIELD_AGENT, UserRole.CONTRACTOR)
+    
+    def can_review_compliance(self) -> bool:
+        """Check if user can review compliance."""
+        return self.role in (UserRole.ADMIN, UserRole.COMPLIANCE)
+    
+    def can_validate_sales(self) -> bool:
+        """Check if user can validate sales."""
+        return self.role in (UserRole.ADMIN, UserRole.SALES)

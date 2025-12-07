@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface CompactDecisionHeaderProps {
-	recommendation: "GO" | "NO-GO" | "INVESTIGATE FURTHER";
+	recommendation: "GO" | "NO-GO" | "INVESTIGATE FURTHER" | "INVESTIGATE";
 	keyFinancials: string;
 	keyEnvironmentalImpact: string;
 	riskCount: number;
@@ -39,6 +39,8 @@ export function CompactDecisionHeader({
 					text: "text-red-700 dark:text-red-300",
 				};
 			case "INVESTIGATE FURTHER":
+			case "INVESTIGATE":
+			default:
 				return {
 					variant: "secondary" as const,
 					bg: "bg-yellow-50 dark:bg-yellow-950",

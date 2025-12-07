@@ -25,9 +25,9 @@ async def list_users(
 
 
 class AdminCreateUserRequest(UserCreate):
-    """Extend UserCreate to force role selection from UI."""
-
+    """Extend UserCreate for admin user creation."""
     is_superuser: bool = False
+    role: str = "field_agent"  # Default role for new users
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -41,11 +41,11 @@ async def create_user(
 
 
 class AdminUpdateUserRequest(UserUpdate):
-    """Allow partial updates plus role toggles."""
-
+    """Allow partial updates including role changes."""
     is_superuser: Optional[bool] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    role: Optional[str] = None
 
 
 @router.patch("/{user_id}", response_model=UserRead)
