@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.env.deploy
 backend/.env
 frontend/.env.local
 frontend/.env
