@@ -18,7 +18,7 @@ interface ProposalOverviewProps {
 }
 
 export function ProposalOverview({ proposal }: ProposalOverviewProps) {
-	const report = proposal.aiMetadata.proposal;
+	const report = proposal.aiMetadata.proposal as any;
 
 	// Extract photo insights from metadata with fileId for real images
 	const resourceInsights: ResourceInsight[] = [];
@@ -43,15 +43,15 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 
 				resourceInsights.push({
 					id: String(typedItem.fileId || a.materialType || Math.random()),
-					fileId: typedItem.fileId,
-					imageUrl: typedItem.imageUrl, // Presigned URL from backend
+					fileId: typedItem.fileId ?? undefined,
+					imageUrl: typedItem.imageUrl ?? undefined,
 					material: String(a.materialType || "Unknown"),
 					quality: (a.qualityGrade as "High" | "Medium" | "Low") || "Medium",
 					lifecycle: (a.lifecycleStatus as ResourceInsight["lifecycle"]) ?? undefined,
 					priceHint: String(a.priceBandHint || "TBD"),
 					insight: String(a.summary || "AI analyzed this material"),
 					confidence: a.confidence === "High" ? 92 : a.confidence === "Low" ? 75 : 85,
-				});
+				} as ResourceInsight);
 			}
 		}
 	}

@@ -61,7 +61,7 @@ function parseRevenue(
 }
 
 export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
-	const report = proposal.aiMetadata.proposal;
+	const report = proposal.aiMetadata.proposal as any;
 	const businessOpp = report.businessOpportunity;
 	const lca = report.lca;
 

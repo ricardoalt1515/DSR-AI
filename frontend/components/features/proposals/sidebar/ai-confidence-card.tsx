@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AIMetadata } from "../types";
 
 interface AIConfidenceCardProps {
-	confidenceLevel: AIMetadata["proposal"]["confidenceLevel"];
+	confidenceLevel: AIMetadata["proposal"]["confidence"];
 	confidenceProgress: number | undefined;
 }
 

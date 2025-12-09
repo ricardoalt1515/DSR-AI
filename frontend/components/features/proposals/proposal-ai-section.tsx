@@ -18,8 +18,8 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 		return null;
 	}
 
-	const report = aiMetadata.proposal;
-	const confidence: ConfidenceLevel = report.confidenceLevel ?? "Medium";
+	const report = aiMetadata.proposal as any;
+	const confidence: ConfidenceLevel = report.confidence ?? "Medium";
 	const confidenceScore = getConfidenceScore(confidence);
 
 	return (

@@ -30,7 +30,7 @@ export class SectionErrorBoundary extends Component<
         return { hasError: true, error };
     }
 
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    override componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
         console.error(`[SectionError] ${this.props.sectionName || "Unknown"}:`, error);
         this.props.onError?.(error, errorInfo);
     }
@@ -39,7 +39,7 @@ export class SectionErrorBoundary extends Component<
         this.setState({ hasError: false, error: null });
     };
 
-    render(): ReactNode {
+    override render(): ReactNode {
         if (this.state.hasError) {
             if (this.props.fallback) {
                 return this.props.fallback;
@@ -58,7 +58,7 @@ export class SectionErrorBoundary extends Component<
 }
 
 interface SectionErrorProps {
-    sectionName?: string;
+    sectionName?: string | undefined;
     onRetry?: () => void;
 }
 

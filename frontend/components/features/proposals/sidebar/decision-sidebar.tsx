@@ -24,7 +24,7 @@ export function DecisionSidebar({
 	onDownloadPDF,
 	onStatusChange,
 }: DecisionSidebarProps) {
-	const report = proposal.aiMetadata.proposal;
+	const report = proposal.aiMetadata.proposal as any;
 	const businessOpp = report.businessOpportunity;
 	const pathwaysCount = businessOpp?.circularEconomyOptions?.length || 0;
 

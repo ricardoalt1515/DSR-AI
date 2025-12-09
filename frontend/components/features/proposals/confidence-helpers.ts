@@ -1,6 +1,6 @@
 import type { WasteUpcyclingReport } from "@/lib/types/proposal";
 
-export type ConfidenceLevel = WasteUpcyclingReport["confidenceLevel"];
+export type ConfidenceLevel = WasteUpcyclingReport["confidence"];
 
 export const CONFIDENCE_PERCENT_BY_LEVEL: Record<ConfidenceLevel, number> = {
 	High: 90,

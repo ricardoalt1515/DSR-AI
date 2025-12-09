@@ -44,7 +44,7 @@ export function QuickActionsCard({
 		closeDrawer?.();
 	};
 
-	const report = proposal.aiMetadata.proposal;
+	const report = proposal.aiMetadata.proposal as any;
 	const hasPathways =
 		(report.businessOpportunity?.circularEconomyOptions?.length || 0) > 0;
 

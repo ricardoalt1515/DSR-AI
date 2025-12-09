@@ -58,7 +58,7 @@ export function getTopPathways(report: WasteUpcyclingReport, limit = 3): Busines
 }
 
 // Backward compat aliases
-export const extractLandfillDiversion = () => "100%"; // DSR diverts all
+export const extractLandfillDiversion = (_report?: unknown) => "100%"; // DSR diverts all
 export const getBusinessIdeasCount = getPathwayCount;
 
 // ==============================================

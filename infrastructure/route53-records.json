@@ -1,0 +1,97 @@
+{
+    "Changes": [
+        {
+            "Action": "CREATE",
+            "ResourceRecordSet": {
+                "Name": "h2oassistant.com",
+                "Type": "A",
+                "TTL": 300,
+                "ResourceRecords": [
+                    {
+                        "Value": "46.202.196.161"
+                    }
+                ]
+            }
+        },
+        {
+            "Action": "CREATE",
+            "ResourceRecordSet": {
+                "Name": "h2oassistant.com",
+                "Type": "AAAA",
+                "TTL": 300,
+                "ResourceRecords": [
+                    {
+                        "Value": "2a02:4780:b:626:0:15fc:f458:3"
+                    }
+                ]
+            }
+        },
+        {
+            "Action": "CREATE",
+            "ResourceRecordSet": {
+                "Name": "www.h2oassistant.com",
+                "Type": "CNAME",
+                "TTL": 300,
+                "ResourceRecords": [
+                    {
+                        "Value": "h2oassistant.com"
+                    }
+                ]
+            }
+        },
+        {
+            "Action": "CREATE",
+            "ResourceRecordSet": {
+                "Name": "api.h2oassistant.com",
+                "Type": "CNAME",
+                "TTL": 300,
+                "ResourceRecords": [
+                    {
+                        "Value": "h2o-al20251022215841820100000019-475984591.us-east-1.elb.amazonaws.com"
+                    }
+                ]
+            }
+        },
+        {
+            "Action": "CREATE",
+            "ResourceRecordSet": {
+                "Name": "api-waste.h2oassistant.com",
+                "Type": "CNAME",
+                "TTL": 300,
+                "ResourceRecords": [
+                    {
+                        "Value": "dsr-wa20251208060138981000000018-252975466.us-east-1.elb.amazonaws.com"
+                    }
+                ]
+            }
+        },
+        {
+            "Action": "CREATE",
+            "ResourceRecordSet": {
+                "Name": "h2oassistant.com",
+                "Type": "CAA",
+                "TTL": 300,
+                "ResourceRecords": [
+                    {
+                        "Value": "0 issue \"amazon.com\""
+                    },
+                    {
+                        "Value": "0 issue \"amazontrust.com\""
+                    },
+                    {
+                        "Value": "0 issue \"awstrust.com\""
+                    },
+                    {
+                        "Value": "0 issue \"amazonaws.com\""
+                    },
+                    {
+                        "Value": "0 issue \"letsencrypt.org\""
+                    },
+                    {
+                        "Value": "0 issue \"digicert.com\""
+                    }
+                ]
+            }
+        }
+    ]
+}

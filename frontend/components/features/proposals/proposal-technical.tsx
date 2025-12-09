@@ -89,7 +89,7 @@ function parseBusinessOption(optionText: string): {
 }
 
 export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
-	const report = proposal.aiMetadata.proposal;
+	const report = proposal.aiMetadata.proposal as any;
 	const businessOpp = report.businessOpportunity;
 	const circularEconomyOptions = businessOpp?.circularEconomyOptions || [];
 	const resourceConsiderations = businessOpp?.resourceConsiderations;
