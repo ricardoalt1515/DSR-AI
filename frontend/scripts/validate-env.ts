@@ -9,11 +9,15 @@
  */
 
 import { resolve } from "node:path";
+import { existsSync } from "node:fs";
 // Load environment variables from .env.local (Next.js does this automatically, but tsx doesn't)
 import { config } from "dotenv";
 
-// Load .env.local from the project root
-config({ path: resolve(process.cwd(), ".env.local") });
+// Load .env.local from the project root (only if it exists - in CI/CD, env vars are already set)
+const envPath = resolve(process.cwd(), ".env.local");
+if (existsSync(envPath)) {
+	config({ path: envPath });
+}
 
 interface EnvConfig {
 	name: string;
@@ -94,8 +98,8 @@ function validateEnvironmentVariables(): ValidationResult {
 		// Success
 		const displayValue =
 			envVar.name.includes("KEY") ||
-			envVar.name.includes("SECRET") ||
-			envVar.name.includes("DSN")
+				envVar.name.includes("SECRET") ||
+				envVar.name.includes("DSN")
 				? "***REDACTED***"
 				: value;
 
