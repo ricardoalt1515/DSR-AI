@@ -465,15 +465,18 @@ async def delete_file(
 
     Deletes both the database record and the physical file.
     """
-    # Verify access
+    # Verify access (superusers can delete any file)
+    conditions = [
+        ProjectFile.id == file_id,
+        ProjectFile.project_id == project_id,
+    ]
+    if not current_user.is_superuser:
+        conditions.append(Project.user_id == current_user.id)
+
     result = await db.execute(
         select(ProjectFile)
         .join(Project)
-        .where(
-            ProjectFile.id == file_id,
-            ProjectFile.project_id == project_id,
-            Project.user_id == current_user.id,
-        )
+        .where(*conditions)
     )
     file = result.scalar_one_or_none()
 

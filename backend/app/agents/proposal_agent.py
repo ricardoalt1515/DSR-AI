@@ -97,7 +97,7 @@ WASTE ASSESSMENT:
 {formatted}
 """)
     
-    # 3. Photo insights (if available) - pass ESG data directly
+    # 3. Photo insights (if available) - pass LCA data for environmental sections
     if photos:
         photo_sections = []
         for i, p in enumerate(photos, 1):
@@ -105,34 +105,31 @@ WASTE ASSESSMENT:
             material = p.get("material_type", "Unknown")
             quality = p.get("quality_grade", "Unknown")
             lifecycle = p.get("lifecycle_status", "Unknown")
+            confidence = p.get("confidence", "Medium")
             
-            # ESG data - pass directly so LLM can copy to esg_pitch
-            esg_current = p.get("current_situation", "")
-            esg_benefit = p.get("benefit_if_diverted", "")
+            # LCA data
+            co2_savings = p.get("co2_savings", 0)
+            esg_statement = p.get("esg_statement", "")
+            lca_assumptions = p.get("lca_assumptions", "")
             
-            # Handling - pass directly for safety section
+            # Handling
             storage = p.get("storage_requirements", [])
             ppe = p.get("ppe_requirements", [])
-            
-            # Price hint
-            price = p.get("price_band_hint", "N/A")
-            
-            # Business ideas from photo
-            ideas = p.get("business_ideas", [])
+            hazards = p.get("visible_hazards", [])
             
             photo_sections.append(f"""
-PHOTO {i}: {material}
+PHOTO {i}: {material} (confidence: {confidence})
 - Quality: {quality} | Lifecycle: {lifecycle}
-- Price hint: {price}
-- ESG (current): {esg_current}
-- ESG (if diverted): {esg_benefit}
+- CO₂ savings: {co2_savings} tCO₂e/year
+- ESG statement: {esg_statement}
+- LCA basis: {lca_assumptions if lca_assumptions else 'N/A'}
 - Storage: {', '.join(storage) if storage else 'N/A'}
 - PPE: {', '.join(ppe) if ppe else 'Standard'}
-- Photo business ideas: {'; '.join(ideas[:2]) if ideas else 'None identified'}
+- Visible hazards: {', '.join(hazards) if hazards else 'None'}
 """)
         
         sections.append(f"""
-PHOTO ANALYSIS (use this data directly in your pathways):
+PHOTO ANALYSIS (use CO₂ data for environmental sections, generate your own pricing/buyers):
 {''.join(photo_sections)}
 """)
     

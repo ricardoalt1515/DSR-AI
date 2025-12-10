@@ -11,16 +11,15 @@
 
 "use client";
 
-import { AlertCircle, Brain, CheckCircle2, ChevronRight, Loader2, Sparkles, Terminal, Zap } from "lucide-react";
+import { AlertCircle, Brain, CheckCircle2, Loader2, Sparkles, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useRef } from "react";
+import { motion } from "framer-motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProposalGeneration } from "@/lib/hooks/use-proposal-generation";
 import type { ProjectDetail } from "@/lib/project-types";
 import { useCurrentProject, useLoadProjectAction } from "@/lib/stores";
@@ -29,7 +28,6 @@ import { useTechnicalSummaryData } from "@/lib/stores/technical-data-store";
 import { logger } from "@/lib/utils/logger";
 import {
 	showProposalErrorToast,
-	showProposalProgressToast,
 	showProposalSuccessToast,
 } from "@/lib/utils/proposal-progress-toast";
 
@@ -87,7 +85,7 @@ export function IntelligentProposalGeneratorComponent({
 
 				onProposalGenerated?.(proposalId);
 				onGenerationEnd?.();
-				
+
 				// Smart Redirect: If user is still on this page, go there automatically
 				router.push(`/project/${projectId}/proposals/${proposalId}`);
 			},
@@ -114,17 +112,8 @@ export function IntelligentProposalGeneratorComponent({
 						? `~${estimatedMinutes} min`
 						: null;
 
-				// Update global state for navbar badge
+				// Update global state for navbar badge (only shown when user navigates away)
 				updateProgress(progressValue, step, timeEstimate);
-
-				// Update persistent toast with reasoning
-				showProposalProgressToast({
-					progress: progressValue,
-					currentStep: step,
-					startTime: startTimeRef.current,
-					reasoning,
-					onCancel: handleCancel,
-				});
 			},
 		});
 
@@ -203,10 +192,9 @@ export function IntelligentProposalGeneratorComponent({
 	// Render the Live Dashboard if generating
 	if (isGenerating) {
 		return (
-			<GenerationDashboard 
-				progress={progress} 
-				currentStep={currentStep} 
-				reasoning={reasoning} 
+			<GenerationDashboard
+				progress={progress}
+				currentStep={currentStep}
 				onCancel={handleCancel}
 			/>
 		);
@@ -217,7 +205,7 @@ export function IntelligentProposalGeneratorComponent({
 			{/* Main Card */}
 			<Card className="aqua-panel overflow-hidden relative group">
 				<div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-				
+
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
 						<Brain className="h-5 w-5 text-primary" />
@@ -281,42 +269,53 @@ export function IntelligentProposalGeneratorComponent({
 }
 
 /**
- * Live Generation Dashboard Component
- * Displays real-time AI progress with animations
+ * Fixed steps for proposal generation
+ * Each step has a threshold - when progress reaches it, the step is marked complete
  */
-function GenerationDashboard({ 
-	progress, 
-	currentStep, 
-	reasoning, 
-	onCancel 
-}: { 
-	progress: number; 
-	currentStep: string; 
-	reasoning: string[]; 
-	onCancel: () => void; 
-}) {
-	const scrollRef = useRef<HTMLDivElement>(null);
+const GENERATION_STEPS = [
+	{ id: 1, label: "Connecting to AI agent", threshold: 5 },
+	{ id: 2, label: "Analyzing technical data", threshold: 20 },
+	{ id: 3, label: "Evaluating waste composition", threshold: 40 },
+	{ id: 4, label: "Identifying upcycling opportunities", threshold: 60 },
+	{ id: 5, label: "Calculating projections", threshold: 80 },
+	{ id: 6, label: "Generating documentation", threshold: 95 },
+] as const;
 
-	// Auto-scroll log
-	useEffect(() => {
-		if (scrollRef.current) {
-			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-		}
-	}, [reasoning]);
+/**
+ * Live Generation Dashboard Component
+ * Displays real-time AI progress with fixed step checklist
+ */
+function GenerationDashboard({
+	progress,
+	currentStep,
+	onCancel
+}: {
+	progress: number;
+	currentStep: string;
+	onCancel: () => void;
+}) {
+	// Determine step states based on progress
+	const getStepState = (threshold: number, index: number) => {
+		if (progress >= threshold) return "complete";
+		// Find the current active step (first incomplete one)
+		const firstIncompleteIndex = GENERATION_STEPS.findIndex(s => progress < s.threshold);
+		if (index === firstIncompleteIndex) return "active";
+		return "pending";
+	};
 
 	return (
 		<Card className="border-primary/20 bg-gradient-to-b from-background to-primary/5 overflow-hidden shadow-2xl">
 			<CardContent className="p-0">
-				<div className="grid grid-cols-1 lg:grid-cols-12 min-h-[400px]">
-					
+				<div className="grid grid-cols-1 lg:grid-cols-12 min-h-[320px]">
+
 					{/* Left Panel: Visualizer */}
 					<div className="lg:col-span-5 p-8 flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-border/50 bg-black/5 dark:bg-black/20 relative overflow-hidden">
 						{/* Animated Background Grid */}
 						<div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-						
+
 						<div className="relative z-10 flex flex-col items-center">
 							{/* Pulsing Core */}
-							<div className="relative mb-8">
+							<div className="relative mb-6">
 								<motion.div
 									animate={{
 										scale: [1, 1.2, 1],
@@ -329,9 +328,9 @@ function GenerationDashboard({
 									}}
 									className="absolute inset-0 bg-primary/30 rounded-full blur-xl"
 								/>
-								<div className="h-24 w-24 rounded-full bg-background border-4 border-primary/20 flex items-center justify-center relative shadow-[0_0_30px_-5px_rgba(var(--primary),0.3)]">
-									<Brain className="h-10 w-10 text-primary" />
-									
+								<div className="h-20 w-20 rounded-full bg-background border-4 border-primary/20 flex items-center justify-center relative shadow-[0_0_30px_-5px_rgba(var(--primary),0.3)]">
+									<Brain className="h-8 w-8 text-primary" />
+
 									{/* Orbital Ring */}
 									<motion.div
 										animate={{ rotate: 360 }}
@@ -341,75 +340,91 @@ function GenerationDashboard({
 								</div>
 							</div>
 
-							<h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60 mb-2 text-center">
+							<h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60 mb-1 text-center">
 								AI Agent Active
 							</h3>
-							<p className="text-sm text-muted-foreground text-center max-w-[200px]">
-								Analyzing waste streams and calculating opportunities...
+							<p className="text-xs text-muted-foreground text-center max-w-[180px]">
+								Generating your waste assessment report
 							</p>
 						</div>
 					</div>
 
-					{/* Right Panel: Data Stream */}
+					{/* Right Panel: Fixed Step List */}
 					<div className="lg:col-span-7 p-6 flex flex-col">
-						<div className="flex items-center justify-between mb-6">
-							<div className="space-y-1">
+						<div className="flex items-center justify-between mb-4">
+							<div className="space-y-0.5">
 								<h4 className="font-semibold flex items-center gap-2">
-									<Terminal className="h-4 w-4 text-primary" />
-									Live Reasoning Log
+									<Sparkles className="h-4 w-4 text-primary" />
+									Generation Progress
 								</h4>
 								<p className="text-xs text-muted-foreground">
-									Real-time processing events
+									AI analyzing your project data
 								</p>
 							</div>
-							<Badge variant="outline" className="animate-pulse border-primary/50 text-primary">
-								Processing... {Math.round(progress)}%
+							<Badge variant="outline" className="border-primary/50 text-primary font-semibold">
+								{Math.round(progress)}%
 							</Badge>
 						</div>
 
-						{/* Terminal Window */}
-						<div className="flex-1 bg-black/90 rounded-lg border border-white/10 p-4 font-mono text-xs text-green-400 shadow-inner mb-6 overflow-hidden flex flex-col">
-							<div 
-								ref={scrollRef}
-								className="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-white/20"
-							>
-								<AnimatePresence initial={false}>
-									{reasoning.map((log, i) => (
-										<motion.div
-											key={i}
-											initial={{ opacity: 0, x: -10 }}
-											animate={{ opacity: 1, x: 0 }}
-											className="flex items-start gap-2"
+						{/* Fixed Step Checklist */}
+						<div className="flex-1 space-y-3 mb-4">
+							{GENERATION_STEPS.map((step, index) => {
+								const state = getStepState(step.threshold, index);
+								return (
+									<motion.div
+										key={step.id}
+										initial={{ opacity: 0, x: -10 }}
+										animate={{ opacity: 1, x: 0 }}
+										transition={{ delay: index * 0.1 }}
+										className="flex items-center gap-3"
+									>
+										{/* Step Indicator */}
+										<div className="flex-shrink-0">
+											{state === "complete" ? (
+												<div className="h-6 w-6 rounded-full bg-success/20 flex items-center justify-center">
+													<CheckCircle2 className="h-4 w-4 text-success" />
+												</div>
+											) : state === "active" ? (
+												<div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+													<Loader2 className="h-4 w-4 text-primary animate-spin" />
+												</div>
+											) : (
+												<div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center">
+													<div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+												</div>
+											)}
+										</div>
+
+										{/* Step Label */}
+										<span
+											className={
+												state === "complete"
+													? "text-sm text-muted-foreground"
+													: state === "active"
+														? "text-sm font-medium text-foreground"
+														: "text-sm text-muted-foreground/50"
+											}
 										>
-											<span className="text-white/30 shrink-0">{">"}</span>
-											<span>{log}</span>
-										</motion.div>
-									))}
-									{reasoning.length === 0 && (
-										<span className="text-white/30 italic">Initializing agent connection...</span>
-									)}
-								</AnimatePresence>
-								<motion.div
-									animate={{ opacity: [0, 1, 0] }}
-									transition={{ duration: 0.8, repeat: Infinity }}
-									className="w-2 h-4 bg-green-400/50 inline-block align-middle ml-1"
-								/>
-							</div>
+											{step.label}
+										</span>
+									</motion.div>
+								);
+							})}
 						</div>
 
-						{/* Progress & Actions */}
-						<div className="space-y-4">
-							<div className="space-y-2">
+						{/* Progress Bar & Actions */}
+						<div className="space-y-3 pt-3 border-t border-border/50">
+							<div className="space-y-1.5">
 								<div className="flex justify-between text-xs">
-									<span className="text-muted-foreground">Current Step</span>
+									<span className="text-muted-foreground">Overall Progress</span>
 									<span className="font-medium text-primary">{currentStep}</span>
 								</div>
-								<Progress value={progress} className="h-1.5" />
+								<Progress value={progress} className="h-2" />
 							</div>
 
-							<Button 
-								variant="ghost" 
-								size="sm" 
+							<Button
+								variant="ghost"
+								size="sm"
 								onClick={onCancel}
 								className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
 							>
@@ -422,4 +437,5 @@ function GenerationDashboard({
 		</Card>
 	);
 }
+
 

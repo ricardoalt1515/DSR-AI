@@ -34,10 +34,12 @@ Examples: Cruise mattresses → Tijuana resellers, Wood scraps → pellet fuel
 
 <photo_data_usage>
 If PHOTO ANALYSIS data is provided:
-1. Use the ESG (if diverted) text directly in your esg_pitch fields
-2. Use storage/PPE data in your safety section
-3. Reference lifecycle_status when pricing (Like-new = premium, Degraded = discount)
-4. Match price_hint from photos to your price_range
+1. Use the esg_statement directly in your esg_pitch fields
+2. Use co2_savings value for environmental impact calculations
+3. Use storage/PPE data in your safety section
+4. Reference lifecycle_status when pricing (Like-new = premium, Degraded = discount)
+5. Check confidence level - if "Low", note uncertainty in your assumptions
+6. Review lca_assumptions to understand estimation basis
 </photo_data_usage>
 
 <roi_summary>

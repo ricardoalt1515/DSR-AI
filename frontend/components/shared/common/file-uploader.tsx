@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { TIME_MS, UI_DELAYS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { projectsAPI } from "@/lib/api/projects";
@@ -112,47 +113,39 @@ function extractPhotoInsights(
 		return [];
 	}
 
+	// Use snake_case to match backend schema
 	const data = analysis as {
-		summary?: unknown;
-		confidence?: unknown;
-		materialType?: unknown;
-		qualityGrade?: unknown;
-		priceBandHint?: unknown;
-		businessIdeas?: unknown;
+		summary?: string;
+		confidence?: string;
+		material_type?: string;
+		quality_grade?: string;
+		lifecycle_status?: string;
+		co2_savings?: number;
+		esg_statement?: string;
 	};
 
 	const insights: string[] = [];
 
+	// Summary first (most important)
 	if (typeof data.summary === "string" && data.summary.trim()) {
 		insights.push(data.summary.trim());
 	}
 
-	const addIfString = (label: string, value: unknown) => {
-		if (
-			typeof value === "string" &&
-			value.trim() &&
-			insights.length < MAX_ANALYSIS_INSIGHTS
-		) {
-			insights.push(`${label}: ${value.trim()}`);
-		}
-	};
+	// Core identification
+	if (data.material_type && insights.length < MAX_ANALYSIS_INSIGHTS) {
+		insights.push(`Material: ${data.material_type}`);
+	}
+	if (data.quality_grade && insights.length < MAX_ANALYSIS_INSIGHTS) {
+		insights.push(`Quality: ${data.quality_grade}`);
+	}
+	if (data.lifecycle_status && insights.length < MAX_ANALYSIS_INSIGHTS) {
+		insights.push(`Lifecycle: ${data.lifecycle_status}`);
+	}
 
-	const addIfStringArray = (label: string, value: unknown) => {
-		if (Array.isArray(value) && insights.length < MAX_ANALYSIS_INSIGHTS) {
-			const items = value
-				.map((item) => (typeof item === "string" ? item.trim() : ""))
-				.filter(Boolean);
-			if (items.length > 0) {
-				insights.push(`${label}: ${items.join(", ")}`);
-			}
-		}
-	};
-
-	addIfString("Confidence", data.confidence);
-	addIfString("Material type", data.materialType);
-	addIfString("Quality grade", data.qualityGrade);
-	addIfString("Price band", data.priceBandHint);
-	addIfStringArray("Business ideas", data.businessIdeas);
+	// LCA data (key differentiator)
+	if (typeof data.co2_savings === "number" && data.co2_savings > 0 && insights.length < MAX_ANALYSIS_INSIGHTS) {
+		insights.push(`CO₂ savings: ${data.co2_savings} tCO₂e/year`);
+	}
 
 	return insights.slice(0, MAX_ANALYSIS_INSIGHTS);
 }
@@ -175,6 +168,8 @@ export function FileUploader({
 	const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 	const [showRawAnalysis, setShowRawAnalysis] = useState(false);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+	const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 	const statusPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// ========================================================================
@@ -254,11 +249,11 @@ export function FileUploader({
 					prev.map((f) =>
 						f.id === fileId
 							? {
-									...f,
-									status: "error" as const,
-									error:
-										_error instanceof Error ? _error.message : "Upload failed",
-								}
+								...f,
+								status: "error" as const,
+								error:
+									_error instanceof Error ? _error.message : "Upload failed",
+							}
 							: f,
 					),
 				);
@@ -322,13 +317,19 @@ export function FileUploader({
 	// ========================================================================
 
 	const deleteFile = async (fileId: string) => {
+		setIsDeleting(true);
 		try {
 			await projectsAPI.deleteFile(projectId, fileId);
-
 			toast.success("File deleted");
 			await fetchUploadedFiles();
+			// Close detail panel if deleted file was selected
+			if (selectedFile?.id === fileId) {
+				setSelectedFile(null);
+			}
 		} catch (_error) {
 			toast.error("Failed to delete file");
+		} finally {
+			setIsDeleting(false);
 		}
 	};
 
@@ -600,7 +601,7 @@ export function FileUploader({
 											size="sm"
 											onClick={(event) => {
 												event.stopPropagation();
-												void deleteFile(file.id);
+												setFileToDelete({ id: file.id, name: file.filename });
 											}}
 											className="text-destructive hover:text-destructive"
 										>
@@ -698,6 +699,22 @@ export function FileUploader({
 					</CardContent>
 				</Card>
 			)}
+
+			{/* Delete confirmation dialog */}
+			<ConfirmDeleteDialog
+				open={fileToDelete !== null}
+				onOpenChange={(open) => !open && setFileToDelete(null)}
+				onConfirm={async () => {
+					if (fileToDelete) {
+						await deleteFile(fileToDelete.id);
+						setFileToDelete(null);
+					}
+				}}
+				title="Delete file?"
+				description="This action cannot be undone. The file will be permanently removed from the project."
+				itemName={fileToDelete?.name}
+				loading={isDeleting}
+			/>
 		</div>
 	);
 }
