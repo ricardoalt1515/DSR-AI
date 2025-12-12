@@ -2,12 +2,12 @@
 File upload and management endpoints.
 """
 
-import logging
 import os
 from pathlib import Path
 from uuid import UUID
 
 import aiofiles
+import structlog
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -23,7 +23,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import CurrentUser
+from app.api.dependencies import CurrentUser, ProjectDep, AsyncDB
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_async_db
 from app.models.file import ProjectFile
@@ -39,7 +39,7 @@ from app.services.s3_service import (
     upload_file_to_s3,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -265,61 +265,36 @@ async def upload_file(
     summary="List project files",
 )
 async def list_files(
-    project_id: UUID,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    project: ProjectDep,
+    db: AsyncDB,
 ):
-    """
-    List all files for a project.
-
-    Returns files sorted by upload date (newest first).
-    Includes file metadata and processing status.
-    """
-    # Verify project access
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(select(Project).where(*conditions))
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    # Get files
+    """List all files for a project (newest first)."""
     result = await db.execute(
         select(ProjectFile)
-        .where(ProjectFile.project_id == project_id)
+        .where(ProjectFile.project_id == project.id)
         .order_by(ProjectFile.created_at.desc())
     )
     files = result.scalars().all()
 
-    # Convert to response
     file_list = []
     for f in files:
         has_text = f.processed_text is not None
         has_ai = f.ai_analysis is not None
         processing_status = "completed" if (has_text or has_ai) else "not_processed"
-
-        file_list.append(
-            {
-                "id": f.id,
-                "filename": f.filename,
-                "file_size": f.file_size,
-                "file_type": f.file_type,
-                "category": f.category,
-                "uploaded_at": f.created_at,
-                "processed_text": has_text,
-                "ai_analysis": has_ai,
-                "processing_status": processing_status,
-            }
-        )
+        file_list.append({
+            "id": f.id,
+            "filename": f.filename,
+            "file_size": f.file_size,
+            "file_type": f.file_type,
+            "category": f.category,
+            "uploaded_at": f.created_at,
+            "processed_text": has_text,
+            "ai_analysis": has_ai,
+            "processing_status": processing_status,
+        })
 
     return FileListResponse(
-        project_id=project_id,
+        project_id=project.id,
         files=file_list,
         total=len(file_list),
     )

@@ -15,9 +15,9 @@ Best practices:
 from typing import Optional, List, Dict, Any
 from pydantic import Field, ConfigDict, field_validator
 from app.schemas.common import BaseSchema
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class DynamicField(BaseSchema):

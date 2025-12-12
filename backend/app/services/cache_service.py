@@ -3,13 +3,13 @@ Cache service using Redis for storing job status and temporary data.
 """
 
 import json
-import logging
 from typing import Any, Optional
+import structlog
 import redis.asyncio as aioredis
 
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CacheService:

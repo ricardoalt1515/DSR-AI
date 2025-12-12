@@ -36,9 +36,9 @@ Why ID-only?
 """
 
 from typing import Dict, Tuple, Optional
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # ═══════════════════════════════════════════════════════════
 # BASE TEMPLATE (Universal Fallback)

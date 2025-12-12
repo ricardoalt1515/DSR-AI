@@ -6,7 +6,7 @@ Integrates with EmailService for transactional emails.
 """
 
 import uuid
-import logging
+import structlog
 from typing import Optional, AsyncGenerator
 
 from fastapi import Depends, Request
@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.core.auth_db import get_user_db
 from app.services.email_service import email_service
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):

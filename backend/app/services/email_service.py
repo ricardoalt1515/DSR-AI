@@ -9,7 +9,7 @@ Usage:
     await email_service.send_password_reset(email, reset_url)
 """
 
-import logging
+import structlog
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -17,7 +17,7 @@ import aiosmtplib
 
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # =============================================================================

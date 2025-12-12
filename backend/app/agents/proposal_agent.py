@@ -9,7 +9,7 @@ Design principles:
 """
 
 import json
-import logging
+import structlog
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.models.project_input import FlexibleWaterProjectData
 from app.models.proposal_output import ProposalOutput
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ProposalGenerationError(Exception):

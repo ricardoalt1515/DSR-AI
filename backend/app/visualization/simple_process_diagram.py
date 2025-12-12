@@ -9,10 +9,10 @@ import matplotlib.patches as patches
 from matplotlib.patches import FancyBboxPatch, Rectangle, Circle, Polygon, Arrow
 import numpy as np
 from typing import Dict, List, Tuple, Any
-import logging
+import structlog
 import io
 
-logger = logging.getLogger("hydrous")
+logger = structlog.get_logger(__name__)
 
 
 class PremiumVisualConfig:

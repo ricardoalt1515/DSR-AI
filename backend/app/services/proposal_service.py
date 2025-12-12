@@ -376,22 +376,12 @@ class ProposalService:
 
             technical_data = ProposalService._serialize_technical_data(project)
 
-            # ═══════════════════════════════════════════════════════════════════
-            # 🔍 DETAILED LOGGING: What data is being sent to the AI agent
-            # ═══════════════════════════════════════════════════════════════════
-            logger.info(
-                "╔══════════════════════════════════════════════════════════════╗",
-            )
-            logger.info(
-                "║         🤖 AI AGENT INPUT DATA - DETAILED INSPECTION         ║",
-            )
-            logger.info(
-                "╚══════════════════════════════════════════════════════════════╝",
-            )
+            # Structured logging - AI agent input data
+            ai_context = technical_data.to_ai_context()
+            ai_context_str = technical_data.format_ai_context_to_string(ai_context)
 
-            # Log technical data summary
             logger.info(
-                "📦 TECHNICAL DATA SUMMARY",
+                "ai_agent_input_prepared",
                 project_id=str(project_id),
                 job_id=job_id,
                 data_source="jsonb" if project.project_data else "relational",
@@ -400,25 +390,8 @@ class ProposalService:
                 completeness_percent=round(
                     technical_data.count_filled_fields() / technical_data.count_fields() * 100, 1
                 ) if technical_data.count_fields() > 0 else 0,
-            )
-
-            # ═══════════════════════════════════════════════════════════════════
-            # 🎯 CLEAN AI CONTEXT - What actually goes to the agent
-            # ═══════════════════════════════════════════════════════════════════
-            ai_context = technical_data.to_ai_context()
-            ai_context_str = technical_data.format_ai_context_to_string(ai_context)
-
-            logger.info(
-                "🎯 CLEAN AI CONTEXT (no UI metadata):",
-                context_keys=list(ai_context.keys()),
-                sections_count=len([k for k, v in ai_context.items() if isinstance(v, dict)]),
-                estimated_tokens=len(ai_context_str) // 4,  # Rough estimate: 1 token ≈ 4 chars
-            )
-
-            # Log the formatted string that will be injected (first 500 chars)
-            logger.info(
-                "📝 FORMATTED CONTEXT PREVIEW (first 500 chars):",
-                preview=ai_context_str[:500] + "..." if len(ai_context_str) > 500 else ai_context_str
+                context_sections=len([k for k, v in ai_context.items() if isinstance(v, dict)]),
+                estimated_tokens=len(ai_context_str) // 4,
             )
 
             # Prepare client metadata
@@ -442,29 +415,13 @@ class ProposalService:
             if attachments_summary:
                 client_metadata["attachmentsSummary"] = attachments_summary
 
-            # Log client metadata
             logger.info(
-                "🏢 CLIENT METADATA",
+                "client_metadata_prepared",
                 company=client_metadata.get("company_name"),
                 sector=client_metadata.get("selected_sector"),
-                subsector=client_metadata.get("selected_subsector"),
                 location=client_metadata.get("user_location"),
-                project_type=client_metadata.get("project_type"),
                 has_preferences=bool(request.preferences),
-                preferences=request.preferences if request.preferences else None
-            )
-
-            # Comparison: Full model vs Clean context
-            full_json = technical_data.model_dump_json(exclude_none=True)
-            logger.info(
-                "💡 TOKEN REDUCTION:",
-                full_serialization_chars=len(full_json),
-                clean_context_chars=len(ai_context_str),
-                reduction_percent=round((1 - len(ai_context_str) / len(full_json)) * 100, 1)
-            )
-
-            logger.info(
-                "════════════════════════════════════════════════════════════════",
+                has_attachments=bool(attachments_summary),
             )
 
             # Generate proposal with AI

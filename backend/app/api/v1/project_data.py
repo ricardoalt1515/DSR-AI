@@ -3,21 +3,15 @@ API endpoints for flexible project data management.
 """
 
 from typing import Any, Dict
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Request
+import structlog
 
-from app.core.database import get_async_db
-from app.api.dependencies import CurrentUser
-from typing import Optional
+from app.api.dependencies import ProjectDep, AsyncDB
 from app.services.project_data_service import ProjectDataService
 from app.schemas.common import SuccessResponse
-from app.models.project import Project
 
-import logging
-
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -29,353 +23,170 @@ from app.main import limiter
 @limiter.limit("30/minute")  # JSONB read operations - moderate
 async def get_project_data(
     request: Request,
-    project_id: UUID,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db)
+    project: ProjectDep,
+    db: AsyncDB,
 ):
-    """
-    Get all project data.
-    Returns the complete JSONB structure.
-    
-    Requires authentication and ownership validation.
-    Superusers can access any project; members only their own.
-    """
-    # Verify project access  (404 prevents info leakage)
-    project = await db.get(Project, project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
+    """Get all project data (complete JSONB structure)."""
     data = await ProjectDataService.get_project_data(
         db=db,
-        project_id=project_id,
+        project_id=project.id,
         user_id=project.user_id
     )
-    
-    return {
-        "project_id": str(project_id),
-        "data": data
-    }
+    return {"project_id": str(project.id), "data": data}
 
 
 @router.patch("/{project_id}/data")
-@limiter.limit("30/minute")  # JSONB write operations - moderate
+@limiter.limit("30/minute")
 async def update_project_data(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     updates: Dict[str, Any],
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    db: AsyncDB,
     merge: bool = True
 ):
-    """
-    Update project data.
-    
-    By default, merges with existing data (merge=true).
-    Set merge=false to replace completely.
-    
-    Requires authentication and ownership validation.
-    Superusers can modify any project; members only their own.
-    """
-    # Verify project access (404 prevents info leakage)
-    project_check = await db.get(Project, project_id)
-    if not project_check:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project_check.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
-    project = await ProjectDataService.update_project_data(
+    """Update project data (merges by default, set merge=false to replace)."""
+    updated = await ProjectDataService.update_project_data(
         db=db,
-        project_id=project_id,
-        user_id=project_check.user_id,
+        project_id=project.id,
+        user_id=project.user_id,
         updates=updates,
         merge=merge
     )
-    
-    logger.info(f"✅ Updated project data for {project_id}")
-    
+    logger.info("project_data_updated", project_id=str(project.id))
     return {
         "message": "Project data updated successfully",
-        "project_id": str(project_id),
-        "updated_at": project.updated_at.isoformat()
+        "project_id": str(project.id),
+        "updated_at": updated.updated_at.isoformat()
     }
 
 
 @router.put("/{project_id}/data")
-@limiter.limit("20/minute")  # Full replacement - more restrictive
+@limiter.limit("20/minute")
 async def replace_project_data(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     data: Dict[str, Any],
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncDB,
 ):
-    """
-    Replace project data completely.
-    Use this for full updates, not partial.
-    
-    Requires authentication and ownership validation.
-    Superusers can modify any project; members only their own.
-    """
-    # Verify project access (404 prevents info leakage)
-    project_check = await db.get(Project, project_id)
-    if not project_check:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project_check.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
-    project = await ProjectDataService.update_project_data(
+    """Replace project data completely (no merge)."""
+    updated = await ProjectDataService.update_project_data(
         db=db,
-        project_id=project_id,
-        user_id=project_check.user_id,
+        project_id=project.id,
+        user_id=project.user_id,
         updates=data,
-        merge=False  # Complete replacement
+        merge=False
     )
-    
-    logger.info(f"✅ Replaced project data for {project_id}")
-    
+    logger.info("project_data_replaced", project_id=str(project.id))
     return {
         "message": "Project data replaced successfully",
-        "project_id": str(project_id),
-        "updated_at": project.updated_at.isoformat()
+        "project_id": str(project.id),
+        "updated_at": updated.updated_at.isoformat()
     }
 
 
 @router.post("/{project_id}/quality-parameter")
-@limiter.limit("30/minute")  # Parameter operations - moderate
+@limiter.limit("30/minute")
 async def add_quality_parameter(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     parameter_name: str,
     value: float,
     unit: str,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncDB,
 ):
-    """
-    Quick endpoint to add/update a water quality parameter.
-    
-    Requires authentication and ownership validation.
-    Superusers can modify any project; members only their own.
-    
-    **Example:**
-    POST /projects/{id}/quality-parameter
-    ?parameter_name=BOD&value=3700&unit=mg/L
-    """
-    # Verify project ownership (404 prevents info leakage)
-    project_check = await db.get(Project, project_id)
-    if not project_check:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project_check.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
-    # Get current data
+    """Add/update a water quality parameter."""
     data = await ProjectDataService.get_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project_check.user_id
+        db=db, project_id=project.id, user_id=project.user_id
     )
-    
-    # Update quality parameter
     if "quality" not in data:
         data["quality"] = {}
+    data["quality"][parameter_name] = {"value": value, "unit": unit}
     
-    data["quality"][parameter_name] = {
-        "value": value,
-        "unit": unit
-    }
-    
-    # Save
-    project = await ProjectDataService.update_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project_check.user_id,
-        updates={"quality": data["quality"]},
-        merge=True
+    await ProjectDataService.update_project_data(
+        db=db, project_id=project.id, user_id=project.user_id,
+        updates={"quality": data["quality"]}, merge=True
     )
-    
-    logger.info(f"✅ Added parameter {parameter_name} = {value} {unit}")
-    
+    logger.info("quality_parameter_added", parameter=parameter_name, value=value)
     return SuccessResponse(
         message=f"Parameter '{parameter_name}' added successfully",
-        data={
-            "parameter": parameter_name,
-            "value": value,
-            "unit": unit
-        }
+        data={"parameter": parameter_name, "value": value, "unit": unit}
     )
 
 
 @router.delete("/{project_id}/quality-parameter/{parameter_name}")
-@limiter.limit("30/minute")  # Parameter delete - moderate
+@limiter.limit("30/minute")
 async def delete_quality_parameter(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     parameter_name: str,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncDB,
 ):
-    """
-    Delete a water quality parameter.
-    
-    Requires authentication and ownership validation.
-    Superusers can modify any project; members only their own.
-    """
-    # Verify project access (404 prevents info leakage)
-    project = await db.get(Project, project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
-    # Get current data
+    """Delete a water quality parameter."""
     data = await ProjectDataService.get_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project.user_id
+        db=db, project_id=project.id, user_id=project.user_id
     )
-    
-    # Remove parameter
     quality = data.get("quality", {})
-    if parameter_name in quality:
-        del quality[parameter_name]
-        
-        # Save
-        await ProjectDataService.update_project_data(
-            db=db,
-            project_id=project_id,
-            user_id=project.user_id,
-            updates={"quality": quality},
-            merge=True
-        )
-        
-        logger.info(f"✅ Deleted parameter {parameter_name}")
-        
-        return SuccessResponse(
-            message=f"Parameter '{parameter_name}' deleted successfully"
-        )
-    else:
+    if parameter_name not in quality:
         raise HTTPException(404, f"Parameter '{parameter_name}' not found")
+    
+    del quality[parameter_name]
+    await ProjectDataService.update_project_data(
+        db=db, project_id=project.id, user_id=project.user_id,
+        updates={"quality": quality}, merge=True
+    )
+    logger.info("quality_parameter_deleted", parameter=parameter_name)
+    return SuccessResponse(message=f"Parameter '{parameter_name}' deleted successfully")
 
 
 @router.post("/{project_id}/sections")
-@limiter.limit("20/minute")  # Section operations - moderate
+@limiter.limit("20/minute")
 async def add_custom_section(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     section: Dict[str, Any],
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncDB,
 ):
-    """
-    Add a custom section to the project.
-    
-    **Example:**
-    ```json
-    {
-      "id": "site-conditions",
-      "title": "Site Conditions",
-      "description": "Physical site characteristics",
-      "fields": [
-        {
-          "id": "elevation",
-          "label": "Elevation",
-          "value": "1500",
-          "unit": "m"
-        }
-      ]
-    }
-    ```
-    """
-    # Get project to find user_id (superusers can modify any project; members only their own)
-    project = await db.get(Project, project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
-    # Get current data
+    """Add a custom section to the project."""
     data = await ProjectDataService.get_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project.user_id
+        db=db, project_id=project.id, user_id=project.user_id
     )
-    
-    # Add section
     sections = data.get("sections", [])
-    
-    # Set order if not provided
     if "order" not in section:
         section["order"] = len(sections)
-    
     sections.append(section)
     
-    # Save
     await ProjectDataService.update_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project.user_id,
-        updates={"sections": sections},
-        merge=True
+        db=db, project_id=project.id, user_id=project.user_id,
+        updates={"sections": sections}, merge=True
     )
-    
-    logger.info(f"✅ Added section '{section.get('title')}'")
-    
-    return SuccessResponse(
-        message="Section added successfully",
-        data={"section": section}
-    )
+    logger.info("section_added", title=section.get("title"))
+    return SuccessResponse(message="Section added successfully", data={"section": section})
 
 
 @router.delete("/{project_id}/sections/{section_id}")
-@limiter.limit("20/minute")  # Section delete - moderate
+@limiter.limit("20/minute")
 async def delete_custom_section(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     section_id: str,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncDB,
 ):
-    """
-    Delete a custom section.
-    Requires authentication and ownership validation.
-    Superusers can modify any project; members only their own.
-    """
-    # Verify project access (404 prevents info leakage)
-    project = await db.get(Project, project_id)
-    if not project:
-        raise HTTPException(404, "Project not found")
-    if not current_user.is_superuser and project.user_id != current_user.id:
-        raise HTTPException(404, "Project not found")
-    
-    # Get current data
+    """Delete a custom section."""
     data = await ProjectDataService.get_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project.user_id
+        db=db, project_id=project.id, user_id=project.user_id
     )
-    
-    # Filter section
     sections = data.get("sections", [])
     filtered_sections = [s for s in sections if s.get("id") != section_id]
     
     if len(sections) == len(filtered_sections):
         raise HTTPException(404, f"Section '{section_id}' not found")
     
-    # Reorder
     for idx, section in enumerate(filtered_sections):
         section["order"] = idx
     
-    # Save
     await ProjectDataService.update_project_data(
-        db=db,
-        project_id=project_id,
-        user_id=project.user_id,
-        updates={"sections": filtered_sections},
-        merge=True
+        db=db, project_id=project.id, user_id=project.user_id,
+        updates={"sections": filtered_sections}, merge=True
     )
-    
-    logger.info(f"✅ Deleted section '{section_id}'")
-    
+    logger.info("section_deleted", section_id=section_id)
     return SuccessResponse(message="Section deleted successfully")

@@ -2,6 +2,9 @@
 Health check endpoints for monitoring and load balancers.
 """
 
+import os
+from datetime import datetime
+
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -11,9 +14,9 @@ from app.core.database import async_engine
 from app.services.cache_service import cache_service
 from app.core.config import settings
 
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -143,3 +146,36 @@ async def readiness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "not ready", "database": f"error: {str(e)[:50]}"}
         )
+
+
+class VersionInfo(BaseModel):
+    """Application version information."""
+    
+    version: str
+    environment: str
+    commit: str
+    deployed_at: str
+
+
+@router.get(
+    "/version",
+    response_model=VersionInfo,
+    status_code=status.HTTP_200_OK,
+    tags=["Health"],
+)
+async def get_version():
+    """
+    Get application version information.
+    
+    Useful for:
+    - Verifying deployment succeeded
+    - Debugging which version is running
+    - CI/CD pipeline verification
+    """
+    return VersionInfo(
+        version=settings.APP_VERSION,
+        environment=settings.ENVIRONMENT,
+        commit=os.environ.get("GIT_COMMIT", "unknown"),
+        deployed_at=os.environ.get("DEPLOYED_AT", datetime.utcnow().isoformat()),
+    )
+

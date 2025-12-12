@@ -10,10 +10,10 @@ that can be stored on `ProjectFile`.
 """
 
 from typing import Any, BinaryIO
-import logging
+import structlog
 import mimetypes
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class DocumentProcessor:

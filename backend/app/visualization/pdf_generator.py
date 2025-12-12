@@ -4,7 +4,7 @@ Includes advanced formatting for equipment specifications and technical diagrams
 """
 
 import os
-import logging
+import structlog
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -16,7 +16,7 @@ from io import BytesIO
 
 # Removed efficiency_utils import - working directly with TreatmentEfficiency model
 
-logger = logging.getLogger("hydrous")
+logger = structlog.get_logger(__name__)
 
 
 class ProfessionalPDFGenerator:

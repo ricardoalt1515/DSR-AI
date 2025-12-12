@@ -6,8 +6,9 @@ from uuid import UUID
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.attributes import flag_modified
+import structlog
 
+from app.core.database import get_async_db
 from app.api.dependencies import (
     CurrentUser,
     AsyncDB,
@@ -16,6 +17,7 @@ from app.api.dependencies import (
     SearchQuery,
     StatusFilter,
     SectorFilter,
+    ProjectDep,
 )
 from app.schemas.project import (
     ProjectCreate,
@@ -25,14 +27,15 @@ from app.schemas.project import (
     DashboardStatsResponse,
     PipelineStageStats,
 )
-from app.schemas.common import PaginatedResponse, ErrorResponse
+from app.schemas.common import PaginatedResponse, SuccessResponse, ErrorResponse
 from app.models.project import Project
 from app.models.proposal import Proposal
+from app.models.timeline import TimelineEvent
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import raiseload, selectinload, load_only
-import logging
+from sqlalchemy.orm.attributes import flag_modified
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -466,41 +469,17 @@ async def update_project(
     description="Delete a project and all related data (cascade delete)",
     responses={404: {"model": ErrorResponse}},
 )
-@limiter.limit("10/minute")  # Delete endpoint - conservative
+@limiter.limit("10/minute")
 async def delete_project(
     request: Request,
-    project_id: UUID,
-    current_user: CurrentUser,
-    db: AsyncDB,  # ✅ Use type alias
+    project: ProjectDep,
+    db: AsyncDB,
 ):
-    """
-    Delete a project.
-
-    This will also delete all related data (technical data, proposals, files, timeline).
-    Cascade delete is configured in the database models.
-    """
-    # Get project (superusers can delete any project; members only their own)
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-    
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    # Delete project (cascade will handle related records)
+    """Delete a project (cascade deletes all related data)."""
+    project_id = project.id
     await db.delete(project)
     await db.commit()
-
-    logger.info(f"✅ Project deleted: {project_id}")
-
+    logger.info("project_deleted", project_id=str(project_id))
     return None
 
 
@@ -514,40 +493,17 @@ async def delete_project(
 @limiter.limit("60/minute")
 async def get_project_timeline(
     request: Request,
-    project_id: UUID,
-    current_user: CurrentUser,
+    project: ProjectDep,
     db: AsyncDB,
     limit: int = Query(50, ge=1, le=100, description="Max events to return"),
 ):
-    """
-    Get project activity timeline.
-    
-    Returns events ordered by most recent first.
-    Useful for full audit trail or pagination.
-    """
+    """Get project activity timeline (most recent first)."""
     from app.models.timeline import TimelineEvent
     from app.schemas.timeline import TimelineEventResponse
     
-    # Verify project access (superusers can view any project; members only their own)
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-    
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
-    project = result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-    
-    # Get timeline events
     result = await db.execute(
         select(TimelineEvent)
-        .where(TimelineEvent.project_id == project_id)
+        .where(TimelineEvent.project_id == project.id)
         .order_by(TimelineEvent.created_at.desc())
         .limit(limit)
     )

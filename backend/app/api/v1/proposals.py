@@ -7,7 +7,7 @@ Includes PDF generation and AI transparency features (Oct 2025).
 from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi.responses import Response, StreamingResponse
-import logging
+import structlog
 import os
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,7 @@ from app.services.s3_service import (
     delete_file_from_s3,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 

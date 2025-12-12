@@ -12,12 +12,12 @@ Principles:
 """
 
 import copy
-import logging
+import structlog
 from typing import Optional
 
 from .registry import TEMPLATES, BASE_TEMPLATE
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _materialize_field(field: dict) -> dict:

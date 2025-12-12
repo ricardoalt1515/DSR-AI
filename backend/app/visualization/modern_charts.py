@@ -7,7 +7,7 @@ Professional approach for treatment train diagrams
 
 import base64
 from typing import Dict, Any, List
-import logging
+import structlog
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from io import BytesIO
@@ -16,7 +16,7 @@ import matplotlib.patches as patches
 from matplotlib.patches import FancyBboxPatch, Rectangle, Circle, Polygon
 import numpy as np
 
-logger = logging.getLogger("hydrous")
+logger = structlog.get_logger(__name__)
 
 # Import new simple diagrams system
 try:

@@ -28,9 +28,9 @@ from app.core.fastapi_users_instance import fastapi_users, auth_backend
 from app.schemas.user_fastapi import UserRead, UserCreate, UserUpdate
 from app.core.config import settings
 
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
