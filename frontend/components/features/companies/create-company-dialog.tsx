@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Building2, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2 } from "lucide-react";
 /**
  * CreateCompanyDialog - Modal for creating or editing a company
  * Dual-mode component (DRY): handles both create and edit operations
@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Building2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SectorSelector } from "@/components/shared/forms/sector-selector";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
 	Dialog,
 	DialogContent,
@@ -336,16 +337,14 @@ export function CreateCompanyDialog({
 						{currentStep === 1 ? (
 							<>
 								{isEditMode && (
-									<Button
+									<LoadingButton
 										type="submit"
-										disabled={loading || !formData.name}
+										loading={loading}
+										disabled={!formData.name}
 										variant="secondary"
 									>
-										{loading && (
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										)}
 										Save Changes
-									</Button>
+									</LoadingButton>
 								)}
 								<Button
 									type="button"
@@ -357,16 +356,15 @@ export function CreateCompanyDialog({
 								</Button>
 							</>
 						) : (
-							<Button
+							<LoadingButton
 								type="submit"
+								loading={loading}
 								disabled={
-									loading ||
-									(!isEditMode && (!formData.sector || !formData.subsector))
+									!isEditMode && (!formData.sector || !formData.subsector)
 								}
 							>
-								{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 								{isEditMode ? "Update Company" : "Create Company"}
-							</Button>
+							</LoadingButton>
 						)}
 					</DialogFooter>
 				</form>

@@ -12,6 +12,7 @@ import {
 } from "@/components/features/dashboard";
 import { ProjectCard } from "@/components/features/dashboard/components/project-card";
 import ClientOnly from "@/components/shared/common/client-only";
+import { OnboardingChecklist } from "@/components/shared/onboarding-checklist";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -30,6 +31,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { routes } from "@/lib/routes";
 import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import type { ProjectSummary } from "@/lib/project-types";
 import {
@@ -39,6 +41,7 @@ import {
 	useProjects,
 } from "@/lib/stores";
 import { useCompanyStore } from "@/lib/stores/company-store";
+
 
 /**
  * Memoized Assessment List Component
@@ -161,6 +164,50 @@ const DashboardContent = memo(function DashboardContent() {
 		setCreateModalOpen(true);
 	}, []);
 
+	// Onboarding state derived from projects data
+	const projects = useProjects();
+	const hasProposals = projects.some((p) => p.proposalsCount > 0);
+	const hasHighProgress = projects.some((p) => p.progress >= 80);
+	const showOnboarding = projects.length < 3; // Show for new users
+
+	// Onboarding steps with dynamic completion
+	const onboardingSteps = useMemo(() => [
+		{
+			id: "create-company",
+			label: "Create your first company",
+			description: "Set up a company to associate with assessments",
+			action: { label: "Add", onClick: () => { } }, // Companies created in wizard
+		},
+		{
+			id: "start-assessment",
+			label: "Start an assessment",
+			description: "Create your first waste assessment",
+			action: { label: "Start", onClick: handleOpenCreateModal },
+		},
+		{
+			id: "complete-data",
+			label: "Complete technical data (80%+)",
+			description: "Fill out the questionnaire for accurate proposals",
+		},
+		{
+			id: "generate-proposal",
+			label: "Generate your first AI proposal",
+			description: "Let AI analyze and create a deal report",
+		},
+	], [handleOpenCreateModal]);
+
+	// Calculate completed steps
+	const completedSteps = useMemo(() => {
+		const completed: string[] = [];
+		if (companies.length > 0) completed.push("create-company");
+		if (projects.length > 0) completed.push("start-assessment");
+		if (hasHighProgress) completed.push("complete-data");
+		if (hasProposals) completed.push("generate-proposal");
+		return completed;
+	}, [companies.length, projects.length, hasHighProgress, hasProposals]);
+
+	const router = useRouter();
+
 	return (
 		<div className="space-y-8">
 			{/* Hero Section */}
@@ -168,10 +215,26 @@ const DashboardContent = memo(function DashboardContent() {
 				<DashboardHero onCreateProject={handleOpenCreateModal} />
 			</div>
 
+			{/* Onboarding Checklist - Only for new users */}
+			{showOnboarding && (
+				<div className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+					<OnboardingChecklist
+						steps={onboardingSteps}
+						completedSteps={completedSteps}
+						onStepAction={(stepId) => {
+							if (stepId === "start-assessment") {
+								handleOpenCreateModal();
+							}
+						}}
+					/>
+				</div>
+			)}
+
 			{/* Pipeline Overview */}
 			<div className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
 				<ProjectPipeline />
 			</div>
+
 
 			{/* Enhanced Stats Grid */}
 			<div

@@ -7,9 +7,11 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import type { TableField, TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 import { DynamicSection } from "./dynamic-section";
+
 
 interface SectionAccordionItemProps {
 	section: TableSection;
@@ -64,21 +66,27 @@ export const SectionAccordionItem = memo(function SectionAccordionItem({
 							</p>
 						)}
 					</div>
-					<div className="flex items-center gap-2">
-						<Badge variant="secondary" className="text-xs">
-							{completedFields} / {totalFields}
+					<div className="flex items-center gap-3">
+						{/* Mini progress bar for visual feedback */}
+						{totalFields > 0 && (
+							<Progress
+								value={Math.round((completedFields / totalFields) * 100)}
+								className="w-16 h-1.5"
+							/>
+						)}
+						<Badge
+							variant={completedFields === totalFields && totalFields > 0 ? "default" : "secondary"}
+							className="text-xs"
+						>
+							{completedFields}/{totalFields}
 						</Badge>
 						{isEmpty && (
 							<Badge variant="outline" className="text-xs">
-								Vacía
-							</Badge>
-						)}
-						{isFixed && (
-							<Badge variant="outline" className="text-xs">
-								Permanent
+								Empty
 							</Badge>
 						)}
 					</div>
+
 				</div>
 			</AccordionTrigger>
 			<AccordionContent className="px-0 pb-0">

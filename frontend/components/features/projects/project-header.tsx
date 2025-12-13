@@ -2,11 +2,9 @@
 
 import {
 	ArrowLeft,
-	ChevronRight,
 	Download,
 	Edit,
 	FileText,
-	Home,
 	MoreHorizontal,
 	Trash2,
 } from "lucide-react";
@@ -33,10 +31,13 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
+
 import { routes } from "@/lib/routes";
 import { useProjectActions, useTechnicalSections } from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";
 import { EditProjectDialog } from "./edit-project-dialog";
+
 
 interface Project {
 	id: string;
@@ -92,22 +93,11 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 		<header className="border-b bg-card">
 			<div className="container mx-auto px-4 py-6">
 				{/* Breadcrumbs */}
-				<nav
-					className="flex items-center gap-2 mb-4 text-sm"
-					aria-label="Breadcrumb"
-				>
-					<Link
-						href="/dashboard"
-						className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-					>
-						<Home className="h-4 w-4" />
-						<span>Dashboard</span>
-					</Link>
-					<ChevronRight className="h-4 w-4 text-muted-foreground" />
-					<span className="text-foreground font-medium truncate max-w-[200px] md:max-w-none">
-						{project.name}
-					</span>
-				</nav>
+				<PageBreadcrumbs
+					items={[{ label: project.name }]}
+					className="mb-4"
+				/>
+
 
 				<div className="flex items-center justify-between">
 					<div className="flex items-center space-x-4">

@@ -478,24 +478,21 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 			)}
 
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-				<TabsList className="grid w-full grid-cols-4">
+				<TabsList className="grid w-full grid-cols-3">
 					<TabsTrigger value="capture" className="flex items-center gap-2">
-						<Layers className="h-4 w-4" />
-						Capture
+						<Edit className="h-4 w-4" />
+						Form
 					</TabsTrigger>
 					<TabsTrigger value="engineering" className="flex items-center gap-2">
 						<Table className="h-4 w-4" />
-						Table View
-					</TabsTrigger>
-					<TabsTrigger value="summary" className="flex items-center gap-2">
-						<BarChart3 className="h-4 w-4" />
-						Summary
+						Table
 					</TabsTrigger>
 					<TabsTrigger value="activity" className="flex items-center gap-2">
 						<History className="h-4 w-4" />
-						Activity
+						History
 					</TabsTrigger>
 				</TabsList>
+
 
 				<TabsContent value="capture" className="mt-6">
 					<ResizableDataLayout

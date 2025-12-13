@@ -173,15 +173,32 @@ export function FlexibleDataCapture({
 						</div>
 					</div>
 
-					{/* Normal Sections - ✅ OPTIMIZACIÓN: Componente reutilizable */}
+					{/* All Sections - Single unified accordion sorted by completion */}
 					<Accordion
 						type="multiple"
-						value={accordionValue}
-						onValueChange={setAccordionValue}
-						className="space-y-4"
+						value={[...accordionValue, ...fixedAccordionValue]}
+						onValueChange={(newValue) => {
+							// Split values back into custom and fixed for state management
+							const customIds = sections.filter((s) => !isFixedSection(s.id)).map((s) => s.id);
+							const fixedIds = sections.filter((s) => isFixedSection(s.id)).map((s) => s.id);
+							setAccordionValue(newValue.filter((v) => customIds.includes(v)));
+							setFixedAccordionValue(newValue.filter((v) => fixedIds.includes(v)));
+						}}
+						className="space-y-3"
 					>
-						{sections
-							.filter((s) => !isFixedSection(s.id))
+						{/* Sort sections: incomplete first, then by completion percentage */}
+						{[...sections]
+							.sort((a, b) => {
+								const aCompleted = a.fields.filter((f) => f.value && f.value !== "").length;
+								const bCompleted = b.fields.filter((f) => f.value && f.value !== "").length;
+								const aPercent = a.fields.length > 0 ? aCompleted / a.fields.length : 1;
+								const bPercent = b.fields.length > 0 ? bCompleted / b.fields.length : 1;
+								// Incomplete sections first
+								if (aPercent < 1 && bPercent === 1) return -1;
+								if (aPercent === 1 && bPercent < 1) return 1;
+								// Then by completion percentage (lower first)
+								return aPercent - bPercent;
+							})
 							.map((section) => (
 								<SectionAccordionItem
 									key={section.id}
@@ -190,36 +207,6 @@ export function FlexibleDataCapture({
 								/>
 							))}
 					</Accordion>
-
-					{/* Fixed Sections - ✅ OPTIMIZACIÓN: Mismo componente reutilizable */}
-					{sections.filter((s) => isFixedSection(s.id)).length > 0 && (
-						<div className="space-y-4 mt-8">
-							<Separator />
-							<div className="flex items-center gap-2 text-sm text-muted-foreground">
-								<Badge variant="outline" className="text-xs">
-									Permanent
-								</Badge>
-								<span>This section will always be available</span>
-							</div>
-							<Accordion
-								type="multiple"
-								value={fixedAccordionValue}
-								onValueChange={setFixedAccordionValue}
-								className="space-y-4"
-							>
-								{sections
-									.filter((s) => isFixedSection(s.id))
-									.map((section) => (
-										<SectionAccordionItem
-											key={section.id}
-											section={section}
-											isFixed={true}
-											onFieldChange={onFieldChange}
-										/>
-									))}
-							</Accordion>
-						</div>
-					)}
 				</>
 			)}
 		</div>
