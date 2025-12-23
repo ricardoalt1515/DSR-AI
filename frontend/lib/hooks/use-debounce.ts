@@ -36,3 +36,6 @@ export function useDebounce<T>(value: T, delay: number = DEBOUNCE.SEARCH): T {
 
 	return debouncedValue;
 }
+
+// Alias for consistent naming
+export const useDebouncedValue = useDebounce;

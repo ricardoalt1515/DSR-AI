@@ -1,10 +1,11 @@
 "use client";
 
 import {
-	ArrowLeft,
+	ChevronRight,
 	Download,
 	Edit,
 	FileText,
+	Home,
 	MoreHorizontal,
 	Trash2,
 } from "lucide-react";
@@ -12,17 +13,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -31,7 +23,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
+import { Progress } from "@/components/ui/progress";
 
 import { routes } from "@/lib/routes";
 import { useProjectActions, useTechnicalSections } from "@/lib/stores";
@@ -92,65 +84,91 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 	return (
 		<header className="border-b bg-card">
 			<div className="container mx-auto px-4 py-6">
-				{/* Breadcrumbs */}
-				<PageBreadcrumbs
-					items={[{ label: project.name }]}
-					className="mb-4"
-				/>
+				{/* Breadcrumb navigation */}
+				<nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
+					<Link
+						href="/dashboard"
+						className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+					>
+						<Home className="h-3.5 w-3.5" aria-hidden="true" />
+						<span className="hidden sm:inline">Dashboard</span>
+					</Link>
+					<ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+					<span className="text-foreground font-medium truncate max-w-[200px] sm:max-w-none">
+						{project.name}
+					</span>
+				</nav>
 
+				{/* Main header content */}
+				<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+					{/* Left: Project info */}
+					<div className="flex-1 min-w-0">
+						<div className="flex items-center gap-3 mb-1 flex-wrap">
+							<h1 className="text-xl sm:text-2xl font-bold truncate">{project.name}</h1>
+							<Badge
+								variant="secondary"
+								className={statusColors[project.status as keyof typeof statusColors]}
+							>
+								{project.status}
+							</Badge>
+						</div>
+						<p className="text-sm text-muted-foreground mb-4">
+							{project.client} &bull; {project.location || project.type}
+						</p>
 
-				<div className="flex items-center justify-between">
-					<div className="flex items-center space-x-4">
-						<Link href="/dashboard">
-							<Button variant="ghost" size="icon" title="Volver al Dashboard">
-								<ArrowLeft className="h-4 w-4" />
-							</Button>
-						</Link>
-						<div>
-							<div className="flex items-center gap-3 mb-2">
-								<h1 className="text-2xl font-bold">{project.name}</h1>
-								<Badge
-									className={
-										statusColors[project.status as keyof typeof statusColors]
-									}
-								>
-									{project.status}
-								</Badge>
+						{/* Prominent progress bar */}
+						<div className="progress-header max-w-md">
+							<div className="flex items-center justify-between mb-2">
+								<span className="text-sm font-medium">Assessment Progress</span>
+								<span className="text-sm font-semibold text-primary">
+									{completion.percentage}%
+								</span>
 							</div>
-							<div className="flex items-center gap-4 text-sm text-muted-foreground">
-								<span>Client: {project.client}</span>
-								<span>•</span>
-								<span>Type: {project.type}</span>
-								<span>•</span>
-								<span>Progress: {completion.percentage}%</span>
-							</div>
+							<Progress
+								value={completion.percentage}
+								className="h-2"
+							/>
+							<p className="text-xs text-muted-foreground mt-1.5">
+								{completion.completed} of {completion.total} fields completed
+							</p>
 						</div>
 					</div>
 
-					<div className="flex items-center space-x-2">
+					{/* Right: Actions */}
+					<div className="flex items-center gap-2 flex-shrink-0">
+						{/* Primary CTA - hidden on mobile, visible in dropdown */}
+						<Button
+							onClick={() => router.push(routes.project.proposals(project.id))}
+							size="sm"
+							className="hidden sm:inline-flex"
+						>
+							<FileText className="mr-2 h-4 w-4" />
+							Generate Proposal
+						</Button>
+
+						{/* Secondary actions dropdown */}
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm">
-									<MoreHorizontal className="h-4 w-4" />
+								<Button variant="outline" size="icon" className="h-9 w-9" aria-label="More actions">
+									<MoreHorizontal className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
+								{/* Mobile-only: Generate Proposal */}
+								<DropdownMenuItem
+									className="sm:hidden"
+									onSelect={() => router.push(routes.project.proposals(project.id))}
+								>
+									<FileText className="mr-2 h-4 w-4" />
+									Generate Proposal
+								</DropdownMenuItem>
 								<DropdownMenuItem
 									onSelect={() => {
-										// Small delay to ensure DropdownMenu closes before Dialog opens
 										setTimeout(() => setShowEditDialog(true), 0);
 									}}
 								>
 									<Edit className="mr-2 h-4 w-4" />
-									Edit Assessment
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={() =>
-										router.push(routes.project.proposals(project.id))
-									}
-								>
-									<FileText className="mr-2 h-4 w-4" />
-									Generate Proposal
+									Edit Project
 								</DropdownMenuItem>
 								<DropdownMenuItem>
 									<Download className="mr-2 h-4 w-4" />
@@ -160,7 +178,6 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 								<DropdownMenuItem
 									className="text-destructive focus:text-destructive"
 									onSelect={() => {
-										// Small delay to ensure DropdownMenu closes before AlertDialog opens
 										setTimeout(() => setShowDeleteDialog(true), 0);
 									}}
 								>
@@ -173,28 +190,15 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 				</div>
 			</div>
 
-			<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Delete Project?</AlertDialogTitle>
-						<AlertDialogDescription>
-							You are about to delete <strong>{project.name}</strong>. This
-							action cannot be undone. All technical data, proposals and
-							associated files will be deleted.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={handleDelete}
-							disabled={isDeleting}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-						>
-							{isDeleting ? "Deleting..." : "Delete Project"}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+			<ConfirmDeleteDialog
+				open={showDeleteDialog}
+				onOpenChange={setShowDeleteDialog}
+				onConfirm={handleDelete}
+				title="Delete Project?"
+				description="This action cannot be undone. All technical data, proposals and associated files will be deleted."
+				itemName={project.name}
+				loading={isDeleting}
+			/>
 
 			<EditProjectDialog
 				open={showEditDialog}

@@ -8,13 +8,12 @@ Design principles:
 - Good names: project_data instead of water_data
 """
 
-import json
-import structlog
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import structlog
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import UsageLimits
@@ -77,10 +76,10 @@ def inject_context(ctx: RunContext[ProposalContext]) -> str:
     meta = ctx.deps.client_metadata
     data = ctx.deps.project_data
     photos = ctx.deps.photo_insights
-    
+
     # Build context sections
     sections = []
-    
+
     # 1. Project context
     sections.append(f"""
 PROJECT:
@@ -88,7 +87,7 @@ PROJECT:
 - Sector: {meta.get('selected_sector', 'Industrial')} / {meta.get('selected_subsector', 'General')}
 - Location: {meta.get('user_location', 'Not specified')}
 """)
-    
+
     # 2. Waste assessment data (clean, no UI metadata)
     ai_context = data.to_ai_context()
     formatted = data.format_ai_context_to_string(ai_context)
@@ -96,7 +95,7 @@ PROJECT:
 WASTE ASSESSMENT:
 {formatted}
 """)
-    
+
     # 3. Photo insights (if available) - pass LCA data for environmental sections
     if photos:
         photo_sections = []
@@ -106,17 +105,17 @@ WASTE ASSESSMENT:
             quality = p.get("quality_grade", "Unknown")
             lifecycle = p.get("lifecycle_status", "Unknown")
             confidence = p.get("confidence", "Medium")
-            
+
             # LCA data
             co2_savings = p.get("co2_savings", 0)
             esg_statement = p.get("esg_statement", "")
             lca_assumptions = p.get("lca_assumptions", "")
-            
+
             # Handling
             storage = p.get("storage_requirements", [])
             ppe = p.get("ppe_requirements", [])
             hazards = p.get("visible_hazards", [])
-            
+
             photo_sections.append(f"""
 PHOTO {i}: {material} (confidence: {confidence})
 - Quality: {quality} | Lifecycle: {lifecycle}
@@ -127,12 +126,12 @@ PHOTO {i}: {material} (confidence: {confidence})
 - PPE: {', '.join(ppe) if ppe else 'Standard'}
 - Visible hazards: {', '.join(hazards) if hazards else 'None'}
 """)
-        
+
         sections.append(f"""
 PHOTO ANALYSIS (use CO₂ data for environmental sections, generate your own pricing/buyers):
 {''.join(photo_sections)}
 """)
-    
+
     return "".join(sections)
 
 
@@ -156,16 +155,16 @@ async def generate_proposal(
         ProposalGenerationError: On failure
     """
     _ensure_api_key()  # Fail fast if no API key
-    
+
     context = ProposalContext(
         project_data=project_data,
         client_metadata=client_metadata or {},
         photo_insights=photo_insights,
     )
-    
+
     try:
         logger.info("🧠 Generating proposal...")
-        
+
         result = await proposal_agent.run(
             "Generate a waste upcycling feasibility report with GO/NO-GO decision.",
             deps=context,
@@ -174,13 +173,13 @@ async def generate_proposal(
                 total_tokens_limit=50000,  # Reduced - simpler output
             ),
         )
-        
+
         # Log usage
         if usage := result.usage():
             logger.info(f"✅ Proposal generated ({usage.total_tokens:,} tokens)")
-        
+
         return result.output
-        
+
     except Exception as e:
         logger.error(f"❌ Proposal generation failed: {e}")
         raise ProposalGenerationError(str(e)) from e

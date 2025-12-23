@@ -1,15 +1,33 @@
 "use client";
 
+import {
+	ClipboardList,
+	FileText,
+	FolderOpen,
+	LayoutDashboard,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { FilesListSkeleton } from "@/components/ui/files-grid-skeleton";
+import { TechnicalFormSkeleton } from "@/components/ui/loading-states";
+import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { useCurrentProject, useLoadProjectAction, useTechnicalSections } from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";
-import { FilesTabEnhanced } from "./files-tab-enhanced";
+
+// Overview is NOT lazy-loaded because it's the default tab (avoids skeleton flash)
 import { ProjectOverview } from "./project-overview";
-import { ProposalsTab } from "./proposals-tab";
-import { TechnicalDataSheet } from "./technical-data-sheet";
+
+// Lazy load non-default tab components for code splitting
+const TechnicalDataSheet = lazy(() => import("./technical-data-sheet").then(m => ({ default: m.TechnicalDataSheet })));
+const ProposalsTab = lazy(() => import("./proposals-tab").then(m => ({ default: m.ProposalsTab })));
+const FilesTabEnhanced = lazy(() => import("./files-tab-enhanced").then(m => ({ default: m.FilesTabEnhanced })));
+
+// Tab values at module level to avoid recreation on each render
+const TAB_VALUES = ["overview", "technical", "proposals", "files"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
 
 type ProjectTabsInput = ProjectSummary | ProjectDetail;
 
@@ -24,15 +42,12 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 
-	const TabValues = ["overview", "technical", "proposals", "files"] as const;
-	type TabValue = (typeof TabValues)[number];
-
 	const getValidTab = useCallback(
 		(value: string | null): TabValue =>
-			value && TabValues.includes(value as TabValue)
+			value && TAB_VALUES.includes(value as TabValue)
 				? (value as TabValue)
 				: "overview",
-		[TabValues.includes],
+		[], // TAB_VALUES is stable at module level
 	);
 
 	const initialTab = getValidTab(searchParams.get("tab"));
@@ -84,6 +99,19 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 	const sections = useTechnicalSections(project.id);
 	const completion = overallCompletion(sections);
 
+	// Get counts for tab badges (with project.id validation to avoid stale counts during navigation)
+	const proposalCount = useMemo(() => {
+		if (storeProject?.id !== project.id) return 0;
+		const detail = storeProject as ProjectDetail | null;
+		return detail?.proposals?.length ?? 0;
+	}, [storeProject, project.id]);
+
+	const fileCount = useMemo(() => {
+		if (storeProject?.id !== project.id) return 0;
+		const detail = storeProject as ProjectDetail | null;
+		return detail?.files?.length ?? 0;
+	}, [storeProject, project.id]);
+
 	const overviewProject = useMemo(() => {
 		const base = projectData as ProjectSummary;
 		const detail = projectData as Partial<ProjectDetail>;
@@ -114,30 +142,85 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 				onValueChange={handleTabChange}
 				className="w-full"
 			>
-				<TabsList className="flex flex-wrap gap-2">
-					<TabsTrigger value="overview">Overview</TabsTrigger>
-					<TabsTrigger value="technical">Assessment</TabsTrigger>
-					<TabsTrigger value="proposals">Proposals</TabsTrigger>
-					<TabsTrigger value="files">Files</TabsTrigger>
+				{/* Horizontal scroll container for mobile, grid on larger screens */}
+				<TabsList
+					className="flex sm:grid sm:grid-cols-4 w-full h-auto p-1 overflow-x-auto scrollbar-hide"
+					aria-label="Project sections"
+					data-tour="project-tabs"
+				>
+					<TabsTrigger
+						value="overview"
+						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
+						aria-label="Overview"
+						data-tour="tab-overview"
+					>
+						<LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+						<span className="hidden sm:inline">Overview</span>
+					</TabsTrigger>
+					<TabsTrigger
+						value="technical"
+						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
+						aria-label="Assessment"
+						data-tour="tab-assessment"
+					>
+						<ClipboardList className="h-4 w-4" aria-hidden="true" />
+						<span className="hidden sm:inline">Assessment</span>
+					</TabsTrigger>
+					<TabsTrigger
+						value="proposals"
+						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
+						aria-label={`Proposals${proposalCount > 0 ? `, ${proposalCount} available` : ""}`}
+						data-tour="tab-proposals"
+					>
+						<FileText className="h-4 w-4" aria-hidden="true" />
+						<span className="hidden sm:inline">Proposals</span>
+						{proposalCount > 0 && (
+							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
+								{proposalCount}
+							</Badge>
+						)}
+					</TabsTrigger>
+					<TabsTrigger
+						value="files"
+						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
+						aria-label={`Files${fileCount > 0 ? `, ${fileCount} uploaded` : ""}`}
+						data-tour="tab-files"
+					>
+						<FolderOpen className="h-4 w-4" aria-hidden="true" />
+						<span className="hidden sm:inline">Files</span>
+						{fileCount > 0 && (
+							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
+								{fileCount}
+							</Badge>
+						)}
+					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value="overview" className="mt-6">
+				<TabsContent value="overview" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+					{/* Overview is not lazy-loaded (default tab), no Suspense needed */}
 					<ProjectOverview
-						project={overviewProject}
+						project={{ ...overviewProject, proposalCount }}
 						onNavigateToTechnical={() => handleTabChange("technical")}
+						onNavigateToProposals={() => handleTabChange("proposals")}
 					/>
 				</TabsContent>
 
-				<TabsContent value="technical" className="mt-6">
-					<TechnicalDataSheet projectId={project.id} />
+				<TabsContent value="technical" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+					<Suspense fallback={<TechnicalFormSkeleton />}>
+						<TechnicalDataSheet projectId={project.id} />
+					</Suspense>
 				</TabsContent>
 
-				<TabsContent value="proposals" className="mt-6">
-					<ProposalsTab project={projectData} />
+				<TabsContent value="proposals" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+					<Suspense fallback={<ProposalSkeleton count={2} />}>
+						<ProposalsTab project={projectData} />
+					</Suspense>
 				</TabsContent>
 
-				<TabsContent value="files" className="mt-6">
-					<FilesTabEnhanced projectId={project.id} />
+				<TabsContent value="files" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+					<Suspense fallback={<FilesListSkeleton count={4} />}>
+						<FilesTabEnhanced projectId={project.id} />
+					</Suspense>
 				</TabsContent>
 			</Tabs>
 		</div>

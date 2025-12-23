@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +10,7 @@ interface MetricCardProps {
 	subtitle?: string | undefined;
 	variant?: "primary" | "success" | "warning" | "chart-2" | "chart-4";
 	className?: string;
+	onClick?: (() => void) | undefined;
 }
 
 /**
@@ -24,14 +26,20 @@ interface MetricCardProps {
  *   variant="primary"
  * />
  */
-export function MetricCard({
+export const MetricCard = memo(function MetricCard({
 	icon: Icon,
 	label,
 	value,
 	subtitle,
 	variant = "primary",
 	className,
+	onClick,
 }: MetricCardProps) {
+	const isClickable = !!onClick;
+	const ariaLabel = isClickable
+		? `${label}: ${value}. ${subtitle || ""}. Click to view details.`
+		: `${label}: ${value}. ${subtitle || ""}`;
+
 	return (
 		<Card
 			className={cn(
@@ -41,8 +49,23 @@ export function MetricCard({
 				variant === "warning" && "hover:border-warning/40",
 				variant === "chart-2" && "hover:border-chart-2/40",
 				variant === "chart-4" && "hover:border-chart-4/40",
+				onClick && "cursor-pointer",
 				className,
 			)}
+			onClick={onClick}
+			role={isClickable ? "button" : undefined}
+			aria-label={ariaLabel}
+			tabIndex={isClickable ? 0 : undefined}
+			onKeyDown={
+				isClickable
+					? (e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								onClick?.();
+							}
+						}
+					: undefined
+			}
 		>
 			<CardHeader className="pb-2">
 				<div className="flex items-center gap-2">
@@ -78,4 +101,4 @@ export function MetricCard({
 			</CardContent>
 		</Card>
 	);
-}
+});

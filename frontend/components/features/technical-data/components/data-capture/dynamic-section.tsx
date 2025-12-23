@@ -83,56 +83,37 @@ export function DynamicSection({
 	});
 
 	const content = (
-		<div className="space-y-4">
-			{/* Fields Grid - ✅ OPTIMIZACIÓN: Máximo 2 columnas para mejor legibilidad */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4 auto-rows-min">
-				{visibleFields.map((field) => (
-					<div
-						key={field.id}
-						className={cn(
-							// Multiline fields take full width
-							field.multiline && "lg:col-span-2",
-							// Tags take full width (multi-select needs space)
-							field.type === "tags" && "lg:col-span-2",
-							// Combobox with long options takes full width
-							field.type === "combobox" &&
-								field.options &&
-								field.options.some((opt) => opt.length > 30) &&
-								"lg:col-span-2",
-						)}
-					>
-						<EditableCell
-							field={field}
-							sectionId={section.id}
-							onFieldChange={onFieldChange}
-						/>
-					</div>
-				))}
-			</div>
-
-			{/* Add Field Button removed - questionnaire is fixed */}
+		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+			{visibleFields.map((field) => (
+				<div
+					key={field.id}
+					className={cn(
+						"field-container",
+						// Multiline fields take full width
+						field.multiline && "md:col-span-2",
+						// Tags take full width (multi-select needs space)
+						field.type === "tags" && "md:col-span-2",
+						// Multiline text takes full width (handled by multiline prop)
+						// Combobox with long options takes full width
+						field.type === "combobox" &&
+							field.options &&
+							field.options.some((opt) => opt.length > 30) &&
+							"md:col-span-2",
+					)}
+				>
+					<EditableCell
+						field={field}
+						sectionId={section.id}
+						onFieldChange={onFieldChange}
+					/>
+				</div>
+			))}
 		</div>
 	);
 
 	if (!isCollapsible) {
-		return (
-			<div className="space-y-4 p-6 border rounded-lg">
-				{/* Section Header */}
-				<div className="flex items-center justify-between">
-					<div className="space-y-1">
-						<h3 className="text-lg font-serif font-semibold">
-							{section.title}
-						</h3>
-						{section.description && (
-							<p className="text-sm text-muted-foreground">
-								{section.description}
-							</p>
-						)}
-					</div>
-				</div>
-				{content}
-			</div>
-		);
+		// When used inside accordion, no need for extra wrapper/header
+		return content;
 	}
 
 	return (
@@ -159,7 +140,7 @@ export function DynamicSection({
 						</div>
 						<div className="flex items-center gap-2">
 							<Badge variant="secondary" className="text-xs">
-								{section.fields.length} campos
+								{section.fields.length} fields
 							</Badge>
 						</div>
 					</div>

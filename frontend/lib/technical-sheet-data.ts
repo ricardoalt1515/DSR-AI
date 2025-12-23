@@ -14,6 +14,9 @@ const HOURS_TO_M3_DAY = 3.6; // L/s * hours → m³/day
 const LS_TO_L_DAY = 86.4; // L/s → L/day
 const PEAK_FACTOR = 1.8; // Standard peak flow multiplier
 
+// Proposal generation threshold
+export const PROPOSAL_READINESS_THRESHOLD = 70; // Minimum completion percentage required to generate proposal
+
 // Re-export from parameter library
 export { isFixedSection } from "@/lib/parameters";
 
@@ -164,17 +167,13 @@ export const saveTechnicalSheetData = async (
 		logger.warn("localStorage save failed", "TechnicalSheet");
 	}
 
-	// Backend sync (critical)
-	try {
-		const { projectDataAPI } = await import("@/lib/api/project-data");
-		await projectDataAPI.updateData(
-			projectId,
-			{ technical_sections: sections },
-			true, // merge
-		);
-	} catch (error) {
-		logger.error("Backend sync failed", error, "TechnicalSheet");
-	}
+	// Backend sync (critical) - errors propagate to caller
+	const { projectDataAPI } = await import("@/lib/api/project-data");
+	await projectDataAPI.updateData(
+		projectId,
+		{ technical_sections: sections },
+		true, // merge
+	);
 };
 
 export interface FieldUpdate {

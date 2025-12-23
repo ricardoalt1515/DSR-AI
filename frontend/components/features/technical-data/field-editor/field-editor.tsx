@@ -10,7 +10,7 @@ import {
 	Save,
 	X,
 } from "lucide-react";
-import React, { useRef } from "react";
+import React, { useRef, useMemo } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -303,17 +303,22 @@ export function FieldEditor({
 		);
 	}
 
+	const hasValue = field.value !== undefined && field.value !== "" && field.value !== null;
+
 	// ✅ MODE: INLINE - Vista completa para dynamic-section
 	return (
-		<div ref={editorRef} className={cn("group space-y-2", className)}>
+		<div ref={editorRef} className={cn("group space-y-1.5", className)}>
 			{/* Header */}
 			{showLabel && (
 				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<Label className="text-sm font-medium">
+					<div className="flex items-center gap-1.5">
+						<Label className="text-sm font-medium text-foreground/80">
 							{field.label}
-							{field.required && <span className="text-destructive">*</span>}
+							{field.required && <span className="text-destructive ml-0.5">*</span>}
 						</Label>
+						{hasValue && (
+							<CheckCircle2 className="h-3.5 w-3.5 text-success animate-checkmark" />
+						)}
 						{field.description && (
 							<Button
 								type="button"
@@ -325,23 +330,16 @@ export function FieldEditor({
 								<Info className="h-3 w-3 text-muted-foreground" />
 							</Button>
 						)}
-						{showNotes && (
+						{showNotes && field.notes && (
 							<Button
 								type="button"
 								variant="ghost"
 								size="sm"
 								className="h-4 w-4 p-0"
 								onClick={() => actions.startNotes()}
-								title={field.notes ? "Ver/editar notas" : "Agregar notas"}
+								title="View/edit notes"
 							>
-								<MessageSquare
-									className={cn(
-										"h-3 w-3",
-										field.notes
-											? "text-primary fill-primary/20"
-											: "text-muted-foreground",
-									)}
-								/>
+								<MessageSquare className="h-3 w-3 text-primary fill-primary/20" />
 							</Button>
 						)}
 					</div>
@@ -362,10 +360,10 @@ export function FieldEditor({
 							>
 								<AlertDialogContent>
 									<AlertDialogHeader>
-										<AlertDialogTitle>¿Delete field?</AlertDialogTitle>
+										<AlertDialogTitle>Delete field?</AlertDialogTitle>
 										<AlertDialogDescription>
 											You are about delete field "<strong>{field.label}</strong>
-											". this action cannot be undone.
+											". This action cannot be undone.
 										</AlertDialogDescription>
 									</AlertDialogHeader>
 									<AlertDialogFooter>
@@ -374,7 +372,7 @@ export function FieldEditor({
 											onClick={() => onRemove?.(sectionId, field.id)}
 											className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 										>
-											Eliminate
+											Delete
 										</AlertDialogAction>
 									</AlertDialogFooter>
 								</AlertDialogContent>
@@ -437,18 +435,14 @@ export function FieldEditor({
 					)}
 				</div>
 			) : (
-				/* Viewing Mode */
+				/* Viewing Mode - Simplified, click to edit */
 				<button
 					type="button"
 					className={cn(
-						"px-3 py-2 rounded hover:bg-muted/50 transition-colors w-full text-left",
-						field.multiline
-							? "min-h-[120px]"
-							: "min-h-8 flex items-center justify-between gap-2",
-						field.required &&
-							!field.value &&
-							field.value !== 0 &&
-							"border-2 border-destructive/40 bg-destructive/10",
+						"field-input-display px-3 py-2 rounded-md border border-input bg-background transition-colors w-full text-left",
+						"hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+						field.multiline ? "min-h-[80px]" : "h-9",
+						field.required && !hasValue && "border-destructive/50 bg-destructive/5",
 					)}
 					onClick={() => actions.startEdit()}
 					onKeyDown={(e) => {
@@ -457,60 +451,26 @@ export function FieldEditor({
 							actions.startEdit();
 						}
 					}}
-					title="Click to edit"
 				>
 					{field.multiline ? (
-						<div className="space-y-2">
-							<div className="flex items-center justify-between">
-								<Badge
-									variant={sourceInfo.variant}
-									className="h-5 text-xs px-1.5"
-								>
-									<sourceInfo.icon className="h-3 w-3 mr-1" />
-									{sourceInfo.label}
-								</Badge>
-								<Edit3 className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-							</div>
-							{displayValue ? (
-								<p className="text-sm whitespace-pre-wrap text-foreground leading-relaxed">
-									{displayValue}
-								</p>
-							) : (
-								<p className="text-sm text-muted-foreground italic">
-									{field.required && !field.value && field.value !== 0
-										? "! Required field - Click to edit"
-										: field.placeholder || "Click to add..."}
-								</p>
-							)}
-						</div>
+						displayValue ? (
+							<p className="text-sm whitespace-pre-wrap text-foreground leading-relaxed line-clamp-3">
+								{displayValue}
+							</p>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								{field.placeholder || "Click to add..."}
+							</p>
+						)
 					) : (
-						<>
-							<div className="flex items-center gap-2 flex-1">
-								<span
-									className={cn(
-										"text-sm",
-										!field.value &&
-											field.value !== 0 &&
-											(field.required
-												? "text-destructive font-medium"
-												: "text-muted-foreground italic"),
-									)}
-								>
-									{displayValue ||
-										(field.required && !field.value && field.value !== 0
-											? "! Required field - Click to edit"
-											: "Click to edit")}
-								</span>
-								<Badge
-									variant={sourceInfo.variant}
-									className="h-5 text-xs px-1.5"
-								>
-									<sourceInfo.icon className="h-3 w-3 mr-1" />
-									{sourceInfo.label}
-								</Badge>
-							</div>
-							<Edit3 className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-						</>
+						<span
+							className={cn(
+								"text-sm truncate block",
+								hasValue ? "text-foreground" : "text-muted-foreground",
+							)}
+						>
+							{displayValue || field.placeholder || "Enter value..."}
+						</span>
 					)}
 				</button>
 			)}
@@ -538,7 +498,7 @@ export function FieldEditor({
 							size="sm"
 							onClick={() => actions.cancel()}
 						>
-							Cancelar
+							Cancel
 						</Button>
 						<Button
 							type="button"
@@ -547,7 +507,7 @@ export function FieldEditor({
 							disabled={state.notes === field.notes}
 						>
 							<Save className="h-3 w-3 mr-1" />
-							Guardar
+							Save
 						</Button>
 					</div>
 				</div>

@@ -424,16 +424,19 @@ export function FileUploader({
 					<div
 						{...getRootProps()}
 						className={cn(
-							"relative cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors",
+							"relative cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-all duration-200",
 							isDragActive
-								? "border-primary bg-primary/5"
+								? "border-primary bg-primary/10 scale-[1.02] shadow-lg shadow-primary/20"
 								: "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/25",
 						)}
 					>
 						<input {...getInputProps()} />
 
 						<div className="mx-auto flex flex-col items-center space-y-4">
-							<div className="rounded-full bg-primary/10 p-4">
+							<div className={cn(
+								"rounded-full bg-primary/10 p-4 transition-transform duration-200",
+								isDragActive && "scale-110 animate-bounce"
+							)}>
 								<Upload className="h-8 w-8 text-primary" />
 							</div>
 

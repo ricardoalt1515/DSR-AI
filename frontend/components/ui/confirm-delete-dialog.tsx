@@ -20,7 +20,7 @@ interface ConfirmDeleteDialogProps {
 	onConfirm: () => void | Promise<void>;
 	title: string;
 	description: string;
-	itemName?: string;
+	itemName?: string | undefined;
 	loading?: boolean;
 }
 

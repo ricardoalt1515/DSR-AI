@@ -1,11 +1,39 @@
 "use client";
 
+import {
+	type ColumnDef,
+	type ColumnFiltersState,
+	flexRender,
+	getCoreRowModel,
+	getFilteredRowModel,
+	getPaginationRowModel,
+	getSortedRowModel,
+	type SortingState,
+	useReactTable,
+} from "@tanstack/react-table";
+import {
+	ArrowUpDown,
+	Ban,
+	ChevronLeft,
+	ChevronRight,
+	Crown,
+	RefreshCcw,
+	Search,
+	Shield,
+	UserPlus,
+	X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Ban, Crown, RefreshCcw, Shield, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -13,7 +41,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,17 +51,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
-	TableCaption,
 	TableCell,
 	TableHead,
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Tooltip,
 	TooltipContent,
@@ -70,6 +95,11 @@ export default function AdminUsersPage() {
 	const [resetPassword, setResetPassword] = useState("");
 	const [resetConfirmPassword, setResetConfirmPassword] = useState("");
 	const [resetSubmitting, setResetSubmitting] = useState(false);
+
+	// TanStack Table state
+	const [sorting, setSorting] = useState<SortingState>([]);
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [globalFilter, setGlobalFilter] = useState("");
 
 	useEffect(() => {
 		if (!isAdmin) return;
@@ -192,6 +222,261 @@ export default function AdminUsersPage() {
 		}
 	};
 
+	const formatMemberSince = (dateString: string) => {
+		const date = new Date(dateString);
+		if (Number.isNaN(date.getTime())) return "--";
+		return date.toLocaleDateString(undefined, {
+			month: "short",
+			year: "numeric",
+		});
+	};
+
+	const activeAdmins = users.filter((user) => user.isSuperuser && user.isActive);
+	const lastActiveAdminId = activeAdmins.length === 1 ? activeAdmins[0]?.id ?? null : null;
+
+	// Column definitions
+	const columns: ColumnDef<User>[] = useMemo(
+		() => [
+			{
+				accessorKey: "firstName",
+				header: ({ column }) => (
+					<Button
+						variant="ghost"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+						className="h-8 px-2 -ml-2"
+					>
+						Name
+						<ArrowUpDown className="ml-2 h-4 w-4" />
+					</Button>
+				),
+				cell: ({ row }) => {
+					const user = row.original;
+					return (
+						<div>
+							<div className="flex items-center gap-2 flex-wrap">
+								<span className="font-medium">
+									{user.firstName} {user.lastName}
+								</span>
+								{currentUser?.id === user.id && (
+									<Badge variant="outline" className="text-xs">
+										You
+									</Badge>
+								)}
+								{user.isSuperuser && (
+									<Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/40">
+										Admin
+									</Badge>
+								)}
+							</div>
+							<div className="text-xs text-muted-foreground">
+								Member since {formatMemberSince(user.createdAt)}
+							</div>
+						</div>
+					);
+				},
+			},
+			{
+				accessorKey: "email",
+				header: ({ column }) => (
+					<Button
+						variant="ghost"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+						className="h-8 px-2 -ml-2"
+					>
+						Email
+						<ArrowUpDown className="ml-2 h-4 w-4" />
+					</Button>
+				),
+				cell: ({ row }) => (
+					<span className="font-mono text-sm">{row.getValue("email")}</span>
+				),
+			},
+			{
+				accessorKey: "role",
+				header: ({ column }) => (
+					<Button
+						variant="ghost"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+						className="h-8 px-2 -ml-2"
+					>
+						Role
+						<ArrowUpDown className="ml-2 h-4 w-4" />
+					</Button>
+				),
+				cell: ({ row }) => {
+					const user = row.original;
+					return (
+						<span className="inline-flex items-center gap-2">
+							{user.role === "admin" || user.isSuperuser ? (
+								<Crown className="h-4 w-4 text-amber-500" />
+							) : (
+								<Shield className="h-4 w-4 text-muted-foreground" />
+							)}
+							{user.role?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()) ??
+								(user.isSuperuser ? "Admin" : "Field Agent")}
+						</span>
+					);
+				},
+				filterFn: (row, id, value) => {
+					if (value === "all") return true;
+					const user = row.original;
+					if (value === "admin") return user.isSuperuser;
+					return row.getValue(id) === value;
+				},
+			},
+			{
+				accessorKey: "isActive",
+				header: "Status",
+				cell: ({ row }) => {
+					const user = row.original;
+					return (
+						<div className="flex flex-col space-y-0.5">
+							<span className={user.isActive ? "text-green-600" : "text-muted-foreground"}>
+								{user.isActive ? "Active" : "Disabled"}
+							</span>
+							{!user.isVerified && (
+								<span className="text-xs text-muted-foreground">Unverified</span>
+							)}
+						</div>
+					);
+				},
+				filterFn: (row, id, value) => {
+					if (value === "all") return true;
+					return row.getValue(id) === (value === "active");
+				},
+			},
+			{
+				id: "actions",
+				header: () => <span className="sr-only">Actions</span>,
+				cell: ({ row }) => {
+					const user = row.original;
+					const isSelf = currentUser?.id === user.id;
+					const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
+					const disableRoleChange = isSelf || isLastActiveAdmin;
+					const disableStatusChange = isSelf || isLastActiveAdmin;
+
+					const roleTooltipMessage = isSelf
+						? "You can't change your own role"
+						: isLastActiveAdmin
+							? "Keep at least one active admin"
+							: "";
+
+					const statusTooltipMessage = isSelf
+						? "You can't deactivate your own account"
+						: isLastActiveAdmin
+							? "Keep at least one active admin"
+							: "";
+
+					const roleButton = (
+						<Button
+							variant={user.isSuperuser ? "outline" : "secondary"}
+							size="sm"
+							disabled={disableRoleChange || updatingUserId === user.id}
+							onClick={() => {
+								const nextIsSuperuser = !user.isSuperuser;
+								const updates: AdminUpdateUserInput = nextIsSuperuser
+									? { isSuperuser: true, role: "admin" }
+									: { isSuperuser: false, role: "field_agent" };
+								handleUpdateUser(
+									user.id,
+									updates,
+									nextIsSuperuser
+										? `${user.firstName} promoted to Admin`
+										: `${user.firstName} is now Member`,
+								);
+							}}
+						>
+							{updatingUserId === user.id ? (
+								<RefreshCcw className="h-4 w-4 animate-spin" />
+							) : user.isSuperuser ? (
+								"Make Member"
+							) : (
+								"Make Admin"
+							)}
+						</Button>
+					);
+
+					const statusButton = (
+						<Button
+							variant={user.isActive ? "destructive" : "secondary"}
+							size="sm"
+							disabled={disableStatusChange || updatingUserId === user.id}
+							onClick={() =>
+								handleUpdateUser(
+									user.id,
+									{ isActive: !user.isActive },
+									user.isActive
+										? `${user.firstName} deactivated`
+										: `${user.firstName} reactivated`,
+								)
+							}
+						>
+							{updatingUserId === user.id ? (
+								<RefreshCcw className="h-4 w-4 animate-spin" />
+							) : user.isActive ? (
+								<Ban className="h-4 w-4" />
+							) : (
+								"Activate"
+							)}
+						</Button>
+					);
+
+					return (
+						<div className="flex items-center justify-end gap-2">
+							{roleTooltipMessage ? (
+								<Tooltip>
+									<TooltipTrigger asChild>{roleButton}</TooltipTrigger>
+									<TooltipContent>{roleTooltipMessage}</TooltipContent>
+								</Tooltip>
+							) : (
+								roleButton
+							)}
+							{statusTooltipMessage ? (
+								<Tooltip>
+									<TooltipTrigger asChild>{statusButton}</TooltipTrigger>
+									<TooltipContent>{statusTooltipMessage}</TooltipContent>
+								</Tooltip>
+							) : (
+								statusButton
+							)}
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => handleOpenResetDialog(user.id)}
+							>
+								Reset
+							</Button>
+						</div>
+					);
+				},
+			},
+		],
+		[currentUser?.id, lastActiveAdminId, updatingUserId, handleUpdateUser],
+	);
+
+	const table = useReactTable({
+		data: users,
+		columns,
+		onSortingChange: setSorting,
+		onColumnFiltersChange: setColumnFilters,
+		onGlobalFilterChange: setGlobalFilter,
+		getCoreRowModel: getCoreRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		getFilteredRowModel: getFilteredRowModel(),
+		getPaginationRowModel: getPaginationRowModel(),
+		globalFilterFn: "includesString",
+		state: {
+			sorting,
+			columnFilters,
+			globalFilter,
+		},
+		initialState: {
+			pagination: {
+				pageSize: 10,
+			},
+		},
+	});
+
 	if (!isAdmin) {
 		return (
 			<div className="container mx-auto py-8">
@@ -205,372 +490,323 @@ export default function AdminUsersPage() {
 		);
 	}
 
-	const formatMemberSince = (dateString: string) => {
-		const date = new Date(dateString);
-		if (Number.isNaN(date.getTime())) return "--";
-		return date.toLocaleDateString(undefined, {
-			month: "short",
-			year: "numeric",
-		});
-	};
-
-	const activeAdmins = users.filter((user) => user.isSuperuser && user.isActive);
-	const lastActiveAdminId = activeAdmins.length === 1 ? activeAdmins[0]?.id ?? null : null;
-
 	return (
-		<div className="container mx-auto py-8 space-y-6">
-			<div className="flex items-center justify-between flex-wrap gap-4">
-				<div>
-					<h1 className="text-2xl font-bold flex items-center gap-2">
-						<Shield className="h-6 w-6" /> Admin Users
-					</h1>
-					<p className="text-muted-foreground">Create and manage platform users.</p>
+		<TooltipProvider delayDuration={200}>
+			<div className="container mx-auto py-8 space-y-6">
+				<div className="flex items-center justify-between flex-wrap gap-4">
+					<div>
+						<h1 className="text-2xl font-bold flex items-center gap-2">
+							<Shield className="h-6 w-6" /> Admin Users
+						</h1>
+						<p className="text-muted-foreground">Create and manage platform users.</p>
+					</div>
+					<Button onClick={() => setModalOpen(true)}>
+						<UserPlus className="mr-2 h-4 w-4" /> New User
+					</Button>
 				</div>
-				<Button onClick={() => setModalOpen(true)}>
-					<UserPlus className="mr-2 h-4 w-4" /> New User
-				</Button>
+
+				<Card>
+					<CardHeader>
+						<CardTitle>User Directory</CardTitle>
+						<CardDescription>
+							{users.length} users total - Admins can promote members or deactivate accounts.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{isLoading ? (
+							<div className="space-y-3">
+								<Skeleton className="h-10 w-64" />
+								{Array.from({ length: 4 }).map((_, idx) => (
+									<Skeleton key={idx} className="h-16 w-full" />
+								))}
+							</div>
+						) : users.length === 0 ? (
+							<div className="text-center py-8 text-muted-foreground">
+								<p>No users yet. Create the first one.</p>
+							</div>
+						) : (
+							<>
+								{/* Search and Filters */}
+								<div className="flex flex-col sm:flex-row gap-3">
+									<div className="relative flex-1">
+										<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+										<Input
+											placeholder="Search users..."
+											value={globalFilter}
+											onChange={(e) => setGlobalFilter(e.target.value)}
+											className="pl-9 pr-9 max-w-sm"
+										/>
+										{globalFilter && (
+											<button
+												type="button"
+												onClick={() => setGlobalFilter("")}
+												className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+												aria-label="Clear search"
+											>
+												<X className="h-4 w-4" />
+											</button>
+										)}
+									</div>
+									<Select
+										value={(table.getColumn("role")?.getFilterValue() as string) ?? "all"}
+										onValueChange={(value) =>
+											table.getColumn("role")?.setFilterValue(value === "all" ? undefined : value)
+										}
+									>
+										<SelectTrigger className="w-[150px]">
+											<SelectValue placeholder="All Roles" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Roles</SelectItem>
+											<SelectItem value="admin">Admin</SelectItem>
+											<SelectItem value="field_agent">Field Agent</SelectItem>
+											<SelectItem value="contractor">Contractor</SelectItem>
+											<SelectItem value="compliance">Compliance</SelectItem>
+											<SelectItem value="sales">Sales</SelectItem>
+										</SelectContent>
+									</Select>
+									<Select
+										value={(table.getColumn("isActive")?.getFilterValue() as string) ?? "all"}
+										onValueChange={(value) =>
+											table.getColumn("isActive")?.setFilterValue(value === "all" ? undefined : value)
+										}
+									>
+										<SelectTrigger className="w-[130px]">
+											<SelectValue placeholder="All Status" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Status</SelectItem>
+											<SelectItem value="active">Active</SelectItem>
+											<SelectItem value="inactive">Disabled</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+
+								{/* Table */}
+								<div className="rounded-md border overflow-x-auto">
+									<Table>
+										<TableHeader>
+											{table.getHeaderGroups().map((headerGroup) => (
+												<TableRow key={headerGroup.id}>
+													{headerGroup.headers.map((header) => (
+														<TableHead key={header.id} className="whitespace-nowrap">
+															{header.isPlaceholder
+																? null
+																: flexRender(header.column.columnDef.header, header.getContext())}
+														</TableHead>
+													))}
+												</TableRow>
+											))}
+										</TableHeader>
+										<TableBody>
+											{table.getRowModel().rows.length ? (
+												table.getRowModel().rows.map((row) => (
+													<TableRow key={row.id}>
+														{row.getVisibleCells().map((cell) => (
+															<TableCell key={cell.id}>
+																{flexRender(cell.column.columnDef.cell, cell.getContext())}
+															</TableCell>
+														))}
+													</TableRow>
+												))
+											) : (
+												<TableRow>
+													<TableCell colSpan={columns.length} className="h-24 text-center">
+														No users match your search.
+													</TableCell>
+												</TableRow>
+											)}
+										</TableBody>
+									</Table>
+								</div>
+
+								{/* Pagination */}
+								<div className="flex items-center justify-between">
+									<p className="text-sm text-muted-foreground">
+										Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} users
+									</p>
+									<div className="flex items-center gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => table.previousPage()}
+											disabled={!table.getCanPreviousPage()}
+										>
+											<ChevronLeft className="h-4 w-4" />
+											Previous
+										</Button>
+										<span className="text-sm text-muted-foreground">
+											Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+										</span>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => table.nextPage()}
+											disabled={!table.getCanNextPage()}
+										>
+											Next
+											<ChevronRight className="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
+							</>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* Create User Dialog */}
+				<Dialog open={modalOpen} onOpenChange={setModalOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Create User</DialogTitle>
+							<DialogDescription>Admins can create accounts directly.</DialogDescription>
+						</DialogHeader>
+						<div className="grid gap-4">
+							<div className="grid gap-2">
+								<Label htmlFor="email">Email</Label>
+								<Input
+									id="email"
+									type="email"
+									value={form.email}
+									onChange={(e) => handleInputChange("email", e.target.value)}
+									placeholder="user@example.com"
+								/>
+							</div>
+							<div className="grid grid-cols-2 gap-4">
+								<div className="grid gap-2">
+									<Label htmlFor="firstName">First Name</Label>
+									<Input
+										id="firstName"
+										value={form.firstName}
+										onChange={(e) => handleInputChange("firstName", e.target.value)}
+										placeholder="Jane"
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="lastName">Last Name</Label>
+									<Input
+										id="lastName"
+										value={form.lastName}
+										onChange={(e) => handleInputChange("lastName", e.target.value)}
+										placeholder="Doe"
+									/>
+								</div>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="password">Password</Label>
+								<Input
+									id="password"
+									type="password"
+									value={form.password}
+									onChange={(e) => handleInputChange("password", e.target.value)}
+									placeholder="StrongPassword1"
+								/>
+								<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="confirmPassword">Confirm Password</Label>
+								<Input
+									id="confirmPassword"
+									type="password"
+									value={form.confirmPassword}
+									onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+									placeholder="StrongPassword1"
+								/>
+								{form.confirmPassword && form.password !== form.confirmPassword && (
+									<p className="text-xs text-destructive">Passwords do not match</p>
+								)}
+							</div>
+							<div className="grid gap-2">
+								<Label>Role</Label>
+								<Select value={form.role} onValueChange={(value) => handleInputChange("role", value)}>
+									<SelectTrigger>
+										<SelectValue placeholder="Select role" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="field_agent">Field Agent</SelectItem>
+										<SelectItem value="contractor">Contractor</SelectItem>
+										<SelectItem value="compliance">Compliance</SelectItem>
+										<SelectItem value="sales">Sales</SelectItem>
+										<SelectItem value="admin">Admin</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<DialogFooter>
+							<Button variant="outline" onClick={() => setModalOpen(false)}>
+								Cancel
+							</Button>
+							<Button onClick={handleCreateUser} disabled={!canSubmitForm || submitting}>
+								{submitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+								Create User
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* Reset Password Dialog */}
+				<Dialog
+					open={resetUserId !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setResetUserId(null);
+							setResetPassword("");
+							setResetConfirmPassword("");
+						}
+					}}
+				>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Reset password</DialogTitle>
+							<DialogDescription>
+								Set a new password for this user. Share it securely with them.
+							</DialogDescription>
+						</DialogHeader>
+						<div className="grid gap-4">
+							<div className="grid gap-2">
+								<Label htmlFor="resetPassword">New password</Label>
+								<Input
+									id="resetPassword"
+									type="password"
+									value={resetPassword}
+									onChange={(e) => setResetPassword(e.target.value)}
+									placeholder="StrongPassword1"
+								/>
+								<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="resetConfirmPassword">Confirm password</Label>
+								<Input
+									id="resetConfirmPassword"
+									type="password"
+									value={resetConfirmPassword}
+									onChange={(e) => setResetConfirmPassword(e.target.value)}
+									placeholder="StrongPassword1"
+								/>
+								{resetConfirmPassword && resetPassword !== resetConfirmPassword && (
+									<p className="text-xs text-destructive">Passwords do not match</p>
+								)}
+							</div>
+						</div>
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => {
+									setResetUserId(null);
+									setResetPassword("");
+									setResetConfirmPassword("");
+								}}
+							>
+								Cancel
+							</Button>
+							<Button onClick={handleResetPassword} disabled={!canSubmitReset || resetSubmitting}>
+								{resetSubmitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : null}
+								{resetSubmitting ? "Updating..." : "Update password"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</div>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>User Directory</CardTitle>
-					<CardDescription>Admins can promote members or deactivate accounts.</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{isLoading ? (
-						<div className="space-y-3">
-							<Skeleton className="h-6 w-40" />
-							{Array.from({ length: 4 }).map((_, idx) => (
-								<Skeleton key={idx} className="h-12 w-full" />
-							))}
-						</div>
-					) : users.length === 0 ? (
-						<div className="text-center py-8 text-muted-foreground">
-							<p>No users yet. Create the first one.</p>
-						</div>
-					) : (
-						<TooltipProvider delayDuration={200}>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Name</TableHead>
-										<TableHead>Email</TableHead>
-										<TableHead>Role</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead className="text-right">Actions</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{users.map((user) => (
-										<TableRow key={user.id}>
-											<TableCell>
-												<div className="flex items-center gap-2 flex-wrap">
-													<div className="font-medium">
-														{user.firstName} {user.lastName}
-													</div>
-													{currentUser?.id === user.id && (
-														<Badge variant="outline" className="text-xs">
-															You
-														</Badge>
-													)}
-													{user.isSuperuser && (
-														<Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/40">
-															Admin
-														</Badge>
-													)}
-												</div>
-												<div className="text-xs text-muted-foreground">
-													Member since {formatMemberSince(user.createdAt)}
-												</div>
-											</TableCell>
-											<TableCell className="font-mono text-sm">{user.email}</TableCell>
-											<TableCell>
-												<span className="inline-flex items-center gap-2">
-													{user.role === "admin" || user.isSuperuser ? (
-														<Crown className="h-4 w-4 text-amber-500" />
-													) : (
-														<Shield className="h-4 w-4 text-muted-foreground" />
-													)}
-													{user.role?.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase()) ?? (user.isSuperuser ? "Admin" : "Field Agent")}
-												</span>
-											</TableCell>
-											<TableCell>
-												<div className="flex flex-col space-y-0.5">
-													<span className={user.isActive ? "text-green-600" : "text-muted-foreground"}>
-														{user.isActive ? "Active · Can sign in" : "Disabled · Login blocked"}
-													</span>
-													{!user.isVerified && (
-														<span className="text-xs text-muted-foreground">Email not verified</span>
-													)}
-												</div>
-											</TableCell>
-											<TableCell className="text-right space-x-2">
-												{(() => {
-													const isSelf = currentUser?.id === user.id;
-													const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
-													const disableRoleChange = isSelf || isLastActiveAdmin;
-													const roleTooltipMessage = isSelf
-														? "You can't change your own role"
-														: isLastActiveAdmin
-															? "Keep at least one active admin"
-															: "";
-
-													const roleButton = (
-														<Button
-															variant={user.isSuperuser ? "outline" : "secondary"}
-															size="sm"
-															disabled={disableRoleChange || updatingUserId === user.id}
-															onClick={() => {
-																const nextIsSuperuser = !user.isSuperuser;
-																const updates: AdminUpdateUserInput = nextIsSuperuser
-																	? { isSuperuser: true, role: "admin" }
-																	: { isSuperuser: false, role: "field_agent" };
-
-																handleUpdateUser(
-																	user.id,
-																	updates,
-																	nextIsSuperuser
-																		? `${user.firstName} promoted to Admin`
-																		: `${user.firstName} is now Member`,
-																);
-															}}
-														>
-															{updatingUserId === user.id ? (
-																<RefreshCcw className="h-4 w-4 animate-spin" />
-															) : user.isSuperuser ? (
-																"Make Member"
-															) : (
-																"Make Admin"
-															)}
-														</Button>
-													);
-
-													return roleTooltipMessage ? (
-														<Tooltip>
-															<TooltipTrigger asChild>{roleButton}</TooltipTrigger>
-															<TooltipContent>{roleTooltipMessage}</TooltipContent>
-														</Tooltip>
-													) : (
-														roleButton
-													);
-												})()}
-												{(() => {
-													const isSelf = currentUser?.id === user.id;
-													const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
-													const disableStatusChange = isSelf || isLastActiveAdmin;
-													const statusTooltipMessage = isSelf
-														? "You can't deactivate your own account"
-														: isLastActiveAdmin
-															? "Keep at least one active admin"
-															: "";
-
-													const statusButton = (
-														<Button
-															variant={user.isActive ? "destructive" : "secondary"}
-															size="sm"
-															disabled={disableStatusChange || updatingUserId === user.id}
-															onClick={() =>
-																handleUpdateUser(
-																	user.id,
-																	{ isActive: !user.isActive },
-																	user.isActive
-																		? `${user.firstName} deactivated`
-																		: `${user.firstName} reactivated`,
-																)
-															}
-														>
-															{updatingUserId === user.id ? (
-																<RefreshCcw className="h-4 w-4 animate-spin" />
-															) : user.isActive ? (
-																<Ban className="h-4 w-4" />
-															) : (
-																"Activate"
-															)}
-														</Button>
-													);
-
-													return statusTooltipMessage ? (
-														<Tooltip>
-															<TooltipTrigger asChild>{statusButton}</TooltipTrigger>
-															<TooltipContent>{statusTooltipMessage}</TooltipContent>
-														</Tooltip>
-													) : (
-														statusButton
-													);
-												})()}
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => handleOpenResetDialog(user.id)}
-												>
-													Reset password
-												</Button>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-								<TableCaption>Only admins can manage users.</TableCaption>
-							</Table>
-						</TooltipProvider>
-					)}
-				</CardContent>
-			</Card>
-
-			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
-				<DialogTrigger asChild>
-					<span />
-				</DialogTrigger>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Create User</DialogTitle>
-						<DialogDescription>Admins can create accounts directly.</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="email">Email</Label>
-							<Input
-								id="email"
-								type="email"
-								value={form.email}
-								onChange={(e) => handleInputChange("email", e.target.value)}
-								placeholder="user@example.com"
-							/>
-						</div>
-						<div className="grid grid-cols-2 gap-4">
-							<div className="grid gap-2">
-								<Label htmlFor="firstName">First Name</Label>
-								<Input
-									id="firstName"
-									value={form.firstName}
-									onChange={(e) => handleInputChange("firstName", e.target.value)}
-									placeholder="Jane"
-								/>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="lastName">Last Name</Label>
-								<Input
-									id="lastName"
-									value={form.lastName}
-									onChange={(e) => handleInputChange("lastName", e.target.value)}
-									placeholder="Doe"
-								/>
-							</div>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="password">Password</Label>
-							<Input
-								id="password"
-								type="password"
-								value={form.password}
-								onChange={(e) => handleInputChange("password", e.target.value)}
-								placeholder="StrongPassword1"
-							/>
-							<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="confirmPassword">Confirm Password</Label>
-							<Input
-								id="confirmPassword"
-								type="password"
-								value={form.confirmPassword}
-								onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-								placeholder="StrongPassword1"
-							/>
-							{form.confirmPassword && form.password !== form.confirmPassword && (
-								<p className="text-xs text-destructive">Passwords do not match</p>
-							)}
-						</div>
-						<div className="grid gap-2">
-							<Label>Role</Label>
-							<Select value={form.role} onValueChange={(value) => handleInputChange("role", value)}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select role" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="field_agent">Field Agent</SelectItem>
-									<SelectItem value="contractor">Contractor</SelectItem>
-									<SelectItem value="compliance">Compliance</SelectItem>
-									<SelectItem value="sales">Sales</SelectItem>
-									<SelectItem value="admin">Admin</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setModalOpen(false)}>
-							Cancel
-						</Button>
-						<Button onClick={handleCreateUser} disabled={!canSubmitForm || submitting}>
-							{submitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-							Create User
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			<Dialog
-				open={resetUserId !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setResetUserId(null);
-						setResetPassword("");
-						setResetConfirmPassword("");
-					}
-				}}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Reset password</DialogTitle>
-						<DialogDescription>
-							Set a new password for this user. Share it securely with them.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="resetPassword">New password</Label>
-							<Input
-								id="resetPassword"
-								type="password"
-								value={resetPassword}
-								onChange={(e) => setResetPassword(e.target.value)}
-								placeholder="StrongPassword1"
-							/>
-							<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="resetConfirmPassword">Confirm password</Label>
-							<Input
-								id="resetConfirmPassword"
-								type="password"
-								value={resetConfirmPassword}
-								onChange={(e) => setResetConfirmPassword(e.target.value)}
-								placeholder="StrongPassword1"
-							/>
-							{resetConfirmPassword && resetPassword !== resetConfirmPassword && (
-								<p className="text-xs text-destructive">Passwords do not match</p>
-							)}
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setResetUserId(null);
-								setResetPassword("");
-								setResetConfirmPassword("");
-							}}
-						>
-							Cancel
-						</Button>
-						<Button onClick={handleResetPassword} disabled={!canSubmitReset || resetSubmitting}>
-							{resetSubmitting ? (
-								<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-							) : null}
-							{resetSubmitting ? "Updating..." : "Update password"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
+		</TooltipProvider>
 	);
 }

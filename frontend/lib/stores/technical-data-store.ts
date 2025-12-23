@@ -32,7 +32,12 @@ interface TechnicalDataState {
 	technicalData: Record<string, TableSection[]>;
 	versions: Record<string, TechnicalDataVersion[]>;
 	loading: boolean;
+	saving: boolean;
+	lastSaved: Date | null;
 	error: string | null;
+	// Sync error state - for backend failures that don't rollback local changes
+	syncError: string | null;
+	pendingChanges: boolean;
 
 	// Selectors
 	getSections: (projectId: string) => TableSection[];
@@ -107,6 +112,8 @@ interface TechnicalDataState {
 	) => Promise<void>;
 	resetToInitial: (projectId: string) => Promise<void>;
 	clearError: () => void;
+	clearSyncError: () => void;
+	retrySync: (projectId: string) => Promise<void>;
 	updateSectionNotes: (
 		projectId: string,
 		sectionId: string,
@@ -243,7 +250,11 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 			technicalData: {},
 			versions: {},
 			loading: false,
+			saving: false,
+			lastSaved: null,
 			error: null,
+			syncError: null,
+			pendingChanges: false,
 
 			getSections: (projectId) =>
 				get().technicalData?.[projectId] || EMPTY_SECTIONS,
@@ -352,9 +363,6 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 			) => {
 				const sections = get().technicalData[projectId] ?? [];
 
-				// Crear snapshot para rollback en caso de error
-				const previousSnapshot = deepCloneSections(sections);
-
 				// Actualizar localmente primero (optimistic update)
 				const updatePayload: FieldUpdate = { sectionId, fieldId, value };
 				if (unit !== undefined) updatePayload.unit = unit;
@@ -365,41 +373,45 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 				set((state) => {
 					state.technicalData[projectId] = updated;
+					state.saving = true;
 					state.error = null;
+					state.syncError = null;
 				});
 
-				// Guardar en localStorage y sincronizar con backend JSONB
+				// Guardar en localStorage y sincronizar con backend
 				try {
 					await saveTechnicalSheetData(projectId, updated);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: `Update ${new Date().toLocaleString("en-US")}`,
+						source,
+					});
 				} catch (error) {
+					// NO rollback - keep local changes, mark as pending sync
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
 					logger.error(
 						"Failed to save field update",
 						error,
 						"TechnicalDataStore",
 					);
 
-					// ROLLBACK: Revertir al estado anterior
 					set((state) => {
-						state.technicalData[projectId] = previousSnapshot;
-						state.error = "Error al actualizar campo. Cambios revertidos.";
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
 					});
-					saveTechnicalSheetData(projectId, previousSnapshot);
-
-					// Re-throw error para que el componente pueda manejarlo
-					throw error;
 				}
-
-				get().saveSnapshot(projectId, {
-					label: `Actualización ${new Date().toLocaleString("es-ES")}`,
-					source,
-				});
 			},
 
 			applyFieldUpdates: async (projectId, updates) => {
 				const sections = get().technicalData[projectId] ?? [];
-
-				// Crear snapshot para rollback en caso de error
-				const previousSnapshot = deepCloneSections(sections);
 
 				const normalizedUpdates: FieldUpdate[] = updates.map((update) => {
 					const mapped = mapVersionSourceToDataSource(update.source);
@@ -418,56 +430,77 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 				set((state) => {
 					state.technicalData[projectId] = updated;
+					state.saving = true;
 					state.error = null;
+					state.syncError = null;
 				});
 
 				try {
-					// Sincronizar con backend JSONB
 					await saveTechnicalSheetData(projectId, updated);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: "Data import",
+						source: updates[0]?.source ?? "import",
+					});
 				} catch (error) {
+					// NO rollback - keep local changes, mark as pending sync
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
 					logger.error(
 						"Failed to sync batch update",
 						error,
 						"TechnicalDataStore",
 					);
 
-					// ROLLBACK: Revertir al estado anterior
 					set((state) => {
-						state.technicalData[projectId] = previousSnapshot;
-						state.error = `Error al aplicar ${updates.length} actualizaciones. Cambios revertidos.`;
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
 					});
-					saveTechnicalSheetData(projectId, previousSnapshot);
-
-					// Re-throw error para que el componente pueda manejarlo
-					throw error;
 				}
-
-				get().saveSnapshot(projectId, {
-					label: "Data import",
-					source: updates[0]?.source ?? "import",
-				});
 			},
 
 			applyTemplate: async (projectId, templateSections, _mode, options) => {
-				// En fase de desarrollo: siempre reemplazar
 				const next = templateSections;
 
 				set((state) => {
 					state.technicalData[projectId] = next;
+					state.saving = true;
 					state.error = null;
+					state.syncError = null;
 				});
 
 				try {
 					await saveTechnicalSheetData(projectId, next);
-				} catch (_e) {
-					logger.warn("Failed to persist template", "TechnicalDataStore");
-				}
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
 
-				get().saveSnapshot(projectId, {
-					label: options?.label ?? "Template applied",
-					source: "import",
-					notes: "Template was applied",
-				});
+					get().saveSnapshot(projectId, {
+						label: options?.label ?? "Template applied",
+						source: "import",
+						notes: "Template was applied",
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error("Failed to apply template", error, "TechnicalDataStore");
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			copyFromProject: async (projectId, fromProjectId, mode = "merge") => {
@@ -492,22 +525,74 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 				set((state) => {
 					state.technicalData[projectId] = next;
+					state.saving = true;
+					state.syncError = null;
 				});
-				saveTechnicalSheetData(projectId, next);
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error(
+						"Failed to update section notes",
+						error,
+						"TechnicalDataStore",
+					);
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			addCustomSection: async (projectId, section) => {
 				set((state) => {
 					const sections = state.technicalData[projectId] ?? [];
 					state.technicalData[projectId] = [...sections, section];
+					state.saving = true;
+					state.syncError = null;
 				});
+
 				const next = get().technicalData[projectId] ?? [];
-				saveTechnicalSheetData(projectId, next);
-				get().saveSnapshot(projectId, {
-					label: section.title,
-					source: "manual",
-					notes: "Se agregó una sección personalizada",
-				});
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: section.title,
+						source: "manual",
+						notes: "Custom section added",
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error(
+						"Failed to add custom section",
+						error,
+						"TechnicalDataStore",
+					);
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			removeSection: async (projectId, sectionId) => {
@@ -516,13 +601,36 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.filter(
 						(section) => section.id !== sectionId,
 					);
+					state.saving = true;
+					state.syncError = null;
 				});
+
 				const next = get().technicalData[projectId] ?? [];
-				saveTechnicalSheetData(projectId, next);
-				get().saveSnapshot(projectId, {
-					label: `Sección eliminada (${sectionId})`,
-					source: "manual",
-				});
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: `Section removed (${sectionId})`,
+						source: "manual",
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error("Failed to remove section", error, "TechnicalDataStore");
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			addField: async (projectId, sectionId, field) => {
@@ -536,13 +644,36 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 								}
 							: section,
 					);
+					state.saving = true;
+					state.syncError = null;
 				});
+
 				const next = get().technicalData[projectId] ?? [];
-				saveTechnicalSheetData(projectId, next);
-				get().saveSnapshot(projectId, {
-					label: `Campo agregado (${field.label})`,
-					source: "manual",
-				});
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: `Field added (${field.label})`,
+						source: "manual",
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error("Failed to add field", error, "TechnicalDataStore");
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			removeField: async (projectId, sectionId, fieldId) => {
@@ -558,13 +689,36 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 								}
 							: section,
 					);
+					state.saving = true;
+					state.syncError = null;
 				});
+
 				const next = get().technicalData[projectId] ?? [];
-				saveTechnicalSheetData(projectId, next);
-				get().saveSnapshot(projectId, {
-					label: `Campo eliminado (${sectionId}:${fieldId})`,
-					source: "manual",
-				});
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: `Field removed (${sectionId}:${fieldId})`,
+						source: "manual",
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error("Failed to remove field", error, "TechnicalDataStore");
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			duplicateField: async (projectId, sectionId, fieldId) => {
@@ -576,7 +730,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const duplicated: TableField = {
 					...field,
 					id: crypto.randomUUID(),
-					label: `${field.label} (copia)`,
+					label: `${field.label} (copy)`,
 					value: "",
 					source: "manual",
 				};
@@ -591,13 +745,36 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 								}
 							: section,
 					);
+					state.saving = true;
+					state.syncError = null;
 				});
+
 				const next = get().technicalData[projectId] ?? [];
-				saveTechnicalSheetData(projectId, next);
-				get().saveSnapshot(projectId, {
-					label: `Campo duplicado (${field.label})`,
-					source: "manual",
-				});
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
+					get().saveSnapshot(projectId, {
+						label: `Field duplicated (${field.label})`,
+						source: "manual",
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error("Failed to duplicate field", error, "TechnicalDataStore");
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			updateFieldLabel: async (projectId, sectionId, fieldId, newLabel) => {
@@ -615,9 +792,35 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 								}
 							: section,
 					);
+					state.saving = true;
+					state.syncError = null;
 				});
+
 				const next = get().technicalData[projectId] ?? [];
-				saveTechnicalSheetData(projectId, next);
+
+				try {
+					await saveTechnicalSheetData(projectId, next);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error(
+						"Failed to update field label",
+						error,
+						"TechnicalDataStore",
+					);
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
 			},
 
 			saveSnapshot: (projectId, options): TechnicalDataVersion | null => {
@@ -675,53 +878,79 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const snapshot = deepCloneSections(version.snapshot);
 				set((state) => {
 					state.technicalData[projectId] = snapshot;
+					state.saving = true;
+					state.syncError = null;
 				});
-				saveTechnicalSheetData(projectId, snapshot);
 
-				const newVersionLabel = `Rollback a ${version.versionLabel}`;
-				get().saveSnapshot(projectId, {
-					label: newVersionLabel,
-					source: "rollback",
-					...(reason ? { notes: reason } : {}),
-				});
-			},
-
-			/**
-			 * Reset technical data to empty state
-			 *
-			 * Clean code principles:
-			 * - Good names: Clear what this does
-			 * - Fail fast: Validates project exists
-			 * - Proper error handling: Catches and logs errors
-			 *
-			 * Note: Backend should provide initial template in project creation.
-			 * This is a manual reset for users.
-			 */
-			resetToInitial: async (projectId: string) => {
 				try {
-					// Clear current data
-					const emptyData: TableSection[] = [];
-
+					await saveTechnicalSheetData(projectId, snapshot);
 					set((state) => {
-						state.technicalData[projectId] = emptyData;
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
 					});
 
-					// Save to backend
-					await saveTechnicalSheetData(projectId, emptyData);
+					const newVersionLabel = `Rollback to ${version.versionLabel}`;
+					get().saveSnapshot(projectId, {
+						label: newVersionLabel,
+						source: "rollback",
+						...(reason ? { notes: reason } : {}),
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error(
+						"Failed to revert to version",
+						error,
+						"TechnicalDataStore",
+					);
 
-					// Create snapshot for history
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
+				}
+			},
+
+			resetToInitial: async (projectId: string) => {
+				const emptyData: TableSection[] = [];
+
+				set((state) => {
+					state.technicalData[projectId] = emptyData;
+					state.saving = true;
+					state.syncError = null;
+				});
+
+				try {
+					await saveTechnicalSheetData(projectId, emptyData);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+
 					get().saveSnapshot(projectId, {
 						label: "Technical sheet reset",
 						source: "manual",
 						notes: "User manually reset technical data to empty state",
 					});
 				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
 					logger.error(
 						"Failed to reset technical data",
 						error,
 						"TechnicalDataStore",
 					);
-					throw error; // Re-throw for caller to handle
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+						state.pendingChanges = true;
+					});
 				}
 			},
 
@@ -729,6 +958,41 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				set((state) => {
 					state.error = null;
 				});
+			},
+
+			clearSyncError: () => {
+				set((state) => {
+					state.syncError = null;
+				});
+			},
+
+			retrySync: async (projectId: string) => {
+				const sections = get().technicalData[projectId];
+				if (!sections) return;
+
+				set((state) => {
+					state.saving = true;
+					state.syncError = null;
+				});
+
+				try {
+					await saveTechnicalSheetData(projectId, sections);
+					set((state) => {
+						state.saving = false;
+						state.lastSaved = new Date();
+						state.pendingChanges = false;
+						state.syncError = null;
+					});
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Sync failed";
+					logger.error("Retry sync failed", error, "TechnicalDataStore");
+
+					set((state) => {
+						state.saving = false;
+						state.syncError = errorMessage;
+					});
+				}
 			},
 		})),
 		{
@@ -807,6 +1071,8 @@ const EMPTY_ACTIONS = {
 	revertToVersion: async () => {},
 	resetToInitial: async () => {},
 	clearError: () => {},
+	clearSyncError: () => {},
+	retrySync: async () => {},
 	updateSectionNotes: async () => {},
 };
 
@@ -834,6 +1100,8 @@ export const useTechnicalDataActions = () => {
 	const revertToVersion = useTechnicalDataStore((s) => s.revertToVersion);
 	const resetToInitial = useTechnicalDataStore((s) => s.resetToInitial);
 	const clearError = useTechnicalDataStore((s) => s.clearError);
+	const clearSyncError = useTechnicalDataStore((s) => s.clearSyncError);
+	const retrySync = useTechnicalDataStore((s) => s.retrySync);
 	const updateSectionNotes = useTechnicalDataStore((s) => s.updateSectionNotes);
 
 	// Memoizar el objeto de acciones para mantener referencia estable
@@ -855,6 +1123,8 @@ export const useTechnicalDataActions = () => {
 			revertToVersion,
 			resetToInitial,
 			clearError,
+			clearSyncError,
+			retrySync,
 			updateSectionNotes,
 		}),
 		[
@@ -874,6 +1144,8 @@ export const useTechnicalDataActions = () => {
 			revertToVersion,
 			resetToInitial,
 			clearError,
+			clearSyncError,
+			retrySync,
 			updateSectionNotes,
 		],
 	);

@@ -6,6 +6,7 @@ import {
 	Eye,
 	FileText,
 	Lightbulb,
+	Loader2,
 	Sparkles,
 	Trash2,
 } from "lucide-react";
@@ -38,11 +39,14 @@ import { routes } from "@/lib/routes";
 import {
 	useCurrentProject,
 	useLoadProjectAction,
+	useProjectLoading,
 	useTechnicalDataActions,
 	useTechnicalSections,
 } from "@/lib/stores";
+import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
 import {
 	overallCompletion,
+	PROPOSAL_READINESS_THRESHOLD,
 	sectionCompletion,
 } from "@/lib/technical-sheet-data";
 import { formatCurrency } from "@/lib/utils";
@@ -62,6 +66,7 @@ interface ProposalsTabProps {
 export function ProposalsTab({ project }: ProposalsTabProps) {
 	const router = useRouter();
 	const storeProject = useCurrentProject();
+	const isLoading = useProjectLoading();
 	const sections = useTechnicalSections(project.id);
 	const { loadTechnicalData } = useTechnicalDataActions();
 	const loadProject = useLoadProjectAction();
@@ -89,8 +94,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 		);
 		return result;
 	}, [sections, project.id]);
-	const readinessThreshold = 70;
-	const isReady = completion.percentage >= readinessThreshold;
+	const isReady = completion.percentage >= PROPOSAL_READINESS_THRESHOLD;
 	// Only use data from store - no fallback to mock data
 	const projectDetail: ProjectDetail | null =
 		storeProject && storeProject.id === project.id
@@ -203,7 +207,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 								<span className="font-semibold">
 									Current progress: {completion.percentage}% complete.
 								</span>{" "}
-								At least {readinessThreshold}% required.
+								At least {PROPOSAL_READINESS_THRESHOLD}% required.
 							</AlertDescription>
 						</Alert>
 						{prioritizedGaps.length > 0 && (
@@ -261,19 +265,51 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 					<h3 className="text-lg font-semibold">Existing Proposals</h3>
 				</div>
 
-				{proposals.length === 0 ? (
-					<Card className="border-dashed">
+				{isLoading && !projectDetail ? (
+					<ProposalSkeleton count={2} />
+				) : proposals.length === 0 ? (
+					<Card className="border-dashed bg-gradient-to-br from-card to-muted/20">
 						<CardContent className="flex flex-col items-center justify-center py-12 text-center">
 							<div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-								<Lightbulb className="h-8 w-8 text-primary" />
+								{isReady ? (
+									<Sparkles className="h-8 w-8 text-primary" />
+								) : (
+									<Lightbulb className="h-8 w-8 text-muted-foreground" />
+								)}
 							</div>
 							<h3 className="text-lg font-semibold mb-2">
-								No Proposals Generated
+								{isReady ? "Ready to Generate!" : "No Proposals Yet"}
 							</h3>
-							<p className="text-muted-foreground max-w-md mb-6">
-								Once you complete the technical sheet to {readinessThreshold}%,
-								you can generate automated conceptual proposals with AI.
+							<p className="text-muted-foreground max-w-md mb-4">
+								{isReady
+									? "Your assessment is complete enough to generate an AI-powered conceptual proposal."
+									: `Complete at least ${PROPOSAL_READINESS_THRESHOLD}% of your assessment to unlock AI proposal generation.`}
 							</p>
+
+							{!isReady && (
+								<div className="w-full max-w-xs mb-6">
+									<div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+										<span>Progress</span>
+										<span className="font-medium">
+											{completion.percentage}% / {PROPOSAL_READINESS_THRESHOLD}%
+										</span>
+									</div>
+									<div className="h-2 bg-muted rounded-full overflow-hidden">
+										<div
+											className="h-full bg-primary transition-all duration-500 rounded-full"
+											style={{
+												width: `${Math.min((completion.percentage / PROPOSAL_READINESS_THRESHOLD) * 100, 100)}%`,
+											}}
+										/>
+									</div>
+									<p className="text-xs text-muted-foreground mt-2">
+										{PROPOSAL_READINESS_THRESHOLD - completion.percentage > 0
+											? `${PROPOSAL_READINESS_THRESHOLD - completion.percentage}% more to unlock`
+											: "Ready!"}
+									</p>
+								</div>
+							)}
+
 							<div className="flex flex-col sm:flex-row gap-3">
 								<Button
 									onClick={() =>
@@ -281,18 +317,25 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 									}
 									variant={isReady ? "default" : "outline"}
 								>
-									{isReady
-										? "Generate First Proposal"
-										: "Complete Technical Sheet"}
+									{isReady ? (
+										<>
+											<Sparkles className="mr-2 h-4 w-4" />
+											Generate First Proposal
+										</>
+									) : (
+										"Continue Assessment"
+									)}
 								</Button>
-								<Button
-									variant="outline"
-									onClick={() =>
-										router.push(routes.project.overview(project.id))
-									}
-								>
-									View Project Details
-								</Button>
+								{!isReady && (
+									<Button
+										variant="ghost"
+										onClick={() =>
+											router.push(routes.project.overview(project.id))
+										}
+									>
+										View Overview
+									</Button>
+								)}
 							</div>
 						</CardContent>
 					</Card>
@@ -371,7 +414,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 											disabled={deletingProposalId === proposal.id}
 										>
 											{deletingProposalId === proposal.id ? (
-												<span className="text-xs">Eliminando...</span>
+												<Loader2 className="h-4 w-4 animate-spin" />
 											) : (
 												<Trash2 className="h-4 w-4" />
 											)}

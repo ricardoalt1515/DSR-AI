@@ -1,18 +1,17 @@
 "use client";
 
 import {
-	BarChart3,
+	AlertTriangle,
 	CheckCircle2,
 	Edit,
 	FileText,
-	Gauge,
 	History,
 	Layers,
+	Loader2,
 	RefreshCcw,
 	Sparkles,
 	Table,
 	UploadCloud,
-	Workflow,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -24,24 +23,24 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { TechnicalFormSkeleton } from "@/components/ui/loading-states";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 // Templates deprecated - will be re-implemented with modular system
 // import { TECHNICAL_TEMPLATES } from "@/lib/templates/technical-templates"
 import type { VersionSource } from "@/lib/project-types";
@@ -56,8 +55,8 @@ import {
 } from "@/lib/stores";
 import {
 	overallCompletion,
+	PROPOSAL_READINESS_THRESHOLD,
 	sectionCompletion,
-	sourceBreakdown,
 } from "@/lib/technical-sheet-data";
 import type {
 	DataSource,
@@ -87,7 +86,11 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 	const sections = useTechnicalSections(projectId);
 	const _versions = useTechnicalVersions(projectId);
 	const loading = useTechnicalDataStore((state) => state.loading);
+	const saving = useTechnicalDataStore((state) => state.saving);
+	const lastSaved = useTechnicalDataStore((state) => state.lastSaved);
 	const error = useTechnicalDataStore((state) => state.error);
+	const syncError = useTechnicalDataStore((state) => state.syncError);
+	const pendingChanges = useTechnicalDataStore((state) => state.pendingChanges);
 
 	// Get project timeline for activity tab
 	const currentProject = useProjectStore((state) => state.currentProject);
@@ -102,17 +105,15 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 		removeSection,
 		addField,
 		removeField,
-		// duplicateField, updateFieldLabel, applyTemplate - not used yet
-		resetToInitial,
 		copyFromProject,
+		retrySync,
 	} = useTechnicalDataActions();
 
-	const [activeTab, setActiveTab] = useState("capture");
+	const [isTableView, setIsTableView] = useState(false);
 	const [focusSectionId, setFocusSectionId] = useState<string | null>(null);
-	const [isSaving, setIsSaving] = useState(false);
-	const [lastSaved, setLastSaved] = useState<Date | null>(null);
 	const [templateOpen, setTemplateOpen] = useState(false);
 	const [copyOpen, setCopyOpen] = useState(false);
+	const [copyingFromId, setCopyingFromId] = useState<string | null>(null);
 
 	// Load projects for copy-from dialog
 	const projects = useProjects();
@@ -124,25 +125,17 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 	}, [projectId, setActiveProject, loadTechnicalData]);
 
 	const completion = useMemo(() => overallCompletion(sections), [sections]);
-	const perSectionStats = useMemo(
-		() =>
-			sections.map((section) => ({
-				section,
-				stats: sectionCompletion(section),
-			})),
-		[sections],
-	);
-	const sourceStats = useMemo(() => sourceBreakdown(sections), [sections]);
 
-	const readinessThreshold = 70;
-	const prioritizedGaps = useMemo(
-		() =>
-			perSectionStats
-				.filter(({ stats }) => stats.total > 0 && stats.completed < stats.total)
-				.sort((a, b) => a.stats.percentage - b.stats.percentage)
-				.slice(0, 3),
-		[perSectionStats],
-	);
+	const prioritizedGaps = useMemo(() => {
+		const stats = sections.map((section) => ({
+			section,
+			stats: sectionCompletion(section),
+		}));
+		return stats
+			.filter(({ stats: s }) => s.total > 0 && s.completed < s.total)
+			.sort((a, b) => a.stats.percentage - b.stats.percentage)
+			.slice(0, 3);
+	}, [sections]);
 
 	const handleFieldChange = useCallback(
 		(
@@ -171,15 +164,8 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 				payload.unit = unit;
 			}
 
-			// Show saving indicator
-			setIsSaving(true);
+			// Store handles saving state and lastSaved automatically
 			updateField(projectId, payload);
-
-			// Simulate save delay and show "saved" state
-			setTimeout(() => {
-				setIsSaving(false);
-				setLastSaved(new Date());
-			}, 800);
 		},
 		[projectId, updateField],
 	);
@@ -224,97 +210,207 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 		[projectId, removeField],
 	);
 
-	const handleReset = useCallback(() => {
-		resetToInitial(projectId);
-	}, [projectId, resetToInitial]);
-
 	if (loading) {
 		return <TechnicalFormSkeleton />;
 	}
 
 	return (
 		<div className="space-y-6">
-			<Card>
-				<CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-					<div className="space-y-2">
-						<CardTitle className="flex items-center gap-2">
-							<Layers className="h-5 w-5 text-primary" />
-							Project Technical Data Sheet
-						</CardTitle>
-						<CardDescription>
-							Capture, version and control all technical information required
-							for project phases.
-						</CardDescription>
-						{error && (
-							<Alert variant="destructive" className="mt-2">
-								<AlertDescription>{error}</AlertDescription>
-							</Alert>
-						)}
-					</div>
-					<div className="flex flex-wrap items-center gap-2">
-						{/* Autosave indicator */}
-						{isSaving ? (
-							<Badge
-								variant="outline"
-								className="text-xs bg-warning/10 border-warning/40 text-warning"
-							>
-								<RefreshCcw className="mr-1 h-3 w-3 animate-spin" />
-								Saving...
-							</Badge>
-						) : lastSaved ? (
-							<Badge
-								variant="outline"
-								className="text-xs bg-success/10 border-success/40 text-success"
-							>
-								<CheckCircle2 className="mr-1 h-3 w-3" />
-								Saved{" "}
-								{Date.now() - lastSaved.getTime() < 3000
-									? "now"
-									: "a moment ago"}
-							</Badge>
-						) : null}
-
-						<Badge variant="outline" className="text-xs">
-							{completion.completed} / {completion.total} fields
-						</Badge>
+			{/* Simplified header with view toggle - stacks on mobile */}
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+				<div className="flex flex-wrap items-center gap-2 sm:gap-3">
+					<h2 className="text-lg font-semibold">Assessment Data</h2>
+					{/* Autosave indicator */}
+					{saving ? (
 						<Badge
-							variant={completion.percentage >= 80 ? "default" : "secondary"}
-							className="text-xs"
+							variant="outline"
+							className="text-xs bg-warning/10 border-warning/40 text-warning"
 						>
-							{completion.percentage}% complete
+							<RefreshCcw className="mr-1 h-3 w-3 animate-spin" />
+							Saving...
 						</Badge>
+					) : syncError ? (
+						<div className="flex items-center gap-2">
+							<Badge
+								variant="outline"
+								className="text-xs bg-destructive/10 border-destructive/40 text-destructive"
+							>
+								<AlertTriangle className="mr-1 h-3 w-3" />
+								Sync failed
+							</Badge>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-6 px-2 text-xs"
+								onClick={() => retrySync(projectId)}
+							>
+								<RefreshCcw className="mr-1 h-3 w-3" />
+								Retry
+							</Button>
+						</div>
+					) : pendingChanges ? (
+						<Badge
+							variant="outline"
+							className="text-xs bg-warning/10 border-warning/40 text-warning"
+						>
+							<AlertTriangle className="mr-1 h-3 w-3" />
+							Pending sync
+						</Badge>
+					) : lastSaved ? (
+						<Badge
+							variant="outline"
+							className="text-xs bg-success/10 border-success/40 text-success"
+						>
+							<CheckCircle2 className="mr-1 h-3 w-3" />
+							Saved
+						</Badge>
+					) : null}
+					{error && (
+						<Badge variant="destructive" className="text-xs">
+							{error}
+						</Badge>
+					)}
+				</div>
 
-						<Separator orientation="vertical" className="h-6" />
-
-						{/* Quick Actions */}
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setTemplateOpen(true)}
+				<div className="flex items-center gap-2 sm:gap-4">
+					{/* View toggle: Form / Table */}
+					<div className="flex items-center gap-2">
+						<Label
+							htmlFor="view-mode"
+							className="text-sm text-muted-foreground cursor-pointer hidden sm:flex items-center"
 						>
-							<Layers className="mr-2 h-4 w-4" />
-							Use Template
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setCopyOpen(true)}
+							<Table className="h-4 w-4 mr-1.5" />
+							Table View
+						</Label>
+						{/* Mobile: Icon-only label */}
+						<Label
+							htmlFor="view-mode"
+							className="text-sm text-muted-foreground cursor-pointer sm:hidden"
+							aria-label="Table View"
 						>
-							<History className="mr-2 h-4 w-4" />
-							Copy from Project
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleReset}
-							disabled={loading}
-						>
-							<RefreshCcw className="mr-2 h-4 w-4" />
-							Reset Data
-						</Button>
+							<Table className="h-4 w-4" />
+						</Label>
+						<Switch
+							id="view-mode"
+							checked={isTableView}
+							onCheckedChange={setIsTableView}
+						/>
 					</div>
-				</CardHeader>
-			</Card>
+
+					{/* History Sheet */}
+					<Sheet>
+						<SheetTrigger asChild>
+							<Button variant="ghost" size="icon" className="h-9 w-9 min-w-[44px] min-h-[44px]" aria-label="View activity history">
+								<History className="h-4 w-4" />
+							</Button>
+						</SheetTrigger>
+						<SheetContent side="right" className="w-[400px] sm:w-[540px]">
+							<SheetHeader>
+								<SheetTitle className="flex items-center gap-2">
+									<History className="h-5 w-5" />
+									Activity History
+								</SheetTitle>
+								<SheetDescription>
+									Complete timeline of project activities and changes.
+								</SheetDescription>
+							</SheetHeader>
+							<div className="mt-6">
+								{timeline.length === 0 ? (
+									<p className="text-sm text-muted-foreground">
+										No activity recorded yet. Actions will appear here
+										automatically.
+									</p>
+								) : (
+									<ScrollArea className="h-[calc(100vh-180px)] pr-3">
+										<div className="space-y-4">
+											{timeline.map((event, index) => {
+												const getEventIcon = () => {
+													switch (event.type) {
+														case "version":
+															return <Layers className="h-4 w-4" />;
+														case "proposal":
+															return <FileText className="h-4 w-4" />;
+														case "edit":
+															return <Edit className="h-4 w-4" />;
+														case "upload":
+															return <UploadCloud className="h-4 w-4" />;
+														case "assistant":
+															return <Sparkles className="h-4 w-4" />;
+														case "import":
+															return <RefreshCcw className="h-4 w-4" />;
+														default:
+															return <History className="h-4 w-4" />;
+													}
+												};
+
+												const getEventColor = () => {
+													switch (event.type) {
+														case "version":
+															return "text-treatment-secondary";
+														case "proposal":
+															return "text-success";
+														case "edit":
+															return "text-warning";
+														case "upload":
+															return "text-treatment-auxiliary";
+														case "assistant":
+															return "text-accent";
+														case "import":
+															return "text-primary";
+														default:
+															return "text-muted-foreground";
+													}
+												};
+
+												const isLastItem = index === timeline.length - 1;
+
+												return (
+													<div key={event.id} className="relative flex gap-3">
+														{!isLastItem && (
+															<div className="absolute left-[11px] top-8 bottom-0 w-px bg-border" />
+														)}
+														<div
+															className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border bg-background ${getEventColor()}`}
+														>
+															{getEventIcon()}
+														</div>
+														<div className="flex-1 space-y-1 pb-4">
+															<div className="flex items-center justify-between">
+																<p className="font-medium text-sm">
+																	{event.title}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	{new Date(event.timestamp).toLocaleString(
+																		"en-US",
+																		{
+																			month: "short",
+																			day: "numeric",
+																			hour: "2-digit",
+																			minute: "2-digit",
+																		},
+																	)}
+																</p>
+															</div>
+															<p className="text-xs text-muted-foreground">
+																{event.description}
+															</p>
+															<p className="text-xs text-muted-foreground">
+																by {event.user}
+															</p>
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									</ScrollArea>
+								)}
+							</div>
+						</SheetContent>
+					</Sheet>
+
+					{/* More actions dropdown could go here if needed */}
+				</div>
+			</div>
 
 			{/* Templates Dialog - DISABLED: Templates being re-implemented with modular system */}
 			<Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
@@ -373,21 +469,35 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 										<Button
 											size="sm"
 											variant="outline"
+											disabled={copyingFromId !== null}
 											onClick={async () => {
+												setCopyingFromId(p.id);
 												await copyFromProject(projectId, p.id, "merge");
+												setCopyingFromId(null);
 												setCopyOpen(false);
 											}}
 										>
-											Merge
+											{copyingFromId === p.id ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												"Merge"
+											)}
 										</Button>
 										<Button
 											size="sm"
+											disabled={copyingFromId !== null}
 											onClick={async () => {
+												setCopyingFromId(p.id);
 												await copyFromProject(projectId, p.id, "replace");
+												setCopyingFromId(null);
 												setCopyOpen(false);
 											}}
 										>
-											Replace
+											{copyingFromId === p.id ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												"Replace"
+											)}
 										</Button>
 									</div>
 								</div>
@@ -401,35 +511,36 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 				</DialogContent>
 			</Dialog>
 
-			{completion.percentage < readinessThreshold && (
+			{completion.percentage < PROPOSAL_READINESS_THRESHOLD && (
 				<Alert className="alert-warning-card">
 					<Sparkles className="h-4 w-4" />
 					<AlertDescription className="alert-description">
 						<span className="font-semibold">
 							Current progress: {completion.percentage}% complete.
 						</span>{" "}
-						At least {readinessThreshold}% is required to enable the intelligent
+						At least {PROPOSAL_READINESS_THRESHOLD}% is required to enable the intelligent
 						generator.
 						{prioritizedGaps.length > 0 && (
 							<div className="mt-2 space-y-2 text-sm">
 								<p className="font-medium">
 									Suggestion: complete these sections first:
 								</p>
-								<ul className="space-y-1">
+								<ul className="space-y-2">
 									{prioritizedGaps.map(({ section, stats }) => (
 										<li
 											key={section.id}
-											className="flex items-center justify-between gap-2"
+											className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
 										>
-											<span>
+											<span className="truncate">
 												{section.title} · {stats.completed}/{stats.total} fields
 												complete
 											</span>
 											<Button
 												variant="outline"
 												size="sm"
+												className="w-full sm:w-auto min-h-[44px] sm:min-h-0 shrink-0"
 												onClick={() => {
-													setActiveTab("capture");
+													setIsTableView(false);
 													setFocusSectionId(section.id);
 												}}
 											>
@@ -444,11 +555,11 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 				</Alert>
 			)}
 
-			{completion.percentage >= readinessThreshold && (
+			{completion.percentage >= PROPOSAL_READINESS_THRESHOLD && (
 				<Alert className="border-success/40 bg-success/10">
 					<CheckCircle2 className="h-4 w-4 text-success" />
 					<AlertDescription>
-						<div className="flex items-start justify-between gap-4">
+						<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
 							<div className="flex-1 space-y-2">
 								<p className="font-medium text-success">
 									Technical data ready! ({completion.percentage}% complete)
@@ -462,12 +573,11 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 							</div>
 							<Button
 								onClick={() => {
-									// Navigate to proposals tab using router
 									router.replace(`${pathname}?tab=proposals`, {
 										scroll: false,
 									});
 								}}
-								className="bg-success text-success-foreground hover:bg-success/90 shrink-0"
+								className="bg-success text-success-foreground hover:bg-success/90 shrink-0 w-full sm:w-auto min-h-[44px]"
 							>
 								<Sparkles className="mr-2 h-4 w-4" />
 								Generate Proposal
@@ -477,242 +587,29 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 				</Alert>
 			)}
 
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-				<TabsList className="grid w-full grid-cols-3">
-					<TabsTrigger value="capture" className="flex items-center gap-2">
-						<Edit className="h-4 w-4" />
-						Form
-					</TabsTrigger>
-					<TabsTrigger value="engineering" className="flex items-center gap-2">
-						<Table className="h-4 w-4" />
-						Table
-					</TabsTrigger>
-					<TabsTrigger value="activity" className="flex items-center gap-2">
-						<History className="h-4 w-4" />
-						History
-					</TabsTrigger>
-				</TabsList>
-
-
-				<TabsContent value="capture" className="mt-6">
-					<ResizableDataLayout
-						sections={sections}
-						onFieldChange={handleFieldChange}
-						projectId={projectId}
-						onAddSection={handleAddSection}
-						onRemoveSection={handleRemoveSection}
-						onAddField={(sectionId, field) => handleAddField(sectionId, field)}
-						onRemoveField={handleRemoveField}
-						autoSave
-						focusSectionId={focusSectionId}
-						onFocusSectionFromSummary={(sectionId) => {
-							setActiveTab("capture");
-							setFocusSectionId(sectionId);
-						}}
-					/>
-				</TabsContent>
-
-				<TabsContent value="engineering" className="mt-6">
-					<EngineeringDataTable
-						sections={sections}
-						onFieldChange={handleFieldChange}
-					/>
-				</TabsContent>
-
-				<TabsContent value="summary" className="mt-6 space-y-6">
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Gauge className="h-5 w-5 text-primary" />
-								Progress by Section
-							</CardTitle>
-							<CardDescription>
-								View the completion level and fields with information in each
-								section of the data sheet.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="space-y-4">
-								{perSectionStats.map(({ section, stats }) => (
-									<div key={section.id} className="space-y-2">
-										<div className="flex items-center justify-between text-sm">
-											<span className="font-medium">{section.title}</span>
-											<Badge variant="outline" className="text-xs">
-												{stats.completed} / {stats.total}
-											</Badge>
-										</div>
-										<Progress value={stats.percentage} className="h-2" />
-									</div>
-								))}
-								{sections.length === 0 && (
-									<p className="text-sm text-muted-foreground">
-										You haven't configured sections for this project yet.
-									</p>
-								)}
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Workflow className="h-5 w-5 text-primary" />
-								Data Source
-							</CardTitle>
-							<CardDescription>
-								Track the traceability of fields captured manually, imported, or
-								AI-assisted.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="grid gap-4 sm:grid-cols-3">
-								{(["manual", "imported", "ai"] as const).map((source) => (
-									<Card key={source} className="border-dashed">
-										<CardContent className="flex flex-col gap-2 p-4">
-											<div className="flex items-center gap-2 text-sm font-medium capitalize">
-												{source === "manual" && (
-													<CheckCircle2 className="h-4 w-4 text-primary" />
-												)}
-												{source === "imported" && (
-													<UploadCloud className="h-4 w-4 text-success" />
-												)}
-												{source === "ai" && (
-													<Sparkles className="h-4 w-4 text-treatment-auxiliary" />
-												)}
-												{source}
-											</div>
-											<div className="text-2xl font-semibold">
-												{sourceStats[source] ?? 0}
-											</div>
-											<p className="text-xs text-muted-foreground">
-												{source === "manual" &&
-													"Fields entered directly by your team."}
-												{source === "imported" &&
-													"Data from files or integrations."}
-												{source === "ai" &&
-													"Suggestions generated by AI agents."}
-											</p>
-										</CardContent>
-									</Card>
-								))}
-							</div>
-						</CardContent>
-					</Card>
-				</TabsContent>
-
-				<TabsContent value="activity" className="mt-6">
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<History className="h-5 w-5 text-primary" />
-								Project Activity
-							</CardTitle>
-							<CardDescription>
-								Complete timeline of all project activities and changes. Track
-								who did what and when for full audit trail.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{timeline.length === 0 ? (
-								<p className="text-sm text-muted-foreground">
-									No activity recorded yet. Actions will appear here
-									automatically.
-								</p>
-							) : (
-								<ScrollArea className="max-h-[600px] pr-3">
-									<div className="space-y-4">
-										{timeline.map((event, index) => {
-											// Get icon based on event type
-											const getEventIcon = () => {
-												switch (event.type) {
-													case "version":
-														return <Layers className="h-4 w-4" />;
-													case "proposal":
-														return <FileText className="h-4 w-4" />;
-													case "edit":
-														return <Edit className="h-4 w-4" />;
-													case "upload":
-														return <UploadCloud className="h-4 w-4" />;
-													case "assistant":
-														return <Sparkles className="h-4 w-4" />;
-													case "import":
-														return <RefreshCcw className="h-4 w-4" />;
-													default:
-														return <History className="h-4 w-4" />;
-												}
-											};
-
-											// Get color based on event type
-											const getEventColor = () => {
-												switch (event.type) {
-													case "version":
-														return "text-treatment-secondary";
-													case "proposal":
-														return "text-success";
-													case "edit":
-														return "text-warning";
-													case "upload":
-														return "text-treatment-auxiliary";
-													case "assistant":
-														return "text-accent";
-													case "import":
-														return "text-primary";
-													default:
-														return "text-muted-foreground";
-												}
-											};
-
-											const isLastItem = index === timeline.length - 1;
-
-											return (
-												<div key={event.id} className="relative flex gap-3">
-													{/* Timeline line */}
-													{!isLastItem && (
-														<div className="absolute left-[11px] top-8 bottom-0 w-px bg-border" />
-													)}
-
-													{/* Event icon */}
-													<div
-														className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border bg-background ${getEventColor()}`}
-													>
-														{getEventIcon()}
-													</div>
-
-													{/* Event content */}
-													<div className="flex-1 space-y-1 pb-4">
-														<div className="flex items-center justify-between">
-															<p className="font-medium text-sm">
-																{event.title}
-															</p>
-															<p className="text-xs text-muted-foreground">
-																{new Date(event.timestamp).toLocaleString(
-																	"en-US",
-																	{
-																		month: "short",
-																		day: "numeric",
-																		hour: "2-digit",
-																		minute: "2-digit",
-																	},
-																)}
-															</p>
-														</div>
-														<p className="text-xs text-muted-foreground">
-															{event.description}
-														</p>
-														<p className="text-xs text-muted-foreground">
-															by {event.user}
-														</p>
-													</div>
-												</div>
-											);
-										})}
-									</div>
-								</ScrollArea>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
-			</Tabs>
+			{/* Main content: Form or Table view based on toggle */}
+			{isTableView ? (
+				<EngineeringDataTable
+					sections={sections}
+					onFieldChange={handleFieldChange}
+				/>
+			) : (
+				<ResizableDataLayout
+					sections={sections}
+					onFieldChange={handleFieldChange}
+					projectId={projectId}
+					onAddSection={handleAddSection}
+					onRemoveSection={handleRemoveSection}
+					onAddField={(sectionId, field) => handleAddField(sectionId, field)}
+					onRemoveField={handleRemoveField}
+					autoSave
+					focusSectionId={focusSectionId}
+					onFocusSectionFromSummary={(sectionId) => {
+						setIsTableView(false);
+						setFocusSectionId(sectionId);
+					}}
+				/>
+			)}
 		</div>
 	);
 }

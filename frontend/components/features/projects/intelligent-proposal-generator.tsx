@@ -25,6 +25,7 @@ import type { ProjectDetail } from "@/lib/project-types";
 import { useCurrentProject, useLoadProjectAction } from "@/lib/stores";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { useTechnicalSummaryData } from "@/lib/stores/technical-data-store";
+import { PROPOSAL_READINESS_THRESHOLD } from "@/lib/technical-sheet-data";
 import { logger } from "@/lib/utils/logger";
 import {
 	showProposalErrorToast,
@@ -66,8 +67,8 @@ export function IntelligentProposalGeneratorComponent({
 			: null;
 	}, [storeProject, projectId]);
 
-	// Check if can generate (70% minimum)
-	const canGenerate = completeness.percentage >= 70;
+	// Check if can generate
+	const canGenerate = completeness.percentage >= PROPOSAL_READINESS_THRESHOLD;
 
 	// Use proposal generation hook
 	const { generate, cancel, progress, isGenerating, reasoning, currentStep } =
@@ -196,6 +197,7 @@ export function IntelligentProposalGeneratorComponent({
 				progress={progress}
 				currentStep={currentStep}
 				onCancel={handleCancel}
+				startTime={startTimeRef.current}
 			/>
 		);
 	}
@@ -218,7 +220,7 @@ export function IntelligentProposalGeneratorComponent({
 						<div>
 							<p className="text-sm font-medium">Technical Data Completeness</p>
 							<p className="text-xs text-muted-foreground">
-								Minimum 70% to generate proposal
+								Minimum {PROPOSAL_READINESS_THRESHOLD}% to generate proposal
 							</p>
 						</div>
 						<Badge
@@ -241,7 +243,7 @@ export function IntelligentProposalGeneratorComponent({
 								! Complete more technical data to enable intelligent generation.
 								Approximately{" "}
 								{Math.ceil(
-									((70 - completeness.percentage) * completeness.total) / 100,
+									((PROPOSAL_READINESS_THRESHOLD - completeness.percentage) * completeness.total) / 100,
 								)}{" "}
 								fields remaining.
 							</AlertDescription>
@@ -288,12 +290,27 @@ const GENERATION_STEPS = [
 function GenerationDashboard({
 	progress,
 	currentStep,
-	onCancel
+	onCancel,
+	startTime,
 }: {
 	progress: number;
 	currentStep: string;
 	onCancel: () => void;
+	startTime: number;
 }) {
+	// Calculate estimated time remaining
+	const getTimeEstimate = () => {
+		if (progress < 10) return "Calculating...";
+		const elapsedMs = Date.now() - startTime;
+		const progressRate = progress / elapsedMs;
+		const remainingProgress = 100 - progress;
+		const estimatedRemainingMs = remainingProgress / progressRate;
+		const estimatedSeconds = Math.ceil(estimatedRemainingMs / 1000);
+
+		if (estimatedSeconds < 60) return `~${estimatedSeconds}s remaining`;
+		const minutes = Math.ceil(estimatedSeconds / 60);
+		return `~${minutes} min remaining`;
+	};
 	// Determine step states based on progress
 	const getStepState = (threshold: number, index: number) => {
 		if (progress >= threshold) return "complete";
@@ -361,9 +378,12 @@ function GenerationDashboard({
 									AI analyzing your project data
 								</p>
 							</div>
-							<Badge variant="outline" className="border-primary/50 text-primary font-semibold">
-								{Math.round(progress)}%
-							</Badge>
+							<div className="flex items-center gap-2">
+								<span className="text-xs text-muted-foreground">{getTimeEstimate()}</span>
+								<Badge variant="outline" className="border-primary/50 text-primary font-semibold">
+									{Math.round(progress)}%
+								</Badge>
+							</div>
 						</div>
 
 						{/* Fixed Step Checklist */}

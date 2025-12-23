@@ -21,10 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { locationSchema } from "@/lib/forms/schemas";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useLocationStore } from "@/lib/stores/location-store";
+import type { LocationSummary } from "@/lib/types/company";
 
 interface CreateLocationDialogProps {
 	companyId: string;
-	onSuccess?: (location: unknown) => void;
+	onSuccess?: (location: LocationSummary) => void;
 	trigger?: React.ReactNode;
 }
 

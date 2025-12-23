@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Filter, FolderKanban, Loader2, Search } from "lucide-react";
+import { Building2, Filter, FolderKanban, Loader2, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
@@ -270,12 +270,22 @@ const DashboardContent = memo(function DashboardContent() {
 						<div className="relative">
 							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								placeholder="Search assessments..."
+								placeholder="Search assessments... (Cmd+K)"
 								value={searchTerm}
 								onChange={(e) => setSearchTerm(e.target.value)}
-								className="pl-9"
+								className="pl-9 pr-9"
 								autoComplete="off"
 							/>
+							{searchTerm && (
+								<button
+									type="button"
+									onClick={() => setSearchTerm("")}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+									aria-label="Clear search"
+								>
+									<X className="h-4 w-4" />
+								</button>
+							)}
 						</div>
 
 						{/* Filter Bar */}
@@ -362,12 +372,31 @@ const AssessmentListContainer = memo(function AssessmentListContainer({
 
 	const remainingProjects = totalProjects - projects.length;
 
+	// Show search-specific empty state
+	const showSearchEmpty = searchTerm.trim() && filtered.length === 0 && !loading;
+
 	return (
 		<div className="space-y-4">
-			<AssessmentList projects={filtered} loading={loading} />
+			{/* Results Counter */}
+			{searchTerm.trim() && filtered.length > 0 && (
+				<p className="text-sm text-muted-foreground">
+					Found {filtered.length} assessment{filtered.length !== 1 ? "s" : ""} matching "{searchTerm}"
+				</p>
+			)}
+
+			{/* Search Empty State */}
+			{showSearchEmpty ? (
+				<EmptyState
+					icon={Search}
+					title={`No assessments match "${searchTerm}"`}
+					description="Try a different search term or clear the filter to see all assessments."
+				/>
+			) : (
+				<AssessmentList projects={filtered} loading={loading} />
+			)}
 
 			{/* Load More Button */}
-			{hasMore && filtered.length > 0 && (
+			{hasMore && filtered.length > 0 && !searchTerm.trim() && (
 				<div className="flex flex-col items-center gap-2 pt-4">
 					<p className="text-sm text-muted-foreground">
 						Showing {projects.length} of {totalProjects} assessments
