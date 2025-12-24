@@ -27,7 +27,7 @@ class ProjectCreate(BaseSchema):
     project_type: str = Field(default="Assessment", max_length=100)
     description: Optional[str] = None
     budget: float = Field(default=0.0, ge=0)
-    schedule_summary: str = Field(default="Por definir", max_length=255)
+    schedule_summary: str = Field(default="To be defined", max_length=255)
     tags: List[str] = Field(default_factory=list)
     
     class Config:

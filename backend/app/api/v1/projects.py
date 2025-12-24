@@ -437,8 +437,8 @@ async def update_project(
         db=db,
         project_id=project.id,
         event_type="project_updated",
-        title="Proyecto actualizado",
-        description=f"Campos actualizados: {', '.join(changed_fields)}",
+        title="Project updated",
+        description=f"Updated fields: {', '.join(changed_fields)}",
         actor=current_user.email,
         metadata={"changed_fields": changed_fields}
     )

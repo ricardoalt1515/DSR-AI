@@ -1,4 +1,5 @@
 import { getParameterById } from "@/lib/parameters";
+import type { ProjectDataSyncResult } from "@/lib/api/project-data";
 import type {
 	DataSource,
 	TableField,
@@ -154,8 +155,8 @@ export const calculateDerivedValues = (sections: TableSection[]) => {
 export const saveTechnicalSheetData = async (
 	projectId: string,
 	sections: TableSection[],
-): Promise<void> => {
-	if (typeof window === "undefined") return;
+): Promise<ProjectDataSyncResult | null> => {
+	if (typeof window === "undefined") return null;
 
 	// localStorage backup (non-critical)
 	try {
@@ -169,7 +170,7 @@ export const saveTechnicalSheetData = async (
 
 	// Backend sync (critical) - errors propagate to caller
 	const { projectDataAPI } = await import("@/lib/api/project-data");
-	await projectDataAPI.updateData(
+	return projectDataAPI.updateData(
 		projectId,
 		{ technical_sections: sections },
 		true, // merge
@@ -220,8 +221,12 @@ export const applyFieldUpdates = (
 export const sectionCompletion = (section: TableSection) => {
 	const total = section.fields.length;
 	const completed = section.fields.filter(
-		(field) =>
-			field.value !== undefined && field.value !== "" && field.value !== null,
+		(field) => {
+			const value = field.value;
+			if (value === undefined || value === null || value === "") return false;
+			if (Array.isArray(value)) return value.length > 0;
+			return true;
+		},
 	).length;
 	const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 	return { total, completed, percentage };

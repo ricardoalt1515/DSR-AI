@@ -71,7 +71,7 @@ class Project(BaseModel):
     subsector = Column(String(100), nullable=True)
     project_type = Column(
         String(100),
-        default="Por definir",
+        default="To be defined",
         comment="Type of treatment system",
     )
     description = Column(Text, nullable=True)
@@ -82,7 +82,7 @@ class Project(BaseModel):
     # Schedule
     schedule_summary = Column(
         String(255),
-        default="Por definir",
+        default="To be defined",
         comment="High-level schedule summary",
     )
     

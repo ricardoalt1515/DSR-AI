@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,8 +31,14 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { ProjectStatus } from "@/lib/project-types";
+import type { ProjectStatus, ProjectSummary } from "@/lib/project-types";
+import { PROJECT_STATUS_FLOW } from "@/lib/project-status";
 import { useProjectActions } from "@/lib/stores";
+
+const PROJECT_STATUS_OPTIONS = PROJECT_STATUS_FLOW as [
+	ProjectStatus,
+	...ProjectStatus[],
+];
 
 // Validation schema - fail fast with clear error messages
 const editProjectSchema = z.object({
@@ -48,14 +54,7 @@ const editProjectSchema = z.object({
 		.string()
 		.min(2, "Location must be at least 2 characters")
 		.max(200, "Location must be less than 200 characters"),
-	status: z.enum([
-		"In Preparation",
-		"Generating Proposal",
-		"Proposal Ready",
-		"In Development",
-		"Completed",
-		"On Hold",
-	]),
+	status: z.enum(PROJECT_STATUS_OPTIONS),
 	description: z
 		.string()
 		.max(1000, "Description must be less than 1000 characters")
@@ -64,27 +63,13 @@ const editProjectSchema = z.object({
 
 type EditProjectFormValues = z.infer<typeof editProjectSchema>;
 
-// Available project statuses - avoid magic strings
-const PROJECT_STATUSES: ProjectStatus[] = [
-	"In Preparation",
-	"Generating Proposal",
-	"Proposal Ready",
-	"In Development",
-	"Completed",
-	"On Hold",
-];
-
 interface EditProjectDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	project: {
-		id: string;
-		name: string;
-		client: string;
-		location: string;
-		status: string;
-		description?: string;
-	};
+	project: Pick<
+		ProjectSummary,
+		"id" | "name" | "client" | "location" | "status" | "description"
+	>;
 }
 
 /**
@@ -111,44 +96,45 @@ export function EditProjectDialog({
 			name: project.name,
 			client: project.client,
 			location: project.location,
-			status: project.status as ProjectStatus,
-			description: project.description || "",
+			status: project.status,
+			description: project.description ?? "",
 		},
 	});
 
-	// Reset form when dialog opens/closes or project changes
-	// This prevents state issues and UI blocking
-	useEffect(() => {
-		if (!open) return;
+	// Reset form only when dialog opens (not on every prop change)
+	// This prevents losing user edits when the store updates
+	const prevOpenRef = useRef(false);
+	const prevProjectIdRef = useRef(project.id);
 
-		// Reset form with current project values when opening
-		// Use setTimeout to ensure Dialog animation completes first
-		const timer = setTimeout(() => {
+	useEffect(() => {
+		const wasOpen = prevOpenRef.current;
+		const prevProjectId = prevProjectIdRef.current;
+		prevOpenRef.current = open;
+		prevProjectIdRef.current = project.id;
+
+		// If project changed while dialog is open, close it to prevent stale data
+		if (open && wasOpen && prevProjectId !== project.id) {
+			onOpenChange(false);
+			return;
+		}
+
+		// Reset form only when transitioning from closed to open
+		if (open && !wasOpen) {
 			form.reset({
 				name: project.name,
 				client: project.client,
 				location: project.location,
-				status: project.status as ProjectStatus,
-				description: project.description || "",
+				status: project.status,
+				description: project.description ?? "",
 			});
-		}, 0);
-
-		return () => clearTimeout(timer);
-	}, [
-		open,
-		project.name,
-		project.client,
-		project.location,
-		project.status,
-		project.description,
-		form,
-	]);
+		}
+	}, [open, project.id, form, onOpenChange]);
 
 	// Handle form submission - returns result, doesn't print
 	const handleSubmit = async (values: EditProjectFormValues) => {
 		try {
 			// Prepare update payload - only include changed values
-			const updates: Record<string, unknown> = {};
+			const updates: Partial<ProjectSummary> = {};
 
 			if (values.name !== project.name) updates.name = values.name;
 			if (values.client !== project.client) updates.client = values.client;
@@ -156,7 +142,7 @@ export function EditProjectDialog({
 				updates.location = values.location;
 			if (values.status !== project.status) updates.status = values.status;
 			if (values.description !== project.description)
-				updates.description = values.description;
+				updates.description = values.description ?? "";
 
 			// Fail fast: Don't make API call if nothing changed
 			if (Object.keys(updates).length === 0) {
@@ -260,7 +246,7 @@ export function EditProjectDialog({
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											{PROJECT_STATUSES.map((status) => (
+											{PROJECT_STATUS_FLOW.map((status) => (
 												<SelectItem key={status} value={status}>
 													{status}
 												</SelectItem>

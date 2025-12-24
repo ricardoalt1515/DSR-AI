@@ -1,7 +1,6 @@
 import {
 	ArrowRight,
 	Building,
-	CalendarDays,
 	FileText,
 	MapPin,
 	Percent,
@@ -10,21 +9,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
+import type { ProjectSummary } from "@/lib/project-types";
 import { PROPOSAL_READINESS_THRESHOLD } from "@/lib/technical-sheet-data";
 
-interface ProjectOverviewProject {
-	id: string;
-	name: string;
-	client: string;
-	location: string;
-	status: string;
-	progress: number;
-	type: string;
-	description: string;
-	timeline?: string;
-	updatedAt?: string;
-	proposalCount?: number;
-}
+type ProjectOverviewProject = Pick<
+	ProjectSummary,
+	| "id"
+	| "name"
+	| "client"
+	| "location"
+	| "status"
+	| "progress"
+	| "type"
+	| "description"
+	| "updatedAt"
+> & { proposalCount?: number };
 
 interface ProjectOverviewProps {
 	project: ProjectOverviewProject;

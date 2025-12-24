@@ -14,8 +14,8 @@ export const PROJECT_STATUS_FLOW: ProjectStatus[] = [
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 	"In Preparation": "In Preparation",
-	"Generating Proposal": "Generating Report",
-	"Proposal Ready": "Report Ready",
+	"Generating Proposal": "Generating Proposal",
+	"Proposal Ready": "Proposal Ready",
 	"In Development": "In Development",
 	Completed: "Completed",
 	"On Hold": "On Hold",
@@ -28,6 +28,15 @@ export const PROJECT_STATUS_DESCRIPTIONS: Record<ProjectStatus, string> = {
 	"In Development": "Iterate with detailed design, BOM, and next phases.",
 	Completed: "Project finalized and documented.",
 	"On Hold": "Project paused pending further notice.",
+};
+
+export const STATUS_COLORS: Record<ProjectStatus, string> = {
+	"In Preparation": "bg-muted text-muted-foreground",
+	"Generating Proposal": "bg-chart-2 text-white",
+	"Proposal Ready": "bg-primary text-primary-foreground",
+	"In Development": "bg-secondary text-secondary-foreground",
+	Completed: "bg-success text-success-foreground",
+	"On Hold": "bg-destructive text-destructive-foreground",
 };
 
 export const PROJECT_STATUS_STEP: Record<ProjectStatus, number> =

@@ -15,7 +15,7 @@ const UUID_REGEX =
 const sanitizeFilters = (filters: ProjectState["filters"]) => {
 	const next = { ...filters };
 
-	// Drop companyId persisted como nombre (pre-cambio) o valor inválido
+	// Drop companyId if persisted as name (pre-migration) or invalid UUID
 	if (next.companyId && !UUID_REGEX.test(next.companyId)) {
 		delete next.companyId;
 	}
@@ -103,6 +103,7 @@ interface ProjectState {
 		id: string,
 		updates: Partial<ProjectSummary>,
 	) => Promise<void>;
+	updateProjectProgress: (id: string, progress: number) => void;
 	deleteProject: (id: string) => Promise<void>;
 
 	// Utility actions
@@ -298,7 +299,7 @@ export const useProjectStore = create<ProjectState>()(
 						state.error =
 							error instanceof Error
 								? error.message
-								: "Error al cargar proyecto";
+								: "Failed to load project";
 					});
 				}
 			},
@@ -337,7 +338,7 @@ export const useProjectStore = create<ProjectState>()(
 						state.error =
 							error instanceof Error
 								? error.message
-								: "Error al crear proyecto";
+								: "Failed to create project";
 					});
 					throw error; // Re-throw para que el componente lo maneje
 				}
@@ -378,10 +379,23 @@ export const useProjectStore = create<ProjectState>()(
 						state.error =
 							error instanceof Error
 								? error.message
-								: "Error al actualizar proyecto";
+								: "Failed to update project";
 					});
 					throw error;
 				}
+			},
+
+			updateProjectProgress: (id: string, progress: number) => {
+				set((state) => {
+					const idx = state.projects.findIndex((project) => project.id === id);
+					if (idx !== -1 && state.projects[idx]) {
+						state.projects[idx].progress = progress;
+					}
+
+					if (state.currentProject?.id === id) {
+						state.currentProject.progress = progress;
+					}
+				});
 			},
 
 			deleteProject: async (id: string) => {
@@ -416,7 +430,7 @@ export const useProjectStore = create<ProjectState>()(
 						state.error =
 							error instanceof Error
 								? error.message
-								: "Error al eliminar proyecto";
+								: "Failed to delete project";
 						state.dataSource = "mock";
 					});
 					throw error;
@@ -491,6 +505,7 @@ export const useProjectActions = () =>
 			loadDashboardStats: state.loadDashboardStats,
 			createProject: state.createProject,
 			updateProject: state.updateProject,
+			updateProjectProgress: state.updateProjectProgress,
 			deleteProject: state.deleteProject,
 			clearError: state.clearError,
 			setLoading: state.setLoading,

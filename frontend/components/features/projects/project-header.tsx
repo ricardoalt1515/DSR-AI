@@ -25,34 +25,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 
+import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
+import { STATUS_COLORS } from "@/lib/project-status";
 import { routes } from "@/lib/routes";
 import { useProjectActions, useTechnicalSections } from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";
 import { EditProjectDialog } from "./edit-project-dialog";
 
-
-interface Project {
-	id: string;
-	name: string;
-	client: string;
-	location: string;
-	status: string;
-	type: string;
-	progress: number;
-	updatedAt: string;
-	description?: string;
-}
-
 interface ProjectHeaderProps {
-	project: Project;
+	project: ProjectSummary | ProjectDetail;
 }
-
-const statusColors = {
-	"En Desarrollo": "bg-secondary text-secondary-foreground",
-	Propuesta: "bg-muted text-muted-foreground",
-	Completado: "bg-primary text-primary-foreground",
-	Pausado: "bg-destructive text-destructive-foreground",
-};
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
 	const router = useRouter();
@@ -63,19 +45,22 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 
 	// ✅ Calculate progress dynamically from technical sections (same as body)
 	const sections = useTechnicalSections(project.id);
-	const completion = overallCompletion(sections);
+	const completion =
+		sections.length > 0
+			? overallCompletion(sections)
+			: { percentage: project.progress, completed: 0, total: 0 };
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
 		try {
 			await deleteProject(project.id);
-			toast.success("Proyecto eliminado", {
-				description: `"${project.name}" ha sido eliminado correctamente`,
+			toast.success("Project deleted", {
+				description: `"${project.name}" has been deleted successfully`,
 			});
 			router.push(routes.dashboard);
 		} catch (_error) {
-			toast.error("Error al eliminar", {
-				description: "No se pudo eliminar el proyecto. Intenta nuevamente.",
+			toast.error("Delete failed", {
+				description: "The project could not be deleted. Please try again.",
 			});
 			setIsDeleting(false);
 		}
@@ -107,7 +92,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 							<h1 className="text-xl sm:text-2xl font-bold truncate">{project.name}</h1>
 							<Badge
 								variant="secondary"
-								className={statusColors[project.status as keyof typeof statusColors]}
+								className={STATUS_COLORS[project.status] ?? "bg-muted text-muted-foreground"}
 							>
 								{project.status}
 							</Badge>
@@ -163,9 +148,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 									Generate Proposal
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onSelect={() => {
-										setTimeout(() => setShowEditDialog(true), 0);
-									}}
+									onSelect={() => setShowEditDialog(true)}
 								>
 									<Edit className="mr-2 h-4 w-4" />
 									Edit Project
@@ -177,9 +160,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 								<DropdownMenuSeparator />
 								<DropdownMenuItem
 									className="text-destructive focus:text-destructive"
-									onSelect={() => {
-										setTimeout(() => setShowDeleteDialog(true), 0);
-									}}
+									onSelect={() => setShowDeleteDialog(true)}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
 									Delete Project

@@ -49,15 +49,11 @@ import {
 	PROPOSAL_READINESS_THRESHOLD,
 	sectionCompletion,
 } from "@/lib/technical-sheet-data";
-import { formatCurrency } from "@/lib/utils";
 import { logger } from "@/lib/utils/logger";
 import { IntelligentProposalGeneratorComponent } from "./intelligent-proposal-generator";
+import type { ProjectSummary } from "@/lib/project-types";
 
-interface Project {
-	id: string;
-	name: string;
-	type: string;
-}
+type Project = Pick<ProjectSummary, "id" | "name" | "type">;
 
 interface ProposalsTabProps {
 	project: Project;
@@ -167,7 +163,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 			// ✅ Reload project data from API (no page refresh needed)
 			await loadProject(project.id);
 		} catch (error) {
-			console.error("Failed to delete proposal:", error);
+			logger.error("Failed to delete proposal", error, "ProposalsTab");
 			toast.error("Deletion error", {
 				description: "Could not delete the proposal. Please try again.",
 			});
@@ -214,7 +210,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 							<div className="space-y-4">
 								<div className="space-y-2 text-sm">
 									<p className="font-semibold">
-										Completa estas secciones para continuar:
+										Complete these sections to continue:
 									</p>
 									<div className="space-y-2">
 										{prioritizedGaps.map(({ section, stats }) => (
@@ -225,7 +221,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 												<div>
 													<p className="font-medium">{section.title}</p>
 													<p className="text-xs text-muted-foreground">
-														{stats.completed} de {stats.total} campos
+														{stats.completed} of {stats.total} fields
 													</p>
 												</div>
 												<Badge variant="outline" className="border-primary/40">
@@ -370,8 +366,8 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 								</CardHeader>
 								<CardContent className="space-y-4">
 									<div className="text-sm text-muted-foreground">
-										Creado el{" "}
-										{new Date(proposal.createdAt).toLocaleDateString("es-ES")}
+										Created on{" "}
+										{new Date(proposal.createdAt).toLocaleDateString("en-US")}
 									</div>
 
 									<div className="flex gap-2">

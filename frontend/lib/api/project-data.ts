@@ -44,13 +44,24 @@ export interface ProjectData {
 }
 
 export interface ProjectDataResponse {
-	projectId: string;
-	data: ProjectData;
+	project_id?: string;
+	projectId?: string;
+	data?: ProjectData;
 }
 
-export interface UpdateProjectDataResponse {
-	message: string;
-	data: ProjectData;
+export interface ProjectDataSyncResponse {
+	message?: string;
+	project_id?: string;
+	projectId?: string;
+	updated_at?: string;
+	updatedAt?: string;
+	progress?: number;
+}
+
+export interface ProjectDataSyncResult {
+	projectId: string;
+	updatedAt?: string;
+	progress?: number;
 }
 
 /**
@@ -64,7 +75,10 @@ export class ProjectDataAPI {
 		const response = await apiClient.get<ProjectDataResponse>(
 			`/projects/${projectId}/data`,
 		);
-		return response.data;
+		if ("data" in response) {
+			return response.data ?? {};
+		}
+		return response as unknown as ProjectData;
 	}
 
 	/**
@@ -74,12 +88,21 @@ export class ProjectDataAPI {
 		projectId: string,
 		updates: Partial<ProjectData>,
 		merge: boolean = true,
-	): Promise<ProjectData> {
-		const response = await apiClient.patch<UpdateProjectDataResponse>(
+	): Promise<ProjectDataSyncResult> {
+		const response = await apiClient.patch<ProjectDataSyncResponse>(
 			`/projects/${projectId}/data?merge=${merge}`,
 			updates,
 		);
-		return response.data;
+		const result: ProjectDataSyncResult = {
+			projectId: response.projectId ?? response.project_id ?? projectId,
+		};
+
+		const updatedAt = response.updatedAt ?? response.updated_at;
+		if (updatedAt) result.updatedAt = updatedAt;
+
+		if (typeof response.progress === "number") result.progress = response.progress;
+
+		return result;
 	}
 
 	/**
@@ -90,7 +113,7 @@ export class ProjectDataAPI {
 		name: string,
 		value: number,
 		unit: string,
-	): Promise<ProjectData> {
+	): Promise<ProjectDataSyncResult> {
 		const updates = {
 			quality: {
 				[name]: { value, unit },
@@ -105,7 +128,7 @@ export class ProjectDataAPI {
 	static async deleteQualityParameter(
 		projectId: string,
 		paramName: string,
-	): Promise<void> {
+	): Promise<ProjectDataSyncResult> {
 		// Get current data
 		const currentData = await ProjectDataAPI.getData(projectId);
 
@@ -115,7 +138,7 @@ export class ProjectDataAPI {
 		}
 
 		// Update with modified data
-		await ProjectDataAPI.updateData(projectId, currentData, false);
+		return ProjectDataAPI.updateData(projectId, currentData, false);
 	}
 
 	/**
@@ -124,7 +147,7 @@ export class ProjectDataAPI {
 	static async addSection(
 		projectId: string,
 		section: Omit<CustomSection, "order">,
-	): Promise<ProjectData> {
+	): Promise<ProjectDataSyncResult> {
 		const currentData = await ProjectDataAPI.getData(projectId);
 		const sections = currentData.sections || [];
 
@@ -146,7 +169,7 @@ export class ProjectDataAPI {
 	static async deleteSection(
 		projectId: string,
 		sectionId: string,
-	): Promise<void> {
+	): Promise<ProjectDataSyncResult> {
 		const currentData = await ProjectDataAPI.getData(projectId);
 
 		if (currentData.sections) {
@@ -159,8 +182,11 @@ export class ProjectDataAPI {
 			});
 
 			// Update
-			await ProjectDataAPI.updateData(projectId, { sections }, true);
+			return ProjectDataAPI.updateData(projectId, { sections }, true);
 		}
+		return {
+			projectId,
+		};
 	}
 
 	/**
@@ -170,7 +196,7 @@ export class ProjectDataAPI {
 		projectId: string,
 		path: string,
 		value: any,
-	): Promise<ProjectData> {
+	): Promise<ProjectDataSyncResult> {
 		const keys = path.split(".");
 		const updates: any = {};
 

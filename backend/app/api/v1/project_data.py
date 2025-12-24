@@ -56,7 +56,8 @@ async def update_project_data(
     return {
         "message": "Project data updated successfully",
         "project_id": str(project.id),
-        "updated_at": updated.updated_at.isoformat()
+        "updated_at": updated.updated_at.isoformat(),
+        "progress": updated.progress,
     }
 
 
@@ -80,7 +81,8 @@ async def replace_project_data(
     return {
         "message": "Project data replaced successfully",
         "project_id": str(project.id),
-        "updated_at": updated.updated_at.isoformat()
+        "updated_at": updated.updated_at.isoformat(),
+        "progress": updated.progress,
     }
 
 

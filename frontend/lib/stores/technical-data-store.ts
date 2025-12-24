@@ -23,6 +23,7 @@ import {
 	formatValidationErrors,
 	validateTechnicalSections,
 } from "@/lib/validation/template-schema";
+import { useProjectStore } from "./project-store";
 import { projectDataAPI } from "../api/project-data";
 
 type FieldValue = TableField["value"];
@@ -127,6 +128,19 @@ const EMPTY_VERSIONS: TechnicalDataVersion[] = [];
 
 const deepCloneSections = (sections: TableSection[]): TableSection[] =>
 	JSON.parse(JSON.stringify(sections));
+
+const syncTechnicalSheetData = async (
+	projectId: string,
+	sections: TableSection[],
+) => {
+	const result = await saveTechnicalSheetData(projectId, sections);
+	if (typeof result?.progress === "number") {
+		useProjectStore
+			.getState()
+			.updateProjectProgress(projectId, result.progress);
+	}
+	return result;
+};
 
 const computeVersionChanges = (
 	previous: TableSection[] | undefined,
@@ -380,7 +394,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 				// Guardar en localStorage y sincronizar con backend
 				try {
-					await saveTechnicalSheetData(projectId, updated);
+					await syncTechnicalSheetData(projectId, updated);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -436,7 +450,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 
 				try {
-					await saveTechnicalSheetData(projectId, updated);
+					await syncTechnicalSheetData(projectId, updated);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -477,7 +491,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -508,7 +522,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const templateSections =
 					(other.technical_sections as TableSection[]) || [];
 				await get().applyTemplate(projectId, templateSections, mode, {
-					label: `Copiado de proyecto ${fromProjectId}`,
+					label: `Copied from project ${fromProjectId}`,
 				});
 			},
 
@@ -530,7 +544,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -565,7 +579,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = get().technicalData[projectId] ?? [];
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -608,7 +622,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = get().technicalData[projectId] ?? [];
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -651,7 +665,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = get().technicalData[projectId] ?? [];
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -696,7 +710,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = get().technicalData[projectId] ?? [];
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -752,7 +766,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = get().technicalData[projectId] ?? [];
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -799,7 +813,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = get().technicalData[projectId] ?? [];
 
 				try {
-					await saveTechnicalSheetData(projectId, next);
+					await syncTechnicalSheetData(projectId, next);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -853,9 +867,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					projectId,
 					versionLabel:
 						options?.label ??
-						`Ficha técnica ${new Date().toLocaleString("es-ES")}`,
+						`Technical sheet ${new Date().toLocaleString("en-US")}`,
 					createdAt: new Date().toISOString(),
-					createdBy: "Usuario actual",
+					createdBy: "Current user",
 					source,
 					snapshot: deepCloneSections(sections),
 					changes,
@@ -883,7 +897,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 
 				try {
-					await saveTechnicalSheetData(projectId, snapshot);
+					await syncTechnicalSheetData(projectId, snapshot);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -924,7 +938,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 
 				try {
-					await saveTechnicalSheetData(projectId, emptyData);
+					await syncTechnicalSheetData(projectId, emptyData);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();
@@ -976,7 +990,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 
 				try {
-					await saveTechnicalSheetData(projectId, sections);
+					await syncTechnicalSheetData(projectId, sections);
 					set((state) => {
 						state.saving = false;
 						state.lastSaved = new Date();

@@ -16,7 +16,7 @@ from app.schemas.project_data import ProjectAIInput
 
 class ProjectDataService:
     """Service for managing flexible project data"""
-    
+
     @staticmethod
     def deep_merge(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -36,6 +36,33 @@ class ProjectDataService:
                 result[key] = value
         
         return result
+
+    @staticmethod
+    def calculate_progress(sections: list[Dict[str, Any]] | None) -> int:
+        """
+        Calculate completion percentage from technical sections.
+        Empty values (None, "", []) are not counted as completed.
+        """
+        if not sections or not isinstance(sections, list):
+            return 0
+
+        total = 0
+        completed = 0
+
+        for section in sections:
+            if not isinstance(section, dict):
+                continue
+            fields = section.get("fields", [])
+            if not isinstance(fields, list):
+                continue
+            total += len(fields)
+            for field in fields:
+                value = field.get("value")
+                if value is None or value == "" or value == []:
+                    continue
+                completed += 1
+
+        return round((completed / total) * 100) if total > 0 else 0
     
     @staticmethod
     async def get_project_data(
@@ -78,7 +105,12 @@ class ProjectDataService:
         else:
             # Complete replacement
             project.project_data = updates
-        
+
+        should_update_progress = not merge or "technical_sections" in updates
+        if should_update_progress:
+            sections = project.project_data.get("technical_sections", [])
+            project.progress = ProjectDataService.calculate_progress(sections)
+
         project.updated_at = datetime.utcnow()
         
         await db.commit()

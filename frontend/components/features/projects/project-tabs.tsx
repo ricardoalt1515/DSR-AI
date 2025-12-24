@@ -97,7 +97,10 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 
 	// Use the same dynamic completion calculation as header / dashboard
 	const sections = useTechnicalSections(project.id);
-	const completion = overallCompletion(sections);
+	const completion =
+		sections.length > 0
+			? overallCompletion(sections)
+			: { total: 0, completed: 0, percentage: projectData.progress };
 
 	// Get counts for tab badges (with project.id validation to avoid stale counts during navigation)
 	const proposalCount = useMemo(() => {
@@ -114,7 +117,6 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 
 	const overviewProject = useMemo(() => {
 		const base = projectData as ProjectSummary;
-		const detail = projectData as Partial<ProjectDetail>;
 
 		return {
 			id: base.id,
@@ -128,10 +130,6 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 			description: base.description,
 			// timeline intentionally omitted to avoid type mismatch (ProjectDetail has TimelineEvent[])
 			updatedAt: base.updatedAt,
-			team:
-				((detail as Record<string, unknown>).team as
-					| { name: string; role: string; avatar?: string }[]
-					| undefined) ?? [],
 		};
 	}, [projectData, completion.percentage]);
 

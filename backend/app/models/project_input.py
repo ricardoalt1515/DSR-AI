@@ -252,8 +252,9 @@ class FlexibleWaterProjectData(BaseSchema):
         count = 0
         for section in self.technical_sections:
             for field in section.fields:
-                if field.value is not None and field.value != "":
-                    count += 1
+                if field.value in (None, "", []):
+                    continue
+                count += 1
         return count
 
     def to_ai_context(self) -> Dict[str, Any]:

@@ -23,7 +23,7 @@ interface TagInputProps {
 export function TagInput({
 	tags,
 	onChange,
-	placeholder = "Escribe y presiona Enter",
+	placeholder = "Type and press Enter",
 	suggestions = [],
 	className,
 	maxTags,
@@ -88,7 +88,7 @@ export function TagInput({
 							type="button"
 							onClick={() => removeTag(index)}
 							className="ml-1 hover:bg-muted rounded-sm p-0.5 transition-colors"
-							aria-label={`Eliminar ${tag}`}
+							aria-label={`Remove ${tag}`}
 						>
 							<X className="h-3 w-3" />
 						</button>
@@ -115,7 +115,7 @@ export function TagInput({
 			{showSuggestions && filteredSuggestions.length > 0 && (
 				<div className="border rounded-md p-3 bg-popover text-popover-foreground shadow-md">
 					<p className="text-xs text-muted-foreground mb-2 font-medium">
-						Sugerencias comunes:
+						Common suggestions:
 					</p>
 					<div className="flex flex-wrap gap-1.5">
 						{filteredSuggestions.map((suggestion) => (
@@ -136,7 +136,7 @@ export function TagInput({
 			{maxTags && (
 				<p className="text-xs text-muted-foreground">
 					{tags.length} / {maxTags}{" "}
-					{tags.length === 1 ? "elemento" : "elementos"}
+					{tags.length === 1 ? "item" : "items"}
 				</p>
 			)}
 		</div>
