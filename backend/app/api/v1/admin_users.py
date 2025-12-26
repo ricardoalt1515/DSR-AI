@@ -3,7 +3,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.dependencies import AsyncDB, CurrentSuperUser
@@ -13,9 +13,14 @@ from app.schemas.user_fastapi import UserCreate, UserRead, UserUpdate
 
 router = APIRouter()
 
+# Import rate limiter
+from app.main import limiter
+
 
 @router.get("", response_model=List[UserRead], summary="List all users")
+@limiter.limit("60/minute")
 async def list_users(
+    request: Request,
     current_admin: CurrentSuperUser,
     db: AsyncDB,
 ):
@@ -31,7 +36,9 @@ class AdminCreateUserRequest(UserCreate):
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def create_user(
+    request: Request,
     payload: AdminCreateUserRequest,
     current_admin: CurrentSuperUser,
     user_manager: UserManager = Depends(get_user_manager),
@@ -49,7 +56,9 @@ class AdminUpdateUserRequest(UserUpdate):
 
 
 @router.patch("/{user_id}", response_model=UserRead)
+@limiter.limit("20/minute")
 async def update_user(
+    request: Request,
     user_id: UUID,
     updates: AdminUpdateUserRequest,
     current_admin: CurrentSuperUser,
@@ -62,23 +71,34 @@ async def update_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     update_data = updates.model_dump(exclude_unset=True)
+    requested_role = update_data.get("role")
+    requested_is_superuser = update_data.get("is_superuser")
+    will_be_active = update_data.get("is_active", user.is_active)
+
+    will_be_superuser = user.is_superuser
+    if requested_role is not None:
+        will_be_superuser = requested_role == "admin"
+    elif requested_is_superuser is not None:
+        will_be_superuser = requested_is_superuser is True
+    if requested_is_superuser is False:
+        will_be_superuser = False
 
     # Self-protection: admins cannot demote or deactivate themselves
     if user.id == current_admin.id:
-        if update_data.get("is_superuser") is False:
+        if requested_is_superuser is False or (requested_role is not None and requested_role != "admin"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Admins cannot remove their own admin role",
             )
-        if update_data.get("is_active") is False:
+        if will_be_active is False:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Admins cannot deactivate their own account",
             )
 
     # Prevent leaving the system without at least one active admin
-    removing_admin_role = user.is_superuser and update_data.get("is_superuser") is False
-    deactivating_admin = user.is_superuser and update_data.get("is_active") is False
+    removing_admin_role = user.is_superuser and will_be_superuser is False
+    deactivating_admin = user.is_superuser and user.is_active and will_be_active is False
 
     if removing_admin_role or deactivating_admin:
         result = await db.execute(

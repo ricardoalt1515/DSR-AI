@@ -124,7 +124,11 @@ async def generate_proposal(
         user_id=current_user.id,
     )
 
-    logger.info(f"🚀 Proposal generation started: {job_id} for project {proposal_request.project_id}")
+    logger.info(
+        "Proposal generation started: %s for project %s",
+        job_id,
+        proposal_request.project_id,
+    )
 
     return ProposalJobStatus(
         job_id=job_id,
@@ -236,7 +240,7 @@ async def list_proposals(
     # Get proposals (relationship already loaded via selectin)
     proposals = project.proposals
 
-    # ✅ Convert to response models with snapshot using helper method
+    # Convert to response models with snapshot using helper method
     response_list = [ProposalResponse.from_model_with_snapshot(p) for p in proposals]
 
     return response_list
@@ -290,7 +294,7 @@ async def get_proposal(
             detail="Proposal not found",
         )
 
-    # ✅ Regenerate fresh image URLs for photo insights (presigned URLs expire)
+    # Regenerate fresh image URLs for photo insights (presigned URLs expire)
     try:
         ai_meta = proposal.ai_metadata or {}
         transparency = ai_meta.get("transparency")
@@ -320,7 +324,7 @@ async def get_proposal(
     except Exception as exc:  # Best-effort refresh; do not block response
         logger.warning("photo_insight_refresh_failed", exc_info=True, error=str(exc))
 
-    # ✅ Build response with snapshot using helper method
+    # Build response with snapshot using helper method
     return ProposalResponse.from_model_with_snapshot(proposal)
 
 
@@ -410,7 +414,7 @@ async def get_proposal_pdf(
     try:
         # Check if PDF exists and regeneration not requested
         if proposal.pdf_path and not regenerate:
-            logger.info(f"📄 Serving cached PDF for proposal {proposal_id}")
+            logger.info("Serving cached PDF for proposal %s", proposal_id)
             
             # Generate fresh presigned URL or serve local path
             pdf_url = await get_presigned_url(proposal.pdf_path, expires=3600)
@@ -424,7 +428,7 @@ async def get_proposal_pdf(
                 )
         
         # Generate new PDF using existing ProfessionalPDFGenerator
-        logger.info(f"🔄 Generating new PDF for proposal {proposal_id}")
+        logger.info("Generating new PDF for proposal %s", proposal_id)
 
         # Prepare metadata for PDF generator.
         # metadata["proposal"] feeds the new waste-upcycling layout (ProposalOutput-compatible),
@@ -458,31 +462,35 @@ async def get_proposal_pdf(
             },
         }
         
-        # ✅ Generate charts BEFORE creating PDF (like backend-chatbot)
+        # Generate charts before creating PDF (like backend-chatbot)
         from app.visualization.modern_charts import premium_chart_generator
         
-        logger.info(f"📊 Generating executive charts for proposal {proposal_id}")
+        logger.info("Generating executive charts for proposal %s", proposal_id)
         charts = premium_chart_generator.generate_executive_charts(metadata)
-        logger.info(f"📊 Generated {len(charts)} charts: {list(charts.keys()) if charts else 'none'}")
+        logger.info(
+            "Generated %s charts: %s",
+            len(charts),
+            list(charts.keys()) if charts else "none",
+        )
         
-        # ✅ Generate PDF with charts (returns RELATIVE filename: "proposals/file.pdf")
+        # Generate PDF with charts (returns relative filename: "proposals/file.pdf")
         pdf_filename = await pdf_generator.create_pdf(
             markdown_content=proposal.technical_approach or "",
             metadata=metadata,
-            charts=charts,  # ✅ Now with actual charts
+            charts=charts,
             conversation_id=str(proposal_id)
         )
 
         if not pdf_filename:
             raise ValueError("PDF generation returned None")
 
-        # ✅ Save RELATIVE filename in database (NOT the full URL)
+        # Save relative filename in database (not the full URL)
         proposal.pdf_path = pdf_filename
         await db.commit()
 
-        logger.info(f"✅ PDF generated and saved: {pdf_filename}")
+        logger.info("PDF generated and saved: %s", pdf_filename)
 
-        # ✅ Generate download URL from relative filename
+        # Generate download URL from relative filename
         # In local mode: returns "/uploads/proposals/file.pdf"
         # In S3 mode: returns presigned S3 URL
         pdf_url = await get_presigned_url(pdf_filename, expires=3600)
@@ -497,7 +505,7 @@ async def get_proposal_pdf(
         )
         
     except Exception as e:
-        logger.error(f"❌ PDF generation failed: {e}", exc_info=True)
+        logger.error("PDF generation failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate PDF: {str(e)}",
@@ -580,17 +588,17 @@ async def delete_proposal(
         try:
             if USE_S3:
                 await delete_file_from_s3(pdf_path)
-                logger.info(f"🗑️ Deleted PDF from S3: {pdf_path}")
+                logger.info("Deleted PDF from S3: %s", pdf_path)
             else:
                 local_file_path = os.path.join(LOCAL_UPLOADS_DIR, pdf_path)
                 if os.path.exists(local_file_path):
                     os.remove(local_file_path)
-                    logger.info(f"🗑️ Deleted local PDF: {local_file_path}")
+                    logger.info("Deleted local PDF: %s", local_file_path)
         except Exception as e:
             # Log error but don't fail the request (file might already be deleted)
             logger.warning(f"Failed to delete PDF file {pdf_path}: {e}")
 
-    logger.info(f"🗑️ Deleted proposal {proposal_id} from project {project_id}")
+    logger.info("Deleted proposal %s from project %s", proposal_id, project_id)
 
     # Return 204 No Content (RESTful standard for successful DELETE)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -697,11 +705,11 @@ async def get_proposal_ai_metadata(
             detail="Proposal not found",
         )
     
-    # ✅ Get AI metadata directly from PostgreSQL (single source of truth)
+    # Get AI metadata directly from PostgreSQL (single source of truth)
     ai_metadata = proposal.ai_metadata
     
     if not ai_metadata:
-        logger.warning(f"⚠️ No AI metadata found for proposal {proposal_id}")
+        logger.warning("No AI metadata found for proposal %s", proposal_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No AI metadata available for this proposal."
@@ -711,7 +719,7 @@ async def get_proposal_ai_metadata(
         # Validate with Pydantic (catches corrupted data)
         validated_metadata = AIMetadataResponse(**ai_metadata)
         logger.info(
-            f"✅ Returning validated AI metadata",
+            "Returning validated AI metadata",
             extra={
                 "proposal_id": str(proposal_id),
                 "confidence": validated_metadata.confidence_level,
@@ -722,7 +730,8 @@ async def get_proposal_ai_metadata(
         return validated_metadata
     except Exception as e:
         logger.error(
-            f"❌ Failed to validate AI metadata: {e}",
+            "Failed to validate AI metadata: %s",
+            e,
             extra={"proposal_id": str(proposal_id)},
             exc_info=True
         )

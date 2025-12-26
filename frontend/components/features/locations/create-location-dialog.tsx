@@ -56,7 +56,8 @@ export function CreateLocationDialog({
 			if (!result.success) {
 				toast({
 					title: "Validation Error",
-					description: result.error.errors[0]?.message || "Please check your input",
+					description:
+						result.error.errors[0]?.message || "Please check your input",
 					variant: "destructive",
 				});
 				return;
@@ -79,13 +80,14 @@ export function CreateLocationDialog({
 				toast({
 					title: "Error",
 					description:
-						error instanceof Error ? error.message : "Failed to create location",
+						error instanceof Error
+							? error.message
+							: "Failed to create location",
 					variant: "destructive",
 				});
 			}
 		},
 	});
-
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -126,7 +128,7 @@ export function CreateLocationDialog({
 										value={field.state.value}
 										onChange={(e) => field.handleChange(e.target.value)}
 										onBlur={field.handleBlur}
-										placeholder="Planta Guadalajara"
+										placeholder="Production Plant"
 									/>
 									{field.state.meta.errors.length > 0 && (
 										<p className="text-xs text-destructive">
@@ -150,7 +152,7 @@ export function CreateLocationDialog({
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
 											onBlur={field.handleBlur}
-											placeholder="Guadalajara"
+											placeholder="Dallas"
 										/>
 										{field.state.meta.errors.length > 0 && (
 											<p className="text-xs text-destructive">
@@ -172,7 +174,7 @@ export function CreateLocationDialog({
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
 											onBlur={field.handleBlur}
-											placeholder="Jalisco"
+											placeholder="Texas"
 										/>
 										{field.state.meta.errors.length > 0 && (
 											<p className="text-xs text-destructive">

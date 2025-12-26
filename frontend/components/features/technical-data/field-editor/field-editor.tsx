@@ -241,9 +241,7 @@ export function FieldEditor({
 			return field.value ? `${field.value} ${field.unit}` : "";
 		}
 		if (field.type === "tags" && Array.isArray(field.value)) {
-			return field.value.length > 0
-				? field.value.join(", ")
-				: "Sin seleccionar";
+			return field.value.length > 0 ? field.value.join(", ") : "Unselected";
 		}
 		return field.value || field.value === 0 ? String(field.value) : "";
 	}, [field.value, field.type, field.unit]);
@@ -303,7 +301,8 @@ export function FieldEditor({
 		);
 	}
 
-	const hasValue = field.value !== undefined && field.value !== "" && field.value !== null;
+	const hasValue =
+		field.value !== undefined && field.value !== "" && field.value !== null;
 
 	// ✅ MODE: INLINE - Vista completa para dynamic-section
 	return (
@@ -314,7 +313,9 @@ export function FieldEditor({
 					<div className="flex items-center gap-1.5">
 						<Label className="text-sm font-medium text-foreground/80">
 							{field.label}
-							{field.required && <span className="text-destructive ml-0.5">*</span>}
+							{field.required && (
+								<span className="text-destructive ml-0.5">*</span>
+							)}
 						</Label>
 						{hasValue && (
 							<CheckCircle2 className="h-3.5 w-3.5 text-success animate-checkmark" />
@@ -442,7 +443,9 @@ export function FieldEditor({
 						"field-input-display px-3 py-2 rounded-md border border-input bg-background transition-colors w-full text-left",
 						"hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
 						field.multiline ? "min-h-[80px]" : "h-9",
-						field.required && !hasValue && "border-destructive/50 bg-destructive/5",
+						field.required &&
+							!hasValue &&
+							"border-destructive/50 bg-destructive/5",
 					)}
 					onClick={() => actions.startEdit()}
 					onKeyDown={(e) => {

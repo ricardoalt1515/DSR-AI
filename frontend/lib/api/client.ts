@@ -121,7 +121,7 @@ class APIClient {
 				};
 
 				const shouldAttachBody = body !== undefined && method !== "GET";
-				
+
 				if (shouldAttachBody) {
 					if (
 						body instanceof FormData ||
@@ -151,12 +151,15 @@ class APIClient {
 						this.onUnauthorized();
 					}
 
+					// Normalize error format: handle both {error: {message, code}} and {message, code}
+					const normalizedError = errorData.error ?? errorData;
+
 					throw new APIClientError({
 						message:
-							errorData.message ||
+							normalizedError.message ||
 							`Request failed with status ${response.status}`,
-						code: errorData.code || `HTTP_${response.status}`,
-						details: errorData.details,
+						code: normalizedError.code || `HTTP_${response.status}`,
+						details: normalizedError.details,
 					});
 				}
 
@@ -165,12 +168,12 @@ class APIClient {
 				if (response.status === 204 || response.status === 205) {
 					return null as T;
 				}
-				
+
 				const contentType = response.headers.get("content-type");
 				if (!contentType?.includes("application/json")) {
 					return null as T;
 				}
-				
+
 				const data = await response.json();
 				return data;
 			} catch (error: unknown) {

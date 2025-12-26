@@ -18,6 +18,7 @@ from app.api.dependencies import (
     StatusFilter,
     SectorFilter,
     ProjectDep,
+    RateLimitUser60,
 )
 from app.schemas.project import (
     ProjectCreate,
@@ -49,16 +50,16 @@ from app.main import limiter
     summary="List all projects",
     description="Retrieve a paginated list of projects with optional filtering",
 )
-@limiter.limit("60/minute")  # Corregido: Ahora permite 60 solicitudes por minuto
 async def list_projects(
     request: Request,
     current_user: CurrentUser,
-    db: AsyncDB,  # ✅ Type alias
-    page: PageNumber = 1,  # ✅ Type alias with default
-    page_size: PageSize = 10,  # ✅ Default value (alias defined in PageSize)
-    search: SearchQuery = None,  # ✅ Type alias
-    status: StatusFilter = None,  # ✅ Type alias
-    sector: SectorFilter = None,  # ✅ Type alias
+    db: AsyncDB,
+    _rate_limit: RateLimitUser60,  # User-based rate limiting via Redis
+    page: PageNumber = 1,
+    page_size: PageSize = 10,
+    search: SearchQuery = None,
+    status: StatusFilter = None,
+    sector: SectorFilter = None,
     company_id: Optional[UUID] = Query(None, description="Filter by company ID"),
     location_id: Optional[UUID] = Query(None, description="Filter by location ID"),
 ):
@@ -73,8 +74,8 @@ async def list_projects(
     Returns lightweight ProjectSummary objects.
     """
     # Build query with selective loading
-    # ✅ Load only proposal IDs for count (proposals_count property needs it)
-    # ✅ Load location_rel and company for company_name/location_name computed fields
+    # Load only proposal IDs for count (proposals_count property needs it)
+    # Load location_rel and company for company_name/location_name computed fields
     from app.models.location import Location
     query = (
         select(Project)
@@ -131,7 +132,7 @@ async def list_projects(
     projects = result.scalars().all()
 
     # Convert to response models
-    # ✅ Pydantic V2 handles SQLAlchemy models automatically
+    # Pydantic V2 handles SQLAlchemy models automatically
     items = [ProjectSummary.model_validate(p, from_attributes=True) for p in projects]
 
     # Calculate total pages
@@ -152,11 +153,10 @@ async def list_projects(
     summary="Get dashboard statistics",
     description="Pre-aggregated statistics for dashboard (replaces client-side calculations)",
 )
-@limiter.limit("30/minute")
 async def get_dashboard_stats(
-    request: Request,
     current_user: CurrentUser,
     db: AsyncDB,
+    _rate_limit: RateLimitUser60,
 ):
     """
     Get pre-aggregated dashboard statistics.
@@ -201,7 +201,7 @@ async def get_dashboard_stats(
         for row in pipeline_result
     }
 
-    logger.info(f"📊 Dashboard stats generated for user {current_user.id}")
+    logger.info("Dashboard stats generated for user %s", current_user.id)
 
     return DashboardStatsResponse(
         total_projects=stats.total_projects or 0,
@@ -223,11 +223,10 @@ async def get_dashboard_stats(
     description="Retrieve full project details with eager-loaded relationships",
     responses={404: {"model": ErrorResponse}},
 )
-@limiter.limit("60/minute")
 async def get_project(
-    request: Request,
-    current_user: CurrentUser,  # ✅ Type alias already contains Depends
-    db: AsyncDB,  # ✅ Type alias already contains Depends
+    current_user: CurrentUser,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser60,
     project_id: UUID = Path(description="Project unique identifier"),
 ):
     """
@@ -262,7 +261,7 @@ async def get_project(
             detail="Project not found",
         )
 
-    logger.info(f"📖 Project retrieved: {project.id} - {project.name}")
+    logger.info("Project retrieved", project_id=str(project.id), name=project.name)
     return ProjectDetail.model_validate(project, from_attributes=True)
 
 
@@ -384,7 +383,7 @@ async def create_project(
     total_fields = sum(len(section["fields"]) for section in questionnaire)
     
     logger.info(
-        f"✅ Assessment created: {new_project.id} - {new_project.name}. "
+        f"Assessment created: {new_project.id} - {new_project.name}. "
         f"Questionnaire applied: {len(questionnaire)} sections, {total_fields} fields"
     )
     
@@ -404,7 +403,7 @@ async def update_project(
     project_id: UUID,
     project_data: ProjectUpdate,
     current_user: CurrentUser,
-    db: AsyncDB,  # ✅ Use type alias
+    db: AsyncDB,
 ):
     """Update project fields and log timeline event."""
     from app.services.timeline_service import create_timeline_event
@@ -458,7 +457,7 @@ async def update_project(
     )
     project = result.scalar_one()
 
-    logger.info(f"✅ Project updated: {project.id}")
+    logger.info("Project updated: %s", project.id)
     return ProjectDetail.model_validate(project)
 
 

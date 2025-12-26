@@ -7,13 +7,13 @@ Integrates with EmailService for transactional emails.
 
 import uuid
 import structlog
-from typing import Optional, AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, UUIDIDMixin
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.core.config import settings
 from app.core.auth_db import get_user_db
 from app.services.email_service import email_service
@@ -23,14 +23,90 @@ logger = structlog.get_logger(__name__)
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     """
-    Custom user manager with email notifications.
+    Custom user manager with email notifications and security validations.
     
-    Lifecycle hooks send transactional emails via EmailService.
-    Email failures are logged but don't break auth flow.
+    Features:
+    - Password strength validation (8+ chars, 1 uppercase, 1 number)
+    - Role/superuser sync (admin role ↔ is_superuser always in sync)
+    - Lifecycle hooks for transactional emails via EmailService
     """
     
     reset_password_token_secret = settings.SECRET_KEY
     verification_token_secret = settings.SECRET_KEY
+
+    def _normalize_role_superuser(
+        self,
+        data: Any,
+        *,
+        existing_user: User | None = None,
+    ) -> None:
+        role = getattr(data, "role", None)
+        is_superuser = getattr(data, "is_superuser", None)
+
+        if role is not None:
+            setattr(data, "is_superuser", role == UserRole.ADMIN.value)
+            return
+
+        if is_superuser is True:
+            setattr(data, "role", UserRole.ADMIN.value)
+            return
+
+        if (
+            is_superuser is False
+            and existing_user is not None
+            and existing_user.role == UserRole.ADMIN.value
+            and role is None
+        ):
+            setattr(data, "role", UserRole.FIELD_AGENT.value)
+
+    async def create(self, user_create: Any, *args: Any, **kwargs: Any) -> User:
+        self._normalize_role_superuser(user_create)
+        return await super().create(user_create, *args, **kwargs)
+
+    async def update(self, user_update: Any, user: User, *args: Any, **kwargs: Any) -> User:
+        self._normalize_role_superuser(user_update, existing_user=user)
+        return await super().update(user_update, user, *args, **kwargs)
+
+    async def validate_password(
+        self,
+        password: str,
+        user: Optional[User] = None,
+    ) -> None:
+        """
+        Validate password strength.
+        
+        This is called by FastAPI Users on:
+        - User registration
+        - Password reset
+        - Password update via admin
+        
+        Raises:
+            InvalidPasswordException: If password doesn't meet requirements
+        """
+        from fastapi_users.exceptions import InvalidPasswordException
+        
+        if len(password) < 8:
+            raise InvalidPasswordException(
+                reason="Password must be at least 8 characters long"
+            )
+        
+        if not any(c.isupper() for c in password):
+            raise InvalidPasswordException(
+                reason="Password must contain at least 1 uppercase letter"
+            )
+        
+        if not any(c.isdigit() for c in password):
+            raise InvalidPasswordException(
+                reason="Password must contain at least 1 number"
+            )
+        
+        # Optional: Check password doesn't contain email
+        if user and user.email:
+            email_prefix = user.email.split("@")[0].lower()
+            if len(email_prefix) >= 4 and email_prefix in password.lower():
+                raise InvalidPasswordException(
+                    reason="Password cannot contain your email address"
+                )
 
     async def on_after_register(
         self, 
@@ -38,7 +114,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         request: Optional[Request] = None
     ) -> None:
         """Send welcome email after registration."""
-        logger.info("✅ User registered: %s", user.email)
+        logger.info("User registered: %s", user.email)
         
         # Send welcome email (non-blocking)
         login_url = f"{settings.FRONTEND_URL}/login"
@@ -55,7 +131,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         request: Optional[Request] = None
     ) -> None:
         """Send password reset email with token."""
-        logger.info("🔑 Password reset requested: %s", user.email)
+        logger.info("Password reset requested: %s", user.email)
         
         reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
         await email_service.send_password_reset(
@@ -70,7 +146,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         request: Optional[Request] = None
     ) -> None:
         """Send email verification link."""
-        logger.info("📧 Verification requested: %s", user.email)
+        logger.info("Email verification requested: %s", user.email)
         
         verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
         await email_service.send_verification(
@@ -84,7 +160,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         request: Optional[Request] = None
     ) -> None:
         """Log successful email verification."""
-        logger.info("✅ Email verified: %s", user.email)
+        logger.info("Email verified: %s", user.email)
 
     async def on_after_update(
         self,
@@ -93,7 +169,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         request: Optional[Request] = None
     ) -> None:
         """Log profile updates."""
-        logger.info("✏️ Profile updated: %s, fields: %s", user.email, list(update_dict.keys()))
+        logger.info("Profile updated: %s, fields: %s", user.email, list(update_dict.keys()))
 
 
 async def get_user_manager(

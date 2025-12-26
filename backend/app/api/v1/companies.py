@@ -4,12 +4,10 @@ CRUD operations for companies and their locations.
 """
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.database import get_async_db
 from app.models import Company, Location
 from app.schemas.company import (
     CompanyCreate,
@@ -24,7 +22,14 @@ from app.schemas.location import (
     LocationDetail,
 )
 from app.schemas.common import SuccessResponse
-from app.api.dependencies import CurrentSuperUser, CurrentUser
+from app.api.dependencies import (
+    CurrentSuperUser,
+    CurrentUser,
+    AsyncDB,
+    RateLimitUser60,
+    RateLimitUser30,
+    RateLimitUser10,
+)
 
 router = APIRouter()
 
@@ -35,8 +40,9 @@ router = APIRouter()
 
 @router.get("/", response_model=List[CompanySummary])
 async def list_companies(
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser60,
 ):
     """List all companies."""
     result = await db.execute(
@@ -51,8 +57,9 @@ async def list_companies(
 @router.post("/", response_model=CompanyDetail, status_code=status.HTTP_201_CREATED)
 async def create_company(
     company_data: CompanyCreate,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser30,
 ):
     """Create a new company."""
     company = Company(**company_data.model_dump())
@@ -65,8 +72,9 @@ async def create_company(
 @router.get("/{company_id}", response_model=CompanyDetail)
 async def get_company(
     company_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser60,
 ):
     """Get company details with locations."""
     result = await db.execute(
@@ -89,8 +97,9 @@ async def get_company(
 async def update_company(
     company_id: UUID,
     company_data: CompanyUpdate,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentSuperUser = None,
+    db: AsyncDB,
+    current_user: CurrentSuperUser,
+    _rate_limit: RateLimitUser30,
 ):
     """Update company information."""
     result = await db.execute(select(Company).where(Company.id == company_id))
@@ -115,8 +124,9 @@ async def update_company(
 @router.delete("/{company_id}", response_model=SuccessResponse)
 async def delete_company(
     company_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentSuperUser = None,
+    db: AsyncDB,
+    current_user: CurrentSuperUser,
+    _rate_limit: RateLimitUser10,
 ):
     """
     Delete company.
@@ -144,8 +154,9 @@ async def delete_company(
 @router.get("/{company_id}/locations", response_model=List[LocationSummary])
 async def list_company_locations(
     company_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser60,
 ):
     """List all locations for a company."""
     result = await db.execute(
@@ -166,8 +177,9 @@ async def list_company_locations(
 async def create_location(
     company_id: UUID,
     location_data: LocationCreate,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser30,
 ):
     """Create a new location for a company."""
     # Verify company exists
@@ -205,8 +217,9 @@ async def create_location(
 @router.get("/locations/{location_id}", response_model=LocationDetail)
 async def get_location(
     location_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser60,
 ):
     """Get location details with company and projects."""
     result = await db.execute(
@@ -232,8 +245,9 @@ async def get_location(
 async def update_location(
     location_id: UUID,
     location_data: LocationUpdate,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentSuperUser = None,
+    db: AsyncDB,
+    current_user: CurrentSuperUser,
+    _rate_limit: RateLimitUser30,
 ):
     """Update location information."""
     result = await db.execute(select(Location).where(Location.id == location_id))
@@ -269,8 +283,9 @@ async def update_location(
 @router.delete("/locations/{location_id}", response_model=SuccessResponse)
 async def delete_location(
     location_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentSuperUser = None,
+    db: AsyncDB,
+    current_user: CurrentSuperUser,
+    _rate_limit: RateLimitUser10,
 ):
     """
     Delete location.
@@ -293,9 +308,10 @@ async def delete_location(
 
 @router.get("/locations", response_model=List[LocationSummary])
 async def list_all_locations(
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser60,
     company_id: Optional[UUID] = None,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: CurrentUser = None,
 ):
     """List all locations, optionally filtered by company."""
     query = (

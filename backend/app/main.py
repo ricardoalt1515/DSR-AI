@@ -3,12 +3,12 @@ H2O Allegiant Backend - Main application entry point.
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
@@ -211,7 +211,31 @@ app = FastAPI(
 
 # Add rate limiter to app state
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# Custom RateLimitExceeded handler (replaces slowapi default)
+# Ensures all 429 responses use our ErrorResponse format
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Handle rate limit exceeded with consistent ErrorResponse format."""
+    logger.warning(
+        "Rate limit exceeded",
+        path=request.url.path,
+        limit=str(exc.detail),
+    )
+    error_response = ErrorResponse(
+        error=APIError(
+            message="Too many requests. Please try again later.",
+            code="RATE_LIMITED",
+        )
+    )
+    return JSONResponse(
+        status_code=429,
+        content=error_response.model_dump(mode="json"),
+        headers={"Retry-After": "60"},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # CORS Middleware
 app.add_middleware(
@@ -324,6 +348,59 @@ async def granular_rate_limit_middleware(request: Request, call_next):
 
 
 # Exception Handlers
+
+# Map HTTP status codes to error codes for consistent API responses
+HTTP_ERROR_CODES = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    405: "METHOD_NOT_ALLOWED",
+    409: "CONFLICT",
+    422: "VALIDATION_ERROR",
+    429: "RATE_LIMITED",
+}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(
+    request: Request,
+    exc: HTTPException
+) -> JSONResponse:
+    """
+    Handle all HTTPExceptions with consistent error response format.
+    
+    This ensures all 4xx errors are wrapped in our standard ErrorResponse
+    schema instead of just returning {"detail": "..."}.
+    
+    Preserves exc.headers (e.g., Retry-After for rate limiting).
+    """
+    # Handle detail that might be a string or a dict
+    if isinstance(exc.detail, dict):
+        message = exc.detail.get("message", str(exc.detail))
+        # Use custom code from detail if provided (e.g., RATE_LIMITED)
+        error_code = exc.detail.get("code") or HTTP_ERROR_CODES.get(exc.status_code, "ERROR")
+        details = exc.detail.get("details")
+    else:
+        message = str(exc.detail)
+        error_code = HTTP_ERROR_CODES.get(exc.status_code, "ERROR")
+        details = None
+    
+    error_response = ErrorResponse(
+        error=APIError(
+            message=message,
+            code=error_code,
+            details=details,
+        )
+    )
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response.model_dump(mode="json"),
+        headers=exc.headers,  # Preserve headers like Retry-After
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,

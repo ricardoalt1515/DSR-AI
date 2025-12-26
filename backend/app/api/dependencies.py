@@ -192,3 +192,109 @@ ProjectDep = Annotated[Project, Depends(get_accessible_project)]
 #         return {"authenticated": True}
 #     return {"authenticated": False}
 # ==============================================================================
+
+
+# ==============================================================================
+# Rate Limiting Dependency (User-Based)
+# ==============================================================================
+# Uses Redis INCR/EXPIRE pattern (same as auth middleware in main.py)
+# Each authenticated user gets their own rate limit bucket
+# ==============================================================================
+
+from fastapi import Request
+from typing import Callable
+
+# Valid period suffixes and their TTL in seconds
+_PERIOD_SECONDS = {
+    "minute": 60,
+    "hour": 3600,
+}
+
+
+def rate_limit_user(limit: str = "60/minute") -> Callable:
+    """
+    User-based rate limiting dependency using Redis.
+    
+    Args:
+        limit: Rate limit string like "60/minute" or "100/hour"
+        
+    Usage:
+        @router.get("/projects")
+        async def list_projects(
+            user: CurrentUser,
+            _rate_check: None = Depends(rate_limit_user("60/minute"))
+        ):
+            ...
+            
+    Key: rate_limit:<route>:user:<user_id>
+    
+    Benefits over IP-based:
+        - Each user gets their own quota
+        - No shared pool behind load balancer
+        - Works correctly in ECS/ALB environments
+    """
+    # Fail-fast: validate limit format
+    try:
+        count_str, period = limit.split("/")
+        max_requests = int(count_str)
+        ttl_seconds = _PERIOD_SECONDS[period]
+    except (ValueError, KeyError) as e:
+        raise ValueError(
+            f"Invalid rate limit format '{limit}'. "
+            f"Expected format: '<count>/<period>' where period is 'minute' or 'hour'. "
+            f"Example: '60/minute'"
+        ) from e
+    
+    async def _rate_limit_check(
+        request: Request,
+        current_user: User = Depends(current_active_user),
+    ) -> None:
+        from app.services.cache_service import cache_service
+        
+        # Use route template (e.g., /projects/{project_id}) not actual URL path
+        # This ensures /projects/abc and /projects/xyz share the same bucket
+        route = request.scope.get("route")
+        route_template = route.path if route else request.url.path
+        cache_key = f"rate_limit:{route_template}:user:{current_user.id}"
+        
+        if cache_service._redis:
+            try:
+                current_count = await cache_service._redis.incr(cache_key)
+                
+                # Set TTL on first request
+                if current_count == 1:
+                    await cache_service._redis.expire(cache_key, ttl_seconds)
+                
+                if current_count > max_requests:
+                    logger.warning(
+                        "User rate limit exceeded",
+                        user_id=str(current_user.id),
+                        path=route_template,
+                        count=current_count,
+                        limit=max_requests,
+                    )
+                    raise HTTPException(
+                        status_code=429,
+                        detail={
+                            "message": "Too many requests. Please try again later.",
+                            "code": "RATE_LIMITED",
+                        },
+                        headers={"Retry-After": str(ttl_seconds)},
+                    )
+            except HTTPException:
+                raise  # Re-raise rate limit error
+            except Exception as e:
+                # Fail open: don't block if Redis fails
+                logger.warning(f"Rate limit check failed, allowing request: {e}")
+        else:
+            # No Redis: fail open (allow request)
+            pass
+    
+    return _rate_limit_check
+
+
+# Type aliases for rate-limited dependencies (DRY: reuse in endpoint signatures)
+# Reads: 60/min, Writes: 30/min, Expensive: 10/min
+RateLimitUser60 = Annotated[None, Depends(rate_limit_user("60/minute"))]
+RateLimitUser30 = Annotated[None, Depends(rate_limit_user("30/minute"))]
+RateLimitUser10 = Annotated[None, Depends(rate_limit_user("10/minute"))]

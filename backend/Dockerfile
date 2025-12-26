@@ -85,10 +85,12 @@ ENTRYPOINT ["/app/scripts/wait-for-services.sh"]
 
 # ⚠️ Timeout 900s (15 min) for AI generation tasks (typical: 10 min)
 # ⚠️ 6 workers for better concurrency without Celery (each can handle 10min task)
+# ⚠️ forwarded-allow-ips: trust proxy headers only from VPC internal IPs (ALB)
 CMD ["gunicorn", "app.main:app", \
   "--workers", "6", \
   "--worker-class", "uvicorn.workers.UvicornWorker", \
   "--bind", "0.0.0.0:8000", \
+  "--forwarded-allow-ips", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16", \
   "--log-level", "info", \
   "--timeout", "900", \
   "--graceful-timeout", "900", \
