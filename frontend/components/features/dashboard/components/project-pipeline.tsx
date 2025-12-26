@@ -52,7 +52,7 @@ const PIPELINE_STAGES: StageDefinition[] = [
 	{
 		id: "completed",
 		title: "Completed",
-		description: "Project finalized",
+		description: "Waste stream finalized",
 		icon: Zap,
 		color: "gray",
 		statuses: ["Completed"],
@@ -154,7 +154,7 @@ export function ProjectPipeline() {
 						<div>
 							<CardTitle className="flex items-center gap-2">
 								<TrendingUp className="h-5 w-5 text-primary" />
-								Project pipeline
+								Waste Stream Pipeline
 							</CardTitle>
 							<p className="text-sm text-muted-foreground mt-1">
 								Data sourced from server-side lifecycle counts
@@ -205,7 +205,7 @@ export function ProjectPipeline() {
 											<div className="space-y-2">
 												<div className="flex items-center justify-between">
 													<span className="text-xs text-muted-foreground">
-														Projects
+														Waste Streams
 													</span>
 													<Badge
 														className={cn(

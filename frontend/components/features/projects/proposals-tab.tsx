@@ -11,7 +11,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -50,7 +50,10 @@ import {
 	sectionCompletion,
 } from "@/lib/technical-sheet-data";
 import { logger } from "@/lib/utils/logger";
-import { IntelligentProposalGeneratorComponent } from "./intelligent-proposal-generator";
+import {
+	IntelligentProposalGeneratorComponent,
+	type ProposalGeneratorHandle,
+} from "./intelligent-proposal-generator";
 import type { ProjectSummary } from "@/lib/project-types";
 
 type Project = Pick<ProjectSummary, "id" | "name" | "type">;
@@ -132,6 +135,9 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 	const [isGenerating, setIsGenerating] = useState(false);
 	const shouldShowGenerator = isReady || isGenerating;
 
+	// Ref to trigger generation from "Generate First Proposal" button
+	const generatorRef = useRef<ProposalGeneratorHandle | null>(null);
+
 	// Delete proposal state
 	const [deletingProposalId, setDeletingProposalId] = useState<string | null>(
 		null,
@@ -178,6 +184,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 			{shouldShowGenerator ? (
 				<IntelligentProposalGeneratorComponent
 					projectId={project.id}
+					triggerRef={generatorRef}
 					onProposalGenerated={() => {
 						setIsGenerating(false);
 					}}
@@ -308,9 +315,17 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 
 							<div className="flex flex-col sm:flex-row gap-3">
 								<Button
-									onClick={() =>
-										router.push(routes.project.technical(project.id))
-									}
+									onClick={() => {
+										if (isReady) {
+											// Trigger the proposal generation
+											generatorRef.current?.triggerGeneration();
+											// Scroll to generator to show progress
+											window.scrollTo({ top: 0, behavior: "smooth" });
+										} else {
+											// Not ready - go to Assessment to complete data
+											router.push(routes.project.technical(project.id));
+										}
+									}}
 									variant={isReady ? "default" : "outline"}
 								>
 									{isReady ? (

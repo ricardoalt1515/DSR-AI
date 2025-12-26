@@ -129,7 +129,7 @@ export function AppSidebar() {
                         >
                             <SidebarGroupLabel asChild>
                                 <CollapsibleTrigger className="flex w-full items-center justify-between">
-                                    <span>Recent Assessments</span>
+                                    <span>Recent Waste Streams</span>
                                     <ChevronRight
                                         className={cn(
                                             "h-4 w-4 transition-transform",
@@ -144,7 +144,7 @@ export function AppSidebar() {
                                         {recentProjects.length === 0 ? (
                                             <SidebarMenuItem>
                                                 <SidebarMenuButton disabled className="text-muted-foreground">
-                                                    <span className="text-xs">No assessments yet</span>
+                                                    <span className="text-xs">No waste streams yet</span>
                                                 </SidebarMenuButton>
                                             </SidebarMenuItem>
                                         ) : (
@@ -176,10 +176,10 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 onClick={() => setCreateModalOpen(true)}
                                 className="bg-primary/10 text-primary hover:bg-primary/20"
-                                tooltip="New Assessment"
+                                tooltip="New Waste Stream"
                             >
                                 <Plus className="h-4 w-4" />
-                                <span>New Assessment</span>
+                                <span>New Waste Stream</span>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </SidebarMenu>

@@ -79,8 +79,8 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 		const avgProgress =
 			projects.length > 0
 				? Math.round(
-						projects.reduce((sum, p) => sum + p.progress, 0) / projects.length,
-					)
+					projects.reduce((sum, p) => sum + p.progress, 0) / projects.length,
+				)
 				: 0;
 
 		return { inPreparation, readyProposals, avgProgress };
@@ -107,7 +107,7 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 									<div className="space-y-3">
 										<div className="flex flex-wrap items-center gap-3">
 											<span className="aqua-floating-chip">
-												Priority Project
+												Priority Waste Stream
 											</span>
 											{priorityProject && (
 												<Badge
@@ -140,8 +140,8 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 													Updated{" "}
 													{priorityProject
 														? new Date(
-																priorityProject.updatedAt,
-															).toLocaleDateString("en-US")
+															priorityProject.updatedAt,
+														).toLocaleDateString("en-US")
 														: "–"}
 												</span>
 											</div>
@@ -201,7 +201,7 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 										</Badge>
 									</div>
 									<p className="mt-3 text-xs">
-										Prioritize completing projects in preparation to unlock new
+										Prioritize completing waste streams in preparation to unlock new
 										proposals.
 									</p>
 								</div>
@@ -214,7 +214,7 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 									<Zap className="h-4 w-4 text-primary" /> Quick Actions
 								</h4>
 								<p className="mt-2 text-xs text-muted-foreground">
-									Continue with project flow or create new opportunities.
+									Continue with waste stream flow or create new opportunities.
 								</p>
 							</div>
 							{priorityProject && (
@@ -258,7 +258,7 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 										}
 									>
 										<Building className="h-4 w-4" />
-										View Full Project
+										View Full Waste Stream
 										<ArrowRight className="ml-auto h-3 w-3" />
 									</EngineeringButton>
 
@@ -269,7 +269,7 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 										onClick={onCreateProject}
 									>
 										<Plus className="h-4 w-4" />
-										New Assessment
+										New Waste Stream
 									</EngineeringButton>
 								</EngineeringButtonGroup>
 							)}
@@ -368,7 +368,7 @@ function FirstTimeHero({ onCreateProject }: FirstTimeHeroProps) {
 
 					<div className="pt-6 border-t border-border/40">
 						<p className="text-sm text-muted-foreground">
-							💡 <strong>Tip:</strong> Start by creating your first assessment.
+							💡 <strong>Tip:</strong> Start by creating your first waste stream.
 							Complete the questionnaire to unlock AI-powered deal analysis and
 							profitability reports.
 						</p>

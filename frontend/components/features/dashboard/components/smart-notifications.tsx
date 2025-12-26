@@ -79,13 +79,13 @@ export function SmartNotifications() {
 		stalledProjects.forEach((project) => {
 			const daysSinceUpdate = Math.floor(
 				(Date.now() - new Date(project.updatedAt).getTime()) /
-					(1000 * 60 * 60 * 24),
+				(1000 * 60 * 60 * 24),
 			);
 			alerts.push({
 				id: `stalled-${project.id}`,
 				type: "alert",
 				priority: "medium",
-				title: "Project with no activity",
+				title: "Waste stream with no activity",
 				description: `${project.name} has not been updated for ${daysSinceUpdate} days`,
 				action: {
 					label: "Continue capture",
@@ -108,7 +108,7 @@ export function SmartNotifications() {
 				type: "insight",
 				priority: "low",
 				title: "Opportunity to complete projects",
-				description: `${incompleteProjects.length} projects need more technical data`,
+				description: `${incompleteProjects.length} waste streams need more technical data`,
 				action: {
 					label: "View projects",
 					onClick: () => router.push(routes.dashboard), // Could filter to incomplete
@@ -189,9 +189,9 @@ export function SmartNotifications() {
 
 	if (notifications.length === 0) {
 		return (
-			<Card className="aqua-panel">
-				<CardContent className="p-6 text-center">
-					<CheckCircle className="h-12 w-12 text-success mx-auto mb-3" />
+			<Card className="aqua-panel w-full">
+				<CardContent className="p-6 flex flex-col items-center justify-center text-center">
+					<CheckCircle className="h-12 w-12 text-success mb-3" />
 					<h3 className="font-medium text-foreground mb-1">All caught up</h3>
 					<p className="text-sm text-muted-foreground">
 						No pending actions. Great work!

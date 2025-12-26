@@ -13,7 +13,7 @@
 
 import { AlertCircle, Brain, CheckCircle2, Loader2, Sparkles, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef } from "react";
+import { useImperativeHandle, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -32,11 +32,18 @@ import {
 	showProposalSuccessToast,
 } from "@/lib/utils/proposal-progress-toast";
 
+/** Handle exposed to parent components via ref */
+export interface ProposalGeneratorHandle {
+	triggerGeneration: () => void;
+}
+
 interface IntelligentProposalGeneratorProps {
 	projectId: string;
 	onProposalGenerated?: (proposalId: string) => void;
 	onGenerationStart?: () => void;
 	onGenerationEnd?: () => void;
+	/** Ref to expose generation trigger to parent */
+	triggerRef?: React.RefObject<ProposalGeneratorHandle | null>;
 }
 
 export function IntelligentProposalGeneratorComponent({
@@ -44,6 +51,7 @@ export function IntelligentProposalGeneratorComponent({
 	onProposalGenerated,
 	onGenerationStart,
 	onGenerationEnd,
+	triggerRef,
 }: IntelligentProposalGeneratorProps) {
 	const router = useRouter();
 	const storeProject = useCurrentProject();
@@ -189,6 +197,12 @@ export function IntelligentProposalGeneratorComponent({
 		showProposalErrorToast("Generation cancelled by user");
 		onGenerationEnd?.();
 	};
+
+	// Expose trigger function to parent component via ref
+	useImperativeHandle(triggerRef, () => ({
+		triggerGeneration: handleStartGeneration,
+	}), [handleStartGeneration]);
+
 
 	// Render the Live Dashboard if generating
 	if (isGenerating) {

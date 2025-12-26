@@ -44,7 +44,7 @@ export const sectorsConfig: SectorConfig[] = [
 		id: "commercial",
 		label: "Commercial",
 		description:
-			"Projects for restaurants, hotels, shopping malls, and food service",
+			"Waste streams for restaurants, hotels, shopping malls, and food service",
 		subsectors: [
 			{ id: "restaurant", label: "Restaurant" },
 			{ id: "hotel", label: "Hotel" },
@@ -57,7 +57,7 @@ export const sectorsConfig: SectorConfig[] = [
 	{
 		id: "residential",
 		label: "Residential",
-		description: "Projects for single-family homes and residential complexes",
+		description: "Waste streams for single-family homes and residential complexes",
 		subsectors: [
 			{ id: "single_home", label: "Single Family Home" },
 			{ id: "multi_family", label: "Multi-Family Complex" },
@@ -67,7 +67,7 @@ export const sectorsConfig: SectorConfig[] = [
 	{
 		id: "industrial",
 		label: "Industrial",
-		description: "Projects for manufacturing plants and industrial processes",
+		description: "Waste streams for manufacturing plants and industrial processes",
 		subsectors: [
 			{ id: "food_processing", label: "Food Processing Plant" },
 			{ id: "beverage_bottling", label: "Beverage Bottling Plant" },
@@ -84,7 +84,7 @@ export const sectorsConfig: SectorConfig[] = [
 	{
 		id: "municipal",
 		label: "Municipal",
-		description: "Projects for government entities and public utilities",
+		description: "Waste streams for government entities and public utilities",
 		subsectors: [
 			{ id: "government_building", label: "Government Building" },
 			{ id: "water_utility", label: "Water Utility" },
@@ -94,7 +94,7 @@ export const sectorsConfig: SectorConfig[] = [
 	{
 		id: "other",
 		label: "Other",
-		description: "Other types of unclassified projects",
+		description: "Other types of unclassified waste streams",
 		subsectors: [{ id: "other", label: "Other" }],
 	},
 ];

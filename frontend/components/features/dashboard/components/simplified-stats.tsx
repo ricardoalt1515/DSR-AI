@@ -48,14 +48,14 @@ export function SimplifiedStats() {
 		completionRate:
 			backendStats.total_projects && backendStats.total_projects > 0
 				? Math.round(
-						((backendStats.completed ?? 0) / backendStats.total_projects) * 100,
-					)
+					((backendStats.completed ?? 0) / backendStats.total_projects) * 100,
+				)
 				: 0,
 	};
 
 	const activeDescription =
 		stats.activeProjects === 0
-			? "All projects are up to date"
+			? "All waste streams are up to date"
 			: "Require attention";
 
 	const readyDescription =
@@ -65,13 +65,13 @@ export function SimplifiedStats() {
 
 	const efficiencyDescription =
 		stats.total === 0
-			? "Start by creating your first project"
+			? "Start by creating your first waste stream"
 			: "Overall completion";
 
 	const statCards = [
 		{
 			id: "active",
-			title: "Active Projects",
+			title: "Active Waste Streams",
 			value: stats.activeProjects,
 			description: activeDescription,
 			icon: Building,
@@ -145,7 +145,7 @@ export function SimplifiedStats() {
 							colors.card,
 							"transition-all duration-200 hover:shadow-md",
 							stat.priority === "high" &&
-								"ring-2 ring-primary/20 animate-pulse",
+							"ring-2 ring-primary/20 animate-pulse",
 						)}
 					>
 						<CardContent className="p-6">

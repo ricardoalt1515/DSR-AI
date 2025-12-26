@@ -15,10 +15,11 @@ import { useParams, useRouter } from "next/navigation";
  * Company detail page - Shows company info and locations
  * Combines company details and location management in one view
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
+import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,8 +42,14 @@ export default function CompanyDetailPage() {
 	const companyId = params.id as string;
 
 	const { currentCompany, loading, loadCompany } = useCompanyStore();
-	const { locations, loadLocationsByCompany, deleteLocation } =
+	const { locations: allLocations, loadLocationsByCompany, deleteLocation } =
 		useLocationStore();
+
+	// Filter locations for current company only (store may have cached data from other companies)
+	const locations = useMemo(() =>
+		allLocations.filter(loc => loc.companyId === companyId),
+		[allLocations, companyId]
+	);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [locationToDelete, setLocationToDelete] =
 		useState<LocationSummary | null>(null);
@@ -125,12 +132,14 @@ export default function CompanyDetailPage() {
 						{currentCompany.name}
 					</h1>
 					<p className="text-muted-foreground mt-1">
-						{currentCompany.industry}
+						{currentCompany.subsector
+							? formatSubsector(currentCompany.subsector)
+							: currentCompany.sector}
 					</p>
 				</div>
 				<Badge variant="outline">
-					{currentCompany.locationCount}{" "}
-					{currentCompany.locationCount === 1 ? "location" : "locations"}
+					{currentCompany.locationCount ?? 0}{" "}
+					{(currentCompany.locationCount ?? 0) === 1 ? "location" : "locations"}
 				</Badge>
 				<Button onClick={() => setEditCompanyDialogOpen(true)}>
 					<Edit className="mr-2 h-4 w-4" />
@@ -144,25 +153,26 @@ export default function CompanyDetailPage() {
 					<CardTitle>Company Information</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					{/* Sector/Subsector */}
-					{currentCompany.sector && currentCompany.subsector && (
-						<>
-							<div>
-								<p className="text-sm font-medium text-muted-foreground mb-2">
-									Business Sector
-								</p>
-								<div className="flex flex-wrap gap-2">
-									<Badge variant="secondary" className="capitalize text-sm">
-										{currentCompany.sector}
-									</Badge>
-									<Badge variant="outline" className="text-sm">
-										{currentCompany.subsector.replace(/_/g, " ")}
-									</Badge>
+					{/* Sector/Subsector - only show if not default 'other' */}
+					{currentCompany.sector && currentCompany.subsector &&
+						currentCompany.sector !== "other" && currentCompany.subsector !== "other" && (
+							<>
+								<div>
+									<p className="text-sm font-medium text-muted-foreground mb-2">
+										Business Sector
+									</p>
+									<div className="flex flex-wrap gap-2">
+										<Badge variant="secondary" className="capitalize text-sm">
+											{currentCompany.sector}
+										</Badge>
+										<Badge variant="outline" className="text-sm">
+											{currentCompany.subsector.replace(/_/g, " ")}
+										</Badge>
+									</div>
 								</div>
-							</div>
-							<Separator />
-						</>
-					)}
+								<Separator />
+							</>
+						)}
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{currentCompany.contactName && (
@@ -297,8 +307,8 @@ export default function CompanyDetailPage() {
 											>
 												{location.projectCount}{" "}
 												{location.projectCount === 1
-													? "assessment"
-													: "assessments"}
+													? "waste stream"
+													: "waste streams"}
 											</Badge>
 											<DropdownMenu>
 												<DropdownMenuTrigger
@@ -355,12 +365,12 @@ export default function CompanyDetailPage() {
 											onClick={(e) => {
 												e.stopPropagation();
 												router.push(
-													`/companies/${companyId}/locations/${location.id}?action=new-assessment`,
+													`/companies/${companyId}/locations/${location.id}?action=new-waste-stream`,
 												);
 											}}
 										>
 											<Plus className="h-4 w-4 mr-1" />
-											New Assessment
+											New Waste Stream
 										</Button>
 									</div>
 								</CardContent>
@@ -377,7 +387,7 @@ export default function CompanyDetailPage() {
 					onOpenChange={setDeleteDialogOpen}
 					onConfirm={handleConfirmDelete}
 					title="Delete Location"
-					description="This will permanently delete all assessments associated with this location. This action cannot be undone."
+					description="This will permanently delete all waste streams associated with this location. This action cannot be undone."
 					itemName={locationToDelete.name}
 					loading={deleting}
 				/>

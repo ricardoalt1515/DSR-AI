@@ -353,7 +353,7 @@ async def get_file_detail(
 
 @router.get(
     "/files/{file_id}/download",
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
     summary="Download file",
 )
 async def download_file(
@@ -370,6 +370,8 @@ async def download_file(
 
     Frontend should fetch the blob from the returned URL.
     """
+    from app.services.s3_service import StorageError
+    
     # Get file (verify access through join)
     conditions = [
         ProjectFile.id == file_id,
@@ -386,13 +388,13 @@ async def download_file(
             detail="File not found",
         )
 
-    # Always return JSON with URL (consistent behavior for S3 and local)
-    url = await get_presigned_url(file.file_path, expires=86400)
-    if not url:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found on storage",
-        )
+    # Fail fast: let StorageError propagate with proper error code
+    try:
+        url = await get_presigned_url(file.file_path, expires=86400)
+    except StorageError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
     return {"url": url, "filename": file.filename, "mime_type": file.mime_type}
 

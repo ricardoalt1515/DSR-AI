@@ -41,6 +41,8 @@ export interface TableSection {
 	fields: TableField[];
 	notes?: string | undefined;
 	allowCustomFields?: boolean | undefined;
+	/** Display order (lower numbers first). Defaults to 0 if not specified. */
+	order?: number;
 }
 
 // Additional technical data types

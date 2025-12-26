@@ -14,6 +14,7 @@ import {
 	overallCompletion,
 	rehydrateFieldsFromLibrary,
 	saveTechnicalSheetData,
+	sortSectionsByOrder,
 	sourceBreakdown,
 	updateFieldInSections,
 } from "@/lib/technical-sheet-data";
@@ -531,9 +532,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = sections.map((section) =>
 					section.id === sectionId
 						? {
-								...section,
-								notes,
-							}
+							...section,
+							notes,
+						}
 						: section,
 				);
 
@@ -653,9 +654,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-									...section,
-									fields: [...section.fields, field],
-								}
+								...section,
+								fields: [...section.fields, field],
+							}
 							: section,
 					);
 					state.saving = true;
@@ -696,11 +697,11 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-									...section,
-									fields: section.fields.filter(
-										(field) => field.id !== fieldId,
-									),
-								}
+								...section,
+								fields: section.fields.filter(
+									(field) => field.id !== fieldId,
+								),
+							}
 							: section,
 					);
 					state.saving = true;
@@ -754,9 +755,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-									...section,
-									fields: [...section.fields, duplicated],
-								}
+								...section,
+								fields: [...section.fields, duplicated],
+							}
 							: section,
 					);
 					state.saving = true;
@@ -797,13 +798,13 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-									...section,
-									fields: section.fields.map((field) =>
-										field.id === fieldId
-											? { ...field, label: newLabel }
-											: field,
-									),
-								}
+								...section,
+								fields: section.fields.map((field) =>
+									field.id === fieldId
+										? { ...field, label: newLabel }
+										: field,
+								),
+							}
 							: section,
 					);
 					state.saving = true;
@@ -1031,7 +1032,9 @@ export const useTechnicalSections = (projectId: string) => {
 		setIsHydrated(true);
 	}, []);
 
-	return isHydrated ? storeData || EMPTY_SECTIONS : EMPTY_SECTIONS;
+	// Sort sections by order field for consistent display
+	const sections = isHydrated ? storeData || EMPTY_SECTIONS : EMPTY_SECTIONS;
+	return useMemo(() => sortSectionsByOrder(sections), [sections]);
 };
 
 export const useTechnicalVersions = (projectId: string) => {
@@ -1069,25 +1072,25 @@ export const getTechnicalDataCompleteness = (projectId: string) => {
 
 // Stable empty actions object for SSR
 const EMPTY_ACTIONS = {
-	setActiveProject: () => {},
-	loadTechnicalData: async () => {},
-	updateField: async () => {},
-	applyFieldUpdates: async () => {},
-	applyTemplate: async () => {},
-	copyFromProject: async () => {},
+	setActiveProject: () => { },
+	loadTechnicalData: async () => { },
+	updateField: async () => { },
+	applyFieldUpdates: async () => { },
+	applyTemplate: async () => { },
+	copyFromProject: async () => { },
 	addCustomSection: async () => null,
-	removeSection: async () => {},
-	addField: async () => {},
-	removeField: async () => {},
-	duplicateField: async () => {},
-	updateFieldLabel: async () => {},
+	removeSection: async () => { },
+	addField: async () => { },
+	removeField: async () => { },
+	duplicateField: async () => { },
+	updateFieldLabel: async () => { },
 	saveSnapshot: () => null,
-	revertToVersion: async () => {},
-	resetToInitial: async () => {},
-	clearError: () => {},
-	clearSyncError: () => {},
-	retrySync: async () => {},
-	updateSectionNotes: async () => {},
+	revertToVersion: async () => { },
+	resetToInitial: async () => { },
+	clearError: () => { },
+	clearSyncError: () => { },
+	retrySync: async () => { },
+	updateSectionNotes: async () => { },
 };
 
 export const useTechnicalDataActions = () => {

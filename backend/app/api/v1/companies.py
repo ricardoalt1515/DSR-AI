@@ -69,6 +69,31 @@ async def create_company(
     return company
 
 
+# NOTE: This route MUST be before /{company_id} to avoid "locations" being parsed as UUID
+@router.get("/locations", response_model=List[LocationSummary])
+async def list_all_locations(
+    db: AsyncDB,
+    current_user: CurrentUser,
+    _rate_limit: RateLimitUser60,
+    company_id: Optional[UUID] = None,
+):
+    """List all locations, optionally filtered by company."""
+    query = (
+        select(Location)
+        .options(
+            selectinload(Location.company),
+            selectinload(Location.projects),
+        )
+        .order_by(Location.name)
+    )
+
+    if company_id:
+        query = query.where(Location.company_id == company_id)
+
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 @router.get("/{company_id}", response_model=CompanyDetail)
 async def get_company(
     company_id: UUID,
@@ -304,27 +329,3 @@ async def delete_location(
     await db.commit()
     
     return SuccessResponse(message=f"Location {location.name} deleted successfully")
-
-
-@router.get("/locations", response_model=List[LocationSummary])
-async def list_all_locations(
-    db: AsyncDB,
-    current_user: CurrentUser,
-    _rate_limit: RateLimitUser60,
-    company_id: Optional[UUID] = None,
-):
-    """List all locations, optionally filtered by company."""
-    query = (
-        select(Location)
-        .options(
-            selectinload(Location.company),
-            selectinload(Location.projects),
-        )
-        .order_by(Location.name)
-    )
-
-    if company_id:
-        query = query.where(Location.company_id == company_id)
-
-    result = await db.execute(query)
-    return result.scalars().all()

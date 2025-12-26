@@ -8,6 +8,13 @@ from typing import IO, Optional, Union
 
 from app.core.config import settings
 
+
+# Custom exception for storage errors (fail fast)
+class StorageError(Exception):
+    """Raised when storage operations fail."""
+    pass
+
+
 # S3 configuration from centralized settings (Single Source of Truth)
 S3_BUCKET = settings.AWS_S3_BUCKET
 S3_REGION = settings.AWS_REGION
@@ -18,8 +25,8 @@ S3_SECRET_KEY = settings.AWS_SECRET_ACCESS_KEY
 LOCAL_UPLOADS_DIR = Path(settings.LOCAL_STORAGE_PATH) / "uploads"
 LOCAL_UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
 
-# Check if in production mode (with S3) or local
-USE_S3 = S3_BUCKET is not None
+# Explicit S3 validation: bucket must be non-empty string (not just "not None")
+USE_S3 = bool(S3_BUCKET and S3_BUCKET.strip())
 
 logger = structlog.get_logger(__name__)
 
@@ -60,12 +67,15 @@ async def upload_file_to_s3(file_obj: Union[IO[bytes], BytesIO], filename: str, 
         raise
 
 async def get_presigned_url(filename: str, expires: int = 3600) -> str:
-    """Generate a presigned URL for S3 or a local URL in development."""
-    try:
-        if USE_S3:  # Production mode: S3 URL
+    """Generate a presigned URL for S3 or a local URL in development.
+    
+    Raises:
+        StorageError: If URL generation fails (fail fast principle)
+    """
+    if USE_S3:
+        # Production mode: S3 URL
+        try:
             session = aioboto3.Session()
-
-            # Same logic as upload: use IAM role by default
             client_args = {"region_name": S3_REGION}
             if S3_ACCESS_KEY and S3_SECRET_KEY:
                 client_args["aws_access_key_id"] = S3_ACCESS_KEY
@@ -78,32 +88,35 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
                     ExpiresIn=expires,
                 )
             return url
+        except Exception as e:
+            logger.error("S3 presigned URL generation failed", error=str(e), key=filename)
+            raise StorageError(f"Failed to generate S3 URL: {e}") from e
 
-        # Development/local mode: build static URL servable from LOCAL_STORAGE_PATH
-        from app.core.config import settings
+    # Development/local mode: build static URL
+    from app.core.config import settings
 
-        storage_path = Path(settings.LOCAL_STORAGE_PATH).resolve()
-        file_path_obj = Path(filename)
+    storage_path = Path(settings.LOCAL_STORAGE_PATH).resolve()
+    file_path_obj = Path(filename)
 
-        # Convert absolute path to relative path with respect to storage_path
-        if file_path_obj.is_absolute():
-            try:
-                rel_path = file_path_obj.relative_to(storage_path)
-            except ValueError:
-                logger.warning(f"File outside storage: {filename}")
-                return ""
+    # Handle relative paths that may include storage prefix
+    if file_path_obj.is_absolute():
+        try:
+            rel_path = file_path_obj.relative_to(storage_path)
+        except ValueError:
+            raise StorageError(f"File outside storage directory: {filename}")
+    else:
+        # Remove storage prefix if present (e.g., "storage/projects/..." -> "projects/...")
+        parts = file_path_obj.parts
+        if parts and parts[0] == "storage":
+            rel_path = Path(*parts[1:])
         else:
             rel_path = file_path_obj
 
-        full_path = storage_path / rel_path
-        if full_path.exists():
-            return f"{settings.BACKEND_URL}/uploads/{rel_path}"
+    full_path = storage_path / rel_path
+    if not full_path.exists():
+        raise StorageError(f"Local file not found: {full_path}")
 
-        logger.warning(f"Local file not found: {full_path}")
-        return ""
-    except Exception as e:
-        logger.error(f"Error generating URL: {str(e)}")
-        return ""
+    return f"{settings.BACKEND_URL}/uploads/{rel_path}"
 
 async def download_file_content(filename: str) -> bytes:
     """Download file content from S3 or local as bytes."""

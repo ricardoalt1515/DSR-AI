@@ -44,10 +44,10 @@ import { useCompanyStore } from "@/lib/stores/company-store";
 
 
 /**
- * Memoized Assessment List Component
- * Displays assessments in a responsive grid layout with context badges
+ * Memoized Waste Stream List Component
+ * Displays waste streams in a responsive grid layout with context badges
  */
-const AssessmentList = memo(function AssessmentList({
+const WasteStreamList = memo(function WasteStreamList({
 	projects,
 	loading,
 }: {
@@ -55,15 +55,15 @@ const AssessmentList = memo(function AssessmentList({
 	loading: boolean;
 }) {
 	if (loading && projects.length === 0) {
-		return <AssessmentGridSkeleton />;
+		return <WasteStreamGridSkeleton />;
 	}
 
 	if (projects.length === 0) {
 		return (
 			<EmptyState
 				icon={FolderKanban}
-				title="No assessments yet"
-				description="Create your first assessment to get started."
+				title="No waste streams yet"
+				description="Create your first waste stream to get started."
 			/>
 		);
 	}
@@ -93,7 +93,7 @@ const AssessmentList = memo(function AssessmentList({
  * Skeleton loader for assessment grid
  * Shows placeholder cards while data is loading
  */
-function AssessmentGridSkeleton() {
+function WasteStreamGridSkeleton() {
 	return (
 		<div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
 			{Array.from({ length: 6 }).map((_, index) => (
@@ -175,13 +175,13 @@ const DashboardContent = memo(function DashboardContent() {
 		{
 			id: "create-company",
 			label: "Create your first company",
-			description: "Set up a company to associate with assessments",
+			description: "Set up a company to associate with waste streams",
 			action: { label: "Add", onClick: () => { } }, // Companies created in wizard
 		},
 		{
 			id: "start-assessment",
-			label: "Start an assessment",
-			description: "Create your first waste assessment",
+			label: "Start a waste stream",
+			description: "Create your first waste stream assessment",
 			action: { label: "Start", onClick: handleOpenCreateModal },
 		},
 		{
@@ -257,10 +257,10 @@ const DashboardContent = memo(function DashboardContent() {
 							<div>
 								<CardTitle className="text-lg font-semibold flex items-center gap-2">
 									<FolderKanban className="h-5 w-5" />
-									Your Assessments
+									Your Waste Streams
 								</CardTitle>
 								<CardDescription>
-									All waste assessments across companies and locations
+									All waste streams across companies and locations
 								</CardDescription>
 							</div>
 						</div>
@@ -270,7 +270,7 @@ const DashboardContent = memo(function DashboardContent() {
 						<div className="relative">
 							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								placeholder="Search assessments... (Cmd+K)"
+								placeholder="Search waste streams... (Cmd+K)"
 								value={searchTerm}
 								onChange={(e) => setSearchTerm(e.target.value)}
 								className="pl-9 pr-9"
@@ -327,7 +327,7 @@ const DashboardContent = memo(function DashboardContent() {
 					</CardContent>
 				</Card>
 
-				<AssessmentListContainer searchTerm={searchTerm} />
+				<WasteStreamListContainer searchTerm={searchTerm} />
 			</section>
 
 			<PremiumProjectWizard
@@ -342,7 +342,7 @@ const DashboardContent = memo(function DashboardContent() {
  * Assessment List Container with Filtering
  * Connects to project store and applies search filter client-side
  */
-const AssessmentListContainer = memo(function AssessmentListContainer({
+const WasteStreamListContainer = memo(function WasteStreamListContainer({
 	searchTerm,
 }: {
 	searchTerm: string;
@@ -392,7 +392,7 @@ const AssessmentListContainer = memo(function AssessmentListContainer({
 					description="Try a different search term or clear the filter to see all assessments."
 				/>
 			) : (
-				<AssessmentList projects={filtered} loading={loading} />
+				<WasteStreamList projects={filtered} loading={loading} />
 			)}
 
 			{/* Load More Button */}
@@ -452,7 +452,7 @@ function DashboardSkeleton() {
 			</div>
 
 			{/* Assessments Grid Skeleton */}
-			<AssessmentGridSkeleton />
+			<WasteStreamGridSkeleton />
 		</div>
 	);
 }

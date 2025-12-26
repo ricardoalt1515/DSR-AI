@@ -122,6 +122,29 @@ export const rehydrateFieldsFromLibrary = (
 // HELPER FUNCTIONS
 // ========================================
 
+/** Default order for sections without explicit order field */
+const DEFAULT_SECTION_ORDER = 0;
+
+/**
+ * Sort sections by their order field (lower numbers first).
+ * Sections without an order field are treated as order 0.
+ * Maintains stable sort by using id as tiebreaker.
+ */
+export const sortSectionsByOrder = (sections: TableSection[]): TableSection[] => {
+	return [...sections].sort((a, b) => {
+		const orderA = a.order ?? DEFAULT_SECTION_ORDER;
+		const orderB = b.order ?? DEFAULT_SECTION_ORDER;
+
+		// Primary: sort by order
+		if (orderA !== orderB) {
+			return orderA - orderB;
+		}
+
+		// Secondary: stable sort by id (maintains consistent ordering)
+		return a.id.localeCompare(b.id);
+	});
+};
+
 export const getFieldValue = (
 	sections: TableSection[],
 	sectionId: string,

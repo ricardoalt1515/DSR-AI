@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,7 +88,9 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 						<CardTitle className="text-lg">{company.name}</CardTitle>
 					</div>
 					<div className="flex items-center gap-2">
-						<Badge variant="outline">{company.industry}</Badge>
+						<Badge variant="outline">
+							{company.subsector ? formatSubsector(company.subsector) : company.sector}
+						</Badge>
 						{onDelete && (
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild onClick={handleMenuClick}>
@@ -115,51 +118,52 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 			</CardHeader>
 
 			<CardContent className="space-y-3">
-				{/* Sector/Subsector */}
-				{company.sector && company.subsector && (
-					<div className="flex flex-wrap gap-2">
-						<Badge variant="secondary" className="capitalize">
-							{company.sector}
-						</Badge>
-						<Badge variant="outline" className="text-xs">
-							{company.subsector.replace(/_/g, " ")}
-						</Badge>
-					</div>
-				)}
+				{/* Sector/Subsector - only show if not default 'other' */}
+				{company.sector && company.subsector &&
+					company.sector !== "other" && company.subsector !== "other" && (
+						<div className="flex flex-wrap gap-2">
+							<Badge variant="secondary" className="capitalize">
+								{company.sector}
+							</Badge>
+							<Badge variant="outline" className="text-xs">
+								{company.subsector.replace(/_/g, " ")}
+							</Badge>
+						</div>
+					)}
 
 				{/* Contact Info */}
 				{(company.contactName ||
 					company.contactEmail ||
 					company.contactPhone) && (
-					<div className="space-y-1 text-sm">
-						{company.contactName && (
-							<div className="text-muted-foreground">
-								<span className="font-medium">Contact:</span>{" "}
-								{company.contactName}
-							</div>
-						)}
-						{company.contactEmail && (
-							<div className="text-muted-foreground">
-								<span className="font-medium">Email:</span>{" "}
-								{company.contactEmail}
-							</div>
-						)}
-						{company.contactPhone && (
-							<div className="text-muted-foreground">
-								<span className="font-medium">Phone:</span>{" "}
-								{company.contactPhone}
-							</div>
-						)}
-					</div>
-				)}
+						<div className="space-y-1 text-sm">
+							{company.contactName && (
+								<div className="text-muted-foreground">
+									<span className="font-medium">Contact:</span>{" "}
+									{company.contactName}
+								</div>
+							)}
+							{company.contactEmail && (
+								<div className="text-muted-foreground">
+									<span className="font-medium">Email:</span>{" "}
+									{company.contactEmail}
+								</div>
+							)}
+							{company.contactPhone && (
+								<div className="text-muted-foreground">
+									<span className="font-medium">Phone:</span>{" "}
+									{company.contactPhone}
+								</div>
+							)}
+						</div>
+					)}
 
 				{/* Stats */}
 				<div className="flex items-center gap-4 text-sm">
 					<div className="flex items-center gap-1">
 						<MapPin className="h-4 w-4 text-muted-foreground" />
-						<span className="font-medium">{company.locationCount}</span>
+						<span className="font-medium">{company.locationCount ?? 0}</span>
 						<span className="text-muted-foreground">
-							{company.locationCount === 1 ? "location" : "locations"}
+							{(company.locationCount ?? 0) === 1 ? "location" : "locations"}
 						</span>
 					</div>
 				</div>
@@ -185,7 +189,7 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 					<div className="space-y-2 pt-2 border-t">
 						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
 							<FolderKanban className="h-3.5 w-3.5" />
-							Recent Assessments
+							Recent Waste Streams
 						</div>
 						<div className="space-y-1.5">
 							{recentAssessments.map((assessment) => (
