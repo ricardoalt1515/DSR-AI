@@ -149,10 +149,17 @@ export class ProjectsAPI {
 	}
 
 	static async downloadFileBlob(fileId: string): Promise<Blob> {
-		// Backend files router is mounted under /api/v1/projects
-		// download_file endpoint path: /files/{file_id}/download
-		// → Full URL: /api/v1/projects/files/{file_id}/download
-		return apiClient.downloadBlob(`/projects/files/${fileId}/download`);
+		// Backend always returns JSON with URL (works for both S3 and local)
+		const response = await apiClient.get<{ url: string; filename: string; mime_type: string }>(
+			`/projects/files/${fileId}/download`,
+		);
+
+		// Fetch the blob from the URL (no auth headers - presigned URL handles auth)
+		const blobResponse = await fetch(response.url);
+		if (!blobResponse.ok) {
+			throw new Error(`Failed to download file: ${blobResponse.status}`);
+		}
+		return await blobResponse.blob();
 	}
 
 	static async getTimeline(

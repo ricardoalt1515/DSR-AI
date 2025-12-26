@@ -123,8 +123,9 @@ async def download_file_content(filename: str) -> bytes:
                 content = await response['Body'].read()
                 logger.info(f"✅ File downloaded from S3: {len(content)} bytes")
                 return content
-        else:  # Development mode: read local file
-            local_path = os.path.join(LOCAL_UPLOADS_DIR, filename)
+        else:  # Local mode: read local file
+            # file_path from DB is already the complete path (set during upload)
+            local_path = filename
             logger.info(f"Reading local file: {local_path}")
             
             if not os.path.exists(local_path):

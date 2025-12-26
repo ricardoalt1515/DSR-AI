@@ -81,11 +81,12 @@ class Settings(BaseSettings):
     OPENAI_TEMPERATURE: float = Field(default=0.7, ge=0.0, le=2.0)
     OPENAI_MAX_TOKENS: int = Field(default=4000, ge=100, le=128000)
 
+
     # AWS S3
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
-    AWS_REGION: str = "us-east-1"
-    AWS_S3_BUCKET: Optional[str] = None
+    AWS_REGION: str = Field(default="us-east-1", validation_alias="S3_REGION")
+    AWS_S3_BUCKET: Optional[str] = Field(default=None, validation_alias="S3_BUCKET")
 
     # Storage
     USE_LOCAL_STORAGE: bool = True

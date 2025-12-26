@@ -235,7 +235,7 @@ async def upload_file(
         await db.commit()
         await db.refresh(project_file)
 
-        logger.info(f"✅ File uploaded: {file.filename} to project {project_id}")
+        logger.info("File uploaded", filename=file.filename, project_id=str(project_id))
 
         return FileUploadResponse(
             id=project_file.id,
@@ -362,21 +362,13 @@ async def download_file(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Download a file.
+    Get a download URL for a file.
 
-    - **S3**: Returns redirect to presigned URL (24h expiry)
-    - **Local**: Streams file directly
+    Always returns JSON with a URL:
+    - **S3**: Presigned URL (24h expiry)
+    - **Local**: URL to static file server
 
-    **Usage:**
-    ```javascript
-    const response = await fetch(`/api/v1/files/${fileId}/download`);
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    ```
+    Frontend should fetch the blob from the returned URL.
     """
     # Get file (verify access through join)
     conditions = [
@@ -394,33 +386,16 @@ async def download_file(
             detail="File not found",
         )
 
-    if USE_S3:
-        # Generate presigned URL and redirect
-        url = await get_presigned_url(file.file_path, expires=86400)
-        return RedirectResponse(url=url)
-    else:
-        # Stream file from local storage
-        if not os.path.exists(file.file_path):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="File not found on disk",
-            )
-
-        async def file_generator():
-            async with aiofiles.open(file.file_path, "rb") as f:
-                chunk = await f.read(8192)
-                while chunk:
-                    yield chunk
-                    chunk = await f.read(8192)
-
-        return StreamingResponse(
-            file_generator(),
-            media_type=file.mime_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{file.filename}"',
-                "Content-Length": str(file.file_size),
-            },
+    # Always return JSON with URL (consistent behavior for S3 and local)
+    url = await get_presigned_url(file.file_path, expires=86400)
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on storage",
         )
+    
+    return {"url": url, "filename": file.filename, "mime_type": file.mime_type}
+
 
 
 @router.delete(
@@ -489,7 +464,7 @@ async def delete_file(
     db.add(event)
     await db.commit()
 
-    logger.info(f"✅ File deleted: {file.filename} from project {project_id}")
+    logger.info("File deleted", filename=file.filename, project_id=str(project_id))
 
     return None
 
@@ -506,7 +481,7 @@ async def process_file_with_ai(
     analysis for waste materials.
     """
     try:
-        logger.info(f"🤖 Processing file {file_id} with AI...")
+        logger.info("Processing file with AI", file_id=str(file_id))
 
         # Load file and project context for industry-specific analysis
         async with AsyncSessionLocal() as db:
@@ -528,14 +503,23 @@ async def process_file_with_ai(
         # Create document processor and process file with context
         processor = DocumentProcessor()
 
-        with open(file_path, "rb") as file_content:
+        # Unified file reading: works for both S3 keys and local paths (DRY)
+        from app.services.s3_service import download_file_content
+        from io import BytesIO
+        
+        file_bytes = await download_file_content(file_path)
+        file_content = BytesIO(file_bytes)
+        
+        try:
             result = await processor.process(
                 file_content=file_content,
                 filename=os.path.basename(file_path),
                 file_type=file_type,
-                project_sector=project_sector,      # NEW: Industry context
-                project_subsector=project_subsector,  # NEW: Subsector context
+                project_sector=project_sector,
+                project_subsector=project_subsector,
             )
+        finally:
+            file_content.close()
 
         # Update file record in its own async DB session
         async with AsyncSessionLocal() as db:
@@ -547,7 +531,7 @@ async def process_file_with_ai(
                     file.processed_text = result.get("text")
                     file.ai_analysis = result.get("analysis")
                     await db.commit()
-                    logger.info(f"✅ File {file_id} processed successfully (sector: {project_sector})")
+                    logger.info("File processed successfully", file_id=str(file_id), sector=project_sector)
             except Exception:
                 await db.rollback()
                 raise
