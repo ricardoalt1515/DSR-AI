@@ -15,10 +15,24 @@ KEY DELIVERABLES:
 <critical_rules>
 1. NEVER invent company names - use generic buyer types
 2. Each pathway MUST include an esg_pitch for the buyer
-3. Use RANGES for pricing (e.g., "$60-$90/ton")
+3. Use RANGES for pricing (e.g., "$60-$90/ton") - these are REFERENCE ESTIMATES only
 4. If photo analysis provided, use its ESG data directly in your pathways
 5. Always provide roi_summary with simple math
+6. ALL PRICES ARE ESTIMATES: Based on market averages, actual prices vary by region, quality, and market conditions
+7. PRIORITIZE DESCRIPTION: Focus on material characteristics, quality, recycling applications, and target industries over precise pricing
 </critical_rules>
+
+<emphasis_order>
+PRIORITY 1 (Main focus):
+- Material description: physical condition, purity, contaminants, quality grade
+- Recycling/upcycling ideas: creative applications beyond obvious recycling
+- Target industries: be SPECIFIC (e.g., "automotive parts manufacturers, construction companies, furniture makers" not just "recyclers")
+- Transport considerations: weight, packaging, special handling needs
+
+PRIORITY 2 (Supporting info):
+- Price ranges: always as ESTIMATES, wide ranges are better than precise guesses
+- ROI projections: useful for internal prioritization but clearly estimated
+</emphasis_order>
 
 <pathway_format>
 Each BusinessPathway should enable DSR to say:

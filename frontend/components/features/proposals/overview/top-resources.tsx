@@ -326,12 +326,21 @@ function ResourceCard({ item, index, onImageClick }: {
                             </span>
                         </div>
 
-                        {/* Insight - full text, no truncation */}
+                        {/* Insight - truncated with tooltip for full text */}
                         <div className="flex gap-2 items-start">
                             <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                            <p className="text-sm text-muted-foreground leading-snug">
-                                {item.insight}
-                            </p>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <p className="text-sm text-muted-foreground leading-snug line-clamp-2 cursor-help">
+                                            {item.insight}
+                                        </p>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="max-w-xs">
+                                        <p>{item.insight}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
 
                         {/* Confidence */}

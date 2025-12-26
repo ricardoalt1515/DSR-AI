@@ -83,7 +83,6 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 					recommendation={report.recommendation}
 					headline={report.headline}
 					confidence={report.confidence}
-					roiSummary={report.roiSummary}
 				/>
 			</SectionErrorBoundary>
 
@@ -104,6 +103,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 						currentCost={report.financials.currentCost}
 						dsrOffer={report.financials.dsrOffer}
 						dsrMargin={report.financials.dsrMargin}
+						roiSummary={report.roiSummary}
 					/>
 				</SectionErrorBoundary>
 			)}

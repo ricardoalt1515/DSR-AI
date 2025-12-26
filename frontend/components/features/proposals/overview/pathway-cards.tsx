@@ -107,8 +107,10 @@ function PathwayCard({
                     <div className="flex flex-col sm:flex-row flex-wrap gap-x-4 gap-y-2 text-sm mb-3">
                         <span className="text-muted-foreground">{pathway.buyerTypes}</span>
                         <div className="flex gap-4">
-                            <span className="font-medium text-foreground">{pathway.priceRange}</span>
-                            <span className="font-semibold text-green-600 dark:text-green-400">
+                            <span className="font-medium text-muted-foreground" title="Reference estimate - actual prices vary by market">
+                                {pathway.priceRange} (est.)
+                            </span>
+                            <span className="font-medium text-muted-foreground" title="Estimated annual value">
                                 {pathway.annualValue}
                             </span>
                         </div>

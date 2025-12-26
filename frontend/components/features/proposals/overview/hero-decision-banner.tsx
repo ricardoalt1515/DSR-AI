@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, CheckCircle2, HelpCircle, TrendingUp, XCircle } from "lucide-react";
+import { CheckCircle2, HelpCircle, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,6 @@ interface HeroDecisionBannerProps {
     recommendation: "GO" | "NO-GO" | "INVESTIGATE";
     headline: string;
     confidence: "High" | "Medium" | "Low";
-    roiSummary?: string;
 }
 
 const CONFIDENCE_CONFIG = {
@@ -80,30 +79,13 @@ function ConfidenceRing({ confidence }: { confidence: "High" | "Medium" | "Low" 
     );
 }
 
-function parseROI(roiSummary: string): { investment: string; revenue: string; percentage: string } | null {
-    // Format: "Acquisition $5k → Revenue $28k/yr = 460% ROI"
-    const investMatch = roiSummary.match(/\$[\d.,]+k?/);
-    const revenueMatch = roiSummary.match(/Revenue\s+(\$[\d.,]+k?\/yr)/i) || roiSummary.match(/→\s+(\$[\d.,]+k?)/);
-    const percentMatch = roiSummary.match(/(\d+)%/);
-
-    if (!investMatch || !percentMatch) return null;
-
-    return {
-        investment: investMatch[0],
-        revenue: revenueMatch?.[1] ?? "N/A",
-        percentage: `${percentMatch[1]}%`,
-    };
-}
-
 export function HeroDecisionBanner({
     recommendation,
     headline,
     confidence,
-    roiSummary,
 }: HeroDecisionBannerProps) {
     const config = DECISION_CONFIG[recommendation];
     const Icon = config.icon;
-    const roi = roiSummary ? parseROI(roiSummary) : null;
 
     return (
         <motion.div
@@ -144,44 +126,9 @@ export function HeroDecisionBanner({
                     </div>
 
                     {/* Headline */}
-                    <p className="text-lg font-medium text-foreground/90 mb-4">
+                    <p className="text-lg font-medium text-foreground/90">
                         {headline}
                     </p>
-
-                    {/* ROI Hero (if available) */}
-                    {roi && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.3 }}
-                            className={cn(
-                                "flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl",
-                                "bg-background/60 dark:bg-background/40 backdrop-blur-sm border border-border/50"
-                            )}
-                        >
-                            <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-center sm:justify-start">
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Investment</p>
-                                    <p className="text-lg sm:text-xl font-bold text-foreground">{roi.investment}</p>
-                                </div>
-
-                                <TrendingUp className="h-5 w-5 text-muted-foreground hidden sm:block" />
-                                <span className="text-muted-foreground sm:hidden">→</span>
-
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Annual Revenue</p>
-                                    <p className="text-lg sm:text-xl font-bold text-foreground">{roi.revenue}</p>
-                                </div>
-                            </div>
-
-                            <div className="text-center px-6 py-3 rounded-lg bg-green-500/20 dark:bg-green-500/10 border border-green-500/30">
-                                <p className="text-2xl sm:text-3xl font-black text-green-600 dark:text-green-400">
-                                    {roi.percentage}
-                                </p>
-                                <p className="text-xs text-green-600/80 dark:text-green-400/80">ROI</p>
-                            </div>
-                        </motion.div>
-                    )}
                 </CardContent>
             </Card>
         </motion.div>
