@@ -71,9 +71,20 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 						<span className="flex items-center gap-1">
 							<MapPin className="h-3 w-3" /> {report.location}
 						</span>
-						<span>·</span>
-						<span>{report.material}</span>
 					</div>
+				</div>
+			</div>
+
+			{/* MATERIAL SUMMARY - Based on assessment data */}
+			<div className="p-4 rounded-lg bg-muted/50 border border-border">
+				<div className="flex items-center justify-between">
+					<div>
+						<h4 className="font-semibold text-foreground">Material Summary</h4>
+						<p className="text-sm text-muted-foreground">{report.material} · {report.volume}</p>
+					</div>
+					<span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+						Based on assessment
+					</span>
 				</div>
 			</div>
 
@@ -136,15 +147,9 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 			<Separator className="my-8" />
 
 			{/* FOOTER */}
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-muted-foreground">
-				<div>
-					<h4 className="font-semibold text-foreground mb-2">Material Summary</h4>
-					<p>{report.material} · {report.volume}</p>
-				</div>
-				<div className="text-right">
-					<p>Version {proposal.version}</p>
-					<p>Generated {new Date(proposal.createdAt).toLocaleDateString()}</p>
-				</div>
+			<div className="text-sm text-muted-foreground text-right">
+				<p>Version {proposal.version}</p>
+				<p>Generated {new Date(proposal.createdAt).toLocaleDateString()}</p>
 			</div>
 		</div>
 	);

@@ -201,14 +201,14 @@ export function PathwayCards({ pathways, onRefresh }: PathwayCardsProps) {
         <div className="space-y-4">
             <h3 className="text-lg font-semibold text-foreground">Business Pathways</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 {pathways.map((pathway, index) => (
                     <PathwayCard
                         key={index}
                         pathway={pathway}
                         index={index}
                         isBest={index === bestIndex}
-                        isHero={index === 0}
+                        isHero={false}
                     />
                 ))}
             </div>

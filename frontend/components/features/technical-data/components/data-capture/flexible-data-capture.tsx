@@ -186,20 +186,8 @@ export function FlexibleDataCapture({
 						}}
 						className="space-y-3"
 					>
-						{/* Sort sections: incomplete first, then by completion percentage */}
-						{[...sections]
-							.sort((a, b) => {
-								const aCompleted = a.fields.filter((f) => f.value && f.value !== "").length;
-								const bCompleted = b.fields.filter((f) => f.value && f.value !== "").length;
-								const aPercent = a.fields.length > 0 ? aCompleted / a.fields.length : 1;
-								const bPercent = b.fields.length > 0 ? bCompleted / b.fields.length : 1;
-								// Incomplete sections first
-								if (aPercent < 1 && bPercent === 1) return -1;
-								if (aPercent === 1 && bPercent < 1) return 1;
-								// Then by completion percentage (lower first)
-								return aPercent - bPercent;
-							})
-							.map((section) => (
+						{/* Render sections in original order (sorted by backend order field) */}
+						{sections.map((section) => (
 								<SectionAccordionItem
 									key={section.id}
 									section={section}
