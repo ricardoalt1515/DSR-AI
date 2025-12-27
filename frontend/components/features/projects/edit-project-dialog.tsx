@@ -173,9 +173,9 @@ export function EditProjectDialog({
 		<Dialog open={open} onOpenChange={onOpenChange} modal={true}>
 			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>Edit Assessment</DialogTitle>
+					<DialogTitle>Edit Waste Stream</DialogTitle>
 					<DialogDescription>
-						Update assessment information. Changes will be saved immediately.
+						Update waste stream information. Changes will be saved immediately.
 					</DialogDescription>
 				</DialogHeader>
 

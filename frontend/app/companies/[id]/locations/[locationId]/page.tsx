@@ -93,7 +93,7 @@ export default function LocationDetailPage() {
 				</div>
 				<Badge variant="outline">
 					{currentLocation.projectCount}{" "}
-					{currentLocation.projectCount === 1 ? "assessment" : "assessments"}
+					{currentLocation.projectCount === 1 ? "waste stream" : "waste streams"}
 				</Badge>
 			</div>
 
@@ -141,11 +141,11 @@ export default function LocationDetailPage() {
 				<div className="flex items-center justify-between">
 					<h2 className="text-xl font-semibold flex items-center gap-2">
 						<FolderKanban className="h-5 w-5" />
-						Assessments
+						Waste Streams
 					</h2>
 					<Button onClick={() => setWizardOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
-						New Assessment Here
+						New Waste Stream
 					</Button>
 				</div>
 
@@ -153,13 +153,13 @@ export default function LocationDetailPage() {
 					<Card>
 						<CardContent className="py-12 text-center">
 							<FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-							<h3 className="text-lg font-semibold mb-2">No assessments yet</h3>
+							<h3 className="text-lg font-semibold mb-2">No waste streams yet</h3>
 							<p className="text-muted-foreground mb-4">
-								Create the first assessment for this location
+								Create the first waste stream for this location
 							</p>
 							<Button onClick={() => setWizardOpen(true)}>
 								<Plus className="h-4 w-4 mr-2" />
-								Create First Assessment
+								Create First Waste Stream
 							</Button>
 						</CardContent>
 					</Card>

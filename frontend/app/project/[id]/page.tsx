@@ -40,7 +40,7 @@ export default function ProjectPage() {
 			{
 				id: "assessment",
 				target: "[data-tour='tab-assessment']",
-				title: "Assessment Tab",
+				title: "Questionnaire Tab",
 				content:
 					"Fill in technical data about the waste stream. The more data you provide, the better the AI proposal will be.",
 				placement: "bottom",

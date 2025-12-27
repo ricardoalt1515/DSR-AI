@@ -95,7 +95,7 @@ export function ProjectOverview({
 							{canGenerateProposal ? (
 								<>
 									<p className="text-muted-foreground">
-										Your assessment is ready! Generate an AI-powered proposal
+										Your questionnaire is ready! Generate an AI-powered proposal
 										based on your technical data.
 									</p>
 									<Button onClick={onNavigateToProposals} className="mt-2">
@@ -106,7 +106,7 @@ export function ProjectOverview({
 							) : (
 								<>
 									<p className="text-muted-foreground">
-										Complete at least {PROPOSAL_READINESS_THRESHOLD}% of your assessment to unlock AI
+										Complete at least {PROPOSAL_READINESS_THRESHOLD}% of your questionnaire to unlock AI
 										proposal generation.
 									</p>
 									<div className="flex items-center gap-3 mt-2">
@@ -125,7 +125,7 @@ export function ProjectOverview({
 										onClick={onNavigateToTechnical}
 										className="mt-3"
 									>
-										Continue Assessment
+										Continue Questionnaire
 										<ArrowRight className="ml-2 h-4 w-4" />
 									</Button>
 								</>

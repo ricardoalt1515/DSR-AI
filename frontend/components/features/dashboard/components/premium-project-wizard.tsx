@@ -109,7 +109,7 @@ const getSubsectorLabel = (sectorId: string, subsectorId: string): string => {
 
 const STEPS = [
 	{ id: 1, title: "Basic Information", description: "Company and location" },
-	{ id: 2, title: "Assessment Details", description: "Name and description" },
+	{ id: 2, title: "Waste Stream Details", description: "Name and description" },
 	{ id: 3, title: "Confirmation", description: "Final review" },
 ];
 
@@ -224,7 +224,7 @@ export function PremiumProjectWizard({
 					`Waste assessment for ${projectData.client}`,
 			});
 
-			toast.success("Assessment created successfully!", {
+			toast.success("Waste stream created successfully!", {
 				description: `${projectData.name} is ready to fill out`,
 			});
 
@@ -246,7 +246,7 @@ export function PremiumProjectWizard({
 				description: "",
 			});
 		} catch (_error) {
-			toast.error("Error creating assessment", {
+			toast.error("Error creating waste stream", {
 				description: "Please check that the location has an associated company",
 			});
 		} finally {
@@ -307,11 +307,11 @@ export function PremiumProjectWizard({
 						<div className="space-y-4">
 							<div className="space-y-2">
 								<Label htmlFor="name" className="text-sm font-medium">
-									Assessment Name *
+									Waste Stream Name *
 								</Label>
 								<Input
 									id="name"
-									placeholder="e.g. Madera Assessment - Enero 2024"
+									placeholder="e.g. Wood Waste - January 2024"
 									value={projectData.name}
 									onChange={(e) => updateProjectData({ name: e.target.value })}
 									className="h-12 text-base"
@@ -395,10 +395,10 @@ export function PremiumProjectWizard({
 								<FileText className="h-8 w-8 text-primary-foreground" />
 							</div>
 							<h3 className="text-2xl font-semibold text-foreground">
-								Assessment Details
+								Waste Stream Details
 							</h3>
 							<p className="text-muted-foreground">
-								Provide additional information about this assessment
+								Provide additional information about this waste stream
 							</p>
 						</div>
 
@@ -409,7 +409,7 @@ export function PremiumProjectWizard({
 								</Label>
 								<Input
 									id="description"
-									placeholder="Additional context about this assessment..."
+									placeholder="Additional context about this waste stream..."
 									value={projectData.description}
 									onChange={(e) =>
 										updateProjectData({ description: e.target.value })
@@ -507,7 +507,7 @@ export function PremiumProjectWizard({
 				<DialogHeader className="p-6 pb-4 shrink-0 border-b border-border/50">
 					<div className="space-y-4">
 						<DialogTitle className="text-2xl font-bold text-center">
-							Create New Assessment
+							Create New Waste Stream
 						</DialogTitle>
 
 						{/* Contextual Breadcrumb */}

@@ -143,13 +143,13 @@ const ProjectCard = memo(function ProjectCard({
 		setIsDeleting(true);
 		try {
 			await deleteProject(id);
-			toast.success("Assessment deleted", {
+			toast.success("Waste stream deleted", {
 				description: `"${name}" has been successfully deleted`,
 			});
 			setShowDeleteDialog(false);
 		} catch (_error) {
 			toast.error("Deletion error", {
-				description: "Could not delete the assessment. Please try again.",
+				description: "Could not delete the waste stream. Please try again.",
 			});
 		} finally {
 			setIsDeleting(false);
@@ -200,7 +200,7 @@ const ProjectCard = memo(function ProjectCard({
 							<DropdownMenuItem asChild>
 								<Link href={`/project/${id}`}>
 									<Edit className="mr-2 h-4 w-4" />
-									Edit Assessment
+									Edit Waste Stream
 								</Link>
 							</DropdownMenuItem>
 							<DropdownMenuItem asChild>
@@ -225,7 +225,7 @@ const ProjectCard = memo(function ProjectCard({
 								}}
 							>
 								<Trash2 className="mr-2 h-4 w-4" />
-								Delete Assessment
+								Delete Waste Stream
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -330,7 +330,7 @@ const ProjectCard = memo(function ProjectCard({
 				open={showDeleteDialog}
 				onOpenChange={setShowDeleteDialog}
 				onConfirm={handleDelete}
-				title="Delete Assessment"
+				title="Delete Waste Stream"
 				description={`This will permanently delete all technical information, ${proposalsCount} proposal${proposalsCount !== 1 ? "s" : ""}, attached files, and change history. This action cannot be undone.`}
 				itemName={name}
 				loading={isDeleting}

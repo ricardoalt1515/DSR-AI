@@ -285,8 +285,8 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 							</h3>
 							<p className="text-muted-foreground max-w-md mb-4">
 								{isReady
-									? "Your assessment is complete enough to generate an AI-powered conceptual proposal."
-									: `Complete at least ${PROPOSAL_READINESS_THRESHOLD}% of your assessment to unlock AI proposal generation.`}
+									? "Your questionnaire is complete enough to generate an AI-powered conceptual proposal."
+									: `Complete at least ${PROPOSAL_READINESS_THRESHOLD}% of your questionnaire to unlock AI proposal generation.`}
 							</p>
 
 							{!isReady && (
@@ -322,7 +322,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 											// Scroll to generator to show progress
 											window.scrollTo({ top: 0, behavior: "smooth" });
 										} else {
-											// Not ready - go to Assessment to complete data
+											// Not ready - go to Questionnaire to complete data
 											router.push(routes.project.technical(project.id));
 										}
 									}}
@@ -334,7 +334,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 											Generate First Proposal
 										</>
 									) : (
-										"Continue Assessment"
+										"Continue Questionnaire"
 									)}
 								</Button>
 								{!isReady && (

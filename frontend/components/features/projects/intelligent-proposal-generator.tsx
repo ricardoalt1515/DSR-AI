@@ -276,7 +276,7 @@ export function IntelligentProposalGeneratorComponent({
 						}
 					>
 						<Zap className="mr-2 h-5 w-5" />
-						Generate Waste Assessment Report
+						Generate AI Report
 					</Button>
 				</CardContent>
 			</Card>
@@ -375,7 +375,7 @@ function GenerationDashboard({
 								AI Agent Active
 							</h3>
 							<p className="text-xs text-muted-foreground text-center max-w-[180px]">
-								Generating your waste assessment report
+								Generating your AI report
 							</p>
 						</div>
 					</div>

@@ -219,7 +219,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 			{/* Simplified header with view toggle - stacks on mobile */}
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 				<div className="flex flex-wrap items-center gap-2 sm:gap-3">
-					<h2 className="text-lg font-semibold">Assessment Data</h2>
+					<h2 className="text-lg font-semibold">Questionnaire Data</h2>
 					{/* Autosave indicator */}
 					{saving ? (
 						<Badge

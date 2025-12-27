@@ -169,7 +169,7 @@ export function CommandPalette() {
 						}}
 					>
 						<Plus className="mr-2 h-4 w-4" />
-						<span>New Assessment</span>
+						<span>New Waste Stream</span>
 						<CommandShortcut>N</CommandShortcut>
 					</CommandItem>
 					<CommandItem
@@ -184,7 +184,7 @@ export function CommandPalette() {
 						}}
 					>
 						<Search className="mr-2 h-4 w-4" />
-						<span>Search Assessments</span>
+						<span>Search Waste Streams</span>
 						<CommandShortcut>/</CommandShortcut>
 					</CommandItem>
 				</CommandGroup>

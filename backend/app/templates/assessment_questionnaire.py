@@ -155,6 +155,16 @@ def get_assessment_questionnaire() -> list[dict]:
                     "source": "manual"
                 },
                 {
+                    "id": "waste-description",
+                    "label": "Describe your waste materials",
+                    "value": "",
+                    "type": "textarea",
+                    "multiline": True,
+                    "placeholder": "Example: Post-industrial HDPE scrap from injection molding, mostly clean with some oil residue. Also have cardboard packaging, baled and dry.",
+                    "description": "Provide details: material condition, contamination, form (bales, loose, drums), origin, etc.",
+                    "source": "manual"
+                },
+                {
                     "id": "volume-per-category",
                     "label": "Volume per Category (e.g., kg/day, tons/month)",
                     "value": "",
@@ -167,7 +177,7 @@ def get_assessment_questionnaire() -> list[dict]:
                 {
                     "id": "seasonal-variations",
                     "label": "Seasonal Variations in Waste Volumes?",
-                    "value": "no",
+                    "value": "",
                     "type": "radio",
                     "options": YES_NO,
                     "source": "manual"
@@ -199,7 +209,7 @@ def get_assessment_questionnaire() -> list[dict]:
                 {
                     "id": "segregation",
                     "label": "Do you currently segregate your waste?",
-                    "value": "no",
+                    "value": "",
                     "type": "radio",
                     "options": YES_NO,
                     "source": "manual"
@@ -230,7 +240,7 @@ def get_assessment_questionnaire() -> list[dict]:
                 {
                     "id": "revenue-streams",
                     "label": "Are any current waste streams generating revenue (resale)?",
-                    "value": "no",
+                    "value": "",
                     "type": "radio",
                     "options": YES_NO,
                     "source": "manual"
@@ -251,7 +261,7 @@ def get_assessment_questionnaire() -> list[dict]:
                 {
                     "id": "waste-audit",
                     "label": "Waste Audit Documentation Available?",
-                    "value": "no",
+                    "value": "",
                     "type": "radio",
                     "options": YES_NO,
                     "source": "manual"
@@ -320,7 +330,7 @@ def get_assessment_questionnaire() -> list[dict]:
                 {
                     "id": "capex-interest",
                     "label": "Interested in CapEx investments?",
-                    "value": "no",
+                    "value": "",
                     "type": "radio",
                     "options": YES_NO,
                     "source": "manual"

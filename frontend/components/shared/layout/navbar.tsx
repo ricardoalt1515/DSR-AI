@@ -65,7 +65,7 @@ const PRIMARY_NAV_LINKS = [
 		name: "Dashboard",
 		href: "/dashboard",
 		icon: Home,
-		description: "View assessments",
+		description: "View waste streams",
 	},
 	{
 		name: "Companies",
@@ -77,16 +77,16 @@ const PRIMARY_NAV_LINKS = [
 
 const QUICK_ACTIONS = [
 	{
-		name: "Create New Assessment",
+		name: "New Waste Stream",
 		href: "/dashboard",
 		icon: Zap,
-		description: "Start new assessment",
+		description: "Start new waste stream",
 	},
 	{
-		name: "Search Assessments",
+		name: "Search Waste Streams",
 		href: "/dashboard",
 		icon: FolderOpen,
-		description: "Find assessments",
+		description: "Find waste streams",
 	},
 	{
 		name: "Settings",
@@ -220,7 +220,7 @@ export function NavBar() {
 							type="button"
 						>
 							<Plus className="mr-2 h-4 w-4" />
-							New Assessment
+							New Waste Stream
 						</button>
 
 						{authedUser && (
@@ -342,7 +342,7 @@ export function NavBar() {
 											setMobileMenuOpen(false);
 										}}
 									>
-										<Plus className="mr-2 h-4 w-4" /> New Assessment
+										<Plus className="mr-2 h-4 w-4" /> New Waste Stream
 									</Button>
 								</div>
 							</SheetContent>
@@ -353,7 +353,7 @@ export function NavBar() {
 
 			{/* Command Dialog for Search */}
 			<CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
-				<CommandInput placeholder="Search assessments, companies, locations..." />
+				<CommandInput placeholder="Search waste streams, companies, locations..." />
 				<CommandList>
 					<CommandEmpty>No results found.</CommandEmpty>
 
@@ -383,7 +383,7 @@ export function NavBar() {
 						})}
 					</CommandGroup>
 
-					<CommandGroup heading="Recent Assessments">
+					<CommandGroup heading="Recent Waste Streams">
 						{loadingProjects ? (
 							<div className="space-y-2 p-2">
 								{Array.from({ length: 3 }).map((_, index) => (

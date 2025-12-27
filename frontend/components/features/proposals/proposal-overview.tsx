@@ -75,7 +75,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				</div>
 			</div>
 
-			{/* MATERIAL SUMMARY - Based on assessment data */}
+			{/* MATERIAL SUMMARY - Based on questionnaire data */}
 			<div className="p-4 rounded-lg bg-muted/50 border border-border">
 				<div className="flex items-center justify-between">
 					<div>
@@ -83,7 +83,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 						<p className="text-sm text-muted-foreground">{report.material} · {report.volume}</p>
 					</div>
 					<span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-						Based on assessment
+						From questionnaire
 					</span>
 				</div>
 			</div>

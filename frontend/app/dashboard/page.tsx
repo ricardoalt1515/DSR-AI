@@ -181,7 +181,7 @@ const DashboardContent = memo(function DashboardContent() {
 		{
 			id: "start-assessment",
 			label: "Start a waste stream",
-			description: "Create your first waste stream assessment",
+			description: "Create your first waste stream",
 			action: { label: "Start", onClick: handleOpenCreateModal },
 		},
 		{
@@ -380,7 +380,7 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 			{/* Results Counter */}
 			{searchTerm.trim() && filtered.length > 0 && (
 				<p className="text-sm text-muted-foreground">
-					Found {filtered.length} assessment{filtered.length !== 1 ? "s" : ""} matching "{searchTerm}"
+					Found {filtered.length} waste stream{filtered.length !== 1 ? "s" : ""} matching "{searchTerm}"
 				</p>
 			)}
 
@@ -388,8 +388,8 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 			{showSearchEmpty ? (
 				<EmptyState
 					icon={Search}
-					title={`No assessments match "${searchTerm}"`}
-					description="Try a different search term or clear the filter to see all assessments."
+					title={`No waste streams match "${searchTerm}"`}
+					description="Try a different search term or clear the filter to see all waste streams."
 				/>
 			) : (
 				<WasteStreamList projects={filtered} loading={loading} />
@@ -399,7 +399,7 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 			{hasMore && filtered.length > 0 && !searchTerm.trim() && (
 				<div className="flex flex-col items-center gap-2 pt-4">
 					<p className="text-sm text-muted-foreground">
-						Showing {projects.length} of {totalProjects} assessments
+						Showing {projects.length} of {totalProjects} waste streams
 						{remainingProjects > 0 && ` (${remainingProjects} more)`}
 					</p>
 					<Button
@@ -415,7 +415,7 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 								Loading...
 							</>
 						) : (
-							`Load More Assessments (${Math.min(pageSize, remainingProjects)})`
+							`Load More (${Math.min(pageSize, remainingProjects)})`
 						)}
 					</Button>
 				</div>

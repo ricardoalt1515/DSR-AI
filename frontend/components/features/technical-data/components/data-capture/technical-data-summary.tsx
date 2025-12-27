@@ -170,8 +170,7 @@ export function TechnicalDataSummary({
 				.map((section) => ({
 					section,
 					stats: sectionCompletion(section),
-				}))
-				.sort((a, b) => a.stats.percentage - b.stats.percentage),
+				})),
 		[sections],
 	);
 

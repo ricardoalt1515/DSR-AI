@@ -158,11 +158,11 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 					<TabsTrigger
 						value="technical"
 						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
-						aria-label="Assessment"
+						aria-label="Questionnaire"
 						data-tour="tab-assessment"
 					>
 						<ClipboardList className="h-4 w-4" aria-hidden="true" />
-						<span className="hidden sm:inline">Assessment</span>
+						<span className="hidden sm:inline">Questionnaire</span>
 					</TabsTrigger>
 					<TabsTrigger
 						value="proposals"

@@ -41,7 +41,7 @@ export function EnhancedEmptyState({
 		},
 		{
 			id: 2,
-			title: "Waste Assessment",
+			title: "Questionnaire",
 			description: "Waste types, volumes and handling",
 			icon: Target,
 			duration: "10 min",

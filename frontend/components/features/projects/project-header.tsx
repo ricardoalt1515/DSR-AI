@@ -104,7 +104,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 						{/* Prominent progress bar */}
 						<div className="progress-header max-w-md">
 							<div className="flex items-center justify-between mb-2">
-								<span className="text-sm font-medium">Assessment Progress</span>
+								<span className="text-sm font-medium">Questionnaire Progress</span>
 								<span className="text-sm font-semibold text-primary">
 									{completion.percentage}%
 								</span>

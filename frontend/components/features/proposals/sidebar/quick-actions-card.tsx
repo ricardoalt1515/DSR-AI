@@ -94,7 +94,7 @@ export function QuickActionsCard({
 						<p className="text-xs text-muted-foreground leading-tight">
 							{hasPathways
 								? "Review strategic recommendations and cost estimates to prioritize implementation."
-								: "Consider refining assessment data or exploring alternative waste streams."}
+								: "Consider refining questionnaire data or exploring alternative waste streams."}
 						</p>
 					</div>
 				</div>
