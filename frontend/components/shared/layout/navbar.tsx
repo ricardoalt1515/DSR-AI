@@ -57,6 +57,7 @@ import {
 } from "@/lib/stores";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { cn } from "@/lib/utils";
+import { NotificationDropdown } from "./notification-dropdown";
 import { ProposalProgressBadge } from "./proposal-progress-badge";
 
 // Navigation config - inline (DRY: only used here, no duplication)
@@ -201,6 +202,7 @@ export function NavBar() {
 						</Button>
 
 						<ThemeToggle />
+						<NotificationDropdown />
 						<Button
 							variant="ghost"
 							size="icon"

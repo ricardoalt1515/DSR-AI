@@ -89,8 +89,7 @@ function parseBusinessOption(optionText: string): {
 }
 
 export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
-	// Using 'as any' for deep optional property access without verbose null checking
-	// See WasteUpcyclingReport type in lib/types/proposal.ts for structure documentation
+	// Legacy code uses deep nested access - requires major refactor to type properly
 	const report = proposal.aiMetadata.proposal as any;
 	const businessOpp = report.businessOpportunity;
 	const circularEconomyOptions = businessOpp?.circularEconomyOptions || [];
@@ -372,10 +371,10 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 									<Badge
 										variant={
 											resourceConsiderations.materialHandling.hazardLevel ===
-											"High"
+												"High"
 												? "destructive"
 												: resourceConsiderations.materialHandling
-															.hazardLevel === "Moderate"
+													.hazardLevel === "Moderate"
 													? "secondary"
 													: "outline"
 										}
@@ -394,63 +393,63 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									{resourceConsiderations.materialHandling.specificHazards
 										?.length > 0 && (
-										<div>
-											<p className="text-sm font-medium mb-2">
-												Specific Hazards
-											</p>
-											<ul className="space-y-1">
-												{resourceConsiderations.materialHandling.specificHazards.map(
-													(item: string, idx: number) => (
-														<li
-															key={idx}
-															className="text-sm text-muted-foreground"
-														>
-															• {item}
-														</li>
-													),
-												)}
-											</ul>
-										</div>
-									)}
+											<div>
+												<p className="text-sm font-medium mb-2">
+													Specific Hazards
+												</p>
+												<ul className="space-y-1">
+													{resourceConsiderations.materialHandling.specificHazards.map(
+														(item: string, idx: number) => (
+															<li
+																key={idx}
+																className="text-sm text-muted-foreground"
+															>
+																• {item}
+															</li>
+														),
+													)}
+												</ul>
+											</div>
+										)}
 									{resourceConsiderations.materialHandling.ppeRequirements
 										?.length > 0 && (
-										<div>
-											<p className="text-sm font-medium mb-2">
-												PPE Requirements
-											</p>
-											<ul className="space-y-1">
-												{resourceConsiderations.materialHandling.ppeRequirements.map(
-													(item: string, idx: number) => (
-														<li
-															key={idx}
-															className="text-sm text-muted-foreground"
-														>
-															• {item}
-														</li>
-													),
-												)}
-											</ul>
-										</div>
-									)}
+											<div>
+												<p className="text-sm font-medium mb-2">
+													PPE Requirements
+												</p>
+												<ul className="space-y-1">
+													{resourceConsiderations.materialHandling.ppeRequirements.map(
+														(item: string, idx: number) => (
+															<li
+																key={idx}
+																className="text-sm text-muted-foreground"
+															>
+																• {item}
+															</li>
+														),
+													)}
+												</ul>
+											</div>
+										)}
 								</div>
 								{resourceConsiderations.materialHandling.regulatoryNotes
 									?.length > 0 && (
-									<div>
-										<p className="text-sm font-medium mb-2">Regulatory Notes</p>
-										<ul className="space-y-1">
-											{resourceConsiderations.materialHandling.regulatoryNotes.map(
-												(item: string, idx: number) => (
-													<li
-														key={idx}
-														className="text-sm text-orange-600 dark:text-orange-400"
-													>
-														• {item}
-													</li>
-												),
-											)}
-										</ul>
-									</div>
-								)}
+										<div>
+											<p className="text-sm font-medium mb-2">Regulatory Notes</p>
+											<ul className="space-y-1">
+												{resourceConsiderations.materialHandling.regulatoryNotes.map(
+													(item: string, idx: number) => (
+														<li
+															key={idx}
+															className="text-sm text-orange-600 dark:text-orange-400"
+														>
+															• {item}
+														</li>
+													),
+												)}
+											</ul>
+										</div>
+									)}
 							</TabsContent>
 
 							{/* Storage & Handling Tab */}
@@ -471,44 +470,44 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								</div>
 								{resourceConsiderations.materialHandling.degradationRisks
 									?.length > 0 && (
-									<div>
-										<p className="text-sm font-medium mb-2">
-											Degradation Risks
-										</p>
-										<ul className="space-y-1">
-											{resourceConsiderations.materialHandling.degradationRisks.map(
-												(item: string, idx: number) => (
-													<li
-														key={idx}
-														className="text-sm text-orange-600 dark:text-orange-400"
-													>
-														• {item}
-													</li>
-												),
-											)}
-										</ul>
-									</div>
-								)}
+										<div>
+											<p className="text-sm font-medium mb-2">
+												Degradation Risks
+											</p>
+											<ul className="space-y-1">
+												{resourceConsiderations.materialHandling.degradationRisks.map(
+													(item: string, idx: number) => (
+														<li
+															key={idx}
+															className="text-sm text-orange-600 dark:text-orange-400"
+														>
+															• {item}
+														</li>
+													),
+												)}
+											</ul>
+										</div>
+									)}
 								{resourceConsiderations.materialHandling.qualityPriceImpact
 									?.length > 0 && (
-									<div>
-										<p className="text-sm font-medium mb-2">
-											Quality vs Price Impact
-										</p>
-										<ul className="space-y-1">
-											{resourceConsiderations.materialHandling.qualityPriceImpact.map(
-												(item: string, idx: number) => (
-													<li
-														key={idx}
-														className="text-sm text-muted-foreground"
-													>
-														• {item}
-													</li>
-												),
-											)}
-										</ul>
-									</div>
-								)}
+										<div>
+											<p className="text-sm font-medium mb-2">
+												Quality vs Price Impact
+											</p>
+											<ul className="space-y-1">
+												{resourceConsiderations.materialHandling.qualityPriceImpact.map(
+													(item: string, idx: number) => (
+														<li
+															key={idx}
+															className="text-sm text-muted-foreground"
+														>
+															• {item}
+														</li>
+													),
+												)}
+											</ul>
+										</div>
+									)}
 							</TabsContent>
 
 							{/* Market Intelligence Tab */}
@@ -529,34 +528,34 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 															<h4 className="text-sm font-semibold">{type}</h4>
 															{resourceConsiderations.marketIntelligence
 																.typicalRequirements?.length > 0 && (
-																<div>
-																	<p className="text-xs font-medium text-muted-foreground mb-1">
-																		Typical Requirements:
-																	</p>
-																	<ul className="text-xs text-muted-foreground space-y-0.5">
-																		{resourceConsiderations.marketIntelligence.typicalRequirements
-																			.slice(0, 3)
-																			.map((req: string, i: number) => (
-																				<li key={i}>• {req}</li>
-																			))}
-																	</ul>
-																</div>
-															)}
+																	<div>
+																		<p className="text-xs font-medium text-muted-foreground mb-1">
+																			Typical Requirements:
+																		</p>
+																		<ul className="text-xs text-muted-foreground space-y-0.5">
+																			{resourceConsiderations.marketIntelligence.typicalRequirements
+																				.slice(0, 3)
+																				.map((req: string, i: number) => (
+																					<li key={i}>• {req}</li>
+																				))}
+																		</ul>
+																	</div>
+																)}
 															{resourceConsiderations.marketIntelligence
 																.pricingFactors?.length > 0 && (
-																<div>
-																	<p className="text-xs font-medium text-muted-foreground mb-1">
-																		Pricing Factors:
-																	</p>
-																	<ul className="text-xs text-muted-foreground space-y-0.5">
-																		{resourceConsiderations.marketIntelligence.pricingFactors
-																			.slice(0, 3)
-																			.map((factor: string, i: number) => (
-																				<li key={i}>• {factor}</li>
-																			))}
-																	</ul>
-																</div>
-															)}
+																	<div>
+																		<p className="text-xs font-medium text-muted-foreground mb-1">
+																			Pricing Factors:
+																		</p>
+																		<ul className="text-xs text-muted-foreground space-y-0.5">
+																			{resourceConsiderations.marketIntelligence.pricingFactors
+																				.slice(0, 3)
+																				.map((factor: string, i: number) => (
+																					<li key={i}>• {factor}</li>
+																				))}
+																		</ul>
+																	</div>
+																)}
 														</div>
 													</HoverCardContent>
 												</HoverCard>
@@ -567,44 +566,44 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									{resourceConsiderations.marketIntelligence.typicalRequirements
 										?.length > 0 && (
-										<div>
-											<p className="text-sm font-medium mb-2">
-												Typical Requirements
-											</p>
-											<ul className="space-y-1">
-												{resourceConsiderations.marketIntelligence.typicalRequirements.map(
-													(item: string, idx: number) => (
-														<li
-															key={idx}
-															className="text-sm text-muted-foreground"
-														>
-															• {item}
-														</li>
-													),
-												)}
-											</ul>
-										</div>
-									)}
+											<div>
+												<p className="text-sm font-medium mb-2">
+													Typical Requirements
+												</p>
+												<ul className="space-y-1">
+													{resourceConsiderations.marketIntelligence.typicalRequirements.map(
+														(item: string, idx: number) => (
+															<li
+																key={idx}
+																className="text-sm text-muted-foreground"
+															>
+																• {item}
+															</li>
+														),
+													)}
+												</ul>
+											</div>
+										)}
 									{resourceConsiderations.marketIntelligence.pricingFactors
 										?.length > 0 && (
-										<div>
-											<p className="text-sm font-medium mb-2">
-												Pricing Factors
-											</p>
-											<ul className="space-y-1">
-												{resourceConsiderations.marketIntelligence.pricingFactors.map(
-													(item: string, idx: number) => (
-														<li
-															key={idx}
-															className="text-sm text-muted-foreground"
-														>
-															• {item}
-														</li>
-													),
-												)}
-											</ul>
-										</div>
-									)}
+											<div>
+												<p className="text-sm font-medium mb-2">
+													Pricing Factors
+												</p>
+												<ul className="space-y-1">
+													{resourceConsiderations.marketIntelligence.pricingFactors.map(
+														(item: string, idx: number) => (
+															<li
+																key={idx}
+																className="text-sm text-muted-foreground"
+															>
+																• {item}
+															</li>
+														),
+													)}
+												</ul>
+											</div>
+										)}
 								</div>
 							</TabsContent>
 						</Tabs>

@@ -9,10 +9,10 @@ interface User {
 	email: string;
 	firstName: string;
 	lastName: string;
-	companyName?: string;
-	location?: string;
-	sector?: string;
-	subsector?: string;
+	companyName?: string | undefined;
+	location?: string | undefined;
+	sector?: string | undefined;
+	subsector?: string | undefined;
 	isVerified: boolean;
 	isActive: boolean;
 	createdAt: string;
@@ -57,6 +57,29 @@ interface UpdateProfileRequest {
 	subsector?: string;
 }
 
+// Backend response types (snake_case from FastAPI)
+interface BackendTokenResponse {
+	access_token: string;
+	token_type: string;
+	expires_in?: number;
+}
+
+interface BackendUserResponse {
+	id: string;
+	email: string;
+	first_name: string;
+	last_name: string;
+	company_name?: string;
+	location?: string;
+	sector?: string;
+	subsector?: string;
+	is_verified: boolean;
+	is_active: boolean;
+	created_at: string;
+	is_superuser: boolean;
+	role: UserRole;
+}
+
 // Auth API service
 export class AuthAPI {
 	// Authentication
@@ -66,7 +89,7 @@ export class AuthAPI {
 		formData.append("username", credentials.email); // FastAPI Users uses 'username' instead of 'email'
 		formData.append("password", credentials.password);
 
-		const response = await apiClient.post<any>("/auth/jwt/login", formData, {
+		const response = await apiClient.post<BackendTokenResponse>("/auth/jwt/login", formData, {
 			"Content-Type": "application/x-www-form-urlencoded",
 		});
 
@@ -109,7 +132,7 @@ export class AuthAPI {
 		};
 
 		// Register user (FastAPI Users returns user data)
-		await apiClient.post<any>("/auth/register", backendData as any);
+		await apiClient.post<BackendUserResponse>("/auth/register", backendData);
 
 		// After successful registration, automatically login
 		return AuthAPI.login({
@@ -137,7 +160,7 @@ export class AuthAPI {
 		request: PasswordResetRequest,
 	): Promise<void> {
 		// FastAPI Users endpoint for password reset
-		return apiClient.post<void>("/auth/forgot-password", request as any);
+		return apiClient.post<void>("/auth/forgot-password", { email: request.email });
 	}
 
 	static async confirmPasswordReset(
@@ -152,7 +175,7 @@ export class AuthAPI {
 
 	// User management
 	static async getCurrentUser(): Promise<User> {
-		const response = await apiClient.get<any>("/auth/me");
+		const response = await apiClient.get<BackendUserResponse>("/auth/me");
 
 		// Transform backend snake_case to frontend camelCase
 		return {

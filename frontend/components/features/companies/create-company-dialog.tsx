@@ -204,7 +204,6 @@ export function CreateCompanyDialog({
 									setFormData({ ...formData, name: e.target.value })
 								}
 								onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
-								placeholder="Acme Corporation"
 								required
 							/>
 							{touched.name && !formData.name.trim() && (
@@ -240,7 +239,6 @@ export function CreateCompanyDialog({
 								onChange={(e) =>
 									setFormData({ ...formData, contactName: e.target.value })
 								}
-								placeholder="John Doe"
 							/>
 						</div>
 
@@ -257,7 +255,7 @@ export function CreateCompanyDialog({
 								onBlur={() =>
 									setTouched((prev) => ({ ...prev, email: true }))
 								}
-								placeholder="[email protected]"
+								placeholder="name@company.com"
 							/>
 							{touched.email && formData.contactEmail && !isEmailValid && (
 								<p className="text-sm text-destructive">
@@ -288,7 +286,6 @@ export function CreateCompanyDialog({
 								onChange={(e) =>
 									setFormData({ ...formData, notes: e.target.value })
 								}
-								placeholder="Additional notes..."
 								rows={3}
 							/>
 						</div>

@@ -95,14 +95,14 @@ export class ProjectsAPI {
 	static async createProject(
 		data: CreateProjectPayload,
 	): Promise<ProjectDetail> {
-		return apiClient.post<ProjectDetail>("/projects", data as any);
+		return apiClient.post<ProjectDetail>("/projects", data);
 	}
 
 	static async updateProject(
 		id: string,
 		data: UpdateProjectPayload,
 	): Promise<ProjectDetail> {
-		return apiClient.patch<ProjectDetail>(`/projects/${id}`, data as any);
+		return apiClient.patch<ProjectDetail>(`/projects/${id}`, data);
 	}
 
 	static async deleteProject(id: string): Promise<void> {
@@ -171,8 +171,8 @@ export class ProjectsAPI {
 	static async getTimeline(
 		projectId: string,
 		limit: number = 50,
-	): Promise<any[]> {
-		return apiClient.get<any[]>(
+	): Promise<JsonObject[]> {
+		return apiClient.get<JsonObject[]>(
 			`/projects/${projectId}/timeline?limit=${limit}`,
 		);
 	}

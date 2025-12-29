@@ -8,7 +8,6 @@ import {
 	PremiumProjectWizard,
 	ProjectPipeline,
 	SimplifiedStats,
-	SmartNotifications,
 } from "@/components/features/dashboard";
 import { ProjectCard } from "@/components/features/dashboard/components/project-card";
 import ClientOnly from "@/components/shared/common/client-only";
@@ -236,17 +235,12 @@ const DashboardContent = memo(function DashboardContent() {
 			</div>
 
 
-			{/* Enhanced Stats Grid */}
+			{/* Stats Section */}
 			<div
-				className="animate-fade-in-up grid grid-cols-1 lg:grid-cols-3 gap-6"
+				className="animate-fade-in-up"
 				style={{ animationDelay: "300ms" }}
 			>
-				<div className="lg:col-span-2">
-					<SimplifiedStats />
-				</div>
-				<div>
-					<SmartNotifications />
-				</div>
+				<SimplifiedStats />
 			</div>
 
 			{/* Assessments Section */}
@@ -442,14 +436,7 @@ function DashboardSkeleton() {
 			</div>
 
 			{/* Stats Skeleton */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<div className="lg:col-span-2">
-					<Skeleton className="h-48 w-full" />
-				</div>
-				<div>
-					<Skeleton className="h-48 w-full" />
-				</div>
-			</div>
+			<Skeleton className="h-48 w-full" />
 
 			{/* Assessments Grid Skeleton */}
 			<WasteStreamGridSkeleton />

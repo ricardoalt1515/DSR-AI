@@ -128,7 +128,6 @@ export function CreateLocationDialog({
 										value={field.state.value}
 										onChange={(e) => field.handleChange(e.target.value)}
 										onBlur={field.handleBlur}
-										placeholder="Production Plant"
 									/>
 									{field.state.meta.errors.length > 0 && (
 										<p className="text-xs text-destructive">
@@ -152,7 +151,6 @@ export function CreateLocationDialog({
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
 											onBlur={field.handleBlur}
-											placeholder="Dallas"
 										/>
 										{field.state.meta.errors.length > 0 && (
 											<p className="text-xs text-destructive">
@@ -174,7 +172,6 @@ export function CreateLocationDialog({
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
 											onBlur={field.handleBlur}
-											placeholder="Texas"
 										/>
 										{field.state.meta.errors.length > 0 && (
 											<p className="text-xs text-destructive">
@@ -196,7 +193,6 @@ export function CreateLocationDialog({
 										value={field.state.value}
 										onChange={(e) => field.handleChange(e.target.value)}
 										onBlur={field.handleBlur}
-										placeholder="Av. Industrial 123"
 									/>
 								</div>
 							)}
@@ -212,7 +208,6 @@ export function CreateLocationDialog({
 										value={field.state.value}
 										onChange={(e) => field.handleChange(e.target.value)}
 										onBlur={field.handleBlur}
-										placeholder="Additional information..."
 										rows={3}
 									/>
 								</div>
