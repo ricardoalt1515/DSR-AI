@@ -44,6 +44,8 @@ export function QuickActionsCard({
 		closeDrawer?.();
 	};
 
+	// Using 'as any' for deep optional property access without verbose null checking
+	// See WasteUpcyclingReport type in lib/types/proposal.ts for structure documentation
 	const report = proposal.aiMetadata.proposal as any;
 	const hasPathways =
 		(report.businessOpportunity?.circularEconomyOptions?.length || 0) > 0;

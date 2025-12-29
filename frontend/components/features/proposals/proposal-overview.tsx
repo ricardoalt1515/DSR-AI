@@ -18,6 +18,8 @@ interface ProposalOverviewProps {
 }
 
 export function ProposalOverview({ proposal }: ProposalOverviewProps) {
+	// Using 'as any' for deep optional property access without verbose null checking
+	// See WasteUpcyclingReport type in lib/types/proposal.ts for structure documentation
 	const report = proposal.aiMetadata.proposal as any;
 
 	// Extract photo insights from metadata with fileId for real images

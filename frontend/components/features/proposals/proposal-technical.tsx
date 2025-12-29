@@ -89,6 +89,8 @@ function parseBusinessOption(optionText: string): {
 }
 
 export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
+	// Using 'as any' for deep optional property access without verbose null checking
+	// See WasteUpcyclingReport type in lib/types/proposal.ts for structure documentation
 	const report = proposal.aiMetadata.proposal as any;
 	const businessOpp = report.businessOpportunity;
 	const circularEconomyOptions = businessOpp?.circularEconomyOptions || [];

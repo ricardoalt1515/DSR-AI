@@ -33,6 +33,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TagInput } from "@/components/ui/tag-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useClickOutside } from "@/lib/hooks/use-click-outside";
@@ -41,8 +42,8 @@ import type { DataSource, TableField } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 
 /**
- * ✅ Componente compartido para editar campos técnicos
- * Soporta: text, number, select, combobox, unit, tags, multiline
+ * Componente compartido para editar campos técnicos
+ * Soporta: text, number, select, combobox, unit, tags, radio, multiline
  * Modos: inline (dynamic-section), table (engineering-table), dialog (futuro)
  */
 
@@ -210,6 +211,27 @@ export function FieldEditor({
 						suggestions={field.options || []}
 						className="min-h-[32px]"
 					/>
+				);
+
+			case "radio":
+				return (
+					<RadioGroup
+						value={state.value?.toString() ?? ""}
+						onValueChange={(v) => actions.updateValue(v)}
+						className="flex gap-4"
+					>
+						{field.options?.map((option) => (
+							<div key={option} className="flex items-center gap-2">
+								<RadioGroupItem value={option} id={`${field.id}-${option}`} />
+								<Label
+									htmlFor={`${field.id}-${option}`}
+									className="text-sm font-normal capitalize cursor-pointer"
+								>
+									{option}
+								</Label>
+							</div>
+						))}
+					</RadioGroup>
 				);
 
 			default:

@@ -130,6 +130,7 @@ export function PremiumProjectWizard({
 		description: "",
 	});
 	const [isCreating, setIsCreating] = useState(false);
+	const [touched, setTouched] = useState<Record<string, boolean>>({});
 	const { createProject } = useProjectActions();
 	const router = useRouter();
 	const { companies, loadCompanies } = useCompanyStore();
@@ -245,6 +246,7 @@ export function PremiumProjectWizard({
 				locationId: "",
 				description: "",
 			});
+			setTouched({});
 		} catch (_error) {
 			toast.error("Error creating waste stream", {
 				description: "Please check that the location has an associated company",
@@ -314,9 +316,17 @@ export function PremiumProjectWizard({
 									placeholder="e.g. Wood Waste - January 2024"
 									value={projectData.name}
 									onChange={(e) => updateProjectData({ name: e.target.value })}
+									onBlur={() =>
+										setTouched((prev) => ({ ...prev, name: true }))
+									}
 									className="h-12 text-base"
 									autoFocus
 								/>
+								{touched.name && !projectData.name.trim() && (
+									<p className="text-sm text-destructive">
+										Waste stream name is required
+									</p>
+								)}
 							</div>
 
 							<div className="space-y-2">
@@ -332,22 +342,31 @@ export function PremiumProjectWizard({
 										</Badge>
 									</div>
 								) : (
-									<CompanyCombobox
-										value={projectData.companyId}
-										onValueChange={(id) => {
-											// Get company name for legacy field
-											const company = useCompanyStore
-												.getState()
-												.companies.find((c) => c.id === id);
-											updateProjectData({
-												companyId: id,
-												client: company?.name || "",
-												locationId: "", // Reset location when company changes
-												location: "",
-											});
-										}}
-										placeholder="Select or create company..."
-									/>
+									<>
+										<CompanyCombobox
+											value={projectData.companyId}
+											onValueChange={(id) => {
+												// Get company name for legacy field
+												const company = useCompanyStore
+													.getState()
+													.companies.find((c) => c.id === id);
+												updateProjectData({
+													companyId: id,
+													client: company?.name || "",
+													locationId: "", // Reset location when company changes
+													location: "",
+												});
+											}}
+											placeholder="Select or create company..."
+										/>
+										{touched.name &&
+											projectData.name.trim() &&
+											!projectData.companyId && (
+												<p className="text-sm text-destructive">
+													Please select a company
+												</p>
+											)}
+									</>
 								)}
 							</div>
 
@@ -365,21 +384,31 @@ export function PremiumProjectWizard({
 											</Badge>
 										</div>
 									) : (
-										<LocationCombobox
-											companyId={projectData.companyId}
-											value={projectData.locationId}
-											onValueChange={(id) => {
-												// Get location city for legacy field
-												const location = useLocationStore
-													.getState()
-													.locations.find((l) => l.id === id);
-												updateProjectData({
-													locationId: id,
-													location: location?.city || "",
-												});
-											}}
-											placeholder="Select or create location..."
-										/>
+										<>
+											<LocationCombobox
+												companyId={projectData.companyId}
+												value={projectData.locationId}
+												onValueChange={(id) => {
+													// Get location city for legacy field
+													const location = useLocationStore
+														.getState()
+														.locations.find((l) => l.id === id);
+													updateProjectData({
+														locationId: id,
+														location: location?.city || "",
+													});
+												}}
+												placeholder="Select or create location..."
+											/>
+											{touched.name &&
+												projectData.name.trim() &&
+												projectData.companyId &&
+												!projectData.locationId && (
+													<p className="text-sm text-destructive">
+														Please select a location
+													</p>
+												)}
+										</>
 									)}
 								</div>
 							)}

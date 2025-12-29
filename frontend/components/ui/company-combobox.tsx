@@ -87,7 +87,9 @@ export function CompanyCombobox({
 							<CreateCompanyDialog
 								onSuccess={(company) => {
 									loadCompanies();
-									onValueChange?.(company.id);
+									if (company) {
+										onValueChange?.(company.id);
+									}
 									setOpen(false);
 								}}
 								trigger={

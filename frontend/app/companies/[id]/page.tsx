@@ -63,17 +63,6 @@ export default function CompanyDetailPage() {
 		}
 	}, [companyId, loadCompany, loadLocationsByCompany]);
 
-	// Handle location delete request
-	const handleLocationDelete = (
-		location: LocationSummary,
-		e: React.MouseEvent,
-	) => {
-		e.stopPropagation();
-		setLocationToDelete(location);
-		setDeleteDialogOpen(true);
-	};
-
-	// Handle confirmed delete
 	const handleConfirmDelete = async () => {
 		if (!locationToDelete) return;
 
@@ -81,16 +70,19 @@ export default function CompanyDetailPage() {
 		try {
 			await deleteLocation(locationToDelete.id);
 			toast.success(`Location "${locationToDelete.name}" deleted successfully`);
+
+			// Close dialog IMMEDIATELY after successful delete
 			setDeleteDialogOpen(false);
 			setLocationToDelete(null);
-			// Reload company to update location count
-			await loadCompany(companyId);
-			await loadLocationsByCompany(companyId);
+			setDeleting(false);
+
+			// Reload data in background (non-blocking)
+			loadCompany(companyId);
+			loadLocationsByCompany(companyId);
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
 			);
-		} finally {
 			setDeleting(false);
 		}
 	};
@@ -311,21 +303,22 @@ export default function CompanyDetailPage() {
 													: "waste streams"}
 											</Badge>
 											<DropdownMenu>
-												<DropdownMenuTrigger
-													asChild
-													onClick={(e) => e.stopPropagation()}
-												>
+												<DropdownMenuTrigger asChild>
 													<Button
 														variant="ghost"
 														size="icon"
 														className="h-8 w-8"
+														onClick={(e) => e.stopPropagation()}
 													>
 														<MoreVertical className="h-4 w-4" />
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
 													<DropdownMenuItem
-														onClick={(e) => handleLocationDelete(location, e)}
+														onSelect={() => {
+															setLocationToDelete(location);
+															setDeleteDialogOpen(true);
+														}}
 														className="text-destructive focus:text-destructive"
 													>
 														<Trash2 className="mr-2 h-4 w-4" />
@@ -380,18 +373,19 @@ export default function CompanyDetailPage() {
 				)}
 			</div>
 
-			{/* Delete Confirmation Dialog */}
-			{locationToDelete && (
-				<ConfirmDeleteDialog
-					open={deleteDialogOpen}
-					onOpenChange={setDeleteDialogOpen}
-					onConfirm={handleConfirmDelete}
-					title="Delete Location"
-					description="This will permanently delete all waste streams associated with this location. This action cannot be undone."
-					itemName={locationToDelete.name}
-					loading={deleting}
-				/>
-			)}
+			{/* Delete Confirmation Dialog - always mounted, controlled by open prop */}
+			<ConfirmDeleteDialog
+				open={deleteDialogOpen}
+				onOpenChange={(open) => {
+					setDeleteDialogOpen(open);
+					if (!open) setLocationToDelete(null);
+				}}
+				onConfirm={handleConfirmDelete}
+				title="Delete Location"
+				description="This will permanently delete all waste streams associated with this location. This action cannot be undone."
+				itemName={locationToDelete?.name}
+				loading={deleting}
+			/>
 
 			{/* Edit Company Dialog - Reuse CreateCompanyDialog (DRY) */}
 			{editCompanyDialogOpen && (

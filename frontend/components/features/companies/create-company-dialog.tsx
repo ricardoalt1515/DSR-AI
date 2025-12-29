@@ -34,10 +34,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
 import type { Sector, Subsector } from "@/lib/sectors-config";
 import { useCompanyStore } from "@/lib/stores/company-store";
-import type { CompanyFormData } from "@/lib/types/company";
+import type { CompanyDetail, CompanyFormData } from "@/lib/types/company";
 
 interface CreateCompanyDialogProps {
-	onSuccess?: (company: any) => void;
+	onSuccess?: (company: CompanyDetail | null) => void;
 	trigger?: React.ReactNode;
 	/** Edit mode: provide existing company data */
 	companyToEdit?: {
@@ -77,6 +77,7 @@ export function CreateCompanyDialog({
 
 	const isEditMode = !!companyToEdit;
 	const [formData, setFormData] = useState<CompanyFormData>(EMPTY_FORM);
+	const [touched, setTouched] = useState<Record<string, boolean>>({});
 
 	// Populate form data when editing
 	useEffect(() => {
@@ -126,6 +127,7 @@ export function CreateCompanyDialog({
 
 			setOpen(false);
 			setFormData(EMPTY_FORM);
+			setTouched({});
 			onSuccess?.(company);
 		} catch (error) {
 			toast({
@@ -157,8 +159,11 @@ export function CreateCompanyDialog({
 		}
 	};
 
-	// Form is valid when name and sector are filled
-	const isFormValid = formData.name && formData.sector;
+	// Form is valid when name and sector are filled, and email format is valid if provided
+	const isEmailValid =
+		!formData.contactEmail ||
+		/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail);
+	const isFormValid = formData.name.trim() && formData.sector && isEmailValid;
 
 	return (
 		<Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
@@ -198,9 +203,15 @@ export function CreateCompanyDialog({
 								onChange={(e) =>
 									setFormData({ ...formData, name: e.target.value })
 								}
+								onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
 								placeholder="Acme Corporation"
 								required
 							/>
+							{touched.name && !formData.name.trim() && (
+								<p className="text-sm text-destructive">
+									Company name is required
+								</p>
+							)}
 						</div>
 
 						{/* Sector / Subsector - single reusable component */}
@@ -212,6 +223,11 @@ export function CreateCompanyDialog({
 							}
 							onSubsectorChange={(subsector) =>
 								setFormData((prev) => ({ ...prev, subsector: subsector as Subsector }))
+							}
+							error={
+								touched.name && formData.name.trim() && !formData.sector
+									? "Please select a sector"
+									: undefined
 							}
 						/>
 
@@ -238,8 +254,16 @@ export function CreateCompanyDialog({
 								onChange={(e) =>
 									setFormData({ ...formData, contactEmail: e.target.value })
 								}
+								onBlur={() =>
+									setTouched((prev) => ({ ...prev, email: true }))
+								}
 								placeholder="[email protected]"
 							/>
+							{touched.email && formData.contactEmail && !isEmailValid && (
+								<p className="text-sm text-destructive">
+									Please enter a valid email address
+								</p>
+							)}
 						</div>
 
 						{/* Contact Phone */}

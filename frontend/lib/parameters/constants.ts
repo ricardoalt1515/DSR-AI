@@ -20,9 +20,12 @@ export const CORE_SECTIONS = [
 	"field-notes",
 ] as const;
 
+/** Core section ID type */
+export type CoreSectionId = (typeof CORE_SECTIONS)[number];
+
 /**
  * Check if a section is a fixed core section
  */
-export function isFixedSection(sectionId: string): boolean {
-	return CORE_SECTIONS.includes(sectionId as any);
+export function isFixedSection(sectionId: string): sectionId is CoreSectionId {
+	return (CORE_SECTIONS as readonly string[]).includes(sectionId);
 }

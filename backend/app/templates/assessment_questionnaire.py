@@ -140,6 +140,7 @@ def get_assessment_questionnaire() -> list[dict]:
         # ================================================================
         {
             "id": "waste-generation",
+            "order": 1,
             "title": "1. Waste Generation Details",
             "description": "Critical information about waste types, volumes, and current handling",
             "fields": [
@@ -284,6 +285,7 @@ def get_assessment_questionnaire() -> list[dict]:
         # ================================================================
         {
             "id": "objectives-constraints",
+            "order": 2,
             "title": "2. Objectives & Constraints",
             "description": "Client priorities and operational limitations",
             "fields": [

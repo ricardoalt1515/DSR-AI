@@ -24,6 +24,7 @@ export const FIELD_TYPES = [
 	"unit",
 	"tags",
 	"combobox",
+	"radio",
 ] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 

@@ -221,17 +221,36 @@ export function CreateLocationDialog({
 					</div>
 
 					<DialogFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setOpen(false)}
-							disabled={form.state.isSubmitting}
+						<form.Subscribe
+							selector={(state) => ({
+								canSubmit: Boolean(
+									state.values.name?.trim() &&
+									state.values.city?.trim() &&
+									state.values.state?.trim()
+								),
+								isSubmitting: state.isSubmitting,
+							})}
 						>
-							Cancel
-						</Button>
-						<LoadingButton type="submit" loading={form.state.isSubmitting}>
-							Create Location
-						</LoadingButton>
+							{({ canSubmit, isSubmitting }) => (
+								<>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => setOpen(false)}
+										disabled={isSubmitting}
+									>
+										Cancel
+									</Button>
+									<LoadingButton
+										type="submit"
+										loading={isSubmitting}
+										disabled={!canSubmit}
+									>
+										Create Location
+									</LoadingButton>
+								</>
+							)}
+						</form.Subscribe>
 					</DialogFooter>
 				</form>
 			</DialogContent>

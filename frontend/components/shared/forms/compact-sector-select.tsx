@@ -51,6 +51,8 @@ interface CompactSectorSelectProps {
     onSubsectorChange: (subsector: Subsector | string) => void;
     disabled?: boolean;
     className?: string;
+    /** Error message to display under sector select */
+    error?: string | undefined;
 }
 
 export function CompactSectorSelect({
@@ -60,6 +62,7 @@ export function CompactSectorSelect({
     onSubsectorChange,
     disabled = false,
     className,
+    error,
 }: CompactSectorSelectProps) {
     const [subsectorOpen, setSubsectorOpen] = useState(false);
     const [searchValue, setSearchValue] = useState("");
@@ -142,6 +145,9 @@ export function CompactSectorSelect({
                         })}
                     </SelectContent>
                 </Select>
+                {error && (
+                    <p className="text-sm text-destructive">{error}</p>
+                )}
             </div>
 
             {/* Subsector Combobox - Creatable */}

@@ -28,14 +28,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Public routes that don't require authentication
 const PUBLIC_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
-/**
- * 🔒 SECURITY: Clear all user-specific localStorage data
- * This prevents data leakage between different users on the same browser
- */
-function clearUserData() {
+function isPublicRoute(pathname: string): boolean {
+	return PUBLIC_ROUTES.some(
+		(route) => pathname === route || pathname.startsWith(`${route}/`),
+	);
+}
+
+function clearUserData(): void {
 	localStorage.removeItem("h2o-project-store");
 	localStorage.removeItem("h2o-technical-data-store");
 	localStorage.removeItem("active-proposal-generation");
@@ -48,16 +49,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const resetProjectStore = useProjectStore((state) => state.resetStore);
 
-	// Initialize auth on mount
 	useEffect(() => {
-		// ✅ FIX: Set up global 401 handler ONCE (not dependent on router)
+		// Global 401 handler - uses hard refresh to ensure clean state
 		apiClient.setUnauthorizedHandler(() => {
-			logger.warn("Global 401 handler: Clearing session", "AuthContext");
+			logger.warn("Global 401: Clearing session", "AuthContext");
 			authAPI.logout();
 			setUser(null);
 			clearUserData();
-
-			// ✅ FIX: Only redirect if NOT already on login page (prevents loop)
 			if (window.location.pathname !== "/login") {
 				window.location.href = "/login";
 			}
@@ -65,70 +63,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 		const initAuth = async () => {
 			const hasToken = authAPI.initializeAuth();
-
 			if (hasToken) {
 				try {
-					// Validate session and get user info
 					const response = await authAPI.validateSession();
 					if (response.valid && response.user) {
 						setUser(response.user);
 					} else {
-						// Token invalid, clear it
 						authAPI.logout();
 					}
-				} catch (error) {
-					logger.error("Auth initialization error", error, "AuthContext");
+				} catch {
 					authAPI.logout();
 				}
 			}
-
 			setIsLoading(false);
 		};
 
 		initAuth();
-		// ✅ FIX: Empty dependency array - run ONLY on mount
 	}, []);
 
-	// Redirect logic
 	useEffect(() => {
-		if (isLoading) return; // Don't redirect while loading
+		if (isLoading) return;
 
-		const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-
-		if (!(user || isPublicRoute)) {
-			// Not authenticated and trying to access private route
-			// ✅ FIX: Use replace to avoid adding history entries
+		if (!user && !isPublicRoute(pathname)) {
 			router.replace("/login");
 		} else if (user && (pathname === "/login" || pathname === "/register")) {
-			// Authenticated and trying to access auth pages
-			// ✅ FIX: Use replace to avoid adding history entries
 			router.replace("/dashboard");
 		}
-		// ✅ FIX: Removed 'router' from dependencies to prevent re-execution loops
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [
-		user,
-		isLoading,
-		pathname, // Authenticated and trying to access auth pages
-		// ✅ FIX: Use replace to avoid adding history entries
-		router.replace,
-	]);
+	}, [user, isLoading, pathname, router]);
 
 	const login = async (email: string, password: string) => {
 		try {
 			setIsLoading(true);
-
-			// 🔒 SECURITY FIX: Clear ALL user data before login
-			// This prevents previous user's data from persisting in localStorage
 			clearUserData();
 			resetProjectStore();
-
 			const response = await authAPI.login({ email, password });
 			setUser(response.user);
 			toast.success("Login successful");
-			router.push("/dashboard");
 		} catch (error) {
-			logger.error("Login error", error, "AuthContext");
 			toast.error("Login failed. Please check your credentials.");
 			throw error;
 		} finally {
@@ -145,12 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	) => {
 		try {
 			setIsLoading(true);
-
-			// 🔒 SECURITY FIX: Clear ALL user data before registration
-			// This prevents previous user's data from persisting in localStorage
 			clearUserData();
 			resetProjectStore();
-
 			const response = await authAPI.register({
 				email,
 				password,
@@ -159,10 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			});
 			setUser(response.user);
 			toast.success("Registration successful");
-			router.push("/dashboard");
-		} catch (error) {
+		} catch {
 			toast.error("Registration failed. Try with another email.");
-			throw error;
+			throw new Error("Registration failed");
 		} finally {
 			setIsLoading(false);
 		}
@@ -173,60 +139,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUser(null);
 		clearUserData();
 		resetProjectStore();
-
 		toast.success("Session closed");
 		router.push("/login");
 	};
 
-	// Update user profile - syncs with backend and updates local state
 	const updateUser = async (data: Partial<User>) => {
-		try {
-			// Convert camelCase to snake_case for backend
-			const backendData: Record<string, string | undefined> = {};
-			if (data.firstName !== undefined) backendData.first_name = data.firstName;
-			if (data.lastName !== undefined) backendData.last_name = data.lastName;
-			if (data.companyName !== undefined) backendData.company_name = data.companyName;
-			if (data.location !== undefined) backendData.location = data.location;
-			if (data.sector !== undefined) backendData.sector = data.sector;
-			if (data.subsector !== undefined) backendData.subsector = data.subsector;
+		const backendData: Record<string, string | undefined> = {};
+		if (data.firstName !== undefined) backendData.first_name = data.firstName;
+		if (data.lastName !== undefined) backendData.last_name = data.lastName;
+		if (data.companyName !== undefined) backendData.company_name = data.companyName;
+		if (data.location !== undefined) backendData.location = data.location;
+		if (data.sector !== undefined) backendData.sector = data.sector;
+		if (data.subsector !== undefined) backendData.subsector = data.subsector;
 
-			const updatedUser = await authAPI.updateProfile(backendData);
-			setUser(updatedUser);
-		} catch (error) {
-			logger.error("Update profile error", error, "AuthContext");
-			throw error;
-		}
+		const updatedUser = await authAPI.updateProfile(backendData);
+		setUser(updatedUser);
 	};
 
-	// Refresh user data from backend
+	// Only logout on 401/403; keep session on network/5xx errors
 	const refreshUser = async () => {
 		try {
 			const currentUser = await authAPI.getCurrentUser();
 			setUser(currentUser);
-		} catch (error) {
-			logger.error("Refresh user error", error, "AuthContext");
+		} catch (error: any) {
+			const status = error?.status;
+			if (status === 401 || status === 403) {
+				setUser(null);
+			}
+			// Network/5xx: silently keep current session
 		}
 	};
 
-	const value: AuthContextType = {
-		user,
-		isLoading,
-		isAuthenticated: !!user,
-		isAdmin: !!user?.isSuperuser,
-		login,
-		register,
-		logout,
-		updateUser,
-		refreshUser,
-	};
-
-	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+	return (
+		<AuthContext.Provider
+			value={{
+				user,
+				isLoading,
+				isAuthenticated: !!user,
+				isAdmin: !!user?.isSuperuser,
+				login,
+				register,
+				logout,
+				updateUser,
+				refreshUser,
+			}}
+		>
+			{children}
+		</AuthContext.Provider>
+	);
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
 	const context = useContext(AuthContext);
-	if (context === undefined) {
-		throw new Error("useAuth must be used within an AuthProvider");
-	}
+	if (!context) throw new Error("useAuth must be used within AuthProvider");
 	return context;
 }

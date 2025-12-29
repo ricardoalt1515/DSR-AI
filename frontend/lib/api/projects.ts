@@ -155,11 +155,17 @@ export class ProjectsAPI {
 		);
 
 		// Fetch the blob from the URL (no auth headers - presigned URL handles auth)
-		const blobResponse = await fetch(response.url);
-		if (!blobResponse.ok) {
-			throw new Error(`Failed to download file: ${blobResponse.status}`);
+		try {
+			const blobResponse = await fetch(response.url);
+			if (!blobResponse.ok) {
+				throw new Error(`Failed to download file: ${blobResponse.status}`);
+			}
+			return await blobResponse.blob();
+		} catch (error) {
+			throw new Error(
+				`Download failed: ${error instanceof Error ? error.message : "Network error"}`,
+			);
 		}
-		return await blobResponse.blob();
 	}
 
 	static async getTimeline(

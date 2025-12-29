@@ -11,8 +11,8 @@ interface ProposalAssumptionsProps {
 }
 
 export function ProposalAssumptions({ proposal }: ProposalAssumptionsProps) {
-	// Note: technicalData is from legacy water treatment model
-	// Waste upcycling reports use a different structure (ai_insights, recommendations)
+	// Using 'as any' for deep optional property access without verbose null checking
+	// See WasteUpcyclingReport type in lib/types/proposal.ts for structure documentation
 	const technicalData = (proposal.aiMetadata?.proposal as any)?.technicalData;
 	const assumptions = technicalData?.assumptions || [];
 	const alternatives =
