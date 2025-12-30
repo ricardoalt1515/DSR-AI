@@ -3,12 +3,7 @@
 import {
 	ArrowRight,
 	Bell,
-	Brain,
 	CheckCircle,
-	ChevronDown,
-	ChevronRight,
-	Clock,
-	Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,56 +13,33 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-	type GroupedNotification,
-	useNotifications,
-} from "@/lib/hooks/use-notifications";
+import { useNotifications } from "@/lib/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
-const NOTIFICATION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-	"ready-for-proposal": Brain,
-	"proposal-completed": Sparkles,
-	stalled: Clock,
-};
+const SECTION_CONFIG = {
+	"ready-for-proposal": {
+		label: "Ready to generate",
+		dotColor: "bg-success",
+	},
+	"proposal-completed": {
+		label: "Proposals completed",
+		dotColor: "bg-success",
+	},
+	stalled: {
+		label: "Inactive",
+		dotColor: "bg-warning",
+	},
+} as const;
 
 export function NotificationDropdown() {
 	const router = useRouter();
 	const { notifications, actionCount, hasNotifications } = useNotifications();
-	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 	const [open, setOpen] = useState(false);
 
-	const toggleGroup = (id: string) => {
-		setExpandedGroups((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) {
-				next.delete(id);
-			} else {
-				next.add(id);
-			}
-			return next;
-		});
-	};
-
-	const handleNotificationClick = (notification: GroupedNotification) => {
-		if (notification.projects.length === 1 && notification.projects[0]) {
-			router.push(notification.getRoute(notification.projects[0].id));
-			setOpen(false);
-		} else {
-			toggleGroup(notification.id);
-		}
-	};
-
-	const handleProjectClick = (notification: GroupedNotification, projectId: string) => {
-		router.push(notification.getRoute(projectId));
+	const handleProjectClick = (route: string) => {
+		router.push(route);
 		setOpen(false);
 	};
-
-	const highPriorityNotifications = notifications.filter(
-		(n) => n.priority === "high"
-	);
-	const mediumPriorityNotifications = notifications.filter(
-		(n) => n.priority === "medium"
-	);
 
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
@@ -108,114 +80,67 @@ export function NotificationDropdown() {
 							<p className="text-xs text-muted-foreground">No pending actions</p>
 						</div>
 					) : (
-						<div className="py-2">
-							{highPriorityNotifications.map((notification) => (
-								<NotificationItem
-									key={notification.id}
-									notification={notification}
-									isExpanded={expandedGroups.has(notification.id)}
-									onClick={() => handleNotificationClick(notification)}
-									onProjectClick={(projectId) =>
-										handleProjectClick(notification, projectId)
-									}
-								/>
-							))}
+						<div className="py-1">
+							{notifications.map((notification, index) => {
+								const config = SECTION_CONFIG[notification.id as keyof typeof SECTION_CONFIG];
+								const isLast = index === notifications.length - 1;
 
-							{highPriorityNotifications.length > 0 &&
-								mediumPriorityNotifications.length > 0 && (
-									<div className="mx-4 my-2 border-t border-border/50" />
-								)}
+								return (
+									<div key={notification.id}>
+										{/* Section Header */}
+										<div className="px-4 py-2 pt-3">
+											<span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+												{config?.label ?? notification.id}
+											</span>
+										</div>
 
-							{mediumPriorityNotifications.map((notification) => (
-								<NotificationItem
-									key={notification.id}
-									notification={notification}
-									isExpanded={expandedGroups.has(notification.id)}
-									onClick={() => handleNotificationClick(notification)}
-									onProjectClick={(projectId) =>
-										handleProjectClick(notification, projectId)
-									}
-								/>
-							))}
+										{/* Project List */}
+										{notification.projects.map((project) => {
+											const daysSinceUpdate = Math.floor(
+												(Date.now() - new Date(project.updatedAt).getTime()) /
+													(1000 * 60 * 60 * 24)
+											);
+											const showDays = notification.id === "stalled";
+
+											return (
+												<button
+													key={project.id}
+													type="button"
+													onClick={() =>
+														handleProjectClick(notification.getRoute(project.id))
+													}
+													className="w-full flex items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50 group"
+												>
+													<span
+														className={cn(
+															"w-2 h-2 rounded-full flex-shrink-0",
+															config?.dotColor ?? "bg-muted-foreground"
+														)}
+													/>
+													<span className="flex-1 text-sm truncate">
+														{project.name}
+														{showDays && (
+															<span className="text-muted-foreground ml-1">
+																({daysSinceUpdate}d)
+															</span>
+														)}
+													</span>
+													<ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+												</button>
+											);
+										})}
+
+										{/* Separator between sections */}
+										{!isLast && (
+											<div className="mx-4 my-1 border-t border-border/30" />
+										)}
+									</div>
+								);
+							})}
 						</div>
 					)}
 				</div>
 			</DropdownMenuContent>
 		</DropdownMenu>
-	);
-}
-
-interface NotificationItemProps {
-	notification: GroupedNotification;
-	isExpanded: boolean;
-	onClick: () => void;
-	onProjectClick: (projectId: string) => void;
-}
-
-function NotificationItem({
-	notification,
-	isExpanded,
-	onClick,
-	onProjectClick,
-}: NotificationItemProps) {
-	const Icon = NOTIFICATION_ICONS[notification.id] ?? Bell;
-	const hasMultiple = notification.projects.length > 1;
-
-	return (
-		<div>
-			<button
-				type="button"
-				onClick={onClick}
-				className={cn(
-					"w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-					"hover:bg-muted/50",
-					notification.priority === "high" && "font-medium"
-				)}
-			>
-				<span
-					className={cn(
-						"w-2 h-2 rounded-full flex-shrink-0",
-						notification.type === "action" ? "bg-success" : "bg-warning"
-					)}
-				/>
-				<Icon
-					className={cn(
-						"h-4 w-4 flex-shrink-0",
-						notification.type === "action" ? "text-success" : "text-warning"
-					)}
-				/>
-				<span className="flex-1 text-sm truncate">{notification.title}</span>
-				{hasMultiple ? (
-					isExpanded ? (
-						<ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-					) : (
-						<ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-					)
-				) : (
-					<ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-				)}
-			</button>
-
-			{hasMultiple && isExpanded && (
-				<div className="ml-9 space-y-0.5 pb-1">
-					{notification.projects.map((project) => (
-						<button
-							key={project.id}
-							type="button"
-							onClick={() => onProjectClick(project.id)}
-							className="w-full flex items-center gap-2 py-1.5 px-4 text-left hover:bg-muted/30 transition-colors group"
-						>
-							<span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />
-							<span className="flex-1 text-sm text-muted-foreground truncate">
-								{project.name}
-							</span>
-							<span className="text-xs text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
-								{notification.actionLabel}
-							</span>
-						</button>
-					))}
-				</div>
-			)}
-		</div>
 	);
 }

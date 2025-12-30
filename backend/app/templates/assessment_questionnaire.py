@@ -146,13 +146,13 @@ def get_assessment_questionnaire() -> list[dict]:
             "fields": [
                 {
                     "id": "waste-types",
-                    "label": "Types of Waste Generated (select all that apply)",
-                    "value": [],
-                    "type": "tags",
+                    "label": "Type of Waste Generated",
+                    "value": "",
+                    "type": "combobox",
                     "options": WASTE_TYPES,
                     "required": True,
-                    "placeholder": "Select from list or type custom waste type...",
-                    "description": "Select predefined types or add custom waste types",
+                    "placeholder": "Select or type a waste type...",
+                    "description": "Select a waste type from the list or type a custom one",
                     "source": "manual"
                 },
                 {
