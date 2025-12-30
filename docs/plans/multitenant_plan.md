@@ -139,11 +139,11 @@ class Organization(BaseModel):
       return self.is_superuser
 
   def is_org_admin(self) -> bool:
-      return self.role == UserRole.ORG_ADMIN.value
+      return self.role == UserRole.ORG_ADMIN
 
   def can_see_all_org_projects(self) -> bool:
       """Org admin ve todos los proyectos de su org, no solo los suyos."""
-      return self.is_superuser or self.role == UserRole.ORG_ADMIN.value
+      return self.is_superuser or self.role == UserRole.ORG_ADMIN
   ```
 
 ### 1.2.1 Modificar UserManager
@@ -322,6 +322,10 @@ async def get_organization_context(
             raise HTTPException(403, "User's organization is inactive")
         return org
 
+    # Fail-fast: por CHECK constraint esto no deberia pasar
+    if current_user.organization_id is not None:
+        raise HTTPException(500, "Invalid admin state")
+
     # Super admin: DEBE seleccionar org via header
     if x_organization_id is None:
         raise HTTPException(
@@ -365,23 +369,20 @@ SuperAdminOnly = Annotated[User, Depends(get_super_admin_only)]
 
 **Archivo**: `backend/app/main.py`
 
-El browser bloquea headers custom en **requests cross-origin** si no estan permitidos en `allow_headers`.
-`expose_headers` es solo para poder **leer** headers de la respuesta desde el browser (no aplica a enviar headers).
+En este repo ya existe `CORSMiddleware` en `backend/app/main.py`.
 
-Recomendacion (mejor practica / menos abierto que `"*"`): listar explicitamente los headers necesarios e incluir `X-Organization-Id`.
+- Para el MVP, **no es necesario** cambiarlo: `allow_headers=["*"]` ya permite que el browser envie `X-Organization-Id`.
+- Importante: **no** agregar un segundo middleware de CORS; solo modificar el existente si hace falta.
+- Nota: `expose_headers` solo aplica para leer headers de la **respuesta** desde el browser (no para enviar headers).
 
 ```python
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,  # NOTA: usar cors_origins_list, NO CORS_ORIGINS
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Authorization",
-        "Content-Type",
-        "X-Organization-Id",
-    ],
-    expose_headers=["Content-Disposition"],  # ya existe para downloads
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 ```
 
@@ -625,7 +626,7 @@ async def get_job_status(
 
 **Actualizar schemas de usuario (para multi-tenant):**
 
-- En `backend/app/schemas/user_fastapi.py`, agregar campos de org al `UserRead` (minimo `organization_id`; opcional `organization_name`, `organization_slug`).
+- En `backend/app/schemas/user_fastapi.py`, agregar `organization_id: UUID | None` al `UserRead` (platform admins lo tienen `null`).
 - Mantener `UserUpdate` sin `organization_id` (inmutable).
 - Para provisioning, usar schemas separados para no abrir vector de org_id en `POST /auth/register` (si algun dia se habilita):
   - `OrgUserCreateRequest` (request model) **NO incluye** `organization_id`
@@ -726,21 +727,26 @@ async def create_org_user(
 **Archivo nuevo:** `frontend/lib/types/user.ts`
 
 - `export type UserRole = ...`
-- `export interface User = ...` (agregar `organizationId`, `organizationName`, `organizationSlug`)
+- `export interface User = ...` (agregar `organizationId: string | null`)
 
 **Archivos a modificar**:
 
 - `frontend/lib/api/auth.ts` - importar `User` y `UserRole` desde `frontend/lib/types/user.ts`
 - `frontend/lib/api/admin-users.ts` - importar `User` y `UserRole` desde `frontend/lib/types/user.ts`
 
-- Agregar `organizationId`, `organizationName`, `organizationSlug` a User
+- Agregar `organizationId: string | null` a `User`:
+  - Tenant users: siempre viene con valor (por CHECK constraint)
+  - Platform admins: siempre `null`
+- `organization.name`/`slug` se obtienen via `GET /organizations/current` y se guardan en `organization-store` (no duplicarlos en `User`)
 - Agregar rol `org_admin` a UserRole (string)
 
 ### 3.2 Actualizar Auth Context
 
 **Archivo**: `frontend/lib/contexts/auth-context.tsx`
 
-- Agregar `organizationId`, `organizationName` al context
+- Mantener el auth context enfocado en auth (no duplicar org data):
+  - `user.organizationId` existe (desde `User`)
+  - `currentOrganization` vive en `organization-store`
 - Agregar helpers: `isOrgAdmin`, `isSuperAdmin`
 
 ### 3.3 Crear Organization Store
@@ -755,6 +761,13 @@ async def create_org_user(
 - Si mas adelante hay 2+ consumers o crecen los endpoints de org, extraer `OrganizationsAPI` en un refactor.
 
 ```typescript
+interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+}
+
 interface OrganizationState {
   currentOrganization: Organization | null;
   organizations: Organization[]; // Solo para super admins
@@ -762,6 +775,7 @@ interface OrganizationState {
   // Super admin: seleccionar org activa
   selectedOrgId: string | null; // Persistido en localStorage
 
+  loadCurrentOrganization: () => Promise<void>;
   loadOrganizations: () => Promise<void>;
   selectOrganization: (orgId: string) => void;
 }
@@ -938,12 +952,18 @@ Para cuando un cliente quiera su propia instancia, documentar como importar el Z
 - `backend/app/api/v1/companies.py` - Filtrar por org (incluye endpoints de locations)
 - `backend/app/api/v1/projects.py` - Filtrar por org + logica org_admin
 - `backend/app/api/v1/proposals.py` - Filtrar por org + fix job status
+- `backend/app/api/v1/files.py` - Reusar `ProjectDep` org-aware + filtrar por org en queries de ProjectFile
+- `backend/app/api/v1/project_data.py` - Reusar `ProjectDep` org-aware (evitar duplicar checks)
 - `backend/app/api/v1/admin_users.py` - Mantener cross-org solo superadmin; tenant users via organizations provisioning
-- `backend/app/main.py` - CORS con cors_origins_list + registrar router organizations
+- `backend/app/main.py` - Registrar router `organizations` (no agregar segundo CORS middleware)
 
 ### Backend (crear - Schemas)
 
 - `backend/app/schemas/org_user.py` - Schemas para provisioning (OrgUserCreate, etc.)
+
+### Backend (modificar - Schemas)
+
+- `backend/app/schemas/user_fastapi.py` - Agregar `organization_id: UUID | None` a `UserRead` (no agregarlo a `UserUpdate`)
 
 ### Backend (modificar - Core/Services)
 
@@ -955,19 +975,19 @@ Para cuando un cliente quiera su propia instancia, documentar como importar el Z
 
 ### Frontend (crear)
 
+- `frontend/lib/types/user.ts` - Single source of truth para `User` + `UserRole`
 - `frontend/lib/stores/organization-store.ts`
 - (Opcional, post-MVP) `frontend/lib/api/organizations.ts` - API client para organizations (list/current) si hay 2+ consumers
 
 ### Frontend (modificar)
 
-- `frontend/lib/types/user.ts` - Single source of truth para `User` + `UserRole`
 - `frontend/lib/api/auth.ts` - Agregar campos de org a `User` + mapear desde `/auth/me`
 - `frontend/lib/api/admin-users.ts` - Agregar campos de org a `User` (transformUser)
 - `frontend/lib/api/client.ts` - Agregar header `X-Organization-Id` (fetch wrapper)
 - `frontend/lib/contexts/auth-context.tsx` - Agregar org context + limpiar `selected_org_id` en logout
 - `frontend/components/shared/layout/navbar.tsx` - Org selector para super admins
-- `frontend/lib/api/index.ts` - Exportar OrganizationsAPI (si aplica)
-- `frontend/lib/stores/index.ts` - Exportar organization-store (si aplica)
+- `frontend/lib/api/index.ts` - Re-export `User`/`UserRole` desde `frontend/lib/types/user.ts` (ya no desde `auth.ts`)
+- `frontend/lib/stores/index.ts` - Exportar `organization-store` (para imports consistentes)
 
 ---
 
@@ -1030,7 +1050,7 @@ async def test_create_location_with_company_from_other_org():
 ## Orden de Implementacion
 
 1. **Backend: Modelo y migracion** (Organization, User, Company, Location, Project, etc.)
-2. **Backend: Dependencies** (OrganizationContext, CORS con cors_origins_list)
+2. **Backend: Dependencies** (OrganizationContext + ProjectDep org-aware)
 3. **Backend: Endpoints companies** (patron de referencia)
 4. **Backend: Endpoints de locations** (en `companies.py`, aplicar mismo patron)
 5. **Backend: Endpoints projects** (patron + validacion create + logica org_admin)
