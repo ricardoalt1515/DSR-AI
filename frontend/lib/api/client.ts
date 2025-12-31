@@ -109,6 +109,12 @@ class APIClient {
 					...this.defaultHeaders,
 					...headers,
 				};
+				if (typeof window !== "undefined") {
+					const selectedOrgId = localStorage.getItem("selected_org_id");
+					if (selectedOrgId) {
+						mergedHeaders["X-Organization-Id"] = selectedOrgId;
+					}
+				}
 				// Para uploads multipart, dejar que el navegador establezca Content-Type
 				if (isFormData && "Content-Type" in mergedHeaders) {
 					delete mergedHeaders["Content-Type"];
@@ -316,6 +322,12 @@ class APIClient {
 					...this.defaultHeaders,
 					...headers,
 				};
+				if (typeof window !== "undefined") {
+					const selectedOrgId = localStorage.getItem("selected_org_id");
+					if (selectedOrgId) {
+						mergedHeaders["X-Organization-Id"] = selectedOrgId;
+					}
+				}
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,

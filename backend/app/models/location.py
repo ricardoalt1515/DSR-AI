@@ -2,7 +2,7 @@
 Location model - represents physical sites within a company.
 Each location can have multiple waste assessment projects.
 """
-from sqlalchemy import Column, String, Float, ForeignKey
+from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
@@ -15,11 +15,28 @@ class Location(BaseModel):
     Example: Honda Planta Guadalajara, Toyota Centro Logístico Querétaro
     """
     __tablename__ = "locations"
+
+    __table_args__ = (
+        UniqueConstraint("id", "organization_id", name="uq_locations_id_org"),
+        ForeignKeyConstraint(
+            ["company_id", "organization_id"],
+            ["companies.id", "companies.organization_id"],
+            name="fk_location_company_org",
+            ondelete="CASCADE",
+        ),
+        Index("ix_locations_company_org", "company_id", "organization_id"),
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
     
     # Relationship to company
     company_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("companies.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

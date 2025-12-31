@@ -1,24 +1,5 @@
+import type { User, UserRole } from "@/lib/types/user";
 import { apiClient } from "./client";
-
-// User role type
-export type UserRole = "admin" | "field_agent" | "contractor" | "compliance" | "sales";
-
-// Auth types - matches backend UserRead schema
-interface User {
-	id: string;
-	email: string;
-	firstName: string;
-	lastName: string;
-	companyName?: string | undefined;
-	location?: string | undefined;
-	sector?: string | undefined;
-	subsector?: string | undefined;
-	isVerified: boolean;
-	isActive: boolean;
-	createdAt: string;
-	isSuperuser: boolean;
-	role: UserRole;
-}
 
 interface LoginRequest {
 	email: string;
@@ -78,6 +59,7 @@ interface BackendUserResponse {
 	created_at: string;
 	is_superuser: boolean;
 	role: UserRole;
+	organization_id?: string | null;
 }
 
 // Auth API service
@@ -192,6 +174,7 @@ export class AuthAPI {
 			createdAt: response.created_at || new Date().toISOString(),
 			isSuperuser: response.is_superuser ?? false,
 			role: response.role ?? "field_agent",
+			organizationId: response.organization_id ?? null,
 		};
 	}
 
@@ -251,7 +234,6 @@ export const authAPI = AuthAPI;
 
 // Export types
 export type {
-	User,
 	LoginRequest,
 	LoginResponse,
 	RegisterRequest,

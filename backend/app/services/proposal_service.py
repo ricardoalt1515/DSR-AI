@@ -281,6 +281,7 @@ class ProposalService:
         db: AsyncSession,
         project_id: uuid.UUID,
         request: ProposalGenerationRequest,
+        org_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> str:
         """
@@ -300,12 +301,16 @@ class ProposalService:
         job_id = f"job_{uuid.uuid4().hex[:12]}"
 
         # Set initial job status
-        await cache_service.set_job_status(
+        await cache_service.set_job_status_scoped(
+            org_id=org_id,
+            user_id=user_id,
             job_id=job_id,
-            status="queued",
-            progress=0,
-            current_step="Initializing proposal generation...",
-            ttl=3600,  # 1 hour
+            status={
+                "job_id": job_id,
+                "status": "queued",
+                "progress": 0,
+                "current_step": "Initializing proposal generation...",
+            },
         )
 
         logger.info(
@@ -313,7 +318,8 @@ class ProposalService:
             job_id=job_id,
             project_id=str(project_id),
             proposal_type=request.proposal_type,
-            user_id=str(user_id)
+            user_id=str(user_id),
+            organization_id=str(org_id),
         )
 
         # Note: In production, you would trigger a background task here
@@ -328,6 +334,7 @@ class ProposalService:
         project_id: uuid.UUID,
         request: ProposalGenerationRequest,
         job_id: str,
+        org_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> None:
         """
@@ -342,16 +349,24 @@ class ProposalService:
         """
         try:
             # Update status
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="processing",
-                progress=10,
-                current_step="Loading project data...",
+                status={
+                    "job_id": job_id,
+                    "status": "processing",
+                    "progress": 10,
+                    "current_step": "Loading project data...",
+                },
             )
 
             # Load project
             result = await db.execute(
-                select(Project).where(Project.id == project_id)
+                select(Project).where(
+                    Project.id == project_id,
+                    Project.organization_id == org_id,
+                )
             )
             project = result.scalar_one_or_none()
 
@@ -359,19 +374,29 @@ class ProposalService:
                 raise ValueError(f"Project not found: {project_id}")
 
             # Load technical data
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="processing",
-                progress=20,
-                current_step="Loading technical data...",
+                status={
+                    "job_id": job_id,
+                    "status": "processing",
+                    "progress": 20,
+                    "current_step": "Loading technical data...",
+                },
             )
 
             # Serialize technical data from JSONB
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="processing",
-                progress=30,
-                current_step="Preparing data for AI analysis...",
+                status={
+                    "job_id": job_id,
+                    "status": "processing",
+                    "progress": 30,
+                    "current_step": "Preparing data for AI analysis...",
+                },
             )
 
             technical_data = ProposalService._serialize_technical_data(project)
@@ -425,11 +450,16 @@ class ProposalService:
             )
 
             # Generate proposal with AI
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="processing",
-                progress=40,
-                current_step="Generating proposal with AI (this may take 1-2 minutes)...",
+                status={
+                    "job_id": job_id,
+                    "status": "processing",
+                    "progress": 40,
+                    "current_step": "Generating proposal with AI (this may take 1-2 minutes)...",
+                },
             )
 
             start_time = time.time()
@@ -479,12 +509,17 @@ class ProposalService:
                     attempts=2,
                     last_error=str(e.last_attempt.exception())
                 )
-                await cache_service.set_job_status(
+                await cache_service.set_job_status_scoped(
+                    org_id=org_id,
+                    user_id=user_id,
                     job_id=job_id,
-                    status="failed",
-                    progress=0,
-                    current_step="Generation failed after retries",
-                    error=f"Failed after 2 attempts: {str(e.last_attempt.exception())}"
+                    status={
+                        "job_id": job_id,
+                        "status": "failed",
+                        "progress": 0,
+                        "current_step": "Generation failed after retries",
+                        "error": f"Failed after 2 attempts: {str(e.last_attempt.exception())}",
+                    },
                 )
                 return
 
@@ -500,21 +535,31 @@ class ProposalService:
                     error_type=type(e).__name__,
                     error_message=str(e)
                 )
-                await cache_service.set_job_status(
+                await cache_service.set_job_status_scoped(
+                    org_id=org_id,
+                    user_id=user_id,
                     job_id=job_id,
-                    status="failed",
-                    progress=0,
-                    current_step="Generation failed",
-                    error=str(e),
+                    status={
+                        "job_id": job_id,
+                        "status": "failed",
+                        "progress": 0,
+                        "current_step": "Generation failed",
+                        "error": str(e),
+                    },
                 )
                 return
 
             # Create proposal record
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="processing",
-                progress=80,
-                current_step="Saving proposal...",
+                status={
+                    "job_id": job_id,
+                    "status": "processing",
+                    "progress": 80,
+                    "current_step": "Saving proposal...",
+                },
             )
             # Get latest proposal version to determine new version
             result = await db.execute(
@@ -543,6 +588,7 @@ class ProposalService:
                 request=request,
                 new_version=new_version
             )
+            proposal.organization_id = org_id
             
             logger.info(
                 "waste_report_created",
@@ -558,6 +604,7 @@ class ProposalService:
             await create_timeline_event(
                 db=db,
                 project_id=project_id,
+                organization_id=org_id,
                 event_type="proposal_generated",
                 title=f"Waste Report Generated: {new_version}",
                 description=f"Waste upcycling feasibility report generated with AI",
@@ -585,16 +632,21 @@ class ProposalService:
             )
 
             # Complete job
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="completed",
-                progress=100,
-                current_step="Waste upcycling report generated successfully!",
-                result={
-                    "proposalId": str(proposal.id),  # ← camelCase for frontend
-                    "preview": {
-                        "executiveSummary": proposal.executive_summary,  # ← camelCase
-                        "reportType": "waste_upcycling_feasibility",  # ← camelCase
+                status={
+                    "job_id": job_id,
+                    "status": "completed",
+                    "progress": 100,
+                    "current_step": "Waste upcycling report generated successfully!",
+                    "result": {
+                        "proposalId": str(proposal.id),  # ← camelCase for frontend
+                        "preview": {
+                            "executiveSummary": proposal.executive_summary,  # ← camelCase
+                            "reportType": "waste_upcycling_feasibility",  # ← camelCase
+                        },
                     },
                 },
             )
@@ -617,16 +669,25 @@ class ProposalService:
                 error_type=type(e).__name__,
                 error_message=str(e)
             )
-            await cache_service.set_job_status(
+            await cache_service.set_job_status_scoped(
+                org_id=org_id,
+                user_id=user_id,
                 job_id=job_id,
-                status="failed",
-                progress=0,
-                current_step="Failed",
-                error=str(e),
+                status={
+                    "job_id": job_id,
+                    "status": "failed",
+                    "progress": 0,
+                    "current_step": "Failed",
+                    "error": str(e),
+                },
             )
 
     @staticmethod
-    async def get_job_status(job_id: str) -> dict[str, Any] | None:
+    async def get_job_status(
+        job_id: str,
+        org_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict[str, Any] | None:
         """
         Get proposal generation job status.
         
@@ -636,13 +697,18 @@ class ProposalService:
         Returns:
             Job status data or None
         """
-        return await cache_service.get_job_status(job_id)
+        return await cache_service.get_job_status_scoped(
+            org_id=org_id,
+            user_id=user_id,
+            job_id=job_id,
+        )
 
     @staticmethod
     async def generate_proposal_async_wrapper(
         project_id: uuid.UUID,
         request: ProposalGenerationRequest,
         job_id: str,
+        org_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> None:
         """
@@ -657,6 +723,7 @@ class ProposalService:
                 project_id=project_id,
                 request=request,
                 job_id=job_id,
+                org_id=org_id,
                 user_id=user_id,
             )
 

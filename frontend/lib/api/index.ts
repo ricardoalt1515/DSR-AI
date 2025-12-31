@@ -4,8 +4,8 @@ export type {
 	LoginRequest,
 	LoginResponse,
 	RegisterRequest,
-	User,
 } from "./auth";
+export type { User, UserRole } from "@/lib/types/user";
 export { AuthAPI, authAPI } from "./auth";
 export type { APIError, RequestConfig } from "./client";
 export { APIClient, APIClientError, apiClient } from "./client";
@@ -32,6 +32,13 @@ export {
 	AdminUsersAPI,
 	adminUsersAPI,
 } from "./admin-users";
+export {
+	type Organization,
+	type OrganizationCreateInput,
+	type OrgUserCreateInput,
+	OrganizationsAPI,
+	organizationsAPI,
+} from "./organizations";
 
 // Response type helpers
 export interface PaginatedResponse<T> {

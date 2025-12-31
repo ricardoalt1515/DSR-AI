@@ -5,6 +5,7 @@ import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiClient, authAPI, type User } from "@/lib/api";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProjectStore } from "@/lib/stores/project-store";
 import { logger } from "@/lib/utils/logger";
 
@@ -13,6 +14,8 @@ interface AuthContextType {
 	isLoading: boolean;
 	isAuthenticated: boolean;
 	isAdmin: boolean;
+	isSuperAdmin: boolean;
+	isOrgAdmin: boolean;
 	login: (email: string, password: string) => Promise<void>;
 	register: (
 		email: string,
@@ -40,6 +43,9 @@ function clearUserData(): void {
 	localStorage.removeItem("h2o-project-store");
 	localStorage.removeItem("h2o-technical-data-store");
 	localStorage.removeItem("active-proposal-generation");
+	localStorage.removeItem("waste-company-store");
+	localStorage.removeItem("waste-location-store");
+	localStorage.removeItem("selected_org_id");
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -48,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const resetProjectStore = useProjectStore((state) => state.resetStore);
+	const resetOrganizationStore = useOrganizationStore((state) => state.resetStore);
 
 	useEffect(() => {
 		// Global 401 handler - uses hard refresh to ensure clean state
@@ -139,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUser(null);
 		clearUserData();
 		resetProjectStore();
+		resetOrganizationStore();
 		toast.success("Session closed");
 		router.push("/login");
 	};
@@ -177,6 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				isLoading,
 				isAuthenticated: !!user,
 				isAdmin: !!user?.isSuperuser,
+				isSuperAdmin: !!user?.isSuperuser,
+				isOrgAdmin: user?.role === "org_admin",
 				login,
 				register,
 				logout,

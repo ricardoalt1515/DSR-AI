@@ -71,13 +71,14 @@ import {
 	type AdminCreateUserInput,
 	type AdminUpdateUserInput,
 	type User,
+	type UserRole,
 } from "@/lib/api";
 import { useAuth } from "@/lib/contexts";
 
 const PASSWORD_HINT = "Min 8 chars, 1 uppercase, 1 number";
 
 export default function AdminUsersPage() {
-	const { isAdmin, user: currentUser } = useAuth();
+	const { isSuperAdmin, user: currentUser } = useAuth();
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [modalOpen, setModalOpen] = useState(false);
@@ -87,7 +88,7 @@ export default function AdminUsersPage() {
 		confirmPassword: "",
 		firstName: "",
 		lastName: "",
-		role: "field_agent" as "admin" | "field_agent" | "contractor" | "compliance" | "sales",
+		role: "admin" as UserRole,
 	});
 	const [submitting, setSubmitting] = useState(false);
 	const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function AdminUsersPage() {
 	const [globalFilter, setGlobalFilter] = useState("");
 
 	useEffect(() => {
-		if (!isAdmin) return;
+		if (!isSuperAdmin) return;
 		const fetchUsers = async () => {
 			try {
 				const data = await adminUsersAPI.list();
@@ -114,7 +115,7 @@ export default function AdminUsersPage() {
 			}
 		};
 		fetchUsers();
-	}, [isAdmin]);
+	}, [isSuperAdmin]);
 
 	const handleInputChange = (field: keyof typeof form, value: string) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -127,7 +128,7 @@ export default function AdminUsersPage() {
 			confirmPassword: "",
 			firstName: "",
 			lastName: "",
-			role: "field_agent",
+			role: "admin",
 		});
 	};
 
@@ -160,8 +161,8 @@ export default function AdminUsersPage() {
 			password: form.password,
 			firstName: form.firstName.trim(),
 			lastName: form.lastName.trim(),
-			isSuperuser: form.role === "admin",
-			role: form.role,
+			isSuperuser: true,
+			role: "admin",
 		};
 		try {
 			const newUser = await adminUsersAPI.create(payload);
@@ -352,20 +353,25 @@ export default function AdminUsersPage() {
 					const user = row.original;
 					const isSelf = currentUser?.id === user.id;
 					const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
-					const disableRoleChange = isSelf || isLastActiveAdmin;
-					const disableStatusChange = isSelf || isLastActiveAdmin;
+					const isTenantUser = user.organizationId !== null;
+					const disableRoleChange = isSelf || isLastActiveAdmin || isTenantUser;
+					const disableStatusChange = isSelf || isLastActiveAdmin || isTenantUser;
 
-					const roleTooltipMessage = isSelf
-						? "You can't change your own role"
-						: isLastActiveAdmin
-							? "Keep at least one active admin"
-							: "";
+					const roleTooltipMessage = isTenantUser
+						? "Manage tenant users via organizations"
+						: isSelf
+							? "You can't change your own role"
+							: isLastActiveAdmin
+								? "Keep at least one active admin"
+								: "";
 
-					const statusTooltipMessage = isSelf
-						? "You can't deactivate your own account"
-						: isLastActiveAdmin
-							? "Keep at least one active admin"
-							: "";
+					const statusTooltipMessage = isTenantUser
+						? "Manage tenant users via organizations"
+						: isSelf
+							? "You can't deactivate your own account"
+							: isLastActiveAdmin
+								? "Keep at least one active admin"
+								: "";
 
 					const roleButton = (
 						<Button
@@ -373,23 +379,18 @@ export default function AdminUsersPage() {
 							size="sm"
 							disabled={disableRoleChange || updatingUserId === user.id}
 							onClick={() => {
-								const nextIsSuperuser = !user.isSuperuser;
-								const updates: AdminUpdateUserInput = nextIsSuperuser
-									? { isSuperuser: true, role: "admin" }
-									: { isSuperuser: false, role: "field_agent" };
+								if (user.isSuperuser) return;
 								handleUpdateUser(
 									user.id,
-									updates,
-									nextIsSuperuser
-										? `${user.firstName} promoted to Admin`
-										: `${user.firstName} is now Member`,
+									{ isSuperuser: true, role: "admin" },
+									`${user.firstName} promoted to Admin`,
 								);
 							}}
 						>
 							{updatingUserId === user.id ? (
 								<RefreshCcw className="h-4 w-4 animate-spin" />
 							) : user.isSuperuser ? (
-								"Make Member"
+								"Admin"
 							) : (
 								"Make Admin"
 							)}
@@ -442,6 +443,8 @@ export default function AdminUsersPage() {
 							<Button
 								variant="outline"
 								size="sm"
+								disabled={isTenantUser}
+								title={isTenantUser ? "Manage tenant users via organizations" : undefined}
 								onClick={() => handleOpenResetDialog(user.id)}
 							>
 								Reset
@@ -477,7 +480,7 @@ export default function AdminUsersPage() {
 		},
 	});
 
-	if (!isAdmin) {
+	if (!isSuperAdmin) {
 		return (
 			<div className="container mx-auto py-8">
 				<Card>
@@ -559,6 +562,7 @@ export default function AdminUsersPage() {
 										<SelectContent>
 											<SelectItem value="all">All Roles</SelectItem>
 											<SelectItem value="admin">Admin</SelectItem>
+											<SelectItem value="org_admin">Org Admin</SelectItem>
 											<SelectItem value="field_agent">Field Agent</SelectItem>
 											<SelectItem value="contractor">Contractor</SelectItem>
 											<SelectItem value="compliance">Compliance</SelectItem>
@@ -718,18 +722,7 @@ export default function AdminUsersPage() {
 							</div>
 							<div className="grid gap-2">
 								<Label>Role</Label>
-								<Select value={form.role} onValueChange={(value) => handleInputChange("role", value)}>
-									<SelectTrigger>
-										<SelectValue placeholder="Select role" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="field_agent">Field Agent</SelectItem>
-										<SelectItem value="contractor">Contractor</SelectItem>
-										<SelectItem value="compliance">Compliance</SelectItem>
-										<SelectItem value="sales">Sales</SelectItem>
-										<SelectItem value="admin">Admin</SelectItem>
-									</SelectContent>
-								</Select>
+								<Input value="Platform Admin" disabled />
 							</div>
 						</div>
 						<DialogFooter>

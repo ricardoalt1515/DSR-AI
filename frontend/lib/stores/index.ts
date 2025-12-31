@@ -12,3 +12,4 @@ export type {
 export * from "./project-store";
 export * from "./proposal-generation-store";
 export * from "./technical-data-store";
+export * from "./organization-store";

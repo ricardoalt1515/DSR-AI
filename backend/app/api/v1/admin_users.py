@@ -44,6 +44,11 @@ async def create_user(
     user_manager: UserManager = Depends(get_user_manager),
 ):
     """Create a user with the provided credentials (admin only)."""
+    if payload.is_superuser is False and payload.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use organization provisioning endpoint for tenant users",
+        )
     return await user_manager.create(payload)
 
 
@@ -70,10 +75,22 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    if not user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use organization provisioning endpoint for tenant users",
+        )
+
     update_data = updates.model_dump(exclude_unset=True)
     requested_role = update_data.get("role")
     requested_is_superuser = update_data.get("is_superuser")
     will_be_active = update_data.get("is_active", user.is_active)
+
+    if requested_is_superuser is False or (requested_role is not None and requested_role != "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Platform admins cannot be demoted via admin endpoint",
+        )
 
     will_be_superuser = user.is_superuser
     if requested_role is not None:

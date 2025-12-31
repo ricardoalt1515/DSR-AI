@@ -38,6 +38,11 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     
     # Role for business logic
     role: str = Field(default="field_agent", description="User role")
+
+    organization_id: uuid.UUID | None = Field(
+        default=None,
+        description="Organization ID for tenant users (null for platform admins)",
+    )
     
     # Custom profile fields
     first_name: str = Field(..., description="User's first name")

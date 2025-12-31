@@ -2,7 +2,8 @@
 Company model - represents client organizations.
 A company can have multiple locations (plants, warehouses, etc.).
 """
-from sqlalchemy import Column, String, Text, JSON
+from sqlalchemy import Column, String, Text, JSON, ForeignKey, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -14,6 +15,17 @@ class Company(BaseModel):
     Example: Honda Manufacturing, Toyota, Bimbo
     """
     __tablename__ = "companies"
+
+    __table_args__ = (
+        UniqueConstraint("id", "organization_id", name="uq_companies_id_org"),
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
     
     # Basic information
     name = Column(String(255), nullable=False, index=True)
@@ -49,6 +61,7 @@ class Company(BaseModel):
         order_by="Location.name",
         lazy="selectin",  # Eager load locations with company
     )
+    organization = relationship("Organization", back_populates="companies")
     
     def __repr__(self) -> str:
         """Safe repr that doesn't trigger lazy loads or attribute refresh."""

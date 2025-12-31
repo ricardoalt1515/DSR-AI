@@ -3,7 +3,7 @@ Project file model.
 Represents uploaded files associated with projects.
 """
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
@@ -30,10 +30,26 @@ class ProjectFile(BaseModel):
     """
     
     __tablename__ = "project_files"
-    
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "organization_id"],
+            ["projects.id", "projects.organization_id"],
+            name="fk_file_project_org",
+            ondelete="CASCADE",
+        ),
+        Index("ix_project_files_project_org", "project_id", "organization_id"),
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+
     project_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

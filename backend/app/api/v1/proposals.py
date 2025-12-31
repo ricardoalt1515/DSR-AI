@@ -6,16 +6,15 @@ Includes PDF generation and AI transparency features (Oct 2025).
 
 from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 import structlog
 import os
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any
-import io
+
 
 from app.core.database import get_async_db
-from app.api.dependencies import CurrentUser
+from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep
 from app.models.project import Project
 from app.models.file import ProjectFile
 from app.schemas.proposal import (
@@ -56,6 +55,7 @@ async def generate_proposal(
     proposal_request: ProposalGenerationRequest,
     background_tasks: BackgroundTasks,
     current_user: CurrentUser,
+    org: OrganizationContext,
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -90,8 +90,11 @@ async def generate_proposal(
     - **status**: "queued" (initial state)
     - **estimated_time**: Estimated completion time in seconds
     """
-    conditions = [Project.id == proposal_request.project_id]
-    if not current_user.is_superuser:
+    conditions = [
+        Project.id == proposal_request.project_id,
+        Project.organization_id == org.id,
+    ]
+    if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
 
     result = await db.execute(
@@ -106,12 +109,16 @@ async def generate_proposal(
         )
 
     # Start proposal generation
-    job_id = await ProposalService.start_proposal_generation(
-        db=db,
-        project_id=proposal_request.project_id,
-        request=proposal_request,
-        user_id=current_user.id,
-    )
+    try:
+        job_id = await ProposalService.start_proposal_generation(
+            db=db,
+            project_id=proposal_request.project_id,
+            request=proposal_request,
+            org_id=org.id,
+            user_id=current_user.id,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Job status unavailable") from exc
 
     # Add background task for processing
     # Note: In production, this should be handled by Celery or similar
@@ -121,6 +128,7 @@ async def generate_proposal(
         project_id=proposal_request.project_id,
         request=proposal_request,
         job_id=job_id,
+        org_id=org.id,
         user_id=current_user.id,
     )
 
@@ -151,6 +159,7 @@ async def generate_proposal(
 async def get_job_status(
     job_id: str,
     current_user: CurrentUser,
+    org: OrganizationContext,
 ):
     """
     Get the current status of a proposal generation job.
@@ -194,7 +203,14 @@ async def get_job_status(
     };
     ```
     """
-    status_data = await ProposalService.get_job_status(job_id)
+    try:
+        status_data = await ProposalService.get_job_status(
+            job_id=job_id,
+            org_id=org.id,
+            user_id=current_user.id,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Job status unavailable") from exc
     
     if not status_data:
         raise HTTPException(
@@ -212,9 +228,7 @@ async def get_job_status(
     summary="List project proposals",
 )
 async def list_proposals(
-    project_id: UUID,
-    current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    project: ProjectDep,
 ):
     """
     Get all proposals for a project.
@@ -222,21 +236,6 @@ async def list_proposals(
     Returns proposals ordered by creation date (newest first).
     Each proposal includes version, costs, and status.
     """
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
-    project = result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-    
     # Get proposals (relationship already loaded via selectin)
     proposals = project.proposals
 
@@ -253,7 +252,7 @@ async def list_proposals(
     summary="Get proposal detail",
 )
 async def get_proposal(
-    project_id: UUID,
+    project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_async_db),
@@ -263,27 +262,13 @@ async def get_proposal(
     
     Includes full markdown content, equipment specs, costs, and efficiency data.
     """
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
-    project = result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-    
     # Find proposal
     from app.models.proposal import Proposal
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
-            Proposal.project_id == project_id,
+            Proposal.project_id == project.id,
+            Proposal.organization_id == project.organization_id,
         )
     )
     proposal = result.scalar_one_or_none()
@@ -318,6 +303,8 @@ async def get_proposal(
                             file = await db.get(ProjectFile, file_uuid)
                             if not file:
                                 continue
+                            if file.organization_id != project.organization_id:
+                                continue
                             image_url = await get_presigned_url(file.file_path, expires=86400)
                             if image_url:
                                 insight["imageUrl"] = image_url
@@ -343,7 +330,7 @@ async def get_proposal(
 @limiter.limit("20/minute")  # ⭐ Rate limit: PDF generation (moderate - uses cache)
 async def get_proposal_pdf(
     request: Request,  # Required for rate limiter
-    project_id: UUID,
+    project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,  # CurrentUser already has Depends in type
     db: AsyncSession = Depends(get_async_db),
@@ -376,27 +363,13 @@ async def get_proposal_pdf(
     - PDF file as `application/pdf`
     - Filename: `Proposal_{version}_{project_name}.pdf`
     """
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
-    project = result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-    
     # Get proposal with relationships
     from app.models.proposal import Proposal
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
-            Proposal.project_id == project_id,
+            Proposal.project_id == project.id,
+            Proposal.organization_id == project.organization_id,
         )
     )
     proposal = result.scalar_one_or_none()
@@ -527,7 +500,7 @@ async def get_proposal_pdf(
 @limiter.limit("10/minute")  # ⭐ Rate limit: Delete operation (conservative)
 async def delete_proposal(
     request: Request,  # Required for rate limiter
-    project_id: UUID,
+    project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_async_db),
@@ -545,27 +518,13 @@ async def delete_proposal(
     - Returns 404 if proposal doesn't exist (prevents info leakage)
     - Atomic operation (DB + file deletion)
     """
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
     # Get proposal
     from app.models.proposal import Proposal
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
-            Proposal.project_id == project_id,
+            Proposal.project_id == project.id,
+            Proposal.organization_id == project.organization_id,
         )
     )
     proposal = result.scalar_one_or_none()
@@ -598,7 +557,7 @@ async def delete_proposal(
             # Log error but don't fail the request (file might already be deleted)
             logger.warning(f"Failed to delete PDF file {pdf_path}: {e}")
 
-    logger.info("Deleted proposal %s from project %s", proposal_id, project_id)
+    logger.info("Deleted proposal %s from project %s", proposal_id, project.id)
 
     # Return 204 No Content (RESTful standard for successful DELETE)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -619,7 +578,7 @@ async def delete_proposal(
 @limiter.limit("60/minute")  # ⭐ Rate limit: Read operation (permissive)
 async def get_proposal_ai_metadata(
     request: Request,  # Required for rate limiter
-    project_id: UUID,
+    project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_async_db),
@@ -674,27 +633,13 @@ async def get_proposal_ai_metadata(
     Use this data in a "Validation" or "AI Insights" tab to show
     engineers the reasoning behind the proposal.
     """
-    # Verify project access
-    result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id,
-        )
-    )
-    project = result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-    
     # Get proposal
     from app.models.proposal import Proposal
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
-            Proposal.project_id == project_id,
+            Proposal.project_id == project.id,
+            Proposal.organization_id == project.organization_id,
         )
     )
     proposal = result.scalar_one_or_none()

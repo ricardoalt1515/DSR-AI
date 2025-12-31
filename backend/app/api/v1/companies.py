@@ -4,7 +4,7 @@ CRUD operations for companies and their locations.
 """
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +25,7 @@ from app.schemas.common import SuccessResponse
 from app.api.dependencies import (
     CurrentSuperUser,
     CurrentUser,
+    OrganizationContext,
     AsyncDB,
     RateLimitUser60,
     RateLimitUser30,
@@ -42,12 +43,14 @@ router = APIRouter()
 async def list_companies(
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
 ):
     """List all companies."""
     result = await db.execute(
         select(Company)
         .options(selectinload(Company.locations))
+        .where(Company.organization_id == org.id)
         .order_by(Company.name)
     )
     companies = result.scalars().all()
@@ -59,10 +62,11 @@ async def create_company(
     company_data: CompanyCreate,
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Create a new company."""
-    company = Company(**company_data.model_dump())
+    company = Company(**company_data.model_dump(), organization_id=org.id)
     db.add(company)
     await db.commit()
     await db.refresh(company)
@@ -74,6 +78,7 @@ async def create_company(
 async def list_all_locations(
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
     company_id: Optional[UUID] = None,
 ):
@@ -84,6 +89,7 @@ async def list_all_locations(
             selectinload(Location.company),
             selectinload(Location.projects),
         )
+        .where(Location.organization_id == org.id)
         .order_by(Location.name)
     )
 
@@ -99,13 +105,14 @@ async def get_company(
     company_id: UUID,
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
 ):
     """Get company details with locations."""
     result = await db.execute(
         select(Company)
         .options(selectinload(Company.locations))
-        .where(Company.id == company_id)
+        .where(Company.id == company_id, Company.organization_id == org.id)
     )
     company = result.scalar_one_or_none()
     
@@ -124,10 +131,16 @@ async def update_company(
     company_data: CompanyUpdate,
     db: AsyncDB,
     current_user: CurrentSuperUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Update company information."""
-    result = await db.execute(select(Company).where(Company.id == company_id))
+    result = await db.execute(
+        select(Company).where(
+            Company.id == company_id,
+            Company.organization_id == org.id,
+        )
+    )
     company = result.scalar_one_or_none()
     
     if not company:
@@ -151,13 +164,19 @@ async def delete_company(
     company_id: UUID,
     db: AsyncDB,
     current_user: CurrentSuperUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
     """
     Delete company.
     Cascade deletes all locations and projects.
     """
-    result = await db.execute(select(Company).where(Company.id == company_id))
+    result = await db.execute(
+        select(Company).where(
+            Company.id == company_id,
+            Company.organization_id == org.id,
+        )
+    )
     company = result.scalar_one_or_none()
     
     if not company:
@@ -181,13 +200,24 @@ async def list_company_locations(
     company_id: UUID,
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
 ):
     """List all locations for a company."""
+    company = await db.get(Company, company_id)
+    if not company or company.organization_id != org.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company {company_id} not found",
+        )
+
     result = await db.execute(
         select(Location)
         .options(selectinload(Location.projects))
-        .where(Location.company_id == company_id)
+        .where(
+            Location.company_id == company_id,
+            Location.organization_id == org.id,
+        )
         .order_by(Location.name)
     )
     locations = result.scalars().all()
@@ -204,11 +234,17 @@ async def create_location(
     location_data: LocationCreate,
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Create a new location for a company."""
     # Verify company exists
-    result = await db.execute(select(Company).where(Company.id == company_id))
+    result = await db.execute(
+        select(Company).where(
+            Company.id == company_id,
+            Company.organization_id == org.id,
+        )
+    )
     company = result.scalar_one_or_none()
     
     if not company:
@@ -222,6 +258,7 @@ async def create_location(
     location_dict['company_id'] = company_id
     
     location = Location(**location_dict)
+    location.organization_id = org.id
     db.add(location)
     await db.commit()
     
@@ -244,6 +281,7 @@ async def get_location(
     location_id: UUID,
     db: AsyncDB,
     current_user: CurrentUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
 ):
     """Get location details with company and projects."""
@@ -253,7 +291,10 @@ async def get_location(
             selectinload(Location.company).selectinload(Company.locations),
             selectinload(Location.projects)
         )
-        .where(Location.id == location_id)
+        .where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
     )
     location = result.scalar_one_or_none()
     
@@ -272,10 +313,16 @@ async def update_location(
     location_data: LocationUpdate,
     db: AsyncDB,
     current_user: CurrentSuperUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Update location information."""
-    result = await db.execute(select(Location).where(Location.id == location_id))
+    result = await db.execute(
+        select(Location).where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
+    )
     location = result.scalar_one_or_none()
     
     if not location:
@@ -310,13 +357,19 @@ async def delete_location(
     location_id: UUID,
     db: AsyncDB,
     current_user: CurrentSuperUser,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
     """
     Delete location.
     Cascade deletes all projects at this location.
     """
-    result = await db.execute(select(Location).where(Location.id == location_id))
+    result = await db.execute(
+        select(Location).where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
+    )
     location = result.scalar_one_or_none()
     
     if not location:

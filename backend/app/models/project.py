@@ -4,7 +4,7 @@ Represents waste assessment projects at client locations.
 """
 
 from typing import Optional
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, Text, Index
+from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -36,13 +36,31 @@ class Project(BaseModel):
     """
     
     __tablename__ = "projects"
+
+    __table_args__ = (
+        Index('ix_project_data_gin', 'project_data', postgresql_using='gin'),
+        UniqueConstraint("id", "organization_id", name="uq_projects_id_org"),
+        ForeignKeyConstraint(
+            ["location_id", "organization_id"],
+            ["locations.id", "locations.organization_id"],
+            name="fk_project_location_org",
+            ondelete="CASCADE",
+        ),
+        Index("ix_projects_location_org", "location_id", "organization_id"),
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
     
     # ═══════════════════════════════════════════════════════════
     # NEW: LOCATION RELATIONSHIP
     # ═══════════════════════════════════════════════════════════
     location_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("locations.id", ondelete="CASCADE"),
         nullable=True,  # Nullable during migration, will be required later
         index=True,
         comment="FK to Location - company site where waste is generated"
@@ -117,11 +135,6 @@ class Project(BaseModel):
         default=dict,
         server_default='{}',
         comment="Flexible JSONB storage for all project technical data (technical_sections, etc.)"
-    )
-    
-    # Index for JSONB queries
-    __table_args__ = (
-        Index('ix_project_data_gin', 'project_data', postgresql_using='gin'),
     )
     
     # Relationships

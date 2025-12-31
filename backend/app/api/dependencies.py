@@ -11,9 +11,10 @@ Best Practices:
 """
 
 from typing import Annotated
-from fastapi import Depends
+from fastapi import Depends, Header, HTTPException
 
 from app.models.user import User
+from app.models.organization import Organization
 from app.core.fastapi_users_instance import (
     current_active_user,
     current_superuser,
@@ -123,14 +124,78 @@ SectorFilter = Annotated[
 # Centralizes project loading + access check (replaces 22+ repeated patterns)
 # ==============================================================================
 
-from fastapi import Path, HTTPException, status
+from fastapi import Path, status
 from sqlalchemy import select
 from app.models.project import Project
+
+
+# ==============================================================================
+# Organization Context Dependency (Multi-tenant)
+# ==============================================================================
+
+async def get_organization_context(
+    current_user: User = Depends(current_active_user),
+    x_organization_id: UUID | None = Header(None, alias="X-Organization-Id"),
+    db: AsyncSession = Depends(get_async_db),
+) -> Organization:
+    """
+    Resolve organization context for the request.
+
+    - Regular users: use their organization_id (ignore header)
+    - Super admins: must provide X-Organization-Id header
+    """
+    if not current_user.is_superuser:
+        if not current_user.organization_id:
+            raise HTTPException(status_code=403, detail="User not assigned to any organization")
+        org = await db.get(Organization, current_user.organization_id)
+        if not org or not org.is_active:
+            raise HTTPException(status_code=403, detail="User's organization is inactive")
+        return org
+
+    if current_user.organization_id is not None:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid admin state: superuser has organization_id",
+        )
+
+    if x_organization_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Super admin must select organization via X-Organization-Id header",
+        )
+
+    org = await db.get(Organization, x_organization_id)
+    if not org or not org.is_active:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    return org
+
+
+OrganizationContext = Annotated[Organization, Depends(get_organization_context)]
+
+
+def apply_organization_filter(query, model, org: Organization):
+    """Filter query by organization_id."""
+    return query.where(model.organization_id == org.id)
+
+
+async def get_super_admin_only(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Super admin only")
+    if current_user.organization_id is not None:
+        raise HTTPException(status_code=500, detail="Invalid admin state: superuser has organization_id")
+    return current_user
+
+
+SuperAdminOnly = Annotated[User, Depends(get_super_admin_only)]
 
 
 async def get_accessible_project(
     project_id: UUID = Path(..., description="Project unique identifier"),
     current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
     db: AsyncSession = Depends(get_async_db),
 ) -> Project:
     """
@@ -150,8 +215,11 @@ async def get_accessible_project(
             # project is guaranteed to exist and user has access
             return project.data
     """
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
+    conditions = [
+        Project.id == project_id,
+        Project.organization_id == org.id,
+    ]
+    if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
     
     result = await db.execute(select(Project).where(*conditions))

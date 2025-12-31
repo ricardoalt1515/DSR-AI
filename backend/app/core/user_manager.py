@@ -9,7 +9,7 @@ import uuid
 import structlog
 from typing import Any, AsyncGenerator, Optional
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from fastapi_users import BaseUserManager, UUIDIDMixin
 from fastapi_users.db import SQLAlchemyUserDatabase
 
@@ -45,12 +45,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
         if role is not None:
             setattr(data, "is_superuser", role == UserRole.ADMIN.value)
-            return
-
+        
         if is_superuser is True:
             setattr(data, "role", UserRole.ADMIN.value)
-            return
-
+        
         if (
             is_superuser is False
             and existing_user is not None
@@ -59,12 +57,46 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         ):
             setattr(data, "role", UserRole.FIELD_AGENT.value)
 
+    def _validate_org_assignment(
+        self,
+        data: Any,
+        *,
+        existing_user: User | None = None,
+    ) -> None:
+        org_id = getattr(data, "organization_id", None)
+        is_superuser = getattr(data, "is_superuser", None)
+        role = getattr(data, "role", None)
+
+        if existing_user is not None:
+            if org_id is None:
+                org_id = existing_user.organization_id
+            if is_superuser is None:
+                is_superuser = existing_user.is_superuser
+            if role is None:
+                role = existing_user.role
+
+        if is_superuser is True:
+            if org_id is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Superuser cannot belong to an organization",
+                )
+            return
+
+        if org_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User must belong to an organization",
+            )
+
     async def create(self, user_create: Any, *args: Any, **kwargs: Any) -> User:
         self._normalize_role_superuser(user_create)
+        self._validate_org_assignment(user_create)
         return await super().create(user_create, *args, **kwargs)
 
     async def update(self, user_update: Any, user: User, *args: Any, **kwargs: Any) -> User:
         self._normalize_role_superuser(user_update, existing_user=user)
+        self._validate_org_assignment(user_update, existing_user=user)
         return await super().update(user_update, user, *args, **kwargs)
 
     async def validate_password(

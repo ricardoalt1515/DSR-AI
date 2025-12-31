@@ -17,7 +17,10 @@ from app.core.database import Base
 
 # Import all models to ensure they're registered with Base.metadata
 from app.models import (
+    Organization,
     User,
+    Company,
+    Location,
     Project,
     Proposal,
     ProjectFile,

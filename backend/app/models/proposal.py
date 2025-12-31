@@ -3,7 +3,7 @@ Proposal model.
 Represents AI-generated technical proposals for projects.
 """
 
-from sqlalchemy import Column, Float, ForeignKey, String, Text
+from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -56,10 +56,26 @@ class Proposal(BaseModel):
     """
     
     __tablename__ = "proposals"
-    
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "organization_id"],
+            ["projects.id", "projects.organization_id"],
+            name="fk_proposal_project_org",
+            ondelete="CASCADE",
+        ),
+        Index("ix_proposals_project_org", "project_id", "organization_id"),
+    )
+
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+
     project_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

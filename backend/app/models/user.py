@@ -5,9 +5,11 @@ Integrated with FastAPI Users for production-ready authentication.
 """
 
 from enum import Enum
+from uuid import UUID
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import String
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -16,6 +18,7 @@ from app.models.base import BaseModel
 class UserRole(str, Enum):
     """User roles for access control."""
     ADMIN = "admin"
+    ORG_ADMIN = "org_admin"
     FIELD_AGENT = "field_agent"
     CONTRACTOR = "contractor"
     COMPLIANCE = "compliance"
@@ -35,7 +38,7 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         - is_verified (bool): Whether user email is verified
     
     Custom fields:
-        - role: User role for business logic (admin, field_agent, contractor, compliance, sales)
+        - role: User role for business logic (admin, org_admin, field_agent, contractor, compliance, sales)
         - first_name, last_name: User's name
         - company_name, location: Optional profile info
         - sector, subsector: Industry context
@@ -50,7 +53,15 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         nullable=False,
         default=UserRole.FIELD_AGENT,
         index=True,
-        comment="User role: admin, field_agent, contractor, compliance, sales"
+        comment="User role: admin, org_admin, field_agent, contractor, compliance, sales"
+    )
+
+    organization_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=True,
+        index=True,
+        comment="Tenant organization (NULL for platform admins)",
     )
 
     # Profile fields
@@ -94,6 +105,7 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
+    organization = relationship("Organization", back_populates="users")
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
@@ -106,6 +118,22 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
     def is_admin(self) -> bool:
         """Check if user has admin privileges."""
         return self.is_superuser or self.role == UserRole.ADMIN
+
+    def is_global_admin(self) -> bool:
+        """Platform admin (superuser, no organization)."""
+        return self.is_superuser
+
+    def is_org_admin(self) -> bool:
+        """Tenant admin within an organization."""
+        return self.role == UserRole.ORG_ADMIN
+
+    def can_see_all_org_projects(self) -> bool:
+        """Org admin sees all projects in their org, not only their own."""
+        return self.is_superuser or self.role == UserRole.ORG_ADMIN
+
+    def can_manage_org_users(self) -> bool:
+        """Org Admin or Platform Admin can manage users within an organization."""
+        return self.is_superuser or self.role == UserRole.ORG_ADMIN
 
     def can_create_projects(self) -> bool:
         """Check if user can create projects."""

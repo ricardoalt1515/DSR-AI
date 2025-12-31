@@ -103,6 +103,7 @@ class Settings(BaseSettings):
 
     # Background Jobs
     JOB_BACKEND: str = "background"  # 'background' or 'celery'
+    JOB_STATUS_TTL_SECONDS: int = 3600
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60

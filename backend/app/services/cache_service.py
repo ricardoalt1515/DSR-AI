@@ -4,6 +4,7 @@ Cache service using Redis for storing job status and temporary data.
 
 import json
 from typing import Any, Optional
+from uuid import UUID
 import structlog
 import redis.asyncio as aioredis
 
@@ -142,56 +143,48 @@ class CacheService:
             logger.error(f"Error checking cache key {key}: {e}")
             return False
     
-    async def set_job_status(
+    async def set_job_status_scoped(
         self,
+        org_id: UUID,
+        user_id: UUID,
         job_id: str,
-        status: str,
-        progress: int,
-        current_step: str,
-        result: Optional[dict] = None,
-        error: Optional[str] = None,
-        ttl: int = 3600,
-    ) -> bool:
+        status: dict,
+        ttl: int = settings.JOB_STATUS_TTL_SECONDS,
+    ) -> None:
         """
-        Set job status in cache.
-        
-        Args:
-            job_id: Job identifier
-            status: Job status (queued, processing, completed, failed)
-            progress: Progress percentage (0-100)
-            current_step: Current processing step description
-            result: Job result data (when completed)
-            error: Error message (when failed)
-            ttl: Time to live in seconds (default 1 hour)
-            
-        Returns:
-            True if successful, False otherwise
+        Set job status in cache scoped by org and user.
         """
-        job_data = {
-            "job_id": job_id,
-            "status": status,
-            "progress": progress,
-            "current_step": current_step,
-        }
-        
-        if result:
-            job_data["result"] = result
-        if error:
-            job_data["error"] = error
-        
-        return await self.set(f"job:{job_id}", job_data, ttl=ttl)
-    
-    async def get_job_status(self, job_id: str) -> Optional[dict]:
+        if not self._redis:
+            raise RuntimeError("Redis not connected")
+
+        key = f"job:{org_id}:{user_id}:{job_id}"
+        payload = dict(status)
+        payload["organization_id"] = str(org_id)
+        payload["user_id"] = str(user_id)
+        await self._redis.setex(key, ttl, json.dumps(payload))
+
+    async def get_job_status_scoped(
+        self,
+        org_id: UUID,
+        user_id: UUID,
+        job_id: str,
+    ) -> Optional[dict]:
         """
-        Get job status from cache.
-        
-        Args:
-            job_id: Job identifier
-            
-        Returns:
-            Job status data or None
+        Get job status scoped by org and user.
         """
-        return await self.get(f"job:{job_id}")
+        if not self._redis:
+            raise RuntimeError("Redis not connected")
+
+        key = f"job:{org_id}:{user_id}:{job_id}"
+        data = await self._redis.get(key)
+        if not data:
+            return None
+        status = json.loads(data)
+        if status.get("organization_id") != str(org_id):
+            return None
+        if status.get("user_id") != str(user_id):
+            return None
+        return status
 
 
 # Global cache service instance

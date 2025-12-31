@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { User, UserRole } from "./auth";
+import type { User, UserRole } from "@/lib/types/user";
 
 export interface AdminCreateUserInput {
 	email: string;
@@ -32,6 +32,7 @@ function transformUser(response: any): User {
 		createdAt: response.created_at || new Date().toISOString(),
 		isSuperuser: response.is_superuser ?? false,
 		role: response.role ?? "field_agent",
+		organizationId: response.organization_id ?? null,
 	};
 }
 

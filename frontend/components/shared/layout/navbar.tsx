@@ -12,6 +12,7 @@ import {
 	Settings,
 	Shield,
 	User,
+	Users,
 	Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,6 +41,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	Sheet,
 	SheetContent,
 	SheetDescription,
@@ -55,6 +63,7 @@ import {
 	useProjectLoading,
 	useProjects,
 } from "@/lib/stores";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { cn } from "@/lib/utils";
 import { NotificationDropdown } from "./notification-dropdown";
@@ -106,7 +115,15 @@ export function NavBar() {
 	const projects = useProjects();
 	const loadingProjects = useProjectLoading();
 	useEnsureProjectsLoaded();
-	const { user, logout, isAdmin } = useAuth();
+	const { user, logout, isSuperAdmin, isOrgAdmin } = useAuth();
+	const {
+		currentOrganization,
+		organizations,
+		selectedOrgId,
+		loadCurrentOrganization,
+		loadOrganizations,
+		selectOrganization,
+	} = useOrganizationStore();
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
@@ -114,6 +131,18 @@ export function NavBar() {
 	}, []);
 
 	const authedUser = mounted ? user : null;
+
+	useEffect(() => {
+		if (!authedUser) return;
+		if (authedUser.isSuperuser) {
+			loadOrganizations();
+			if (selectedOrgId) {
+				loadCurrentOrganization();
+			}
+			return;
+		}
+		loadCurrentOrganization();
+	}, [authedUser, loadCurrentOrganization, loadOrganizations, selectedOrgId]);
 
 	// Proposal generation progress
 	const { isGenerating, progress, currentStep, estimatedTime } =
@@ -187,6 +216,32 @@ export function NavBar() {
 							currentStep={currentStep}
 							estimatedTime={estimatedTime}
 						/>
+
+						{authedUser && (
+							<div className="hidden items-center gap-2 md:flex">
+								{authedUser.isSuperuser ? (
+									<Select
+										value={selectedOrgId ?? ""}
+										onValueChange={(value) => selectOrganization(value)}
+									>
+										<SelectTrigger className="h-9 w-[200px] rounded-full bg-card/60 text-xs">
+											<SelectValue placeholder="Select Organization" />
+										</SelectTrigger>
+										<SelectContent>
+											{organizations.map((org) => (
+												<SelectItem key={org.id} value={org.id}>
+													{org.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								) : (
+									<span className="rounded-full border border-border/40 bg-card/60 px-3 py-1 text-xs text-muted-foreground">
+										{currentOrganization?.name ?? "Organization"}
+									</span>
+								)}
+							</div>
+						)}
 
 						<Button
 							variant="ghost"
@@ -272,13 +327,29 @@ export function NavBar() {
 											<span>Settings</span>
 										</Link>
 									</DropdownMenuItem>
-									{isAdmin && (
+									{isOrgAdmin && !isSuperAdmin && (
 										<DropdownMenuItem asChild>
-											<Link href="/admin/users">
-												<Shield className="mr-2 h-4 w-4" />
-												<span>Admin</span>
+											<Link href="/settings/team">
+												<Users className="mr-2 h-4 w-4" />
+												<span>Team</span>
 											</Link>
 										</DropdownMenuItem>
+									)}
+									{isSuperAdmin && (
+										<>
+											<DropdownMenuItem asChild>
+												<Link href="/admin/users">
+													<Shield className="mr-2 h-4 w-4" />
+													<span>Admin: Users</span>
+												</Link>
+											</DropdownMenuItem>
+											<DropdownMenuItem asChild>
+												<Link href="/admin/organizations">
+													<Building2 className="mr-2 h-4 w-4" />
+													<span>Admin: Orgs</span>
+												</Link>
+											</DropdownMenuItem>
+										</>
 									)}
 									<DropdownMenuSeparator />
 									<DropdownMenuItem

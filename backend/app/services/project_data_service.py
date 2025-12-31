@@ -8,9 +8,11 @@ from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from fastapi import HTTPException
 
 from app.models.project import Project
+from app.models.user import User
 from app.schemas.project_data import ProjectAIInput
 
 
@@ -68,12 +70,22 @@ class ProjectDataService:
     async def get_project_data(
         db: AsyncSession,
         project_id: UUID,
-        user_id: UUID
+        current_user: User,
+        org_id: UUID,
     ) -> Dict[str, Any]:
         """Get project data with ownership check"""
-        project = await db.get(Project, project_id)
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.organization_id == org_id,
+            )
+        )
+        project = result.scalar_one_or_none()
         
-        if not project or project.user_id != user_id:
+        if not project:
+            raise HTTPException(404, "Project not found")
+
+        if not current_user.can_see_all_org_projects() and project.user_id != current_user.id:
             raise HTTPException(404, "Project not found")
         
         return project.project_data or {}
@@ -82,7 +94,8 @@ class ProjectDataService:
     async def update_project_data(
         db: AsyncSession,
         project_id: UUID,
-        user_id: UUID,
+        current_user: User,
+        org_id: UUID,
         updates: Dict[str, Any],
         merge: bool = True
     ) -> Project:
@@ -93,9 +106,18 @@ class ProjectDataService:
             merge: If True, deep merges with existing data.
                    If False, replaces completely.
         """
-        project = await db.get(Project, project_id)
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.organization_id == org_id,
+            )
+        )
+        project = result.scalar_one_or_none()
         
-        if not project or project.user_id != user_id:
+        if not project:
+            raise HTTPException(404, "Project not found")
+
+        if not current_user.can_see_all_org_projects() and project.user_id != current_user.id:
             raise HTTPException(404, "Project not found")
         
         if merge:

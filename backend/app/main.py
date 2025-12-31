@@ -139,6 +139,8 @@ async def create_initial_superuser() -> None:
                 is_active=True,
                 is_superuser=True,
                 is_verified=True,
+                role="admin",
+                organization_id=None,
                 first_name="Admin",
                 last_name="User",
             )
@@ -242,8 +244,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Organization-Id"],
     expose_headers=["Content-Disposition"],
 )
 
@@ -474,6 +476,7 @@ from app.api.v1 import (
     files,
     project_data,
     admin_users,
+    organizations,
 )
 
 # Health checks (available at root and API prefix)
@@ -522,6 +525,12 @@ app.include_router(
     admin_users.router,
     prefix=f"{settings.API_V1_PREFIX}/admin/users",
     tags=["Admin Users"],
+)
+
+app.include_router(
+    organizations.router,
+    prefix=f"{settings.API_V1_PREFIX}/organizations",
+    tags=["Organizations"],
 )
 
 # ============================================================================

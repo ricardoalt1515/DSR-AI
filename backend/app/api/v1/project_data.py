@@ -7,7 +7,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, HTTPException, Request
 import structlog
 
-from app.api.dependencies import ProjectDep, AsyncDB
+from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep, AsyncDB
 from app.services.project_data_service import ProjectDataService
 from app.schemas.common import SuccessResponse
 
@@ -24,13 +24,16 @@ from app.main import limiter
 async def get_project_data(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     db: AsyncDB,
 ):
     """Get all project data (complete JSONB structure)."""
     data = await ProjectDataService.get_project_data(
         db=db,
         project_id=project.id,
-        user_id=project.user_id
+        current_user=current_user,
+        org_id=org.id,
     )
     return {"project_id": str(project.id), "data": data}
 
@@ -40,6 +43,8 @@ async def get_project_data(
 async def update_project_data(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     updates: Dict[str, Any],
     db: AsyncDB,
     merge: bool = True
@@ -48,7 +53,8 @@ async def update_project_data(
     updated = await ProjectDataService.update_project_data(
         db=db,
         project_id=project.id,
-        user_id=project.user_id,
+        current_user=current_user,
+        org_id=org.id,
         updates=updates,
         merge=merge
     )
@@ -66,6 +72,8 @@ async def update_project_data(
 async def replace_project_data(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     data: Dict[str, Any],
     db: AsyncDB,
 ):
@@ -73,7 +81,8 @@ async def replace_project_data(
     updated = await ProjectDataService.update_project_data(
         db=db,
         project_id=project.id,
-        user_id=project.user_id,
+        current_user=current_user,
+        org_id=org.id,
         updates=data,
         merge=False
     )
@@ -91,6 +100,8 @@ async def replace_project_data(
 async def add_quality_parameter(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     parameter_name: str,
     value: float,
     unit: str,
@@ -98,14 +109,14 @@ async def add_quality_parameter(
 ):
     """Add/update a water quality parameter."""
     data = await ProjectDataService.get_project_data(
-        db=db, project_id=project.id, user_id=project.user_id
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id
     )
     if "quality" not in data:
         data["quality"] = {}
     data["quality"][parameter_name] = {"value": value, "unit": unit}
     
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, user_id=project.user_id,
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
         updates={"quality": data["quality"]}, merge=True
     )
     logger.info("quality_parameter_added", parameter=parameter_name, value=value)
@@ -120,12 +131,14 @@ async def add_quality_parameter(
 async def delete_quality_parameter(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     parameter_name: str,
     db: AsyncDB,
 ):
     """Delete a water quality parameter."""
     data = await ProjectDataService.get_project_data(
-        db=db, project_id=project.id, user_id=project.user_id
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id
     )
     quality = data.get("quality", {})
     if parameter_name not in quality:
@@ -133,7 +146,7 @@ async def delete_quality_parameter(
     
     del quality[parameter_name]
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, user_id=project.user_id,
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
         updates={"quality": quality}, merge=True
     )
     logger.info("quality_parameter_deleted", parameter=parameter_name)
@@ -145,12 +158,14 @@ async def delete_quality_parameter(
 async def add_custom_section(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     section: Dict[str, Any],
     db: AsyncDB,
 ):
     """Add a custom section to the project."""
     data = await ProjectDataService.get_project_data(
-        db=db, project_id=project.id, user_id=project.user_id
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id
     )
     sections = data.get("sections", [])
     if "order" not in section:
@@ -158,7 +173,7 @@ async def add_custom_section(
     sections.append(section)
     
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, user_id=project.user_id,
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
         updates={"sections": sections}, merge=True
     )
     logger.info("section_added", title=section.get("title"))
@@ -170,12 +185,14 @@ async def add_custom_section(
 async def delete_custom_section(
     request: Request,
     project: ProjectDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
     section_id: str,
     db: AsyncDB,
 ):
     """Delete a custom section."""
     data = await ProjectDataService.get_project_data(
-        db=db, project_id=project.id, user_id=project.user_id
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id
     )
     sections = data.get("sections", [])
     filtered_sections = [s for s in sections if s.get("id") != section_id]
@@ -187,7 +204,7 @@ async def delete_custom_section(
         section["order"] = idx
     
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, user_id=project.user_id,
+        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
         updates={"sections": filtered_sections}, merge=True
     )
     logger.info("section_deleted", section_id=section_id)

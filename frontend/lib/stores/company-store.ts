@@ -28,6 +28,7 @@ interface CompanyState {
 	deleteCompany: (id: string) => Promise<void>;
 	clearError: () => void;
 	setLoading: (loading: boolean) => void;
+	resetStore: () => void;
 }
 
 export const useCompanyStore = create<CompanyState>()(
@@ -190,6 +191,18 @@ export const useCompanyStore = create<CompanyState>()(
 				set((state) => {
 					state.loading = loading;
 				}),
+
+			resetStore: () => {
+				set((state) => {
+					state.companies = [];
+					state.currentCompany = null;
+					state.loading = false;
+					state.error = null;
+				});
+				if (typeof window !== "undefined") {
+					localStorage.removeItem("waste-company-store");
+				}
+			},
 		})),
 		{
 			name: "waste-company-store",

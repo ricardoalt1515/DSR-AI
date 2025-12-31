@@ -25,6 +25,7 @@ EVENT_TYPE_MAP = {
 async def create_timeline_event(
     db: AsyncSession,
     project_id: UUID,
+    organization_id: UUID,
     event_type: str,
     title: str,
     actor: str,
@@ -54,6 +55,7 @@ async def create_timeline_event(
     
     event = TimelineEvent(
         project_id=project_id,
+        organization_id=organization_id,
         event_type=frontend_type,
         title=title,
         description=description,

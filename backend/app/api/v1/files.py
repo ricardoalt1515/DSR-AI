@@ -19,11 +19,10 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import CurrentUser, ProjectDep, AsyncDB
+from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep, AsyncDB
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_async_db
 from app.models.file import ProjectFile
@@ -85,7 +84,7 @@ def validate_file(upload_file: UploadFile) -> None:
 @limiter.limit("10/minute")  # File upload - conservative (resource intensive)
 async def upload_file(
     request: Request,
-    project_id: UUID,
+    project: ProjectDep,
     current_user: CurrentUser,
     file: UploadFile = File(...),
     category: str = Form("general"),
@@ -130,20 +129,6 @@ async def upload_file(
     # Validate file
     validate_file(file)
 
-    # Verify project access
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(select(Project).where(*conditions))
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
     try:
         # Read file content
         file_content = await file.read()
@@ -174,7 +159,7 @@ async def upload_file(
         # Store file
         if USE_S3:
             # Upload to S3
-            s3_key = f"projects/{project_id}/files/{unique_filename}"
+            s3_key = f"projects/{project.id}/files/{unique_filename}"
             from io import BytesIO
 
             file_buffer = BytesIO(file_content)
@@ -182,7 +167,7 @@ async def upload_file(
             file_path = s3_key
         else:
             # Store locally
-            storage_dir = Path(settings.LOCAL_STORAGE_PATH) / "projects" / str(project_id) / "files"
+            storage_dir = Path(settings.LOCAL_STORAGE_PATH) / "projects" / str(project.id) / "files"
             storage_dir.mkdir(parents=True, exist_ok=True)
             file_path = str(storage_dir / unique_filename)
 
@@ -191,7 +176,8 @@ async def upload_file(
 
         # Create database record
         project_file = ProjectFile(
-            project_id=project_id,
+            project_id=project.id,
+            organization_id=project.organization_id,
             filename=file.filename,
             file_path=file_path,
             file_size=file_size,
@@ -218,7 +204,8 @@ async def upload_file(
 
         # Create timeline event
         event = TimelineEvent(
-            project_id=project_id,
+            project_id=project.id,
+            organization_id=project.organization_id,
             event_type="file_uploaded",
             title="File uploaded",
             description=f"Uploaded file: {file.filename}",
@@ -235,7 +222,7 @@ async def upload_file(
         await db.commit()
         await db.refresh(project_file)
 
-        logger.info("File uploaded", filename=file.filename, project_id=str(project_id))
+        logger.info("File uploaded", filename=file.filename, project_id=str(project.id))
 
         return FileUploadResponse(
             id=project_file.id,
@@ -307,9 +294,8 @@ async def list_files(
     summary="Get file details",
 )
 async def get_file_detail(
-    project_id: UUID,
+    project: ProjectDep,
     file_id: UUID,
-    current_user: CurrentUser,
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -321,15 +307,13 @@ async def get_file_detail(
     - Extracted text (if processed)
     - AI analysis (if available)
     """
-    # Verify access
-    conditions = [
-        ProjectFile.id == file_id,
-        ProjectFile.project_id == project_id,
-    ]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
-    result = await db.execute(select(ProjectFile).join(Project).where(*conditions))
+    result = await db.execute(
+        select(ProjectFile).where(
+            ProjectFile.id == file_id,
+            ProjectFile.project_id == project.id,
+            ProjectFile.organization_id == project.organization_id,
+        )
+    )
     file = result.scalar_one_or_none()
 
     if not file:
@@ -359,6 +343,7 @@ async def get_file_detail(
 async def download_file(
     file_id: UUID,
     current_user: CurrentUser,
+    org: OrganizationContext,
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -375,8 +360,9 @@ async def download_file(
     # Get file (verify access through join)
     conditions = [
         ProjectFile.id == file_id,
+        Project.organization_id == org.id,
     ]
-    if not current_user.is_superuser:
+    if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
 
     result = await db.execute(select(ProjectFile).join(Project).where(*conditions))
@@ -407,7 +393,7 @@ async def download_file(
     summary="Delete file",
 )
 async def delete_file(
-    project_id: UUID,
+    project: ProjectDep,
     file_id: UUID,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_async_db),
@@ -417,18 +403,12 @@ async def delete_file(
 
     Deletes both the database record and the physical file.
     """
-    # Verify access (superusers can delete any file)
-    conditions = [
-        ProjectFile.id == file_id,
-        ProjectFile.project_id == project_id,
-    ]
-    if not current_user.is_superuser:
-        conditions.append(Project.user_id == current_user.id)
-
     result = await db.execute(
-        select(ProjectFile)
-        .join(Project)
-        .where(*conditions)
+        select(ProjectFile).where(
+            ProjectFile.id == file_id,
+            ProjectFile.project_id == project.id,
+            ProjectFile.organization_id == project.organization_id,
+        )
     )
     file = result.scalar_one_or_none()
 
@@ -453,7 +433,8 @@ async def delete_file(
 
     # Create timeline event
     event = TimelineEvent(
-        project_id=project_id,
+        project_id=project.id,
+        organization_id=project.organization_id,
         event_type="file_deleted",
         title="File deleted",
         description=f"Deleted file: {file.filename}",
@@ -466,7 +447,7 @@ async def delete_file(
     db.add(event)
     await db.commit()
 
-    logger.info("File deleted", filename=file.filename, project_id=str(project_id))
+    logger.info("File deleted", filename=file.filename, project_id=str(project.id))
 
     return None
 

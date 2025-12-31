@@ -32,6 +32,7 @@ interface LocationState {
 	deleteLocation: (id: string) => Promise<void>;
 	clearError: () => void;
 	setLoading: (loading: boolean) => void;
+	resetStore: () => void;
 }
 
 export const useLocationStore = create<LocationState>()(
@@ -256,6 +257,18 @@ export const useLocationStore = create<LocationState>()(
 				set((state) => {
 					state.loading = loading;
 				}),
+
+			resetStore: () => {
+				set((state) => {
+					state.locations = [];
+					state.currentLocation = null;
+					state.loading = false;
+					state.error = null;
+				});
+				if (typeof window !== "undefined") {
+					localStorage.removeItem("waste-location-store");
+				}
+			},
 		})),
 		{
 			name: "waste-location-store",

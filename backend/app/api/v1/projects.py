@@ -4,8 +4,7 @@ Projects CRUD endpoints.
 
 from uuid import UUID
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Path
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, status, Query, Request, Path
 import structlog
 
 from app.core.database import get_async_db
@@ -18,6 +17,7 @@ from app.api.dependencies import (
     StatusFilter,
     SectorFilter,
     ProjectDep,
+    OrganizationContext,
     RateLimitUser60,
 )
 from app.schemas.project import (
@@ -54,6 +54,7 @@ async def list_projects(
     request: Request,
     current_user: CurrentUser,
     db: AsyncDB,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,  # User-based rate limiting via Redis
     page: PageNumber = 1,
     page_size: PageSize = 10,
@@ -87,8 +88,9 @@ async def list_projects(
         )
     )
 
-    # Permission filter: admins see all projects, members only their own
-    if not current_user.is_superuser:
+    # Organization + permission filter
+    query = query.where(Project.organization_id == org.id)
+    if not current_user.can_see_all_org_projects():
         query = query.where(Project.user_id == current_user.id)
 
     # Add search filter
@@ -156,6 +158,7 @@ async def list_projects(
 async def get_dashboard_stats(
     current_user: CurrentUser,
     db: AsyncDB,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
 ):
     """
@@ -170,6 +173,10 @@ async def get_dashboard_stats(
         DashboardStatsResponse with totals, averages, and pipeline breakdown
     """
     # Single aggregation query
+    conditions = [Project.organization_id == org.id]
+    if not current_user.can_see_all_org_projects():
+        conditions.append(Project.user_id == current_user.id)
+
     stats_query = select(
         func.count(Project.id).label("total_projects"),
         func.count(case((Project.status == "In Preparation", 1))).label("in_preparation"),
@@ -179,7 +186,7 @@ async def get_dashboard_stats(
         func.avg(Project.progress).label("avg_progress"),
         func.sum(Project.budget).label("total_budget"),
         func.max(Project.updated_at).label("last_updated"),
-    ).where(Project.user_id == current_user.id)
+    ).where(*conditions)
 
     result = await db.execute(stats_query)
     stats = result.one()
@@ -191,7 +198,7 @@ async def get_dashboard_stats(
             func.count(Project.id).label("count"),
             func.avg(Project.progress).label("avg_progress"),
         )
-        .where(Project.user_id == current_user.id)
+        .where(*conditions)
         .group_by(Project.status)
     )
 
@@ -226,6 +233,7 @@ async def get_dashboard_stats(
 async def get_project(
     current_user: CurrentUser,
     db: AsyncDB,
+    org: OrganizationContext,
     _rate_limit: RateLimitUser60,
     project_id: UUID = Path(description="Project unique identifier"),
 ):
@@ -239,8 +247,11 @@ async def get_project(
     from app.models.company import Company
     
     # Permission: superusers can access any project; members only their own
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
+    conditions = [
+        Project.id == project_id,
+        Project.organization_id == org.id,
+    ]
+    if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
         
     result = await db.execute(
@@ -278,6 +289,7 @@ async def create_project(
     request: Request,
     project_data: ProjectCreate,
     current_user: CurrentUser,
+    org: OrganizationContext,
     db: AsyncDB,  # Use type alias
 ):
     """
@@ -294,7 +306,10 @@ async def create_project(
     location_result = await db.execute(
         select(Location)
         .options(selectinload(Location.company))
-        .where(Location.id == project_data.location_id)
+        .where(
+            Location.id == project_data.location_id,
+            Location.organization_id == org.id,
+        )
     )
     location = location_result.scalar_one_or_none()
     
@@ -326,6 +341,7 @@ async def create_project(
     new_project = Project(
         user_id=current_user.id,
         location_id=project_data.location_id,
+        organization_id=org.id,
         name=project_data.name,
         client=client_name,  # Inherited from Company.name
         sector=sector,  # Inherited from Company.sector
@@ -352,6 +368,7 @@ async def create_project(
     await create_timeline_event(
         db=db,
         project_id=new_project.id,
+        organization_id=org.id,
         event_type="project_created",
         title="Assessment created",
         description=f"Assessment '{new_project.name}' created with standard questionnaire",
@@ -403,14 +420,18 @@ async def update_project(
     project_id: UUID,
     project_data: ProjectUpdate,
     current_user: CurrentUser,
+    org: OrganizationContext,
     db: AsyncDB,
 ):
     """Update project fields and log timeline event."""
     from app.services.timeline_service import create_timeline_event
     
     # Permission: superusers can update any project; members only their own
-    conditions = [Project.id == project_id]
-    if not current_user.is_superuser:
+    conditions = [
+        Project.id == project_id,
+        Project.organization_id == org.id,
+    ]
+    if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
     
     result = await db.execute(
@@ -435,6 +456,7 @@ async def update_project(
     await create_timeline_event(
         db=db,
         project_id=project.id,
+        organization_id=project.organization_id,
         event_type="project_updated",
         title="Project updated",
         description=f"Updated fields: {', '.join(changed_fields)}",

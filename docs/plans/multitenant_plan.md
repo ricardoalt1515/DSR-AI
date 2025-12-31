@@ -68,6 +68,17 @@ Implementar multi-tenancy mediante un modelo `Organization` que actua como raiz 
 
 ---
 
+## Seed inicial (recomendado para prod)
+
+Aunque “nadie use” la plataforma aun, ya existen datos creados por el equipo (companies/projects/etc.) y, al volver `organization_id` NOT NULL, la migracion necesita un tenant al cual asignarlos.
+
+- **Crear org inicial "DSR" en la migracion** (name="DSR", slug="dsr").
+- **No hardcodear UUID** en docs/codigo: en el Alembic migration generar `dsr_org_id = uuid.uuid4()` e insertar ese `id`.
+- Para referenciar esa org en runtime/UI: usar `slug="dsr"` (no depender del UUID).
+- **UNIQUE(organization_id, name) en companies**: **Post-MVP** (no en la primera migracion).
+
+---
+
 ## Regla Critica: organization_id es INMUTABLE
 
 Una vez asignado, `organization_id` NO debe cambiar. Esto previene:
@@ -161,7 +172,7 @@ class Organization(BaseModel):
 
 - Agregar `organization_id` FK (NOT NULL)
 - Agregar relationship a Organization
-- (Opcional pero recomendado) Agregar `UNIQUE(organization_id, name)` para evitar colisiones dentro del mismo tenant
+- (Post-MVP recomendado) Agregar `UNIQUE(organization_id, name)` para evitar colisiones dentro del mismo tenant (en MVP evitar para no bloquear migracion si hay duplicados)
 
 ### 1.4 Modificar Location model
 
@@ -205,21 +216,13 @@ class Organization(BaseModel):
 **Archivo nuevo**: `backend/alembic/versions/xxx_add_organizations.py`
 
 1. Crear tabla `organizations`
-2. Insertar org default "DSR" con UUID fijo
+2. Insertar org default "DSR" (name="DSR", slug="dsr") con `id` generado dentro del migration (ej: `dsr_org_id = uuid.uuid4()`).
 3. Agregar `organization_id` a TODAS las tablas:
    - `users` (nullable para super admins)
    - `companies`, `locations`, `projects` (NOT NULL)
    - `proposals`, `project_files`, `timeline_events` (NOT NULL)
 4. Asignar todos los datos existentes a org DSR:
-   ```sql
-   UPDATE companies SET organization_id = DSR_ID;
-   UPDATE locations SET organization_id = DSR_ID;
-   UPDATE projects SET organization_id = DSR_ID;
-   UPDATE proposals SET organization_id = DSR_ID;
-   UPDATE project_files SET organization_id = DSR_ID;
-   UPDATE timeline_events SET organization_id = DSR_ID;
-   UPDATE users SET organization_id = DSR_ID WHERE is_superuser = false;
-   ```
+   - En Alembic/Python usar el UUID generado (`dsr_org_id`) para ejecutar los UPDATEs (no hardcodear el valor).
 5. Hacer `organization_id` NOT NULL en todas las tablas (excepto users)
 6. Crear indices:
    - `CREATE INDEX ix_X_org_id ON X(organization_id)` para cada tabla (paths de listado por tenant)
@@ -231,9 +234,9 @@ class Organization(BaseModel):
      CREATE INDEX ix_project_files_project_org ON project_files(project_id, organization_id);
      CREATE INDEX ix_timeline_events_project_org ON timeline_events(project_id, organization_id);
      ```
-7. Crear unique constraints (solo si los datos lo permiten):
+7. (Post-MVP recomendado) Crear unique constraints en companies:
    - `UNIQUE(organization_id, name)` en companies (evita colisiones dentro del mismo tenant)
-   - Antes de agregarla, validar que no existan duplicados:
+   - Si decides agregarlo en la misma migracion, primero validar que no existan duplicados:
      ```sql
      SELECT organization_id, name, COUNT(*)
      FROM companies
@@ -324,7 +327,8 @@ async def get_organization_context(
 
     # Fail-fast: por CHECK constraint esto no deberia pasar
     if current_user.organization_id is not None:
-        raise HTTPException(500, "Invalid admin state")
+        # Mensaje accionable para detectar datos corruptos / migracion incompleta
+        raise HTTPException(500, "Invalid admin state: superuser has organization_id")
 
     # Super admin: DEBE seleccionar org via header
     if x_organization_id is None:
@@ -371,7 +375,7 @@ SuperAdminOnly = Annotated[User, Depends(get_super_admin_only)]
 
 En este repo ya existe `CORSMiddleware` en `backend/app/main.py`.
 
-- Para el MVP, **no es necesario** cambiarlo: `allow_headers=["*"]` ya permite que el browser envie `X-Organization-Id`.
+- En FastAPI/Starlette actuales, con `allow_credentials=True`, evita `allow_methods=["*"]` y `allow_headers=["*"]`. Define listas explicitas para no depender de comportamiento implicito.
 - Importante: **no** agregar un segundo middleware de CORS; solo modificar el existente si hace falta.
 - Nota: `expose_headers` solo aplica para leer headers de la **respuesta** desde el browser (no para enviar headers).
 
@@ -380,8 +384,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Organization-Id"],
     expose_headers=["Content-Disposition"],
 )
 ```
@@ -477,6 +481,7 @@ async def create_project(
 
 - `backend/app/api/dependencies.py` - `get_accessible_project` (linea ~131)
 - `backend/app/services/project_data_service.py` - validaciones de user_id
+- `backend/app/api/v1/projects.py` - `get_dashboard_stats` debe usar el mismo scoping por org + regla org_admin (hoy filtra solo por `Project.user_id`)
 
 **DRY: hacer `ProjectDep` org-aware (recomendado):**
 
@@ -713,6 +718,30 @@ async def create_org_user(
 **Nuevo endpoint org-scoped (si lo necesitas para UI tenant-admin):**
 
 - `GET /organizations/current/users` (solo `org_admin` / super admin con `OrganizationContext`)
+- `POST /organizations/current/users` (solo `org_admin` / super admin con `OrganizationContext`)
+
+**Endpoints adicionales para UI de Platform Admin:**
+
+- `GET /organizations/{org_id}/users` (solo super admin)
+- `POST /organizations/{org_id}/users` (solo super admin)
+
+**Validacion de roles (REQUIRED):**
+
+- Bloquear `role="admin"` en **ambos** endpoints de creacion de usuarios tenant (`/organizations/current/users` y `/organizations/{org_id}/users`).
+- Razon: `role="admin"` fuerza `is_superuser=true` en `UserManager`. Con `organization_id` no-null,
+  el CHECK constraint falla y devuelve un error poco claro. Mejor devolver `400` con mensaje accionable.
+
+### 2.11 Bootstrap superuser (codigo existente)
+
+**Archivo**: `backend/app/main.py`
+
+El bootstrap `create_initial_superuser()` crea usuarios directo con `User(...)`, **no** pasa por `UserManager`.
+Para mantener el contrato multi-tenant, setear explicitamente:
+
+- `role="admin"`
+- `organization_id=NULL` (o dejar `None`)
+
+Esto evita superusers con `role` incorrecto (default `field_agent`) y mantiene consistencia con el CHECK constraint.
 
 ---
 
@@ -905,6 +934,19 @@ localStorage.removeItem("selected_org_id");
 
 **Recomendacion:** Solucion A es mas simple y suficiente para el caso de uso.
 
+### 3.7 UI para gestion de organizaciones y usuarios (Platform + Org Admin)
+
+**Rutas UI nuevas:**
+
+- `/admin/organizations` — lista de orgs (solo Platform Admin).
+- `/admin/organizations/[id]` — detalle de org + usuarios (solo Platform Admin).
+- `/settings/team` — equipo de la org actual (solo Org Admin).
+
+**Comportamiento clave (super admin):**
+
+- Al entrar a `/admin/organizations/[id]`, setear `selected_org_id` al `org_id` del path
+  para mantener consistente el header `X-Organization-Id`.
+
 ---
 
 ## Fase 4: Export de Datos (Portabilidad) - DIFERIDA
@@ -981,19 +1023,26 @@ Para cuando un cliente quiera su propia instancia, documentar como importar el Z
 
 ### Frontend (modificar)
 
-- `frontend/lib/api/auth.ts` - Agregar campos de org a `User` + mapear desde `/auth/me`
-- `frontend/lib/api/admin-users.ts` - Agregar campos de org a `User` (transformUser)
+- `frontend/lib/api/auth.ts` - Dejar de definir `User`/`UserRole` aqui; importar desde `frontend/lib/types/user.ts` y mapear `organizationId` desde `/auth/me`
+- `frontend/lib/api/admin-users.ts` - Importar `User`/`UserRole` desde `frontend/lib/types/user.ts` (evitar duplicacion) y mapear `organizationId` si aplica
 - `frontend/lib/api/client.ts` - Agregar header `X-Organization-Id` (fetch wrapper)
 - `frontend/lib/contexts/auth-context.tsx` - Agregar org context + limpiar `selected_org_id` en logout
 - `frontend/components/shared/layout/navbar.tsx` - Org selector para super admins
 - `frontend/lib/api/index.ts` - Re-export `User`/`UserRole` desde `frontend/lib/types/user.ts` (ya no desde `auth.ts`)
 - `frontend/lib/stores/index.ts` - Exportar `organization-store` (para imports consistentes)
+- `frontend/app/admin/users/page.tsx` - Ajustar roles disponibles/UX segun `/admin/users` (solo platform admins)
 
 ---
 
 ## Tests de Aislamiento (Minimos para no romper produccion)
 
 **Archivo**: `backend/tests/test_multi_tenant.py`
+
+**Nota de setup:** Estos tests son mas efectivos si son **integracion (API + DB)**. Hoy `backend/tests/` no tiene `conftest.py` ni fixtures de DB/AsyncClient, asi que:
+
+- Recomendado: correr tests contra Postgres (y Redis si aplica) usando `backend/docker-compose.yml` o un DB de test dedicado.
+- Mantener el harness minimo: `httpx.AsyncClient(app=app, ...)` + override de `get_async_db` para usar una session de test.
+- SQLite en memoria NO cubre bien JSONB/constraints de Postgres; util solo para unit tests, no para validar multi-tenant en serio.
 
 Casos criticos que DEBEN pasar antes de deploy:
 
