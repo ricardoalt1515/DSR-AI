@@ -35,7 +35,9 @@ export {
 export {
 	type Organization,
 	type OrganizationCreateInput,
+	type OrganizationUpdateInput,
 	type OrgUserCreateInput,
+	type OrgUserUpdateInput,
 	OrganizationsAPI,
 	organizationsAPI,
 } from "./organizations";

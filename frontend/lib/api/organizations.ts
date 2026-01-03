@@ -26,6 +26,18 @@ export interface OrgUserCreateInput {
 	role: Exclude<UserRole, "admin">;
 }
 
+export interface OrganizationUpdateInput {
+	name?: string;
+	contactEmail?: string | null;
+	contactPhone?: string | null;
+	isActive?: boolean;
+}
+
+export interface OrgUserUpdateInput {
+	role?: Exclude<UserRole, "admin">;
+	isActive?: boolean;
+}
+
 function transformOrganization(response: any): Organization {
 	return {
 		id: response.id,
@@ -139,6 +151,55 @@ export class OrganizationsAPI {
 			role: payload.role,
 		};
 		const data = await apiClient.post<any>("/organizations/current/users", body);
+		return transformUser(data);
+	}
+
+	/**
+	 * Update an organization (Platform Admin only)
+	 */
+	static async update(orgId: string, payload: OrganizationUpdateInput): Promise<Organization> {
+		const body: Record<string, unknown> = {};
+		if (payload.name !== undefined) body.name = payload.name;
+		if (payload.contactEmail !== undefined) body.contact_email = payload.contactEmail;
+		if (payload.contactPhone !== undefined) body.contact_phone = payload.contactPhone;
+		if (payload.isActive !== undefined) body.is_active = payload.isActive;
+
+		const data = await apiClient.patch<any>(`/organizations/${orgId}`, body);
+		return transformOrganization(data);
+	}
+
+	/**
+	 * Delete (soft-delete) an organization (Platform Admin only)
+	 */
+	static async delete(orgId: string): Promise<void> {
+		await apiClient.delete(`/organizations/${orgId}`);
+	}
+
+	/**
+	 * Update user in a specific organization (Platform Admin only)
+	 */
+	static async updateOrgUser(
+		orgId: string,
+		userId: string,
+		payload: OrgUserUpdateInput
+	): Promise<User> {
+		const body: Record<string, unknown> = {};
+		if (payload.role !== undefined) body.role = payload.role;
+		if (payload.isActive !== undefined) body.is_active = payload.isActive;
+
+		const data = await apiClient.patch<any>(`/organizations/${orgId}/users/${userId}`, body);
+		return transformUser(data);
+	}
+
+	/**
+	 * Update user in current organization (Org Admin or Platform Admin)
+	 */
+	static async updateMyOrgUser(userId: string, payload: OrgUserUpdateInput): Promise<User> {
+		const body: Record<string, unknown> = {};
+		if (payload.role !== undefined) body.role = payload.role;
+		if (payload.isActive !== undefined) body.is_active = payload.isActive;
+
+		const data = await apiClient.patch<any>(`/organizations/current/users/${userId}`, body);
 		return transformUser(data);
 	}
 }

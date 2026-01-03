@@ -219,27 +219,9 @@ export function NavBar() {
 
 						{authedUser && (
 							<div className="hidden items-center gap-2 md:flex">
-								{authedUser.isSuperuser ? (
-									<Select
-										value={selectedOrgId ?? ""}
-										onValueChange={(value) => selectOrganization(value)}
-									>
-										<SelectTrigger className="h-9 w-[200px] rounded-full bg-card/60 text-xs">
-											<SelectValue placeholder="Select Organization" />
-										</SelectTrigger>
-										<SelectContent>
-											{organizations.map((org) => (
-												<SelectItem key={org.id} value={org.id}>
-													{org.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								) : (
-									<span className="rounded-full border border-border/40 bg-card/60 px-3 py-1 text-xs text-muted-foreground">
-										{currentOrganization?.name ?? "Organization"}
-									</span>
-								)}
+								<span className="rounded-full border border-border/40 bg-card/60 px-3 py-1 text-xs text-muted-foreground">
+									{currentOrganization?.name ?? "Organization"}
+								</span>
 							</div>
 						)}
 
@@ -336,20 +318,12 @@ export function NavBar() {
 										</DropdownMenuItem>
 									)}
 									{isSuperAdmin && (
-										<>
-											<DropdownMenuItem asChild>
-												<Link href="/admin/users">
-													<Shield className="mr-2 h-4 w-4" />
-													<span>Admin: Users</span>
-												</Link>
-											</DropdownMenuItem>
-											<DropdownMenuItem asChild>
-												<Link href="/admin/organizations">
-													<Building2 className="mr-2 h-4 w-4" />
-													<span>Admin: Orgs</span>
-												</Link>
-											</DropdownMenuItem>
-										</>
+										<DropdownMenuItem asChild>
+											<Link href="/admin">
+												<Shield className="mr-2 h-4 w-4" />
+												<span>Admin Console</span>
+											</Link>
+										</DropdownMenuItem>
 									)}
 									<DropdownMenuSeparator />
 									<DropdownMenuItem

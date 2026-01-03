@@ -1,23 +1,9 @@
 "use client";
 
-import {
-	type ColumnDef,
-	flexRender,
-	getCoreRowModel,
-	getSortedRowModel,
-	type SortingState,
-	useReactTable,
-} from "@tanstack/react-table";
-import {
-	ArrowUpDown,
-	Plus,
-	RefreshCcw,
-	User as UserIcon,
-	Users,
-} from "lucide-react";
+import { CheckCircle, Plus, RefreshCcw, Users, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { AddUserModal, AdminStatsCard, UsersTable } from "@/components/features/admin";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -26,69 +12,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import {
 	organizationsAPI,
 	type OrgUserCreateInput,
-	type User,
-	type UserRole,
 } from "@/lib/api";
 import { useAuth } from "@/lib/contexts";
-
-const PASSWORD_HINT = "Min 8 chars, 1 uppercase, 1 number";
-
-const TENANT_ROLES: { value: Exclude<UserRole, "admin">; label: string }[] = [
-	{ value: "org_admin", label: "Org Admin" },
-	{ value: "field_agent", label: "Field Agent" },
-	{ value: "sales", label: "Sales Rep" },
-	{ value: "contractor", label: "Contractor" },
-	{ value: "compliance", label: "Compliance" },
-];
-
-function getRoleBadgeVariant(role: string) {
-	switch (role) {
-		case "org_admin":
-			return "default";
-		case "field_agent":
-			return "secondary";
-		case "sales":
-			return "outline";
-		default:
-			return "secondary";
-	}
-}
-
-function formatRole(role: string): string {
-	return role
-		.split("_")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
-}
+import type { User, UserRole } from "@/lib/types/user";
 
 export default function SettingsTeamPage() {
 	const { user: currentUser, isOrgAdmin, isSuperAdmin } = useAuth();
@@ -97,16 +27,6 @@ export default function SettingsTeamPage() {
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [modalOpen, setModalOpen] = useState(false);
-	const [form, setForm] = useState({
-		email: "",
-		password: "",
-		confirmPassword: "",
-		firstName: "",
-		lastName: "",
-		role: "field_agent" as Exclude<UserRole, "admin">,
-	});
-	const [submitting, setSubmitting] = useState(false);
-	const [sorting, setSorting] = useState<SortingState>([]);
 
 	useEffect(() => {
 		if (!canManageUsers) return;
@@ -125,125 +45,55 @@ export default function SettingsTeamPage() {
 		}
 	};
 
-	const handleInputChange = (field: keyof typeof form, value: string) => {
-		setForm((prev) => ({ ...prev, [field]: value }));
-	};
+	const stats = useMemo(() => {
+		const total = users.length;
+		const active = users.filter((u) => u.isActive).length;
+		const inactive = total - active;
+		return { total, active, inactive };
+	}, [users]);
 
-	const resetForm = () => {
-		setForm({
-			email: "",
-			password: "",
-			confirmPassword: "",
-			firstName: "",
-			lastName: "",
-			role: "field_agent",
-		});
-	};
-
-	const canSubmitForm = useMemo(() => {
-		return (
-			form.email.trim() !== "" &&
-			form.password.length >= 8 &&
-			/[A-Z]/.test(form.password) &&
-			/[0-9]/.test(form.password) &&
-			form.password === form.confirmPassword &&
-			form.firstName.trim() !== "" &&
-			form.lastName.trim() !== ""
-		);
-	}, [form]);
-
-	const handleCreateUser = async () => {
-		if (!canSubmitForm) return;
-
-		setSubmitting(true);
+	const handleCreateUser = async (data: OrgUserCreateInput) => {
 		try {
-			const payload: OrgUserCreateInput = {
-				email: form.email.trim(),
-				password: form.password,
-				firstName: form.firstName.trim(),
-				lastName: form.lastName.trim(),
-				role: form.role,
-			};
-			const newUser = await organizationsAPI.createMyOrgUser(payload);
+			const newUser = await organizationsAPI.createMyOrgUser(data);
 			setUsers((prev) => [...prev, newUser]);
 			toast.success(`User "${newUser.email}" created`);
-			setModalOpen(false);
-			resetForm();
-		} catch (error: any) {
-			toast.error(error.message || "Failed to create user");
-		} finally {
-			setSubmitting(false);
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Failed to create user";
+			toast.error(message);
+			throw error;
 		}
 	};
 
-	const columns: ColumnDef<User>[] = useMemo(
-		() => [
-			{
-				accessorKey: "name",
-				header: ({ column }) => (
-					<Button
-						variant="ghost"
-						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-					>
-						Name
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				),
-				cell: ({ row }) => (
-					<div className="flex items-center gap-2">
-						<UserIcon className="h-4 w-4 text-muted-foreground" />
-						<span>
-							{row.original.firstName} {row.original.lastName}
-						</span>
-						{row.original.id === currentUser?.id && (
-							<Badge variant="outline" className="text-xs">
-								You
-							</Badge>
-						)}
-					</div>
-				),
-			},
-			{
-				accessorKey: "email",
-				header: "Email",
-			},
-			{
-				accessorKey: "role",
-				header: "Role",
-				cell: ({ row }) => (
-					<Badge variant={getRoleBadgeVariant(row.original.role)}>
-						{formatRole(row.original.role)}
-					</Badge>
-				),
-			},
-			{
-				accessorKey: "isActive",
-				header: "Status",
-				cell: ({ row }) => (
-					<Badge variant={row.original.isActive ? "default" : "secondary"}>
-						{row.original.isActive ? "Active" : "Inactive"}
-					</Badge>
-				),
-			},
-		],
-		[currentUser?.id]
-	);
+	const handleRoleChange = async (userId: string, newRole: Exclude<UserRole, "admin">) => {
+		try {
+			const updated = await organizationsAPI.updateMyOrgUser(userId, { role: newRole });
+			setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+			toast.success("Role updated");
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Failed to update role";
+			toast.error(message);
+			throw error;
+		}
+	};
 
-	const table = useReactTable({
-		data: users,
-		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		onSortingChange: setSorting,
-		state: { sorting },
-	});
+	const handleStatusChange = async (userId: string, isActive: boolean) => {
+		try {
+			const updated = await organizationsAPI.updateMyOrgUser(userId, { isActive });
+			setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+			toast.success(isActive ? "User activated" : "User deactivated");
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Failed to update status";
+			toast.error(message);
+			throw error;
+		}
+	};
 
 	if (!canManageUsers) {
 		if (isSuperAdmin) {
 			return (
 				<div className="flex items-center justify-center min-h-[400px]">
 					<p className="text-muted-foreground">
-						Platform Admins should manage teams via Admin → Orgs.
+						Platform Admins should manage teams via Admin Console.
 					</p>
 				</div>
 			);
@@ -259,16 +109,16 @@ export default function SettingsTeamPage() {
 
 	return (
 		<div className="container mx-auto py-6 space-y-6">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="text-2xl font-semibold">Team</h1>
-					<p className="text-muted-foreground">
+					<h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+					<p className="text-sm text-muted-foreground mt-1">
 						Manage your organization's team members
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<Button variant="outline" size="icon" onClick={fetchUsers}>
-						<RefreshCcw className="h-4 w-4" />
+					<Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading}>
+						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 					</Button>
 					<Button onClick={() => setModalOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
@@ -277,16 +127,37 @@ export default function SettingsTeamPage() {
 				</div>
 			</div>
 
+			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<AdminStatsCard
+					label="Total Members"
+					value={stats.total}
+					icon={Users}
+					variant="default"
+				/>
+				<AdminStatsCard
+					label="Active"
+					value={stats.active}
+					icon={CheckCircle}
+					variant="success"
+				/>
+				<AdminStatsCard
+					label="Inactive"
+					value={stats.inactive}
+					icon={XCircle}
+					variant="muted"
+				/>
+			</div>
+
 			<Card>
 				<CardHeader>
-					<div className="flex items-center gap-2">
-						<Users className="h-5 w-5" />
-						<CardTitle>Team Members</CardTitle>
-						<Badge variant="secondary">{users.length}</Badge>
+					<div className="flex items-center justify-between">
+						<div>
+							<CardTitle className="text-lg">Team Members</CardTitle>
+							<CardDescription>
+								Users who have access to your organization
+							</CardDescription>
+						</div>
 					</div>
-					<CardDescription>
-						Users who have access to your organization
-					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -295,154 +166,24 @@ export default function SettingsTeamPage() {
 							<Skeleton className="h-10 w-full" />
 							<Skeleton className="h-10 w-full" />
 						</div>
-					) : users.length === 0 ? (
-						<div className="flex flex-col items-center justify-center py-8">
-							<Users className="h-12 w-12 text-muted-foreground mb-4" />
-							<p className="text-muted-foreground">No team members yet</p>
-							<Button className="mt-4" onClick={() => setModalOpen(true)}>
-								<Plus className="h-4 w-4 mr-2" />
-								Add First Member
-							</Button>
-						</div>
 					) : (
-						<div className="rounded-md border">
-							<Table>
-								<TableHeader>
-									{table.getHeaderGroups().map((headerGroup) => (
-										<TableRow key={headerGroup.id}>
-											{headerGroup.headers.map((header) => (
-												<TableHead key={header.id}>
-													{header.isPlaceholder
-														? null
-														: flexRender(
-																header.column.columnDef.header,
-																header.getContext()
-														  )}
-												</TableHead>
-											))}
-										</TableRow>
-									))}
-								</TableHeader>
-								<TableBody>
-									{table.getRowModel().rows.map((row) => (
-										<TableRow key={row.id}>
-											{row.getVisibleCells().map((cell) => (
-												<TableCell key={cell.id}>
-													{flexRender(
-														cell.column.columnDef.cell,
-														cell.getContext()
-													)}
-												</TableCell>
-											))}
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
+						<UsersTable
+							users={users}
+							currentUserId={currentUser?.id}
+							canEditRoles
+							canEditStatus
+							onRoleChange={handleRoleChange}
+							onStatusChange={handleStatusChange}
+						/>
 					)}
 				</CardContent>
 			</Card>
 
-			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Add Team Member</DialogTitle>
-						<DialogDescription>
-							Create a new user in your organization
-						</DialogDescription>
-					</DialogHeader>
-					<div className="space-y-4 py-4">
-						<div className="space-y-2">
-							<Label htmlFor="email">Email *</Label>
-							<Input
-								id="email"
-								type="email"
-								placeholder="user@company.com"
-								value={form.email}
-								onChange={(e) => handleInputChange("email", e.target.value)}
-							/>
-						</div>
-						<div className="grid grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="password">Password *</Label>
-								<Input
-									id="password"
-									type="password"
-									value={form.password}
-									onChange={(e) => handleInputChange("password", e.target.value)}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="confirmPassword">Confirm *</Label>
-								<Input
-									id="confirmPassword"
-									type="password"
-									value={form.confirmPassword}
-									onChange={(e) =>
-										handleInputChange("confirmPassword", e.target.value)
-									}
-								/>
-							</div>
-						</div>
-						<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
-						<div className="grid grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="firstName">First Name *</Label>
-								<Input
-									id="firstName"
-									value={form.firstName}
-									onChange={(e) => handleInputChange("firstName", e.target.value)}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="lastName">Last Name *</Label>
-								<Input
-									id="lastName"
-									value={form.lastName}
-									onChange={(e) => handleInputChange("lastName", e.target.value)}
-								/>
-							</div>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="role">Role *</Label>
-							<Select
-								value={form.role}
-								onValueChange={(value) =>
-									handleInputChange("role", value as Exclude<UserRole, "admin">)
-								}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{TENANT_ROLES.map((role) => (
-										<SelectItem key={role.value} value={role.value}>
-											{role.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setModalOpen(false);
-								resetForm();
-							}}
-						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleCreateUser}
-							disabled={!canSubmitForm || submitting}
-						>
-							{submitting ? "Creating..." : "Create User"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<AddUserModal
+				open={modalOpen}
+				onOpenChange={setModalOpen}
+				onSubmit={handleCreateUser}
+			/>
 		</div>
 	);
 }

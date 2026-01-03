@@ -27,3 +27,12 @@ class OrganizationRead(BaseSchema):
     contact_phone: Optional[str] = None
     settings: Dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
+
+
+class OrganizationUpdate(BaseSchema):
+    """Schema for updating an organization. All fields optional."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    is_active: Optional[bool] = None

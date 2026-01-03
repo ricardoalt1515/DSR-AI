@@ -1,18 +1,14 @@
 "use client";
 
-import { ArrowRight, Building2, Plus, RefreshCcw } from "lucide-react";
-import Link from "next/link";
+import { Building2, CheckCircle, Loader2, Plus, RefreshCcw, Search, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+	AdminStatsCard,
+	EditOrgModal,
+	OrgCard,
+} from "@/components/features/admin";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -28,8 +24,9 @@ import {
 	organizationsAPI,
 	type Organization,
 	type OrganizationCreateInput,
+	type OrganizationUpdateInput,
 } from "@/lib/api";
-import { useAuth } from "@/lib/contexts";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 function slugify(text: string): string {
 	return text
@@ -41,10 +38,12 @@ function slugify(text: string): string {
 }
 
 export default function AdminOrganizationsPage() {
-	const { isSuperAdmin } = useAuth();
+	const { selectedOrgId, loadOrganizations } = useOrganizationStore();
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [modalOpen, setModalOpen] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [createModalOpen, setCreateModalOpen] = useState(false);
+	const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
 	const [form, setForm] = useState({
 		name: "",
 		slug: "",
@@ -55,9 +54,8 @@ export default function AdminOrganizationsPage() {
 	const [submitting, setSubmitting] = useState(false);
 
 	useEffect(() => {
-		if (!isSuperAdmin) return;
 		fetchOrganizations();
-	}, [isSuperAdmin]);
+	}, []);
 
 	const fetchOrganizations = async () => {
 		try {
@@ -70,6 +68,33 @@ export default function AdminOrganizationsPage() {
 			setIsLoading(false);
 		}
 	};
+
+	const stats = useMemo(() => {
+		const total = organizations.length;
+		const active = organizations.filter((org) => org.isActive).length;
+		const inactive = total - active;
+		return { total, active, inactive };
+	}, [organizations]);
+
+	const filteredOrganizations = useMemo(() => {
+		let filtered = organizations;
+
+		if (selectedOrgId) {
+			filtered = filtered.filter((org) => org.id === selectedOrgId);
+		}
+
+		if (searchQuery.trim()) {
+			const query = searchQuery.toLowerCase();
+			filtered = filtered.filter(
+				(org) =>
+					org.name.toLowerCase().includes(query) ||
+					org.slug.toLowerCase().includes(query) ||
+					org.contactEmail?.toLowerCase().includes(query)
+			);
+		}
+
+		return filtered;
+	}, [organizations, selectedOrgId, searchQuery]);
 
 	const handleNameChange = (value: string) => {
 		setForm((prev) => ({
@@ -102,108 +127,167 @@ export default function AdminOrganizationsPage() {
 
 		setSubmitting(true);
 		try {
+			const trimmedEmail = form.contactEmail.trim();
+			const trimmedPhone = form.contactPhone.trim();
 			const payload: OrganizationCreateInput = {
 				name: form.name.trim(),
 				slug: form.slug.trim(),
-				contactEmail: form.contactEmail.trim() || undefined,
-				contactPhone: form.contactPhone.trim() || undefined,
+				...(trimmedEmail ? { contactEmail: trimmedEmail } : {}),
+				...(trimmedPhone ? { contactPhone: trimmedPhone } : {}),
 			};
 			const newOrg = await organizationsAPI.create(payload);
 			setOrganizations((prev) => [...prev, newOrg]);
+			await loadOrganizations();
 			toast.success(`Organization "${newOrg.name}" created`);
-			setModalOpen(false);
+			setCreateModalOpen(false);
 			resetForm();
-		} catch (error: any) {
-			toast.error(error.message || "Failed to create organization");
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Failed to create organization";
+			toast.error(message);
 		} finally {
 			setSubmitting(false);
 		}
 	};
 
-	if (!isSuperAdmin) {
-		return (
-			<div className="flex items-center justify-center min-h-[400px]">
-				<p className="text-muted-foreground">Access denied. Platform Admin only.</p>
-			</div>
-		);
-	}
+	const handleUpdateOrganization = async (orgId: string, data: OrganizationUpdateInput) => {
+		try {
+			const updated = await organizationsAPI.update(orgId, data);
+			setOrganizations((prev) =>
+				prev.map((org) => (org.id === orgId ? updated : org))
+			);
+			await loadOrganizations();
+			toast.success("Organization updated");
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Failed to update organization";
+			toast.error(message);
+			throw error;
+		}
+	};
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
-			<div className="flex items-center justify-between">
+		<div className="space-y-6">
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="text-2xl font-semibold">Organizations</h1>
-					<p className="text-muted-foreground">
+					<h2 className="text-2xl font-semibold tracking-tight">Organizations</h2>
+					<p className="text-sm text-muted-foreground mt-1">
 						Manage tenant organizations and their users
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<Button variant="outline" size="icon" onClick={fetchOrganizations}>
-						<RefreshCcw className="h-4 w-4" />
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={fetchOrganizations}
+						disabled={isLoading}
+					>
+						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 					</Button>
-					<Button onClick={() => setModalOpen(true)}>
+					<Button onClick={() => setCreateModalOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
 						New Organization
 					</Button>
 				</div>
 			</div>
 
+			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<AdminStatsCard
+					label="Total"
+					value={stats.total}
+					icon={Building2}
+					variant="default"
+				/>
+				<AdminStatsCard
+					label="Active"
+					value={stats.active}
+					icon={CheckCircle}
+					variant="success"
+				/>
+				<AdminStatsCard
+					label="Inactive"
+					value={stats.inactive}
+					icon={XCircle}
+					variant="muted"
+				/>
+			</div>
+
+			<div className="flex items-center gap-3">
+				<div className="relative flex-1 max-w-sm">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search organizations..."
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						className="pl-9"
+					/>
+				</div>
+				{searchQuery && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setSearchQuery("")}
+						className="text-muted-foreground"
+					>
+						Clear
+					</Button>
+				)}
+			</div>
+
 			{isLoading ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{[1, 2, 3].map((i) => (
-						<Card key={i}>
-							<CardHeader>
-								<Skeleton className="h-5 w-32" />
-								<Skeleton className="h-4 w-24" />
-							</CardHeader>
-							<CardContent>
-								<Skeleton className="h-4 w-full" />
-							</CardContent>
-						</Card>
+						<div key={i} className="p-6 border rounded-lg space-y-4">
+							<div className="flex items-start gap-4">
+								<Skeleton className="h-14 w-14 rounded-xl" />
+								<div className="flex-1 space-y-2">
+									<Skeleton className="h-5 w-32" />
+									<Skeleton className="h-4 w-24" />
+								</div>
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<Skeleton className="h-12" />
+								<Skeleton className="h-12" />
+							</div>
+							<Skeleton className="h-9 w-full" />
+						</div>
 					))}
 				</div>
-			) : organizations.length === 0 ? (
-				<Card>
-					<CardContent className="flex flex-col items-center justify-center py-12">
-						<Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-						<p className="text-muted-foreground">No organizations yet</p>
-						<Button className="mt-4" onClick={() => setModalOpen(true)}>
+			) : filteredOrganizations.length === 0 ? (
+				<div className="flex flex-col items-center justify-center py-16 border rounded-xl bg-muted/20">
+					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
+						<Building2 className="h-8 w-8 text-primary/60" />
+					</div>
+					<h3 className="font-medium text-lg mb-1">
+						{searchQuery
+							? "No organizations found"
+							: selectedOrgId
+							? "No organization matches the filter"
+							: "No organizations yet"}
+					</h3>
+					<p className="text-sm text-muted-foreground mb-4">
+						{searchQuery
+							? "Try adjusting your search query"
+							: "Create your first organization to get started"}
+					</p>
+					{!searchQuery && !selectedOrgId && (
+						<Button onClick={() => setCreateModalOpen(true)}>
 							<Plus className="h-4 w-4 mr-2" />
-							Create First Organization
+							Create Organization
 						</Button>
-					</CardContent>
-				</Card>
+					)}
+				</div>
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{organizations.map((org) => (
-						<Link key={org.id} href={`/admin/organizations/${org.id}`}>
-							<Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-								<CardHeader className="pb-2">
-									<div className="flex items-start justify-between">
-										<CardTitle className="text-lg">{org.name}</CardTitle>
-										<Badge variant={org.isActive ? "default" : "secondary"}>
-											{org.isActive ? "Active" : "Inactive"}
-										</Badge>
-									</div>
-									<CardDescription className="font-mono text-xs">
-										{org.slug}
-									</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="flex items-center justify-between text-sm text-muted-foreground">
-										<span>
-											{org.contactEmail || "No contact email"}
-										</span>
-										<ArrowRight className="h-4 w-4" />
-									</div>
-								</CardContent>
-							</Card>
-						</Link>
+					{filteredOrganizations.map((org) => (
+						<OrgCard
+							key={org.id}
+							organization={org}
+							onEdit={(org) => setEditingOrg(org)}
+						/>
 					))}
 				</div>
 			)}
 
-			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
+			<Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Create Organization</DialogTitle>
@@ -258,7 +342,7 @@ export default function AdminOrganizationsPage() {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setModalOpen(false);
+								setCreateModalOpen(false);
 								resetForm();
 							}}
 						>
@@ -268,11 +352,19 @@ export default function AdminOrganizationsPage() {
 							onClick={handleCreateOrganization}
 							disabled={!canSubmitForm || submitting}
 						>
+							{submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 							{submitting ? "Creating..." : "Create"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			<EditOrgModal
+				open={!!editingOrg}
+				onOpenChange={(open) => !open && setEditingOrg(null)}
+				organization={editingOrg}
+				onSubmit={handleUpdateOrganization}
+			/>
 		</div>
 	);
 }

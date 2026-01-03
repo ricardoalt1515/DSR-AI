@@ -17,3 +17,10 @@ class OrgUserCreate(UserCreate):
     organization_id: uuid.UUID
     role: str = Field(default=UserRole.FIELD_AGENT.value)
     is_superuser: bool = False
+
+
+class OrgUserUpdate(BaseModel):
+    """Schema for updating an org user. All fields optional."""
+
+    role: str | None = None
+    is_active: bool | None = None

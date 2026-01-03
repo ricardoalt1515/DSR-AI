@@ -1,16 +1,9 @@
 import { create } from "zustand";
-import { apiClient } from "@/lib/api";
+import { organizationsAPI, type Organization } from "@/lib/api";
 import { logger } from "@/lib/utils/logger";
 import { useCompanyStore } from "./company-store";
 import { useLocationStore } from "./location-store";
 import { useProjectStore } from "./project-store";
-
-export interface Organization {
-	id: string;
-	name: string;
-	slug: string;
-	isActive: boolean;
-}
 
 interface OrganizationState {
 	currentOrganization: Organization | null;
@@ -19,6 +12,7 @@ interface OrganizationState {
 	loadCurrentOrganization: () => Promise<void>;
 	loadOrganizations: () => Promise<void>;
 	selectOrganization: (orgId: string) => void;
+	clearSelection: () => void;
 	resetStore: () => void;
 }
 
@@ -34,7 +28,7 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 
 	loadCurrentOrganization: async () => {
 		try {
-			const org = await apiClient.get<Organization>("/organizations/current");
+			const org = await organizationsAPI.getCurrent();
 			set({ currentOrganization: org });
 		} catch (error) {
 			logger.warn("Failed to load current organization", "OrganizationStore");
@@ -44,7 +38,7 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 
 	loadOrganizations: async () => {
 		try {
-			const orgs = await apiClient.get<Organization[]>("/organizations");
+			const orgs = await organizationsAPI.list();
 			set({ organizations: orgs });
 		} catch (error) {
 			logger.warn("Failed to load organizations", "OrganizationStore");
@@ -60,6 +54,17 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 		set({ selectedOrgId: orgId, currentOrganization: null });
 		if (typeof window !== "undefined") {
 			localStorage.setItem("selected_org_id", orgId);
+		}
+	},
+
+	clearSelection: () => {
+		useCompanyStore.getState().resetStore();
+		useLocationStore.getState().resetStore();
+		useProjectStore.getState().resetStore();
+
+		set({ selectedOrgId: null, currentOrganization: null });
+		if (typeof window !== "undefined") {
+			localStorage.removeItem("selected_org_id");
 		}
 	},
 
