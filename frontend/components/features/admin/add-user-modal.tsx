@@ -24,7 +24,11 @@ import type { OrgUserCreateInput } from "@/lib/api";
 import type { UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
-const PASSWORD_HINT = "Min 8 chars, 1 uppercase, 1 number";
+const PASSWORD_REQUIREMENTS = [
+	{ key: "length", label: "At least 8 characters", test: (p: string) => p.length >= 8 },
+	{ key: "uppercase", label: "Contains uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
+	{ key: "number", label: "Contains number", test: (p: string) => /[0-9]/.test(p) },
+] as const;
 
 const TENANT_ROLES: { value: Exclude<UserRole, "admin">; label: string; description: string }[] = [
 	{ value: "org_admin", label: "Org Admin", description: "Full access to organization settings and user management" },
@@ -172,6 +176,7 @@ export function AddUserModal({
 								type="password"
 								value={form.password}
 								onChange={(e) => handleInputChange("password", e.target.value)}
+								aria-describedby="password-requirements"
 							/>
 						</div>
 						<div className="space-y-2">
@@ -183,13 +188,27 @@ export function AddUserModal({
 								onChange={(e) =>
 									handleInputChange("confirmPassword", e.target.value)
 								}
+								aria-invalid={form.confirmPassword.length > 0 && form.password !== form.confirmPassword}
+								aria-describedby={form.confirmPassword.length > 0 && form.password !== form.confirmPassword ? "password-mismatch" : undefined}
 							/>
 						</div>
 					</div>
+					{form.confirmPassword.length > 0 && form.password !== form.confirmPassword && (
+						<p id="password-mismatch" className="text-xs text-destructive" role="alert">
+							Passwords do not match
+						</p>
+					)}
 					{form.password && (
-						<div className="space-y-1">
+						<div className="space-y-2">
 							<div className="flex items-center gap-2">
-								<div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+								<div
+									className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden"
+									role="progressbar"
+									aria-valuenow={passwordStrength.score}
+									aria-valuemin={0}
+									aria-valuemax={5}
+									aria-label={`Password strength: ${passwordStrength.label}`}
+								>
 									<div
 										className={cn("h-full transition-all", passwordStrength.color)}
 										style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
@@ -201,8 +220,31 @@ export function AddUserModal({
 							</div>
 						</div>
 					)}
-					<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
-					<div className="border-t border-border/50 my-1" />
+					<ul id="password-requirements" className="space-y-1" aria-label="Password requirements">
+						{PASSWORD_REQUIREMENTS.map((req) => {
+							const passed = form.password.length > 0 && req.test(form.password);
+							return (
+								<li
+									key={req.key}
+									className={cn(
+										"flex items-center gap-2 text-xs transition-colors",
+										form.password.length === 0
+											? "text-muted-foreground"
+											: passed
+												? "text-green-600 dark:text-green-400"
+												: "text-muted-foreground"
+									)}
+								>
+									<span className="w-3 text-center" aria-hidden="true">
+										{form.password.length === 0 ? "○" : passed ? "✓" : "○"}
+									</span>
+									<span>{req.label}</span>
+									<span className="sr-only">{passed ? "(met)" : "(not met)"}</span>
+								</li>
+							);
+						})}
+					</ul>
+					<div className="border-t border-border/50 my-4" />
 					<div className="space-y-2">
 						<Label htmlFor="role">Role *</Label>
 						<Select

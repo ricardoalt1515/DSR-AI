@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CheckCircle, Mail, Phone, Plus, RefreshCcw, Users, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle, Mail, Phone, Plus, RefreshCcw, Users, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -14,8 +14,15 @@ import {
 } from "@/components/features/admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
 	organizationsAPI,
 	type OrgUserCreateInput,
@@ -34,6 +41,7 @@ export default function OrganizationDetailPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [addUserModalOpen, setAddUserModalOpen] = useState(false);
 	const [editOrgModalOpen, setEditOrgModalOpen] = useState(false);
+	const isOrgActive = organization?.isActive ?? true;
 
 	useEffect(() => {
 		if (orgId) {
@@ -176,7 +184,13 @@ export default function OrganizationDetailPage() {
 					</div>
 				</div>
 				<div className="flex items-center gap-2 shrink-0">
-					<Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading}>
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={fetchData}
+						disabled={isLoading}
+						aria-label="Refresh organization data"
+					>
 						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 					</Button>
 					<Button variant="outline" onClick={() => setEditOrgModalOpen(true)}>
@@ -201,16 +215,25 @@ export default function OrganizationDetailPage() {
 					)}
 				</div>
 			)}
+			{!isOrgActive && (
+				<Alert className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+					<AlertTriangle className="h-4 w-4" />
+					<AlertTitle>Organization inactive</AlertTitle>
+					<AlertDescription>
+						User changes are disabled until this organization is reactivated.
+					</AlertDescription>
+				</Alert>
+			)}
 
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				<AdminStatsCard
-					label="Total Users"
+					label="Total Members"
 					value={stats.total}
 					icon={Users}
 					variant="default"
 				/>
 				<AdminStatsCard
-					label="Active"
+					label="Active Members"
 					value={stats.active}
 					icon={CheckCircle}
 					variant="success"
@@ -227,22 +250,38 @@ export default function OrganizationDetailPage() {
 				<CardHeader>
 					<div className="flex items-center justify-between">
 						<div>
-							<CardTitle className="text-lg">Team Members</CardTitle>
+							<CardTitle className="text-lg">Organization Members</CardTitle>
 							<CardDescription>
-								Manage users in this organization
+								Members of {organization.name}
 							</CardDescription>
 						</div>
-						<Button onClick={() => setAddUserModalOpen(true)}>
-							<Plus className="h-4 w-4 mr-2" />
-							Add User
-						</Button>
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span tabIndex={!isOrgActive ? 0 : undefined}>
+										<Button
+											onClick={() => setAddUserModalOpen(true)}
+											disabled={!isOrgActive}
+										>
+											<Plus className="h-4 w-4 mr-2" />
+											Add Member
+										</Button>
+									</span>
+								</TooltipTrigger>
+								{!isOrgActive && (
+									<TooltipContent>
+										<p>Reactivate organization to add members</p>
+									</TooltipContent>
+								)}
+							</Tooltip>
+						</TooltipProvider>
 					</div>
 				</CardHeader>
 				<CardContent>
 					<UsersTable
 						users={users}
-						canEditRoles
-						canEditStatus
+						canEditRoles={isOrgActive}
+						canEditStatus={isOrgActive}
 						onRoleChange={handleRoleChange}
 						onStatusChange={handleStatusChange}
 					/>

@@ -77,7 +77,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 							</div>
 							<div>
 								<p className="font-medium tabular-nums">{userCount}</p>
-								<p className="text-xs text-muted-foreground">Users</p>
+								<p className="text-xs text-muted-foreground">Members</p>
 							</div>
 						</div>
 					)}
@@ -112,12 +112,12 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 				)}
 
 				<div className="flex items-center gap-2 pt-2">
-					<Link href={`/admin/organizations/${organization.id}`} className="flex-1">
-						<Button variant="outline" size="sm" className="w-full">
-							<Users className="h-3.5 w-3.5 mr-1.5" />
-							View Users
-						</Button>
-					</Link>
+						<Link href={`/admin/organizations/${organization.id}`} className="flex-1">
+							<Button variant="outline" size="sm" className="w-full">
+								<Users className="h-3.5 w-3.5 mr-2 text-blue-500" />
+								Manage Members
+							</Button>
+						</Link>
 					{onEdit && (
 						<Button
 							variant="ghost"

@@ -11,6 +11,16 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, Search, User as UserIcon, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +120,18 @@ interface UsersTableProps {
 	onStatusChange?: ((userId: string, isActive: boolean) => Promise<void>) | undefined;
 }
 
+type PendingAction =
+	| {
+			type: "role";
+			userId: string;
+			newRole: Exclude<UserRole, "admin">;
+	  }
+	| {
+			type: "status";
+			userId: string;
+			isActive: boolean;
+	  };
+
 export function UsersTable({
 	users,
 	isLoading = false,
@@ -124,6 +146,7 @@ export function UsersTable({
 	const [searchQuery, setSearchQuery] = useState("");
 	const [roleFilter, setRoleFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
+	const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
 	const filteredUsers = useMemo(() => {
 		let result = users;
@@ -187,19 +210,55 @@ export function UsersTable({
 		}
 	};
 
+	const requestRoleChange = (userId: string, newRole: Exclude<UserRole, "admin">) => {
+		if (!onRoleChange) return;
+		const user = users.find((entry) => entry.id === userId);
+		if (!user) return;
+		if (user.role === newRole) return;
+		if (user.role === "org_admin" && newRole !== "org_admin") {
+			setPendingAction({ type: "role", userId, newRole });
+			return;
+		}
+		void handleRoleChange(userId, newRole);
+	};
+
+	const requestStatusChange = (userId: string, isActive: boolean) => {
+		if (!onStatusChange) return;
+		const user = users.find((entry) => entry.id === userId);
+		if (!user) return;
+		if (user.isActive === isActive) return;
+		if (!isActive) {
+			setPendingAction({ type: "status", userId, isActive });
+			return;
+		}
+		void handleStatusChange(userId, isActive);
+	};
+
+	const pendingUser = pendingAction
+		? users.find((entry) => entry.id === pendingAction.userId)
+		: null;
+	const pendingUserName = pendingUser
+		? `${pendingUser.firstName} ${pendingUser.lastName}`.trim()
+		: "this user";
+	const isDialogBusy = pendingAction ? updatingUsers.has(pendingAction.userId) : false;
+
 	const columns: ColumnDef<User>[] = useMemo(
 		() => [
 			{
 				accessorKey: "name",
-				header: ({ column }) => (
-					<Button
-						variant="ghost"
-						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-					>
-						Name
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				),
+				header: ({ column }) => {
+					const sortState = column.getIsSorted();
+					return (
+						<Button
+							variant="ghost"
+							onClick={() => column.toggleSorting(sortState === "asc")}
+							aria-label={`Sort by name${sortState ? `, currently sorted ${sortState === "asc" ? "ascending" : "descending"}` : ""}`}
+						>
+							Name
+							<ArrowUpDown className="ml-2 h-4 w-4" />
+						</Button>
+					);
+				},
 				cell: ({ row }) => (
 					<div className="flex items-center gap-3">
 						<UserAvatar
@@ -233,13 +292,13 @@ export function UsersTable({
 
 					if (canEditRoles && onRoleChange && !isSelf) {
 						return (
-							<Select
-								value={row.original.role}
-								onValueChange={(value) =>
-									handleRoleChange(row.original.id, value as Exclude<UserRole, "admin">)
-								}
-								disabled={isUpdating}
-							>
+								<Select
+									value={row.original.role}
+									onValueChange={(value) =>
+										requestRoleChange(row.original.id, value as Exclude<UserRole, "admin">)
+									}
+									disabled={isUpdating}
+								>
 								<SelectTrigger className="w-[140px]">
 									<SelectValue />
 								</SelectTrigger>
@@ -274,9 +333,10 @@ export function UsersTable({
 								<Switch
 									checked={row.original.isActive}
 									onCheckedChange={(checked) =>
-										handleStatusChange(row.original.id, checked)
+										requestStatusChange(row.original.id, checked)
 									}
 									disabled={isUpdating}
+									aria-label={`${row.original.isActive ? "Deactivate" : "Activate"} ${row.original.firstName} ${row.original.lastName}`}
 								/>
 								<span
 									className={cn(
@@ -312,6 +372,29 @@ export function UsersTable({
 		onSortingChange: setSorting,
 		state: { sorting },
 	});
+
+	const dialogTitle = pendingAction?.type === "role" ? "Change role?" : "Deactivate user?";
+	const dialogDescription = pendingAction
+		? pendingAction.type === "role"
+			? `This will change ${pendingUserName}'s role to ${formatRole(pendingAction.newRole)} and remove Org Admin access.`
+			: `This will deactivate ${pendingUserName} and prevent them from accessing this organization.`
+		: "";
+	const dialogActionLabel =
+		pendingAction?.type === "role" ? "Confirm role change" : "Deactivate user";
+	const dialogIsDestructive = pendingAction?.type === "status";
+
+	const handleConfirmAction = async () => {
+		if (!pendingAction) return;
+		try {
+			if (pendingAction.type === "role") {
+				await handleRoleChange(pendingAction.userId, pendingAction.newRole);
+			} else {
+				await handleStatusChange(pendingAction.userId, pendingAction.isActive);
+			}
+		} finally {
+			setPendingAction(null);
+		}
+	};
 
 	if (isLoading) {
 		return (
@@ -391,8 +474,8 @@ export function UsersTable({
 
 			{filteredUsers.length === 0 ? (
 				<div className="flex flex-col items-center justify-center py-12 text-center border rounded-xl bg-muted/20">
-					<div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
-						<Search className="h-7 w-7 text-muted-foreground" />
+					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
+						<Search className="h-8 w-8 text-primary/60" />
 					</div>
 					<h3 className="font-medium text-lg mb-1">No users found</h3>
 					<p className="text-sm text-muted-foreground mb-4">
@@ -403,48 +486,78 @@ export function UsersTable({
 					</Button>
 				</div>
 			) : (
-			<div className="rounded-md border">
-			<Table>
-				<TableHeader>
-					{table.getHeaderGroups().map((headerGroup) => (
-						<TableRow key={headerGroup.id}>
-							{headerGroup.headers.map((header) => (
-								<TableHead key={header.id}>
-									{header.isPlaceholder
-										? null
-										: flexRender(
-												header.column.columnDef.header,
-												header.getContext()
-										  )}
-								</TableHead>
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							{table.getHeaderGroups().map((headerGroup) => (
+								<TableRow key={headerGroup.id}>
+									{headerGroup.headers.map((header) => (
+										<TableHead key={header.id}>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext()
+												  )}
+										</TableHead>
+									))}
+								</TableRow>
 							))}
-						</TableRow>
-					))}
-				</TableHeader>
-				<TableBody>
-					{table.getRowModel().rows.map((row) => (
-						<TableRow
-							key={row.id}
-							className={cn(
-								"transition-colors",
-								updatingUsers.has(row.original.id) && "opacity-50",
-								"hover:bg-muted/50"
-							)}
-						>
-							{row.getVisibleCells().map((cell) => (
-								<TableCell key={cell.id}>
-									{flexRender(
-										cell.column.columnDef.cell,
-										cell.getContext()
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows.map((row) => (
+								<TableRow
+									key={row.id}
+									className={cn(
+										"transition-colors",
+										updatingUsers.has(row.original.id) && "opacity-50",
+										"hover:bg-muted/50"
 									)}
-								</TableCell>
+								>
+									{row.getVisibleCells().map((cell) => (
+										<TableCell key={cell.id}>
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext()
+											)}
+										</TableCell>
+									))}
+								</TableRow>
 							))}
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-			</div>
+						</TableBody>
+					</Table>
+				</div>
 			)}
+
+			<AlertDialog
+				open={Boolean(pendingAction)}
+				onOpenChange={(open) => {
+					if (!open) {
+						setPendingAction(null);
+					}
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>{dialogTitle}</AlertDialogTitle>
+						<AlertDialogDescription>{dialogDescription}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleConfirmAction}
+							disabled={isDialogBusy}
+							className={
+								dialogIsDestructive
+									? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+									: undefined
+							}
+						>
+							{dialogActionLabel}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

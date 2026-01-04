@@ -179,6 +179,7 @@ export default function AdminOrganizationsPage() {
 						size="icon"
 						onClick={fetchOrganizations}
 						disabled={isLoading}
+						aria-label="Refresh organizations list"
 					>
 						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 					</Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Building2, Check, ChevronDown, Eye, Plus, X } from "lucide-react";
+import { AlertTriangle, Building2, Check, ChevronDown, Filter, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,19 @@ interface OrgSwitcherProps {
 
 type LoadState = "loading" | "loaded" | "retrying" | "error";
 
+const SWITCHER_WIDTH_CLASS = "w-[240px]";
+const WARNING_WIDTH_CLASS = "w-[280px]";
+const POPOVER_WIDTH_CLASS = "w-[300px]";
+const ORG_ID_PREFIX_LENGTH = 8;
+const CONTEXT_BADGE_MAX_WIDTH_CLASS = "max-w-[180px]";
+
+function formatOrgId(orgId: string): string {
+	if (orgId.length <= ORG_ID_PREFIX_LENGTH) {
+		return orgId;
+	}
+	return `${orgId.slice(0, ORG_ID_PREFIX_LENGTH)}…`;
+}
+
 export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 	const [open, setOpen] = useState(false);
 	const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -48,8 +61,12 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 	} = useOrganizationStore();
 
 	const selectedOrg = organizations.find((org) => org.id === selectedOrgId);
-	const hasContext = !!selectedOrgId;
-	const hasUnresolvedContext = hasContext && !selectedOrg && loadState !== "loading" && loadState !== "retrying";
+	const hasContext = Boolean(selectedOrgId);
+	const hasUnresolvedContext =
+		hasContext && !selectedOrg && loadState !== "loading" && loadState !== "retrying";
+	const contextBadgeLabel = selectedOrg
+		? `Context active: ${selectedOrg.name}`
+		: "Context active";
 
 	const fetchOrganizations = useCallback(async () => {
 		setLoadState("loading");
@@ -90,8 +107,8 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 
 	if (loadState === "loading" || loadState === "retrying") {
 		return (
-			<div className="flex items-center gap-2">
-				<Skeleton className="h-10 w-[240px] rounded-lg" />
+			<div className="flex items-center gap-2" role="status" aria-live="polite" aria-busy="true">
+				<Skeleton className={`h-10 ${SWITCHER_WIDTH_CLASS} rounded-lg`} />
 				<span className="text-xs text-muted-foreground animate-pulse">
 					{loadState === "retrying" ? "Verifying context..." : "Loading..."}
 				</span>
@@ -100,6 +117,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 	}
 
 	if (hasUnresolvedContext) {
+		const shortOrgId = selectedOrgId ? formatOrgId(selectedOrgId) : "unknown";
 		return (
 			<TooltipProvider>
 				<div className="flex items-center gap-2">
@@ -107,19 +125,19 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 						<TooltipTrigger asChild>
 							<Button
 								variant="outline"
-								className="w-[280px] justify-start gap-2 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400"
+								className={`${WARNING_WIDTH_CLASS} justify-start gap-2 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400`}
 							>
 								<AlertTriangle className="h-4 w-4 shrink-0" />
-								<span className="text-sm">Active context (org not loaded)</span>
+								<span className="text-sm">Context active (org unavailable)</span>
 								<code className="ml-auto text-xs font-mono opacity-70">
-									{selectedOrgId?.slice(0, 8)}...
+									{shortOrgId}
 								</code>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="bottom" className="max-w-[320px]">
 							<p className="text-xs">
-								A context filter is active but the organization could not be loaded.
-								Clear the filter to view all organizations safely.
+								An organization context is active but the organization could not be loaded.
+								Clear the context to view all organizations safely.
 							</p>
 						</TooltipContent>
 					</Tooltip>
@@ -130,12 +148,13 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 								size="icon"
 								onClick={clearSelection}
 								className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-500/20"
+								aria-label="Clear organization context"
 							>
 								<X className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
-							<p className="text-xs">Clear context filter</p>
+							<p className="text-xs">Clear organization context</p>
 						</TooltipContent>
 					</Tooltip>
 				</div>
@@ -155,19 +174,19 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 									role="combobox"
 									aria-expanded={open}
 									className={cn(
-										"w-[240px] justify-between transition-all duration-200",
+										`${SWITCHER_WIDTH_CLASS} justify-between transition-all duration-200`,
 										"backdrop-blur-sm",
 										open && "shadow-md ring-1 ring-primary/20",
 										hasContext
 											? "border-[var(--context-scoped-border)] bg-[var(--context-scoped-bg)] hover:bg-[var(--context-scoped-bg)]/80"
-											: "border-dashed border-muted-foreground/30 bg-background/50 hover:bg-muted/50"
+											: "border-dashed border-[var(--context-global-border)] bg-[var(--context-global-bg)] hover:bg-muted/50"
 									)}
 								>
 									{selectedOrg ? (
 										<div className="flex items-center gap-2.5 truncate">
-											<Eye className="h-3.5 w-3.5 text-[var(--context-scoped-text)] shrink-0" />
+											<Filter className="h-3.5 w-3.5 text-[var(--context-scoped-text)] shrink-0" />
 											<span className="text-xs text-[var(--context-scoped-text)] shrink-0">
-												Viewing:
+												Context:
 											</span>
 											<OrgAvatar name={selectedOrg.name} slug={selectedOrg.slug} size="sm" />
 											<span className="truncate font-medium text-foreground">
@@ -197,7 +216,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 							</p>
 						</TooltipContent>
 					</Tooltip>
-					<PopoverContent className="w-[300px] p-0" align="end">
+					<PopoverContent className={`${POPOVER_WIDTH_CLASS} p-0`} align="end">
 						<Command>
 							<CommandInput placeholder="Search organizations..." />
 							<CommandList>
@@ -296,13 +315,32 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 
 				{/* Persistent scoped badge - always visible when org is selected */}
 				{hasContext && selectedOrg && (
-					<Badge
-						variant="outline"
-						className="border-[var(--context-scoped-border)] bg-[var(--context-scoped-bg)] text-[var(--context-scoped-text)] gap-1.5 px-2 py-1"
-					>
-						<span className="h-1.5 w-1.5 rounded-full bg-[var(--context-scoped-text)] animate-pulse" />
-						Scoped
-					</Badge>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setOpen(true)}
+								className="h-auto px-0 hover:bg-transparent"
+								aria-label="Open organization context switcher"
+							>
+								<Badge
+									variant="outline"
+									className="border-[var(--context-scoped-border)] bg-[var(--context-scoped-bg)] text-[var(--context-scoped-text)] gap-1.5 px-2 py-1"
+								>
+									<span className="h-1.5 w-1.5 rounded-full bg-[var(--context-scoped-text)] animate-pulse" />
+									<span className={cn("truncate", CONTEXT_BADGE_MAX_WIDTH_CLASS)}>
+										{contextBadgeLabel}
+									</span>
+								</Badge>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">
+							<p className="text-xs">
+								All API requests are scoped to this organization.
+							</p>
+						</TooltipContent>
+					</Tooltip>
 				)}
 
 				{/* Clear button - only show when org is selected */}
@@ -314,12 +352,13 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 								size="icon"
 								onClick={clearSelection}
 								className="h-8 w-8 text-muted-foreground hover:text-foreground"
+								aria-label="Clear organization context"
 							>
 								<X className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
-							<p className="text-xs">Clear organization filter</p>
+							<p className="text-xs">Clear organization context</p>
 						</TooltipContent>
 					</Tooltip>
 				)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Menu, Settings, Users } from "lucide-react";
+import { Building2, Menu, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -17,9 +17,9 @@ const NAV_ITEMS = [
 	},
 	{
 		href: "/admin/users",
-		label: "Users",
-		icon: Users,
-		description: "Platform users",
+		label: "Platform Admins",
+		icon: ShieldCheck,
+		description: "Superuser accounts",
 	},
 ];
 

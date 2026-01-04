@@ -16,10 +16,9 @@ import {
 	Ban,
 	ChevronLeft,
 	ChevronRight,
-	Crown,
 	RefreshCcw,
 	Search,
-	Shield,
+	ShieldCheck,
 	UserPlus,
 	X,
 } from "lucide-react";
@@ -293,39 +292,6 @@ export default function AdminUsersPage() {
 				),
 			},
 			{
-				accessorKey: "role",
-				header: ({ column }) => (
-					<Button
-						variant="ghost"
-						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-						className="h-8 px-2 -ml-2"
-					>
-						Role
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				),
-				cell: ({ row }) => {
-					const user = row.original;
-					return (
-						<span className="inline-flex items-center gap-2">
-							{user.role === "admin" || user.isSuperuser ? (
-								<Crown className="h-4 w-4 text-amber-500" />
-							) : (
-								<Shield className="h-4 w-4 text-muted-foreground" />
-							)}
-							{user.role?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()) ??
-								(user.isSuperuser ? "Admin" : "Field Agent")}
-						</span>
-					);
-				},
-				filterFn: (row, id, value) => {
-					if (value === "all") return true;
-					const user = row.original;
-					if (value === "admin") return user.isSuperuser;
-					return row.getValue(id) === value;
-				},
-			},
-			{
 				accessorKey: "isActive",
 				header: "Status",
 				cell: ({ row }) => {
@@ -499,20 +465,20 @@ export default function AdminUsersPage() {
 				<div className="flex items-center justify-between flex-wrap gap-4">
 					<div>
 						<h1 className="text-2xl font-bold flex items-center gap-2">
-							<Shield className="h-6 w-6" /> Admin Users
+							<ShieldCheck className="h-6 w-6 text-amber-500" /> Platform Administrators
 						</h1>
-						<p className="text-muted-foreground">Create and manage platform users.</p>
+						<p className="text-muted-foreground">Superuser accounts with full platform access.</p>
 					</div>
 					<Button onClick={() => setModalOpen(true)}>
-						<UserPlus className="mr-2 h-4 w-4" /> New User
+						<UserPlus className="mr-2 h-4 w-4" /> New Admin
 					</Button>
 				</div>
 
 				<Card>
 					<CardHeader>
-						<CardTitle>User Directory</CardTitle>
+						<CardTitle>Administrator Directory</CardTitle>
 						<CardDescription>
-							{users.length} users total - Admins can promote members or deactivate accounts.
+							{users.length} administrators with full platform access.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -525,7 +491,7 @@ export default function AdminUsersPage() {
 							</div>
 						) : users.length === 0 ? (
 							<div className="text-center py-8 text-muted-foreground">
-								<p>No users yet. Create the first one.</p>
+								<p>No administrators yet. Create the first one.</p>
 							</div>
 						) : (
 							<>
@@ -534,7 +500,7 @@ export default function AdminUsersPage() {
 									<div className="relative flex-1">
 										<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 										<Input
-											placeholder="Search users..."
+											placeholder="Search administrators..."
 											value={globalFilter}
 											onChange={(e) => setGlobalFilter(e.target.value)}
 											className="pl-9 pr-9 max-w-sm"
@@ -550,25 +516,6 @@ export default function AdminUsersPage() {
 											</button>
 										)}
 									</div>
-									<Select
-										value={(table.getColumn("role")?.getFilterValue() as string) ?? "all"}
-										onValueChange={(value) =>
-											table.getColumn("role")?.setFilterValue(value === "all" ? undefined : value)
-										}
-									>
-										<SelectTrigger className="w-[150px]">
-											<SelectValue placeholder="All Roles" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="all">All Roles</SelectItem>
-											<SelectItem value="admin">Admin</SelectItem>
-											<SelectItem value="org_admin">Org Admin</SelectItem>
-											<SelectItem value="field_agent">Field Agent</SelectItem>
-											<SelectItem value="contractor">Contractor</SelectItem>
-											<SelectItem value="compliance">Compliance</SelectItem>
-											<SelectItem value="sales">Sales</SelectItem>
-										</SelectContent>
-									</Select>
 									<Select
 										value={(table.getColumn("isActive")?.getFilterValue() as string) ?? "all"}
 										onValueChange={(value) =>
@@ -616,7 +563,7 @@ export default function AdminUsersPage() {
 											) : (
 												<TableRow>
 													<TableCell colSpan={columns.length} className="h-24 text-center">
-														No users match your search.
+														No administrators match your search.
 													</TableCell>
 												</TableRow>
 											)}
@@ -627,7 +574,7 @@ export default function AdminUsersPage() {
 								{/* Pagination */}
 								<div className="flex items-center justify-between">
 									<p className="text-sm text-muted-foreground">
-										Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} users
+										Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} administrators
 									</p>
 									<div className="flex items-center gap-2">
 										<Button
@@ -658,12 +605,12 @@ export default function AdminUsersPage() {
 					</CardContent>
 				</Card>
 
-				{/* Create User Dialog */}
+				{/* Create Platform Admin Dialog */}
 				<Dialog open={modalOpen} onOpenChange={setModalOpen}>
 					<DialogContent>
 						<DialogHeader>
-							<DialogTitle>Create User</DialogTitle>
-							<DialogDescription>Admins can create accounts directly.</DialogDescription>
+							<DialogTitle>Create Platform Admin</DialogTitle>
+							<DialogDescription>Create a new superuser with full platform access.</DialogDescription>
 						</DialogHeader>
 						<div className="grid gap-4">
 							<div className="grid gap-2">
@@ -731,7 +678,7 @@ export default function AdminUsersPage() {
 							</Button>
 							<Button onClick={handleCreateUser} disabled={!canSubmitForm || submitting}>
 								{submitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-								Create User
+								Create Admin
 							</Button>
 						</DialogFooter>
 					</DialogContent>

@@ -1,15 +1,24 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { AdminMobileNav, AdminSidebar, OrgSwitcher } from "@/components/features/admin";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/contexts";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
 	const { isSuperAdmin, isLoading } = useAuth();
 	const router = useRouter();
+	const pathname = usePathname();
+	const showOrgSwitcher = !pathname.startsWith("/admin/users");
 
 	useEffect(() => {
 		if (!isLoading && !isSuperAdmin) {
@@ -65,7 +74,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 							<p className="text-xs text-muted-foreground">Manage organizations and users</p>
 						</div>
 					</div>
-					<OrgSwitcher />
+					{showOrgSwitcher ? (
+						<OrgSwitcher />
+					) : (
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Badge
+										variant="outline"
+										className="text-amber-600 border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400"
+									>
+										Platform-wide
+									</Badge>
+								</TooltipTrigger>
+								<TooltipContent>
+									<p>Platform admins are global. Org filters do not apply here.</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+					)}
 				</header>
 				<main className="flex-1 overflow-auto p-4 md:p-6 bg-background/50">
 					{children}

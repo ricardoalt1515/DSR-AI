@@ -17,22 +17,27 @@ router = APIRouter()
 from app.main import limiter
 
 
-@router.get("", response_model=List[UserRead], summary="List all users")
+@router.get("", response_model=List[UserRead], summary="List platform admins")
 @limiter.limit("60/minute")
-async def list_users(
+async def list_platform_admins(
     request: Request,
     current_admin: CurrentSuperUser,
     db: AsyncDB,
 ):
-    """Return all users ordered by most recent."""
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    """Return platform admins (superusers without organization) ordered by most recent."""
+    result = await db.execute(
+        select(User)
+        .where(User.is_superuser.is_(True))
+        .where(User.organization_id.is_(None))
+        .order_by(User.created_at.desc())
+    )
     return result.scalars().all()
 
 
 class AdminCreateUserRequest(UserCreate):
     """Extend UserCreate for admin user creation."""
-    is_superuser: bool = False
-    role: str = "field_agent"  # Default role for new users
+    is_superuser: bool = True
+    role: str = "admin"  # Platform admin role
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -44,10 +49,10 @@ async def create_user(
     user_manager: UserManager = Depends(get_user_manager),
 ):
     """Create a user with the provided credentials (admin only)."""
-    if payload.is_superuser is False and payload.role != "admin":
+    if payload.is_superuser is not True or payload.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Use organization provisioning endpoint for tenant users",
+            detail="Platform admins must be created with role=admin and is_superuser=true",
         )
     return await user_manager.create(payload)
 

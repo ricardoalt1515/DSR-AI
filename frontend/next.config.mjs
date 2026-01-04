@@ -45,7 +45,9 @@ const nextConfig = {
 	output: "standalone",
 
 	// Turbopack (for development)
-	turbopack: {},
+	turbopack: {
+		root: new URL(".", import.meta.url).pathname,
+	},
 
 	// Environment variables validation (these must be set in Amplify Console)
 	env: {
