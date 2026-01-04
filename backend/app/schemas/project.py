@@ -105,8 +105,9 @@ class ProjectSummary(BaseSchema):
     )
     
     # Legacy fields (kept for backward compatibility)
-    client: Annotated[str, Field(max_length=255)]
-    location: Annotated[str, Field(max_length=255)]
+    # NOTE: These may be NULL for older records; we serialize safe fallbacks.
+    client: Optional[str] = Field(default=None, max_length=255)
+    location: Optional[str] = Field(default=None, max_length=255)
     
     # Status & progress
     status: str
@@ -140,6 +141,16 @@ class ProjectSummary(BaseSchema):
     def serialize_tags(self, tags: List[str] | None, _info) -> List[str]:
         """Ensure tags is always a list, never None."""
         return tags or []
+
+    @field_serializer("client")
+    def serialize_client(self, client: str | None, _info) -> str:
+        """Return a non-null client label for the frontend."""
+        return client or self.company_name or ""
+
+    @field_serializer("location")
+    def serialize_location(self, location: str | None, _info) -> str:
+        """Return a non-null location label for the frontend."""
+        return location or self.location_name or ""
 
 
 class ProjectDetail(ProjectSummary):

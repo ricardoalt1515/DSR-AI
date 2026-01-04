@@ -431,7 +431,7 @@ async def general_exception_handler(
     exc: Exception
 ) -> JSONResponse:
     """Handle unexpected errors."""
-    logger.error(f"Unexpected error: {str(exc)}", exc_info=True)
+    logger.error("Unexpected error", exc_info=True, error_type=type(exc).__name__)
     
     error_response = ErrorResponse(
         error=APIError(

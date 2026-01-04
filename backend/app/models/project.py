@@ -5,6 +5,7 @@ Represents waste assessment projects at client locations.
 
 from typing import Optional
 from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -166,7 +167,10 @@ class Project(BaseModel):
     )
     
     def __repr__(self) -> str:
-        return f"<Project {self.name}>"
+        state = sa_inspect(self)
+        name = state.dict.get("name")
+        project_id = state.identity[0] if state.identity else None
+        return f"<Project id={project_id} name={name!r}>"
     
     @property
     def proposals_count(self) -> int:
