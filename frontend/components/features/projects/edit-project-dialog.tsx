@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -88,6 +88,14 @@ export function EditProjectDialog({
 	project,
 }: EditProjectDialogProps) {
 	const { updateProject } = useProjectActions();
+	const [statusOpen, setStatusOpen] = useState(false);
+
+	const handleDialogOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			setStatusOpen(false);
+		}
+		onOpenChange(nextOpen);
+	};
 
 	// Initialize form with current project values
 	const form = useForm<EditProjectFormValues>({
@@ -114,6 +122,7 @@ export function EditProjectDialog({
 
 		// If project changed while dialog is open, close it to prevent stale data
 		if (open && wasOpen && prevProjectId !== project.id) {
+			setStatusOpen(false);
 			onOpenChange(false);
 			return;
 		}
@@ -147,6 +156,7 @@ export function EditProjectDialog({
 			// Fail fast: Don't make API call if nothing changed
 			if (Object.keys(updates).length === 0) {
 				toast.info("No changes detected");
+				setStatusOpen(false);
 				onOpenChange(false);
 				return;
 			}
@@ -157,6 +167,7 @@ export function EditProjectDialog({
 				description: `"${values.name}" has been updated successfully`,
 			});
 
+			setStatusOpen(false);
 			onOpenChange(false);
 		} catch (error) {
 			// Proper error handling with user-friendly message
@@ -170,7 +181,7 @@ export function EditProjectDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange} modal={true}>
+		<Dialog open={open} onOpenChange={handleDialogOpenChange} modal={true}>
 			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Edit Waste Stream</DialogTitle>
@@ -239,7 +250,12 @@ export function EditProjectDialog({
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>Status *</FormLabel>
-									<Select onValueChange={field.onChange} value={field.value}>
+									<Select
+										open={statusOpen}
+										onOpenChange={setStatusOpen}
+										onValueChange={field.onChange}
+										value={field.value}
+									>
 										<FormControl>
 											<SelectTrigger>
 												<SelectValue placeholder="Select status" />

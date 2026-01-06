@@ -42,6 +42,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [showEditDialog, setShowEditDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	// ✅ Calculate progress dynamically from technical sections (same as body)
 	const sections = useTechnicalSections(project.id);
@@ -132,7 +133,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 						</Button>
 
 						{/* Secondary actions dropdown */}
-						<DropdownMenu>
+						<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
 							<DropdownMenuTrigger asChild>
 								<Button variant="outline" size="icon" className="h-9 w-9" aria-label="More actions">
 									<MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -148,7 +149,13 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 									Generate Proposal
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onSelect={() => setShowEditDialog(true)}
+									onSelect={(event) => {
+										event.preventDefault();
+										setMenuOpen(false);
+										requestAnimationFrame(() => {
+											setShowEditDialog(true);
+										});
+									}}
 								>
 									<Edit className="mr-2 h-4 w-4" />
 									Edit Project
@@ -160,7 +167,13 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 								<DropdownMenuSeparator />
 								<DropdownMenuItem
 									className="text-destructive focus:text-destructive"
-									onSelect={() => setShowDeleteDialog(true)}
+									onSelect={(event) => {
+										event.preventDefault();
+										setMenuOpen(false);
+										requestAnimationFrame(() => {
+											setShowDeleteDialog(true);
+										});
+									}}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
 									Delete Project

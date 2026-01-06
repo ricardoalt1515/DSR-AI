@@ -41,6 +41,7 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 		[],
 	);
 	const [editDialogOpen, setEditDialogOpen] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	// Filter assessments for this company
 	useEffect(() => {
@@ -64,18 +65,6 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 		e.stopPropagation();
 	};
 
-	const handleEdit = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		setEditDialogOpen(true);
-	};
-
-	const handleDelete = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		if (onDelete) {
-			onDelete(company.id);
-		}
-	};
-
 	return (
 		<Card
 			className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
@@ -92,19 +81,33 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 							{company.subsector ? formatSubsector(company.subsector) : company.sector}
 						</Badge>
 						{onDelete && (
-							<DropdownMenu>
+							<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
 								<DropdownMenuTrigger asChild onClick={handleMenuClick}>
 									<Button variant="ghost" size="icon" className="h-8 w-8">
 										<MoreVertical className="h-4 w-4" />
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem onClick={handleEdit}>
+									<DropdownMenuItem
+										onSelect={(event) => {
+											event.preventDefault();
+											setMenuOpen(false);
+											requestAnimationFrame(() => {
+												setEditDialogOpen(true);
+											});
+										}}
+									>
 										<Edit className="mr-2 h-4 w-4" />
 										Edit
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										onClick={handleDelete}
+										onSelect={(event) => {
+											event.preventDefault();
+											setMenuOpen(false);
+											requestAnimationFrame(() => {
+												onDelete?.(company.id);
+											});
+										}}
 										className="text-destructive focus:text-destructive"
 									>
 										<Trash2 className="mr-2 h-4 w-4" />

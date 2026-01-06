@@ -55,6 +55,7 @@ export default function CompanyDetailPage() {
 		useState<LocationSummary | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const [editCompanyDialogOpen, setEditCompanyDialogOpen] = useState(false);
+	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (companyId) {
@@ -302,7 +303,12 @@ export default function CompanyDetailPage() {
 													? "waste stream"
 													: "waste streams"}
 											</Badge>
-											<DropdownMenu>
+											<DropdownMenu
+												open={openMenuId === location.id}
+												onOpenChange={(open) =>
+													setOpenMenuId(open ? location.id : null)
+												}
+											>
 												<DropdownMenuTrigger asChild>
 													<Button
 														variant="ghost"
@@ -315,9 +321,13 @@ export default function CompanyDetailPage() {
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
 													<DropdownMenuItem
-														onSelect={() => {
+														onSelect={(event) => {
+															event.preventDefault();
+															setOpenMenuId(null);
 															setLocationToDelete(location);
-															setDeleteDialogOpen(true);
+															requestAnimationFrame(() => {
+																setDeleteDialogOpen(true);
+															});
 														}}
 														className="text-destructive focus:text-destructive"
 													>

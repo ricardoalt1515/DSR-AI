@@ -95,6 +95,7 @@ const ProjectCard = memo(function ProjectCard({
 	const { deleteProject } = useProjectActions();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	// ✅ Calculate progress dynamically from technical sections
 	const sections = useTechnicalSections(id);
@@ -190,7 +191,7 @@ const ProjectCard = memo(function ProjectCard({
 						</div>
 					</div>
 
-					<DropdownMenu>
+					<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="icon" className="h-8 w-8">
 								<MoreHorizontal className="h-4 w-4" />
@@ -221,7 +222,10 @@ const ProjectCard = memo(function ProjectCard({
 								className="text-destructive focus:text-destructive"
 								onSelect={(e) => {
 									e.preventDefault();
-									setShowDeleteDialog(true);
+									setMenuOpen(false);
+									requestAnimationFrame(() => {
+										setShowDeleteDialog(true);
+									});
 								}}
 							>
 								<Trash2 className="mr-2 h-4 w-4" />
