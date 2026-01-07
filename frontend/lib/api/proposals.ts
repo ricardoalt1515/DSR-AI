@@ -8,6 +8,7 @@
  * - Proper error handling and logging
  */
 import type { AIMetadata } from "@/lib/types/proposal";
+import { API_TIMEOUT } from "@/lib/constants/timings";
 import { logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
 
@@ -137,6 +138,7 @@ export class ProposalsAPI {
 	 * First request may take 1-3 seconds. Subsequent requests are cached.
 	 *
 	 * @param regenerate - Force regeneration even if cached PDF exists
+	 * @param audience - "internal" or "external" report type (default: internal)
 	 * @returns Blob containing the PDF file
 	 *
 	 * @example
@@ -151,56 +153,24 @@ export class ProposalsAPI {
 		projectId: string,
 		proposalId: string,
 		regenerate = false,
+		audience: "internal" | "external" = "internal",
 	): Promise<Blob> {
-		// ✅ Build URL correctly - apiBaseUrl already includes /api/v1
-		// Fail fast if not configured in production
-		const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-		if (!apiBaseUrl) {
-			throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured");
-		}
-		// Don't start with / since baseURL already has the full path
-		const endpoint = `ai/proposals/${projectId}/proposals/${proposalId}/pdf`;
-		const fullUrl = `${apiBaseUrl}/${endpoint}`;
-
-		const url = new URL(fullUrl);
+		const endpointBase = `/ai/proposals/${projectId}/proposals/${proposalId}/pdf`;
+		const params = new URLSearchParams();
 		if (regenerate) {
-			url.searchParams.set("regenerate", "true");
+			params.set("regenerate", "true");
 		}
+		params.set("audience", audience);
+		const endpoint = `${endpointBase}?${params.toString()}`;
 
 		logger.debug("PDF Download Request", {
-			url: url.toString(),
-			apiBaseUrl,
 			endpoint,
+			audience,
 		});
 
-		// ✅ SSR-safe token retrieval
-		const token =
-			typeof window !== "undefined"
-				? localStorage.getItem("access_token")
-				: null;
-
-		if (!token) {
-			throw new Error("Authentication required. Please log in.");
-		}
-
-		const response = await fetch(url.toString(), {
-			headers: {
-				Authorization: `Bearer ${token}`,
-			},
-			// Follow redirects (backend returns 302 to presigned URL)
-			redirect: "follow",
+		return apiClient.downloadBlob(endpoint, {
+			timeout: API_TIMEOUT.EXTENDED,
 		});
-
-		logger.debug("PDF Download Response", {
-			status: response.status,
-			statusText: response.statusText,
-		});
-
-		if (!response.ok) {
-			throw new Error(`Failed to download PDF: ${response.statusText}`);
-		}
-
-		return response.blob();
 	}
 
 	/**

@@ -14,5 +14,10 @@ export { ProposalOverview } from "./proposal-overview";
 export { ProposalPage, ProposalPage as ProposalDetail } from "./proposal-page";
 export { ProposalTechnical } from "./proposal-technical";
 
+// Dual report components
+export { ExternalReportView } from "./external-report-view";
+export { ReportAudienceToggle, type ReportAudience } from "./report-audience-toggle";
+
 // Types
 export type * from "./types";
+

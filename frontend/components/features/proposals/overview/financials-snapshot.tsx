@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 
 interface FinancialsSnapshotProps {
     currentCost: string;
-    dsrOffer: string;
-    dsrMargin: string;
+    offerTerms: string;
+    estimatedMargin: string;
     roiSummary?: string;
 }
 
@@ -28,8 +28,8 @@ function parseROI(roiSummary: string): { investment: string; revenue: string; pe
 
 export function FinancialsSnapshot({
     currentCost,
-    dsrOffer,
-    dsrMargin,
+    offerTerms,
+    estimatedMargin,
     roiSummary,
 }: FinancialsSnapshotProps) {
     const roi = roiSummary ? parseROI(roiSummary) : null;
@@ -70,18 +70,18 @@ export function FinancialsSnapshot({
                             <ArrowRight className="h-6 w-6 text-muted-foreground" />
                         </div>
 
-                        {/* DSR Offer */}
+                        {/* Offer Terms */}
                         <div className="flex-1 p-4 rounded-xl bg-muted/50 border border-border">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-xs font-medium text-muted-foreground">
-                                    DSR Offer (est.)
+                                    Offer Terms (est.)
                                 </span>
                             </div>
                             <p className="text-lg font-bold text-foreground">
-                                {dsrOffer}
+                                {offerTerms}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                We buy at this rate
+                                Proposed rate or structure
                             </p>
                         </div>
 
@@ -90,19 +90,19 @@ export function FinancialsSnapshot({
                             <ArrowRight className="h-6 w-6 text-muted-foreground" />
                         </div>
 
-                        {/* DSR Margin */}
+                        {/* Estimated Margin */}
                         <div className="flex-1 p-4 rounded-xl bg-muted/50 border border-border">
                             <div className="flex items-center gap-2 mb-2">
                                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-xs font-medium text-muted-foreground">
-                                    DSR Margin (est.)
+                                    Estimated Margin (est.)
                                 </span>
                             </div>
                             <p className="text-lg font-bold text-foreground">
-                                {dsrMargin}
+                                {estimatedMargin}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Our profit potential
+                                Potential margin estimate
                             </p>
                         </div>
                     </div>

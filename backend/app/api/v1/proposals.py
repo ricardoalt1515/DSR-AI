@@ -4,6 +4,7 @@ AI Proposal generation endpoints.
 Includes PDF generation and AI transparency features (Oct 2025).
 """
 
+from typing import Literal
 from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi.responses import Response
@@ -24,7 +25,10 @@ from app.schemas.proposal import (
     AIMetadataResponse,
 )
 from app.schemas.common import ErrorResponse
-from app.services.proposal_service import ProposalService
+from app.services.proposal_service import (
+    ProposalService,
+    build_external_markdown_from_data,
+)
 from app.visualization.pdf_generator import pdf_generator
 from app.services.s3_service import (
     get_presigned_url,
@@ -335,6 +339,7 @@ async def get_proposal_pdf(
     current_user: CurrentUser,  # CurrentUser already has Depends in type
     db: AsyncSession = Depends(get_async_db),
     regenerate: bool = False,
+    audience: Literal["internal", "external"] = "internal",
 ):
     """
     Generate and download proposal as professional PDF.
@@ -358,6 +363,7 @@ async def get_proposal_pdf(
     
     **Parameters:**
     - **regenerate**: Force PDF regeneration (default: false)
+    - **audience**: "internal" or "external" (default: internal)
     
     **Returns:**
     - PDF file as `application/pdf`
@@ -380,17 +386,28 @@ async def get_proposal_pdf(
             detail="Proposal not found",
         )
     
-    # Load project relationship if not loaded
-    if not proposal.project:
-        proposal.project = project
-    
     try:
+        ai_metadata = proposal.ai_metadata if isinstance(proposal.ai_metadata, dict) else {}
+        pdf_paths = ai_metadata.get("pdfPaths") if isinstance(ai_metadata, dict) else None
+        if not isinstance(pdf_paths, dict):
+            pdf_paths = {}
+
+        cached_pdf_path = (
+            proposal.pdf_path
+            if audience == "internal"
+            else pdf_paths.get("external")
+        )
+
         # Check if PDF exists and regeneration not requested
-        if proposal.pdf_path and not regenerate:
-            logger.info("Serving cached PDF for proposal %s", proposal_id)
+        if cached_pdf_path and not regenerate:
+            logger.info(
+                "Serving cached PDF for proposal %s (audience=%s)",
+                proposal_id,
+                audience,
+            )
             
             # Generate fresh presigned URL or serve local path
-            pdf_url = await get_presigned_url(proposal.pdf_path, expires=3600)
+            pdf_url = await get_presigned_url(cached_pdf_path, expires=3600)
             
             if pdf_url:
                 # Redirect to presigned URL (S3) or local URL
@@ -404,18 +421,45 @@ async def get_proposal_pdf(
         logger.info("Generating new PDF for proposal %s", proposal_id)
 
         # Prepare metadata for PDF generator.
-        # metadata["proposal"] feeds the new waste-upcycling layout (ProposalOutput-compatible),
-        # while metadata["data_for_charts"] is kept for legacy chart generation.
+        # metadata["proposal"] uses audience-specific data when available.
         proposal_data = None
-        if proposal.ai_metadata and isinstance(proposal.ai_metadata, dict):
-            proposal_data = proposal.ai_metadata.get("proposal")
+        markdown_content = ""
+
+        if ai_metadata:
+            proposal_data = ai_metadata.get(
+                "proposal_internal" if audience == "internal" else "proposal_external"
+            )
+            if audience == "internal" and not proposal_data:
+                proposal_data = ai_metadata.get("proposal")
+
+            markdown_key = (
+                "markdown_internal" if audience == "internal" else "markdown_external"
+            )
+            markdown_content = ai_metadata.get(markdown_key) or ""
+
+        if audience == "external":
+            if not proposal_data:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="External report not available for this proposal.",
+                )
+            if not markdown_content:
+                markdown_content = build_external_markdown_from_data(proposal_data)
+                ai_metadata["markdown_external"] = markdown_content
+                proposal.ai_metadata = ai_metadata
+        else:
+            if not markdown_content:
+                markdown_content = proposal.technical_approach or ""
 
         legacy_technical = getattr(proposal, "technical_data", None)
 
         metadata = {
             "proposal": proposal_data or {},
+            "audience": audience,
+            "client_name": project.client,
+            "client_location": project.location,
             "data_for_charts": legacy_technical
-            if legacy_technical is not None
+            if legacy_technical is not None and audience == "internal"
             else {
                 "client_info": {
                     "company_name": project.client,
@@ -432,23 +476,27 @@ async def get_proposal_pdf(
                 "problem_analysis": {},
                 "alternative_analysis": [],
                 "implementation_months": 12,
-            },
+            }
+            if audience == "internal"
+            else {},
         }
         
-        # Generate charts before creating PDF (like backend-chatbot)
-        from app.visualization.modern_charts import premium_chart_generator
-        
-        logger.info("Generating executive charts for proposal %s", proposal_id)
-        charts = premium_chart_generator.generate_executive_charts(metadata)
-        logger.info(
-            "Generated %s charts: %s",
-            len(charts),
-            list(charts.keys()) if charts else "none",
-        )
+        charts = {}
+        if audience == "internal":
+            # Generate charts before creating PDF (like backend-chatbot)
+            from app.visualization.modern_charts import premium_chart_generator
+            
+            logger.info("Generating executive charts for proposal %s", proposal_id)
+            charts = premium_chart_generator.generate_executive_charts(metadata)
+            logger.info(
+                "Generated %s charts: %s",
+                len(charts),
+                list(charts.keys()) if charts else "none",
+            )
         
         # Generate PDF with charts (returns relative filename: "proposals/file.pdf")
         pdf_filename = await pdf_generator.create_pdf(
-            markdown_content=proposal.technical_approach or "",
+            markdown_content=markdown_content,
             metadata=metadata,
             charts=charts,
             conversation_id=str(proposal_id)
@@ -458,7 +506,13 @@ async def get_proposal_pdf(
             raise ValueError("PDF generation returned None")
 
         # Save relative filename in database (not the full URL)
-        proposal.pdf_path = pdf_filename
+        if audience == "internal":
+            proposal.pdf_path = pdf_filename
+        else:
+            pdf_paths["external"] = pdf_filename
+            ai_metadata["pdfPaths"] = pdf_paths
+            proposal.ai_metadata = ai_metadata
+
         await db.commit()
 
         logger.info("PDF generated and saved: %s", pdf_filename)

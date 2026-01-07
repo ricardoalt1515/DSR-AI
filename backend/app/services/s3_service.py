@@ -114,7 +114,12 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
 
     full_path = storage_path / rel_path
     if not full_path.exists():
-        raise StorageError(f"Local file not found: {full_path}")
+        uploads_path = LOCAL_UPLOADS_DIR / rel_path
+        if uploads_path.exists():
+            rel_path = uploads_path.relative_to(storage_path)
+            full_path = uploads_path
+        else:
+            raise StorageError(f"Local file not found: {full_path}")
 
     return f"{settings.BACKEND_URL}/uploads/{rel_path}"
 

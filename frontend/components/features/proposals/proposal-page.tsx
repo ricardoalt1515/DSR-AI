@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, ListChecks } from "lucide-react";
+import { ArrowLeft, Download, ListChecks, FileText } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,16 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProposalOverview } from "./proposal-overview";
+import { ExternalReportView } from "./external-report-view";
+import { ReportAudienceToggle, type ReportAudience } from "./report-audience-toggle";
 import { QuickActionsCard } from "./sidebar";
 import type { Project, Proposal } from "./types";
 
@@ -22,7 +30,7 @@ interface ProposalPageProps {
 	project: Project;
 	isLoading?: boolean;
 	onStatusChange?: (newStatus: string) => void;
-	onDownloadPDF?: () => void;
+	onDownloadPDF?: (audience?: ReportAudience) => void;
 }
 
 const STATUS_BADGE_VARIANT: Record<
@@ -42,10 +50,17 @@ export function ProposalPage({
 	onDownloadPDF,
 }: ProposalPageProps) {
 	const [isChecklistOpen, setIsChecklistOpen] = useState(false);
+	const [audience, setAudience] = useState<ReportAudience>("internal");
 
 	if (isLoading) {
 		return <ProposalPageSkeleton />;
 	}
+
+	const handleDownloadPDF = (targetAudience: ReportAudience) => {
+		if (onDownloadPDF) {
+			onDownloadPDF(targetAudience);
+		}
+	};
 
 	return (
 		<div className="min-h-screen bg-muted/10">
@@ -78,13 +93,38 @@ export function ProposalPage({
 							</div>
 						</div>
 					</div>
+
+					{/* Actions */}
 					<div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+						{/* Report Audience Toggle */}
+						<ReportAudienceToggle
+							value={audience}
+							onValueChange={setAudience}
+						/>
+
+						{/* PDF Download Dropdown */}
 						{onDownloadPDF && (
-							<Button onClick={onDownloadPDF} className="gap-2">
-								<Download className="h-4 w-4" />
-								Download PDF
-							</Button>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button className="gap-2">
+										<Download className="h-4 w-4" />
+										Download PDF
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem onClick={() => handleDownloadPDF("internal")}>
+										<FileText className="h-4 w-4 mr-2" />
+										Internal Report
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => handleDownloadPDF("external")}>
+										<FileText className="h-4 w-4 mr-2" />
+										Client Report
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						)}
+
+						{/* Checklist Drawer */}
 						<Drawer open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
 							<Button
 								variant="outline"
@@ -104,7 +144,7 @@ export function ProposalPage({
 								<div className="space-y-4">
 									<QuickActionsCard
 										proposal={proposal}
-										onDownloadPDF={onDownloadPDF}
+										onDownloadPDF={() => handleDownloadPDF(audience)}
 										onStatusChange={onStatusChange}
 										closeDrawer={() => setIsChecklistOpen(false)}
 									/>
@@ -115,9 +155,13 @@ export function ProposalPage({
 				</div>
 			</header>
 
-			{/* Main Content - Single Page Scroll */}
+			{/* Main Content - Conditional View */}
 			<main className="container mx-auto px-4 py-6 lg:py-8">
-				<ProposalOverview proposal={proposal} />
+				{audience === "internal" ? (
+					<ProposalOverview proposal={proposal} />
+				) : (
+					<ExternalReportView proposal={proposal} />
+				)}
 			</main>
 		</div>
 	);
@@ -155,3 +199,4 @@ function formatDateTime(value: string): string {
 		timeStyle: "short",
 	}).format(new Date(value));
 }
+

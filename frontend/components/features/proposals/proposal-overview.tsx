@@ -112,8 +112,8 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				<SectionErrorBoundary sectionName="Financials">
 					<FinancialsSnapshot
 						currentCost={report.financials.currentCost}
-						dsrOffer={report.financials.dsrOffer}
-						dsrMargin={report.financials.dsrMargin}
+						offerTerms={report.financials.offerTerms}
+						estimatedMargin={report.financials.estimatedMargin}
 						roiSummary={report.roiSummary}
 					/>
 				</SectionErrorBoundary>

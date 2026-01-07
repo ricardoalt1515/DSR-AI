@@ -1,5 +1,5 @@
 /**
- * DSR Business Opportunity Analysis - Types
+ * Business Opportunity Analysis - Types
  * Simplified, buyer-pitch focused
  */
 
@@ -22,8 +22,8 @@ export interface BusinessPathway {
 
 export interface FinancialSummary {
 	currentCost: string;
-	dsrOffer: string;
-	dsrMargin: string;
+	offerTerms: string;
+	estimatedMargin: string;
 }
 
 export interface EnvironmentalImpact {

@@ -1,7 +1,8 @@
 """
-DSR Business Opportunity Analysis - Output Models.
+Waste opportunity analysis - Output Models.
 
-DESIGN: Minimal fields, structured for buyer pitches.
+DESIGN: Compact, structured fields suitable for internal review and buyer-ready excerpts.
+All pricing and financial figures are indicative estimates unless sourced.
 """
 
 from typing import Literal
@@ -14,20 +15,63 @@ from app.schemas.common import BaseSchema
 class BusinessPathway(BaseSchema):
     """Single business opportunity - ready to pitch to buyers."""
     
-    action: str = Field(description="What DSR does: 'Shred to flakes', 'Sell as-is'")
+    action: str = Field(description="What we do: 'Shred to flakes', 'Sell as-is'")
     buyer_types: str = Field(description="Generic buyers: 'recyclers, furniture makers'")
     price_range: str = Field(description="Market rate: '$150-200/ton'")
     annual_value: str = Field(description="Projected: '$18k-24k/yr'")
     esg_pitch: str = Field(description="What BUYER tells their stakeholders")
     handling: str = Field(description="Transport/storage: 'Store dry, avoid resin'")
+    feasibility: Literal["High", "Medium", "Low"] = Field(
+        default="Medium",
+        description="Feasibility given typical operational constraints (not a guarantee).",
+    )
+    target_locations: list[str] = Field(
+        default_factory=list,
+        description="Example geographies to pursue this pathway (cities/regions).",
+    )
+    why_it_works: str = Field(
+        description="Short rationale explaining why this pathway is attractive and feasible.",
+    )
 
 
 class FinancialSummary(BaseSchema):
     """Financial overview - one line each."""
     
     current_cost: str = Field(description="What generator pays now: '$18k/yr landfill'")
-    dsr_offer: str = Field(description="DSR's value prop: 'We buy @ $50/ton'")
-    dsr_margin: str = Field(description="DSR's margin: '~60% after transport'")
+    offer_terms: str = Field(description="Offer structure/value prop: 'We buy @ $50/ton'")
+    estimated_margin: str = Field(description="Estimated margin: '~60% after transport'")
+
+
+class EconomicsDeepDive(BaseSchema):
+    """More detailed economics for internal decision-making (still estimate-only)."""
+
+    profitability_band: Literal["High", "Medium", "Low", "Unknown"] = Field(
+        default="Unknown",
+        description="Qualitative profitability band (no precise numbers required).",
+    )
+    profitability_summary: str = Field(
+        description="2-4 sentences explaining profitability and key drivers (estimate-only).",
+    )
+    cost_breakdown: list[str] = Field(
+        min_length=3,
+        max_length=8,
+        description="Clear cost line items as ranges (transport, sorting, processing, etc.).",
+    )
+    scenario_summary: list[str] = Field(
+        min_length=2,
+        max_length=3,
+        description="Best/base/worst case economics summarized as strings (estimate-only).",
+    )
+    assumptions: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Assumptions used to estimate revenue/costs.",
+    )
+    data_gaps: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Missing inputs required to increase confidence (quotes, lab tests, logistics, etc.).",
+    )
 
 
 class EnvironmentalImpact(BaseSchema):
@@ -48,13 +92,13 @@ class SafetyHandling(BaseSchema):
 
 class ProposalOutput(BaseSchema):
     """
-    DSR Opportunity Report - Buyer-Focused.
+    Opportunity Report - Internal (operator team).
     
-    Purpose: Provide material for DSR to pitch buyers.
-    Audience: DSR sales team presenting to recyclers/buyers.
+    Purpose: Support internal decision-making and enable buyer-ready pitching.
+    Audience: Internal operators and sales team.
     """
 
-    # 1. QUICK SUMMARY (for DSR internal)
+    # 1. QUICK SUMMARY (for internal team)
     recommendation: Literal["GO", "NO-GO", "INVESTIGATE"] = Field(
         description="Internal decision"
     )
@@ -73,6 +117,9 @@ class ProposalOutput(BaseSchema):
 
     # 3. FINANCIALS
     financials: FinancialSummary
+    economics_deep_dive: EconomicsDeepDive = Field(
+        description="Detailed economics for internal review (all estimate-only).",
+    )
     
     # 4. ENVIRONMENT (for buyer pitches)
     environment: EnvironmentalImpact
@@ -82,9 +129,9 @@ class ProposalOutput(BaseSchema):
 
     # 6. BUSINESS PATHWAYS (the core value)
     pathways: list[BusinessPathway] = Field(
-        min_length=2,
-        max_length=5,
-        description="Ideas ordered by margin. Include creative options."
+        min_length=3,
+        max_length=10,
+        description="Ideas ordered by margin and feasibility. Include creative options."
     )
 
     # 7. RISKS & NEXT STEPS
@@ -96,7 +143,7 @@ class ProposalOutput(BaseSchema):
     next_steps: list[str] = Field(
         min_length=1,
         max_length=3,
-        description="What DSR does this week"
+        description="What the team does next"
     )
     
     # 8. ROI SUMMARY (like Wastetide's "$100 → $1000")

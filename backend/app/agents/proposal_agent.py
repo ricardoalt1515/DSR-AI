@@ -163,7 +163,7 @@ async def generate_proposal(
     )
 
     try:
-        logger.info("🧠 Generating proposal...")
+        logger.info("Generating proposal...")
 
         result = await proposal_agent.run(
             "Generate a waste upcycling feasibility report with GO/NO-GO decision.",

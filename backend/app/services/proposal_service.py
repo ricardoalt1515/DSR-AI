@@ -50,6 +50,12 @@ from app.models.file import ProjectFile
 from app.models.project import Project
 from app.models.project_input import FlexibleWaterProjectData
 from app.models.proposal import Proposal
+from app.models.external_opportunity_report import (
+    CircularityIndicator,
+    ExternalOpportunityReport,
+    SustainabilityMetric,
+    SustainabilitySection,
+)
 from app.models.proposal_output import ProposalOutput
 from app.schemas.proposal import ProposalGenerationRequest
 from app.services.cache_service import cache_service
@@ -121,7 +127,7 @@ async def _generate_with_retry(
         ProposalGenerationError: After all retries exhausted
         ValidationError: Immediate failure (no retry)
     """
-    logger.info(f"🤖 Attempting proposal generation for job {job_id}")
+    logger.info(f"Attempting proposal generation for job {job_id}")
 
     try:
         # Add timeout to AI agent call (fail fast - 8 minutes)
@@ -743,9 +749,22 @@ def create_proposal(
 ) -> Proposal:
     """Create Proposal from ProposalOutput (DRY principle)."""
     proposal_data = proposal_output.model_dump(by_alias=True, exclude_none=True)
+    external_report = derive_external_report(proposal_output)
+    external_data = external_report.model_dump(
+        by_alias=True,
+        exclude_none=True,
+        mode="json",
+    )
     
+    internal_markdown = _generate_markdown_report(proposal_output)
+    external_markdown = _generate_markdown_external_report(external_report)
+
     ai_metadata = {
         "proposal": proposal_data,
+        "proposal_internal": proposal_data,
+        "proposal_external": external_data,
+        "markdown_internal": internal_markdown,
+        "markdown_external": external_markdown,
         "transparency": {
             "clientMetadata": client_metadata,
             "generatedAt": datetime.utcnow().isoformat(),
@@ -753,30 +772,291 @@ def create_proposal(
             "reportType": "waste_opportunity"
         }
     }
-    
-    markdown = _generate_markdown_report(proposal_output)
-    
+
     return Proposal(
         project_id=project_id,
         version=new_version,
         title=f"Opportunity Report - {project_name}",
         proposal_type=request.proposal_type,
         status="Draft",
-        author="DSR-AI",
+        author="AI",
         capex=0.0,
         opex=0.0,
         executive_summary=proposal_output.headline,
-        technical_approach=markdown,
+        technical_approach=internal_markdown,
         ai_metadata=ai_metadata,
     )
 
 
+_NON_COMPUTED_MARKERS = {
+    "n/a",
+    "na",
+    "unknown",
+    "not computed",
+    "not_computed",
+}
+_DEFAULT_CO2_BASIS = "Estimate based on available inputs and standard factors."
+_CO2_DATA_NEEDED = [
+    "Annual material volume",
+    "Material composition",
+    "Baseline disposal method",
+]
+_WATER_DATA_NEEDED = [
+    "Process water baseline",
+    "Reuse or discharge targets",
+    "System yield or recovery rates",
+]
+_CIRCULARITY_DATA_NEEDED = [
+    "Current diversion rate",
+    "Post-processing yield",
+    "End-use acceptance criteria",
+]
+_CIRCULARITY_INDICATORS = [
+    "Material diversion rate",
+    "Secondary material utilization",
+]
+_MAX_END_USE_EXAMPLES = 6
+_END_USE_ALLOWLIST = {
+    "recyclers": "Recyclers",
+    "furniture makers": "Furniture makers",
+    "construction companies": "Construction companies",
+    "automotive parts manufacturers": "Automotive parts manufacturers",
+    "lumber yards": "Lumber yards",
+    "biomass plants": "Biomass plants",
+    "pellet manufacturers": "Pellet manufacturers",
+    "paper mills": "Paper mills",
+    "packaging manufacturers": "Packaging manufacturers",
+    "metal foundries": "Metal foundries",
+    "plastic reprocessors": "Plastic reprocessors",
+    "glass processors": "Glass processors",
+    "composting facilities": "Composting facilities",
+    "anaerobic digesters": "Anaerobic digesters",
+    "waste to energy plants": "Waste-to-energy plants",
+    "cement kilns": "Cement kilns",
+    "chemical manufacturers": "Chemical manufacturers",
+    "textile recyclers": "Textile recyclers",
+    "electronics recyclers": "Electronics recyclers",
+    "consumer goods manufacturers": "Consumer goods manufacturers",
+}
+
+
+def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityReport:
+    """Derive a client-facing report from internal data (allowlist-only)."""
+    if internal is None:
+        raise ValueError("Internal report is required to derive external report.")
+
+    co2_value = _co2_value_or_none(internal.environment.co2_avoided)
+    co2_metric = _build_metric(
+        value=co2_value,
+        basis=_DEFAULT_CO2_BASIS if co2_value else None,
+        data_needed=_CO2_DATA_NEEDED,
+    )
+
+    water_metric = _build_metric(
+        value=None,
+        basis=None,
+        data_needed=_WATER_DATA_NEEDED,
+    )
+
+    circularity = [
+        CircularityIndicator(
+            name=name,
+            metric=_build_metric(
+                value=None,
+                basis=None,
+                data_needed=_CIRCULARITY_DATA_NEEDED,
+            ),
+        )
+        for name in _CIRCULARITY_INDICATORS
+    ]
+
+    sustainability_summary = _safe_external_summary(internal.environment.esg_headline)
+    overall_impact = _safe_external_summary(internal.environment.current_harm)
+
+    sustainability = SustainabilitySection(
+        summary=sustainability_summary,
+        co2e_reduction=co2_metric,
+        water_savings=water_metric,
+        circularity=circularity,
+        overall_environmental_impact=overall_impact,
+    )
+
+    return ExternalOpportunityReport(
+        sustainability=sustainability,
+        profitability_band=internal.economics_deep_dive.profitability_band,
+        end_use_industry_examples=_extract_end_use_examples(internal.pathways),
+    )
+
+
+def _co2_value_or_none(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.strip().lower()
+    if normalized in _NON_COMPUTED_MARKERS:
+        return None
+    if any(char.isdigit() for char in normalized):
+        return value.strip()
+    return None
+
+
+def _build_metric(
+    value: str | None,
+    basis: str | None,
+    data_needed: list[str],
+) -> SustainabilityMetric:
+    status = "computed" if value else "not_computed"
+    needed = [] if value else data_needed
+    return SustainabilityMetric(
+        status=status,
+        value=value,
+        basis=basis if value else None,
+        data_needed=needed,
+    )
+
+
+def _safe_external_summary(text: str | None) -> str:
+    if not text:
+        return "Sustainability impact summary is pending additional inputs."
+    if "$" in text or "usd" in text.lower():
+        return "Sustainability impact summary is pending additional inputs."
+    return text.strip()
+
+
+def _extract_end_use_examples(pathways: list[Any]) -> list[str]:
+    examples: list[str] = []
+    seen: set[str] = set()
+    for pathway in pathways:
+        buyer_types = getattr(pathway, "buyer_types", "")
+        for raw in _split_buyer_types(buyer_types):
+            normalized = _normalize_buyer_type(raw)
+            if not normalized:
+                continue
+            if normalized in seen:
+                continue
+            label = _END_USE_ALLOWLIST.get(normalized)
+            if not label:
+                continue
+            seen.add(normalized)
+            examples.append(label)
+            if len(examples) >= _MAX_END_USE_EXAMPLES:
+                return examples
+    return examples
+
+
+def _split_buyer_types(value: str) -> list[str]:
+    separators = [",", ";", "/", "|"]
+    for separator in separators:
+        value = value.replace(separator, ",")
+    parts = [p.strip() for p in value.split(",") if p.strip()]
+    return parts
+
+
+def _normalize_buyer_type(value: str) -> str:
+    cleaned = value.strip().lower()
+    for prefix in ("the ", "a ", "an "):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):]
+            break
+    cleaned = "".join(ch if ch.isalnum() or ch.isspace() else " " for ch in cleaned)
+    return " ".join(cleaned.split())
+
+
+def build_external_markdown_from_data(report_data: dict) -> str:
+    if not report_data:
+        raise ValueError("External report data is required to build markdown.")
+    report = ExternalOpportunityReport.model_validate(report_data)
+    return _generate_markdown_external_report(report)
+
+
+def _generate_markdown_external_report(output: ExternalOpportunityReport) -> str:
+    """Generate external (client-facing) markdown from structured data."""
+    sustainability = output.sustainability
+
+    def format_metric(metric: SustainabilityMetric) -> str:
+        value = metric.value or "Not computed"
+        basis = metric.basis or "N/A"
+        data_needed = metric.data_needed or []
+        data_lines = chr(10).join(f"- {item}" for item in data_needed) or "- N/A"
+        return f"""- **Status:** {metric.status}
+- **Value:** {value}
+- **Basis:** {basis}
+- **Data Needed:**
+{data_lines}
+"""
+
+    circularity_lines = []
+    for indicator in sustainability.circularity:
+        circularity_lines.append(f"""
+### {indicator.name}
+{format_metric(indicator.metric)}
+""")
+
+    circularity_md = "".join(circularity_lines) if circularity_lines else "N/A"
+    industries_md = (
+        chr(10).join(f"- {item}" for item in output.end_use_industry_examples)
+        if output.end_use_industry_examples
+        else "- N/A"
+    )
+
+    generated_at = (
+        output.generated_at
+        if isinstance(output.generated_at, str)
+        else output.generated_at.isoformat()
+    )
+
+    return f"""# Sustainability Opportunity Report
+
+**Report Version:** {output.report_version}
+**Generated At:** {generated_at}
+
+---
+
+## Sustainability Summary
+
+{sustainability.summary}
+
+---
+
+## CO₂e Reduction
+{format_metric(sustainability.co2e_reduction)}
+
+---
+
+## Water Savings
+{format_metric(sustainability.water_savings)}
+
+---
+
+## Circularity Indicators
+{circularity_md}
+
+---
+
+## Overall Environmental Impact
+
+{sustainability.overall_environmental_impact}
+
+---
+
+## Profitability Band
+
+{output.profitability_band}
+
+---
+
+## End-Use Industry Examples
+
+{industries_md}
+"""
+
+
 def _generate_markdown_report(output: ProposalOutput) -> str:
-    """Generate buyer-focused markdown from structured data."""
+    """Generate internal opportunity markdown from structured data."""
     
     # Format pathways
     pathway_lines = []
     for i, p in enumerate(output.pathways, 1):
+        target_locations = ", ".join(p.target_locations) if p.target_locations else "N/A"
         pathway_lines.append(f"""
 ### Pathway {i}: {p.action}
 
@@ -785,11 +1065,28 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 - **Annual Value:** {p.annual_value}
 - **ESG Pitch for Buyer:** _{p.esg_pitch}_
 - **Handling:** {p.handling}
+- **Feasibility:** {p.feasibility}
+- **Target Locations:** {target_locations}
+- **Why it works:** {p.why_it_works}
 """)
     
     pathways_md = "".join(pathway_lines)
+
+    economics = output.economics_deep_dive
+    cost_lines = chr(10).join(f"- {line}" for line in economics.cost_breakdown)
+    scenario_lines = chr(10).join(f"- {line}" for line in economics.scenario_summary)
+    assumptions_lines = (
+        chr(10).join(f"- {line}" for line in economics.assumptions)
+        if economics.assumptions
+        else "- N/A"
+    )
+    data_gaps_lines = (
+        chr(10).join(f"- {line}" for line in economics.data_gaps)
+        if economics.data_gaps
+        else "- N/A"
+    )
     
-    return f"""# DSR Opportunity Report
+    return f"""# Opportunity Report
 
 ## {output.recommendation}: {output.headline}
 
@@ -797,18 +1094,37 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 
 ---
 
-## Client: {output.client}
+## Company: {output.client}
 - **Location:** {output.location}
 - **Material:** {output.material}
 - **Volume:** {output.volume}
 
 ---
 
-## Financials
+## Financial Snapshot
 
-| Current Cost | DSR Offer | DSR Margin |
+| Current Cost | Offer | Estimated Margin |
 |-------------|-----------|------------|
-| {output.financials.current_cost} | {output.financials.dsr_offer} | {output.financials.dsr_margin} |
+| {output.financials.current_cost} | {output.financials.offer_terms} | {output.financials.estimated_margin} |
+
+---
+
+## Economics Deep Dive (Estimate-Only)
+
+- **Profitability Band:** {economics.profitability_band}
+- **Summary:** {economics.profitability_summary}
+
+### Cost Breakdown (Ranges)
+{cost_lines}
+
+### Scenarios (Best/Base/Worst)
+{scenario_lines}
+
+### Assumptions
+{assumptions_lines}
+
+### Data Gaps
+{data_gaps_lines}
 
 ---
 
@@ -847,7 +1163,7 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 
 ## ROI Summary
 
-💰 **{output.roi_summary or 'ROI calculation pending'}**
+**{output.roi_summary or 'ROI calculation pending'}**
 """
 
 
