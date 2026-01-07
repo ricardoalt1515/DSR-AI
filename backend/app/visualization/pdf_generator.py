@@ -79,7 +79,7 @@ class ProfessionalPDFGenerator:
             else:
                 logger.info(f"PDF saved locally: {pdf_filename}")
 
-            # ✅ Return RELATIVE filename (without /uploads/ prefix)
+            # Return RELATIVE filename (without /uploads/ prefix)
             # This allows s3_service to construct the correct path
             return pdf_filename  # e.g., "proposals/opportunity_report_xyz.pdf"
 
@@ -132,11 +132,31 @@ class ProfessionalPDFGenerator:
             or "Location not specified"
         )
 
+        context = metadata.get("context") or {}
+
         # Build new business-focused sections
-        business_sections = self._create_business_sections(proposal_data)
+        business_sections = self._create_business_sections(
+            proposal_data,
+            audience=audience,
+            context=context if audience == "external" else None,
+        )
 
         # Charts section (may still rely on legacy metadata structure)
         charts_section = self._create_charts_section(charts)
+
+        markdown_section = ""
+        if audience == "internal":
+            markdown_section = f"""
+            <!-- FULL MARKDOWN REPORT (optional) -->
+            <div class="technical-section">
+                <h2 class="section-title">Report Details</h2>
+                {md_html}
+            </div>
+            """
+
+        proposal_title = (
+            report_title if audience == "internal" else "Sustainability Report"
+        )
 
         html_content = f"""
         <!DOCTYPE html>
@@ -155,7 +175,7 @@ class ProfessionalPDFGenerator:
                 </div>
                 
                 <div class="cover-content">
-                    <h2 class="proposal-title">{report_title}</h2>
+                    <h2 class="proposal-title">{proposal_title}</h2>
                     <h3 class="client-name">{facility_type}</h3>
                     <h4 class="company-name">{client_name}</h4>
                     
@@ -176,11 +196,7 @@ class ProfessionalPDFGenerator:
             <!-- VISUALIZATIONS AND CHARTS (optional) -->
             {charts_section}
             
-            <!-- FULL MARKDOWN REPORT (optional) -->
-            <div class="technical-section">
-                <h2 class="section-title">Report Details</h2>
-                {md_html}
-            </div>
+            {markdown_section}
             
             <!-- FOOTER PAGE -->
             <div class="footer-page">
@@ -204,75 +220,190 @@ class ProfessionalPDFGenerator:
 
         return html_content
 
-    def _create_business_sections(self, proposal_data: Dict[str, Any]) -> str:
+    def _create_business_sections(
+        self,
+        proposal_data: Dict[str, Any],
+        audience: str,
+        context: Dict[str, Any] | None = None,
+    ) -> str:
         """Create business-focused sections from internal or external data."""
         if not proposal_data:
             return ""
 
         sections: list[str] = []
 
-        if proposal_data.get("sustainability"):
+        if audience == "external":
             sustainability = proposal_data.get("sustainability") or {}
-            profitability_band = (
-                proposal_data.get("profitability_band")
-                or proposal_data.get("profitabilityBand")
-                or "Unknown"
-            )
-            end_use_examples = (
-                proposal_data.get("end_use_industry_examples")
-                or proposal_data.get("endUseIndustryExamples")
-                or []
-            )
+            profitability_band = proposal_data.get("profitabilityBand") or "Unknown"
+            context = context or {}
 
-            summary = sustainability.get("summary") or "Sustainability summary pending."
-            overall_impact = sustainability.get("overall_environmental_impact") or sustainability.get(
-                "overallEnvironmentalImpact"
-            ) or "Environmental impact summary pending."
+            def clean_context_value(value: str | None) -> str | None:
+                if not value:
+                    return None
+                trimmed = value.strip()
+                if not trimmed or trimmed.lower() in {"n/a", "na", "unknown", "not specified"}:
+                    return None
+                if "$" in trimmed or "@" in trimmed:
+                    return "Details available upon request."
+                return trimmed
+
+            summary = sustainability.get("summary")
+            overall_impact = sustainability.get("overallEnvironmentalImpact")
 
             def format_metric(metric: Dict[str, Any]) -> str:
-                status = metric.get("status", "not_computed")
-                value = metric.get("value") or "Not computed"
-                basis = metric.get("basis") or "N/A"
-                data_needed = metric.get("data_needed") or metric.get("dataNeeded") or []
-                data_text = "<br/>".join(data_needed) if data_needed else "N/A"
-                return f"""
-                <p><strong>Status:</strong> {status}</p>
-                <p><strong>Value:</strong> {value}</p>
-                <p><strong>Basis:</strong> {basis}</p>
-                <p><strong>Data Needed:</strong> {data_text}</p>
-                """
+                value = metric.get("value")
+                if not value or value in {"N/A", "Not computed"}:
+                    return ""
+                return value
 
-            co2 = sustainability.get("co2e_reduction") or sustainability.get("co2eReduction") or {}
-            water = sustainability.get("water_savings") or sustainability.get("waterSavings") or {}
+            co2 = sustainability.get("co2eReduction") or {}
+            water = sustainability.get("waterSavings") or {}
             circularity = sustainability.get("circularity") or []
 
             external_html = """
             <div class="technical-section">
-                <h2 class="section-title">Sustainability Summary</h2>
+                <h2 class="section-title">Material & Scope</h2>
             """
-            external_html += f"<p>{summary}</p>"
-            external_html += "<h3>CO2e Reduction</h3>"
-            external_html += format_metric(co2)
-            external_html += "<h3>Water Savings</h3>"
-            external_html += format_metric(water)
+            material = clean_context_value(context.get("material"))
+            volume = clean_context_value(context.get("volume"))
+            location = clean_context_value(context.get("location"))
+            facility_type = clean_context_value(context.get("facilityType"))
 
+            if material:
+                external_html += f"<p><strong>Material:</strong> {material}</p>"
+            if volume:
+                external_html += f"<p><strong>Volume:</strong> {volume}</p>"
+            if location:
+                external_html += f"<p><strong>Location:</strong> {location}</p>"
+            if facility_type:
+                external_html += f"<p><strong>Facility:</strong> {facility_type}</p>"
+
+            if any([material, volume, location, facility_type]):
+                if profitability_band and profitability_band != "Unknown":
+                    external_html += f"<h3>Opportunity Level: {profitability_band}</h3>"
+                external_html += "</div>"
+            else:
+                external_html = ""
+
+            summary_block = ""
+            if summary:
+                summary_block = f"""
+                <div class="technical-section">
+                    <h2 class="section-title">Sustainability Summary</h2>
+                    <p>{summary}</p>
+                </div>
+                """
+
+            metric_sections = []
+            co2_block = format_metric(co2)
+            if co2_block:
+                metric_sections.append(f"<h3>CO2e Reduction</h3><p>{co2_block}</p>")
+            water_block = format_metric(water)
+            if water_block:
+                metric_sections.append(f"<h3>Water Savings</h3><p>{water_block}</p>")
+
+            circularity_blocks = []
             if circularity:
-                external_html += "<h3>Circularity Indicators</h3><ul>"
                 for indicator in circularity:
                     name = indicator.get("name") or "Indicator"
                     metric = indicator.get("metric") or {}
-                    external_html += f"<li><strong>{name}</strong>{format_metric(metric)}</li>"
-                external_html += "</ul>"
+                    indicator_value = format_metric(metric)
+                    if indicator_value:
+                        circularity_blocks.append(f"<li><strong>{name}:</strong> {indicator_value}</li>")
+                if circularity_blocks:
+                    metric_sections.append(
+                        "<h3>Circularity Indicators</h3><ul>"
+                        + "".join(circularity_blocks)
+                        + "</ul>"
+                    )
 
-            external_html += f"<p><strong>Overall Impact:</strong> {overall_impact}</p>"
-            external_html += f"<p><strong>Profitability Band:</strong> {profitability_band}</p>"
+            metrics_block = ""
+            if metric_sections:
+                metrics_block = (
+                    "<div class=\"technical-section\">"
+                    + "".join(metric_sections)
+                    + "</div>"
+                )
+
+            overall_block = ""
+            if overall_impact:
+                overall_block = (
+                    "<div class=\"technical-section\">"
+                    f"<p><strong>Overall Impact:</strong> {overall_impact}</p>"
+                    "</div>"
+                )
+
+            # NEW: Valorization Options section
+            valorization_block = ""
+            valorization = context.get("valorization") or []
+            if valorization:
+                items = "".join(
+                    f"<li><strong>{v.get('action', '')}</strong> — {v.get('rationale', '')}</li>"
+                    for v in valorization
+                )
+                valorization_block = (
+                    "<div class=\"technical-section\">"
+                    "<h2 class=\"section-title\">Valorization Options</h2>"
+                    f"<ul>{items}</ul>"
+                    "</div>"
+                )
+
+            # NEW: ESG Benefits section
+            esg_block = ""
+            esg_benefits = context.get("esgBenefits") or []
+            if esg_benefits:
+                items = "".join(f"<li>{b}</li>" for b in esg_benefits)
+                esg_block = (
+                    "<div class=\"technical-section\">"
+                    "<h2 class=\"section-title\">ESG Benefits for Stakeholders</h2>"
+                    f"<ul>{items}</ul>"
+                    "</div>"
+                )
+
+            # NEW: Opportunity Assessment section (feasibility + profitability)
+            opportunity_block = ""
+            viable_count = context.get("viablePathwaysCount") or 0
+            opportunity_parts = []
+            if viable_count > 0:
+                plural = "s" if viable_count != 1 else ""
+                opportunity_parts.append(f"<p><strong>{viable_count} viable pathway{plural}</strong> identified for material valorization.</p>")
+            if profitability_band and profitability_band != "Unknown":
+                opportunity_parts.append(f"<p><strong>Opportunity Level:</strong> {profitability_band}</p>")
+            elif profitability_band == "Unknown":
+                opportunity_parts.append("<p><strong>Opportunity Level:</strong> To be confirmed (additional data required).</p>")
+            if opportunity_parts:
+                opportunity_block = (
+                    "<div class=\"technical-section\">"
+                    "<h2 class=\"section-title\">Opportunity Assessment</h2>"
+                    + "".join(opportunity_parts)
+                    + "</div>"
+                )
+
+            # End-Use Industries section
+            end_use_block = ""
+            end_use_examples = proposal_data.get("endUseIndustryExamples") or []
             if end_use_examples:
-                external_html += "<h3>End-Use Industry Examples</h3><ul>"
-                for item in end_use_examples:
-                    external_html += f"<li>{item}</li>"
-                external_html += "</ul>"
-            external_html += "</div>"
-            sections.append(external_html)
+                items = "".join(f"<li>{ex}</li>" for ex in end_use_examples)
+                end_use_block = (
+                    "<div class=\"technical-section\">"
+                    "<h2 class=\"section-title\">Potential End-Use Industries</h2>"
+                    "<p>Example markets for valorized materials:</p>"
+                    f"<ul>{items}</ul>"
+                    "</div>"
+                )
+
+            sections.extend(
+                block for block in [
+                    external_html,
+                    summary_block,
+                    metrics_block,
+                    overall_block,
+                    valorization_block,
+                    esg_block,
+                    end_use_block,
+                    opportunity_block,
+                ] if block
+            )
             return "\n".join(sections)
 
         recommendation = proposal_data.get("recommendation") or "INVESTIGATE"
@@ -284,15 +415,13 @@ class ProfessionalPDFGenerator:
         volume = proposal_data.get("volume") or "Volume pending."
 
         financials = proposal_data.get("financials") or {}
-        current_cost = financials.get("current_cost") or financials.get("currentCost") or "N/A"
-        offer_terms = financials.get("offer_terms") or financials.get("offerTerms") or "N/A"
-        estimated_margin = financials.get("estimated_margin") or financials.get("estimatedMargin") or "N/A"
+        current_cost = financials.get("currentCost") or "N/A"
+        offer_terms = financials.get("offerTerms") or "N/A"
+        estimated_margin = financials.get("estimatedMargin") or "N/A"
 
-        economics = proposal_data.get("economics_deep_dive") or proposal_data.get("economicsDeepDive") or {}
-        profitability_band = economics.get("profitability_band") or economics.get("profitabilityBand") or "Unknown"
-        profitability_summary = economics.get("profitability_summary") or economics.get(
-            "profitabilitySummary"
-        ) or "Summary pending."
+        economics = proposal_data.get("economicsDeepDive") or {}
+        profitability_band = economics.get("profitabilityBand") or "Unknown"
+        profitability_summary = economics.get("profitabilitySummary") or "Summary pending."
 
         environment = proposal_data.get("environment") or {}
         safety = proposal_data.get("safety") or {}
@@ -358,14 +487,14 @@ class ProfessionalPDFGenerator:
         econ_html += f"<p><strong>Profitability Band:</strong> {profitability_band}</p>"
         econ_html += f"<p>{profitability_summary}</p>"
 
-        cost_breakdown = economics.get("cost_breakdown") or economics.get("costBreakdown") or []
+        cost_breakdown = economics.get("costBreakdown") or []
         if cost_breakdown:
             econ_html += "<h3>Cost Breakdown</h3><ul>"
             for item in cost_breakdown:
                 econ_html += f"<li>{item}</li>"
             econ_html += "</ul>"
 
-        scenarios = economics.get("scenario_summary") or economics.get("scenarioSummary") or []
+        scenarios = economics.get("scenarioSummary") or []
         if scenarios:
             econ_html += "<h3>Scenarios</h3><ul>"
             for item in scenarios:
@@ -379,7 +508,7 @@ class ProfessionalPDFGenerator:
                 econ_html += f"<li>{item}</li>"
             econ_html += "</ul>"
 
-        data_gaps = economics.get("data_gaps") or economics.get("dataGaps") or []
+        data_gaps = economics.get("dataGaps") or []
         if data_gaps:
             econ_html += "<h3>Data Gaps</h3><ul>"
             for item in data_gaps:
@@ -393,9 +522,9 @@ class ProfessionalPDFGenerator:
         <div class="technical-section">
             <h2 class="section-title">Environmental Impact</h2>
         """
-        co2_avoided = environment.get("co2_avoided") or environment.get("co2Avoided") or "N/A"
-        esg_headline = environment.get("esg_headline") or environment.get("esgHeadline") or "N/A"
-        current_harm = environment.get("current_harm") or environment.get("currentHarm") or "N/A"
+        co2_avoided = environment.get("co2Avoided") or "N/A"
+        esg_headline = environment.get("esgHeadline") or "N/A"
+        current_harm = environment.get("currentHarm") or "N/A"
         env_html += f"<p><strong>CO2 Avoided:</strong> {co2_avoided}</p>"
         env_html += f"<p><strong>ESG Headline:</strong> {esg_headline}</p>"
         env_html += f"<p><strong>If Not Diverted:</strong> {current_harm}</p>"
@@ -422,9 +551,9 @@ class ProfessionalPDFGenerator:
             """
             for idx, pathway in enumerate(pathways, 1):
                 action = pathway.get("action") or f"Pathway {idx}"
-                buyer_types = pathway.get("buyer_types") or pathway.get("buyerTypes") or "N/A"
-                price_range = pathway.get("price_range") or pathway.get("priceRange") or "N/A"
-                annual_value = pathway.get("annual_value") or pathway.get("annualValue") or "N/A"
+                buyer_types = pathway.get("buyerTypes") or "N/A"
+                price_range = pathway.get("priceRange") or "N/A"
+                annual_value = pathway.get("annualValue") or "N/A"
                 feasibility = pathway.get("feasibility") or "Medium"
                 pathways_html += f"""
                 <h3>{action}</h3>
@@ -458,7 +587,7 @@ class ProfessionalPDFGenerator:
         essential_charts = [
             (
                 "process_flow",
-                "♻️ WASTE STREAMS & UPCYCLING PATHWAYS",
+                "WASTE STREAMS & UPCYCLING PATHWAYS",
                 "High-level flow of waste generation, segregation, and upcycling pathways designed for circular economy deals.",
             ),
             (
@@ -492,7 +621,7 @@ class ProfessionalPDFGenerator:
                 # Log de gráfico faltante para debugging
                 html += f"""
                 <div class="missing-chart-notice">
-                    <h3>⚠️ {chart_title}</h3>
+                    <h3>{chart_title}</h3>
                     <p>Visualización no disponible - datos insuficientes</p>
                 </div>
                 """

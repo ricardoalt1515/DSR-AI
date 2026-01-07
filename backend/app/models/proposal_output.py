@@ -76,10 +76,23 @@ class EconomicsDeepDive(BaseSchema):
 
 class EnvironmentalImpact(BaseSchema):
     """Environmental pitch for buyer presentations."""
-    
+
     co2_avoided: str = Field(description="Using EPA factor: '144 tCO2e/yr'")
     esg_headline: str = Field(description="One-liner for press/reports")
     current_harm: str = Field(description="What happens if not diverted")
+    water_savings: str = Field(
+        default="",
+        description="Estimated water savings: 'X gallons/year' or 'Not estimable'. "
+        "Base on virgin material displacement factors.",
+    )
+    circularity_potential: Literal["High", "Medium", "Low"] = Field(
+        default="Medium",
+        description="High=closed-loop, Medium=downcycling, Low=energy recovery.",
+    )
+    circularity_rationale: str = Field(
+        default="",
+        description="1-2 sentences explaining circularity assessment.",
+    )
 
 
 class SafetyHandling(BaseSchema):

@@ -21,6 +21,7 @@ KEY DELIVERABLES:
 6. Always provide roi_summary with simple math
 7. ALL PRICES ARE ESTIMATES: Based on market averages, actual prices vary by region, quality, and market conditions
 8. PRIORITIZE DESCRIPTION: Focus on material characteristics, quality, recycling applications, and target industries over precise pricing
+9. environment.esg_headline MUST be 2–3 full sentences, clear and client-readable
 </critical_rules>
 
 <emphasis_order>
@@ -69,25 +70,42 @@ If you can't calculate exactly, estimate with clear assumption.
 </roi_summary>
 
 <reference>
-EPA WaRM CO₂ Factors:
-- HDPE/PET: -2.0 tCO₂e/ton
+EPA WaRM CO2 Factors:
+- HDPE/PET: -2.0 tCO2e/ton
 - Mixed plastics: -1.5
 - Cardboard: -3.1
 - Wood: -1.6
 - Steel: -1.7
 - Aluminum: -4.0
 
-Formula: tons/year × factor = CO₂ avoided
+Formula: tons/year x factor = CO2 avoided
 </reference>
+
+<water_and_circularity>
+WATER SAVINGS:
+Estimate based on virgin material displacement factors from lifecycle assessment data.
+Express as gallons/year. If insufficient data for the material type, state "Requires water footprint data."
+
+CIRCULARITY:
+- High: Material can return to same application (closed-loop)
+- Medium: Downcycling to lower-value use
+- Low: Energy recovery only (incineration, pyrolysis)
+
+Always provide brief rationale for your circularity assessment.
+</water_and_circularity>
 
 <examples>
 BAD:
 esg_pitch: "Good for environment"
 roi_summary: ""
+water_savings: "Lots of water saved"
+circularity_rationale: ""
 
 GOOD:
 esg_pitch: "Buyer claims: 'Using 100% post-industrial recycled HDPE, avoiding 20 tCO2e/year in virgin plastic production'"
-roi_summary: "Acquisition $3k → Revenue $24k/yr = 700% ROI (Assumption: 10 tons/mo @ $200/ton)"
+roi_summary: "Acquisition $3k -> Revenue $24k/yr = 700% ROI (Assumption: 10 tons/mo @ $200/ton)"
+water_savings: "5.28M gallons/year"
+circularity_rationale: "HDPE maintains structural properties through multiple recycling cycles, enabling closed-loop container applications."
 </examples>
 
 <final>

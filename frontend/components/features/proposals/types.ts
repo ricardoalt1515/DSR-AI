@@ -4,6 +4,7 @@
  */
 
 import type { WasteUpcyclingReport } from "@/lib/types/proposal";
+import type { ExternalOpportunityReport } from "@/lib/types/external-opportunity-report";
 
 // Project requirements for waste assessment
 export interface ProjectRequirements {
@@ -19,6 +20,8 @@ export interface ProjectRequirements {
  */
 export interface AIMetadata {
 	proposal: WasteUpcyclingReport;
+	proposalExternal?: ExternalOpportunityReport;
+	markdownExternal?: string;
 	transparency: {
 		clientMetadata?: Record<string, unknown>;
 		generatedAt: string;

@@ -176,12 +176,12 @@ async def generate_proposal(
 
         # Log usage
         if usage := result.usage():
-            logger.info(f"✅ Proposal generated ({usage.total_tokens:,} tokens)")
+            logger.info(f"Proposal generated ({usage.total_tokens:,} tokens)")
 
         return result.output
 
     except Exception as e:
-        logger.error(f"❌ Proposal generation failed: {e}")
+        logger.error(f"Proposal generation failed: {e}")
         raise ProposalGenerationError(str(e)) from e
 
 

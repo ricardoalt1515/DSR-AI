@@ -140,18 +140,18 @@ async def _generate_with_retry(
             timeout=480  # 8 minutes (fail before frontend 10min timeout)
         )
 
-        logger.info(f"✅ Proposal generated successfully for job {job_id}")
+        logger.info(f"Proposal generated successfully for job {job_id}")
         return proposal_output
 
     except TimeoutError:
-        logger.error(f"❌ AI agent timeout after 480s for job {job_id}")
+        logger.error(f"AI agent timeout after 480s for job {job_id}")
         raise ProposalGenerationError(
             "AI generation took too long (>8 min). "
             "This may indicate a loop or very complex project. "
             "Please try again or simplify requirements."
         )
     except Exception as e:
-        logger.warning(f"⚠️ Proposal generation attempt failed for job {job_id}: {e}")
+        logger.warning(f"Proposal generation attempt failed for job {job_id}: {e}")
         raise  # Re-raise for tenacity to handle
 
 
@@ -182,7 +182,7 @@ class ProposalService:
         jsonb_sections = project.project_data.get('technical_sections') if project.project_data else None
 
         if jsonb_sections:
-            # ✅ User has entered dynamic data in frontend
+            # User has entered dynamic data in frontend
             logger.info(
                 "loading_jsonb_technical_data",
                 project_id=str(project.id),
@@ -757,14 +757,12 @@ def create_proposal(
     )
     
     internal_markdown = _generate_markdown_report(proposal_output)
-    external_markdown = _generate_markdown_external_report(external_report)
+    external_markdown = _generate_markdown_external_report(external_report, proposal_output)
 
     ai_metadata = {
         "proposal": proposal_data,
-        "proposal_internal": proposal_data,
-        "proposal_external": external_data,
-        "markdown_internal": internal_markdown,
-        "markdown_external": external_markdown,
+        "proposalExternal": external_data,
+        "markdownExternal": external_markdown,
         "transparency": {
             "clientMetadata": client_metadata,
             "generatedAt": datetime.utcnow().isoformat(),
@@ -811,10 +809,6 @@ _CIRCULARITY_DATA_NEEDED = [
     "Post-processing yield",
     "End-use acceptance criteria",
 ]
-_CIRCULARITY_INDICATORS = [
-    "Material diversion rate",
-    "Secondary material utilization",
-]
 _MAX_END_USE_EXAMPLES = 6
 _END_USE_ALLOWLIST = {
     "recyclers": "Recyclers",
@@ -845,29 +839,31 @@ def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityRepor
     if internal is None:
         raise ValueError("Internal report is required to derive external report.")
 
-    co2_value = _co2_value_or_none(internal.environment.co2_avoided)
+    co2_value = _metric_value_or_none(internal.environment.co2_avoided)
     co2_metric = _build_metric(
         value=co2_value,
         basis=_DEFAULT_CO2_BASIS if co2_value else None,
         data_needed=_CO2_DATA_NEEDED,
     )
 
+    water_value = _metric_value_or_none(internal.environment.water_savings)
     water_metric = _build_metric(
-        value=None,
-        basis=None,
+        value=water_value,
+        basis="Virgin material displacement" if water_value else None,
         data_needed=_WATER_DATA_NEEDED,
     )
 
+    circularity_value = internal.environment.circularity_potential
+    circularity_basis = internal.environment.circularity_rationale or None
     circularity = [
         CircularityIndicator(
-            name=name,
+            name="Circularity Potential",
             metric=_build_metric(
-                value=None,
-                basis=None,
+                value=circularity_value,
+                basis=circularity_basis,
                 data_needed=_CIRCULARITY_DATA_NEEDED,
             ),
         )
-        for name in _CIRCULARITY_INDICATORS
     ]
 
     sustainability_summary = _safe_external_summary(internal.environment.esg_headline)
@@ -888,7 +884,8 @@ def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityRepor
     )
 
 
-def _co2_value_or_none(value: str | None) -> str | None:
+def _metric_value_or_none(value: str | None) -> str | None:
+    """Extract metric value if valid, else None."""
     if not value:
         return None
     normalized = value.strip().lower()
@@ -968,86 +965,121 @@ def build_external_markdown_from_data(report_data: dict) -> str:
     return _generate_markdown_external_report(report)
 
 
-def _generate_markdown_external_report(output: ExternalOpportunityReport) -> str:
-    """Generate external (client-facing) markdown from structured data."""
+def _generate_markdown_external_report(
+    output: ExternalOpportunityReport,
+    internal: ProposalOutput | None = None,
+) -> str:
+    """Generate external (client-facing) markdown from structured data.
+    
+    Enriches report with valorization options and ESG benefits from internal data.
+    """
     sustainability = output.sustainability
 
-    def format_metric(metric: SustainabilityMetric) -> str:
-        value = metric.value or "Not computed"
-        basis = metric.basis or "N/A"
-        data_needed = metric.data_needed or []
-        data_lines = chr(10).join(f"- {item}" for item in data_needed) or "- N/A"
-        return f"""- **Status:** {metric.status}
-- **Value:** {value}
-- **Basis:** {basis}
-- **Data Needed:**
-{data_lines}
-"""
-
+    # Build sustainability metrics (only show if computed)
+    metrics_lines = []
+    
+    co2 = sustainability.co2e_reduction
+    if co2.status == "computed" and co2.value:
+        metrics_lines.append(f"**CO₂e Reduction:** {co2.value}")
+        if co2.basis:
+            metrics_lines.append(f"  *{co2.basis}*")
+    
+    water = sustainability.water_savings
+    if water.status == "computed" and water.value:
+        metrics_lines.append(f"**Water Savings:** {water.value}")
+        if water.basis:
+            metrics_lines.append(f"  *{water.basis}*")
+    
+    metrics_md = chr(10).join(metrics_lines) if metrics_lines else ""
+    
+    # Circularity (only if computed)
     circularity_lines = []
     for indicator in sustainability.circularity:
-        circularity_lines.append(f"""
-### {indicator.name}
-{format_metric(indicator.metric)}
-""")
+        if indicator.metric.status == "computed" and indicator.metric.value:
+            circularity_lines.append(f"- **{indicator.name}:** {indicator.metric.value}")
+    circularity_md = chr(10).join(circularity_lines) if circularity_lines else ""
+    
+    # Profitability band (only if not Unknown)
+    profitability_md = ""
+    if output.profitability_band and output.profitability_band != "Unknown":
+        profitability_md = f"**Opportunity Level:** {output.profitability_band}"
+    
+    # NEW: Valorization Options from internal pathways
+    valorization_lines = []
+    if internal and internal.pathways:
+        for p in internal.pathways[:3]:  # Top 3 only
+            valorization_lines.append(f"- **{p.action}** — {p.why_it_works}")
+    valorization_md = chr(10).join(valorization_lines) if valorization_lines else ""
+    
+    # NEW: ESG Benefits from internal pathways
+    esg_lines = []
+    if internal and internal.pathways:
+        for p in internal.pathways[:3]:
+            if p.esg_pitch:
+                esg_lines.append(f"- {p.esg_pitch}")
+    esg_md = chr(10).join(esg_lines) if esg_lines else ""
+    
+    # NEW: Feasibility summary
+    feasibility_md = ""
+    if internal and internal.pathways:
+        high_count = sum(1 for p in internal.pathways if p.feasibility == "High")
+        med_count = sum(1 for p in internal.pathways if p.feasibility == "Medium")
+        total_viable = high_count + med_count
+        if total_viable > 0:
+            feasibility_md = f"**{total_viable} viable pathway{'s' if total_viable != 1 else ''}** identified for material valorization."
+    
+    # Build final markdown
+    sections = []
+    
+    # Summary section
+    sections.append(f"""## Sustainability Summary
 
-    circularity_md = "".join(circularity_lines) if circularity_lines else "N/A"
-    industries_md = (
-        chr(10).join(f"- {item}" for item in output.end_use_industry_examples)
-        if output.end_use_industry_examples
-        else "- N/A"
+{sustainability.summary}""")
+    
+    # Metrics section (if any computed)
+    if metrics_md:
+        sections.append(f"""## Environmental Metrics
+
+{metrics_md}""")
+    
+    # Circularity (if any computed)
+    if circularity_md:
+        sections.append(f"""## Circularity Indicators
+
+{circularity_md}""")
+    
+    # Overall impact
+    sections.append(f"""## Overall Environmental Impact
+
+{sustainability.overall_environmental_impact}""")
+    
+    # Valorization Options (NEW)
+    if valorization_md:
+        sections.append(f"""## Valorization Options
+
+{valorization_md}""")
+    
+    # ESG Benefits (NEW)
+    if esg_md:
+        sections.append(f"""## ESG Benefits for Stakeholders
+
+{esg_md}""")
+    
+    # Feasibility + Profitability (NEW combined section)
+    opportunity_parts = []
+    if feasibility_md:
+        opportunity_parts.append(feasibility_md)
+    if profitability_md:
+        opportunity_parts.append(profitability_md)
+    if opportunity_parts:
+        sections.append(f"""## Opportunity Assessment
+
+{chr(10).join(opportunity_parts)}""")
+    
+    return chr(10) + chr(10) + "---" + chr(10) + chr(10).join(
+        s + chr(10) for s in sections
     )
 
-    generated_at = (
-        output.generated_at
-        if isinstance(output.generated_at, str)
-        else output.generated_at.isoformat()
-    )
-
-    return f"""# Sustainability Opportunity Report
-
-**Report Version:** {output.report_version}
-**Generated At:** {generated_at}
-
----
-
-## Sustainability Summary
-
-{sustainability.summary}
-
----
-
-## CO₂e Reduction
-{format_metric(sustainability.co2e_reduction)}
-
----
-
-## Water Savings
-{format_metric(sustainability.water_savings)}
-
----
-
-## Circularity Indicators
-{circularity_md}
-
----
-
-## Overall Environmental Impact
-
-{sustainability.overall_environmental_impact}
-
----
-
-## Profitability Band
-
-{output.profitability_band}
-
----
-
-## End-Use Industry Examples
-
-{industries_md}
-"""
 
 
 def _generate_markdown_report(output: ProposalOutput) -> str:
@@ -1131,6 +1163,9 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 ## Environmental Impact
 
 - **CO₂ Avoided:** {output.environment.co2_avoided}
+- **Water Savings:** {output.environment.water_savings or 'Requires water footprint data'}
+- **Circularity Potential:** {output.environment.circularity_potential}
+- **Circularity Rationale:** {output.environment.circularity_rationale or 'N/A'}
 - **ESG Headline:** {output.environment.esg_headline}
 - **If Not Diverted:** {output.environment.current_harm}
 

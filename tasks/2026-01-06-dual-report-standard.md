@@ -33,10 +33,10 @@ Implement a dual-report pipeline where:
 **One LLM run + one deterministic derivation**
 1) **LLM → InternalOpportunityReport** (structured, source of truth)
 2) **Python → derive_external_report(internal) → ExternalOpportunityReport** (allowlist/denylist + redaction + aggregation)
-3) **Renderers → markdown_internal / markdown_external** from structured data (do not rely on ad-hoc text filtering)
+3) **Renderers → internal markdown (`Proposal.technical_approach`) + `ai_metadata.markdownExternal`** from structured data (do not rely on ad-hoc text filtering)
 4) **PDF export** uses the corresponding markdown (internal vs external)
 
-Optional: if you want nicer prose, add a **small "copywriter" model** that rewrites **only** `markdown_external` and sees **only** already-sanitized data.
+Optional: if you want nicer prose, add a **small "copywriter" model** that rewrites **only** `ai_metadata.markdownExternal` and sees **only** already-sanitized data.
 Hard rule: copywriter is **stylistic only** (no new facts, no new numbers, no names/contacts, no $ pricing).
 
 ---
@@ -105,11 +105,11 @@ Proposed schema fields (v1):
   - Sustainability metrics: if missing, set `status="not_computed"` and populate `data_needed`.
 
 ### Phase 4: Persistence + renderers
-- [x] Store both structured objects under `Proposal.ai_metadata`:
-  - `proposal_internal`, `proposal_external`
-  - `markdown_internal`, `markdown_external`
+- [x] Store external structured + markdown under `Proposal.ai_metadata` (camelCase keys):
+  - `proposalExternal`
+  - `markdownExternal`
 - [x] Implement deterministic markdown renderers from the structured schemas.
-- [ ] (Optional) Add copywriter step to rewrite `markdown_external` only, from sanitized data only.
+- [ ] (Optional) Add copywriter step to rewrite `ai_metadata.markdownExternal` only, from sanitized data only.
 
 ### Phase 5: API + UI
 - [ ] Keep existing generate/poll endpoints stable (return both reports/markdowns as needed).
@@ -119,7 +119,7 @@ Proposed schema fields (v1):
 
 ### Phase 6: PDF (white-label + audience-aware)
 - [x] Replace/update PDF generator to be white-label (no hard-coded logos, names, emails, URLs).
-- [x] Ensure internal PDF uses `markdown_internal`, external PDF uses `markdown_external`.
+- [x] Ensure internal PDF uses `Proposal.technical_approach`, external PDF uses `ai_metadata.markdownExternal`.
 - [x] Ensure the client PDF visibly includes sustainability metrics sections: CO₂, water, circularity indicators (even if "not computed").
 - [x] Remove legacy water-treatment rendering paths and emoji usage in PDF templates/logs.
 

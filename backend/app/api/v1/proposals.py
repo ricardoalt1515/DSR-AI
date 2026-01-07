@@ -424,17 +424,13 @@ async def get_proposal_pdf(
         # metadata["proposal"] uses audience-specific data when available.
         proposal_data = None
         markdown_content = ""
+        internal_data: dict[str, Any] = {}
 
         if ai_metadata:
-            proposal_data = ai_metadata.get(
-                "proposal_internal" if audience == "internal" else "proposal_external"
-            )
-            if audience == "internal" and not proposal_data:
-                proposal_data = ai_metadata.get("proposal")
+            internal_data = ai_metadata.get("proposal") or {}
+            proposal_data = internal_data if audience == "internal" else ai_metadata.get("proposalExternal")
 
-            markdown_key = (
-                "markdown_internal" if audience == "internal" else "markdown_external"
-            )
+            markdown_key = "markdownExternal" if audience == "external" else "markdownInternal"
             markdown_content = ai_metadata.get(markdown_key) or ""
 
         if audience == "external":
@@ -445,19 +441,54 @@ async def get_proposal_pdf(
                 )
             if not markdown_content:
                 markdown_content = build_external_markdown_from_data(proposal_data)
-                ai_metadata["markdown_external"] = markdown_content
+                ai_metadata["markdownExternal"] = markdown_content
                 proposal.ai_metadata = ai_metadata
         else:
             if not markdown_content:
                 markdown_content = proposal.technical_approach or ""
 
         legacy_technical = getattr(proposal, "technical_data", None)
+        context = {}
+        if audience == "external" and internal_data:
+            # Basic context fields
+            context = {
+                "material": internal_data.get("material"),
+                "volume": internal_data.get("volume"),
+                "location": internal_data.get("location") or project.location,
+                "facilityType": internal_data.get("facilityType") or project.sector,
+            }
+            
+            # Enrichment: sanitized pathway data for Valorization/ESG sections
+            pathways = internal_data.get("pathways") or []
+            if pathways:
+                # Valorization options: action + why_it_works (no prices)
+                valorization = []
+                for p in pathways[:3]:
+                    action = p.get("action") or ""
+                    why = p.get("whyItWorks") or ""
+                    if action and why and "$" not in why and "@" not in why:
+                        valorization.append({"action": action, "rationale": why})
+                context["valorization"] = valorization
+                
+                # ESG benefits: esg_pitch (filtered for sensitive data)
+                esg_benefits = []
+                for p in pathways[:3]:
+                    pitch = p.get("esgPitch") or ""
+                    if pitch and "$" not in pitch and "@" not in pitch:
+                        esg_benefits.append(pitch)
+                context["esgBenefits"] = esg_benefits
+                
+                # Feasibility summary: count of viable pathways
+                high_count = sum(1 for p in pathways if p.get("feasibility") == "High")
+                med_count = sum(1 for p in pathways if p.get("feasibility") == "Medium")
+                context["viablePathwaysCount"] = high_count + med_count
 
         metadata = {
             "proposal": proposal_data or {},
             "audience": audience,
             "client_name": project.client,
             "client_location": project.location,
+            "context": context,
             "data_for_charts": legacy_technical
             if legacy_technical is not None and audience == "internal"
             else {

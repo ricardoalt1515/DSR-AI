@@ -19,43 +19,11 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import type { SustainabilityMetric } from "@/lib/types/external-opportunity-report";
 import type { Proposal } from "./types";
 
 interface ExternalReportViewProps {
     proposal: Proposal;
-}
-
-interface SustainabilityMetric {
-    status: "computed" | "not_computed";
-    value?: string | null;
-    basis?: string | null;
-    dataNeeded?: string[];
-}
-
-interface CircularityIndicator {
-    name: string;
-    metric: SustainabilityMetric;
-}
-
-interface ExternalReport {
-    report_version?: string;
-    generated_at?: string;
-    reportVersion?: string;
-    generatedAt?: string;
-    sustainability?: {
-        summary?: string;
-        co2e_reduction?: SustainabilityMetric;
-        water_savings?: SustainabilityMetric;
-        co2eReduction?: SustainabilityMetric;
-        waterSavings?: SustainabilityMetric;
-        circularity?: CircularityIndicator[];
-        overall_environmental_impact?: string;
-        overallEnvironmentalImpact?: string;
-    };
-    profitability_band?: "High" | "Medium" | "Low" | "Unknown";
-    profitabilityBand?: "High" | "Medium" | "Low" | "Unknown";
-    end_use_industry_examples?: string[];
-    endUseIndustryExamples?: string[];
 }
 
 const PROFITABILITY_COLORS = {
@@ -130,10 +98,7 @@ function MetricCard({
 }
 
 export function ExternalReportView({ proposal }: ExternalReportViewProps) {
-    const aiMetadata = proposal.aiMetadata as unknown as {
-        proposal_external?: ExternalReport;
-    };
-    const external = aiMetadata?.proposal_external;
+    const external = proposal.aiMetadata.proposalExternal;
 
     if (!external) {
         return (
@@ -152,19 +117,9 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
         );
     }
 
-    const sustainability = external.sustainability || {};
-    const co2Metric =
-        sustainability.co2eReduction || sustainability.co2e_reduction;
-    const waterMetric =
-        sustainability.waterSavings || sustainability.water_savings;
-    const overallImpact =
-        sustainability.overallEnvironmentalImpact ||
-        sustainability.overall_environmental_impact;
-    const profitabilityBand =
-        external.profitabilityBand || external.profitability_band || "Unknown";
-    const industries =
-        external.endUseIndustryExamples || external.end_use_industry_examples || [];
-    const generatedAt = external.generatedAt || external.generated_at;
+    const sustainability = external.sustainability;
+    const profitabilityBand = external.profitabilityBand;
+    const generatedAt = external.generatedAt;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -195,23 +150,23 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 
             {/* Sustainability Metrics Grid */}
             <div className="grid gap-4 md:grid-cols-2">
-                <MetricCard
-                    icon={Leaf}
-                    title="CO₂e Reduction"
-                    metric={co2Metric}
-                    colorClass="bg-emerald-500/10 text-emerald-600"
-                />
-                <MetricCard
-                    icon={Droplets}
-                    title="Water Savings"
-                    metric={waterMetric}
-                    colorClass="bg-blue-500/10 text-blue-600"
-                />
-            </div>
+                    <MetricCard
+                        icon={Leaf}
+                        title="CO₂e Reduction"
+                        metric={sustainability.co2eReduction}
+                        colorClass="bg-emerald-500/10 text-emerald-600"
+                    />
+                    <MetricCard
+                        icon={Droplets}
+                        title="Water Savings"
+                        metric={sustainability.waterSavings}
+                        colorClass="bg-blue-500/10 text-blue-600"
+                    />
+                </div>
 
-            {/* Circularity Indicators */}
-            {sustainability.circularity && sustainability.circularity.length > 0 && (
-                <Card>
+                {/* Circularity Indicators */}
+                {sustainability.circularity.length > 0 && (
+                    <Card>
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600">
@@ -250,25 +205,23 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                         </div>
                     </CardContent>
                 </Card>
-            )}
+                )}
 
-            {/* Overall Environmental Impact */}
-            {overallImpact && (
+                {/* Overall Environmental Impact */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-base">Overall Environmental Impact</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">
-                            {overallImpact}
+                            {sustainability.overallEnvironmentalImpact}
                         </p>
                     </CardContent>
                 </Card>
-            )}
 
             <Separator />
 
-            {/* Profitability Band & End-Use Industries */}
+            {/* Profitability Band */}
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Profitability Band */}
                 <Card>
@@ -305,38 +258,14 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                     </CardContent>
                 </Card>
 
-                {/* End-Use Industries */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Potential End-Use Industries</CardTitle>
-                        <CardDescription>Example markets for valorized materials</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {industries.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {industries.map((industry, i) => (
-                                    <Badge key={i} variant="secondary">
-                                        {industry}
-                                    </Badge>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">
-                                Industry examples will be available after full analysis.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
             </div>
 
             {/* Footer */}
             <div className="text-xs text-muted-foreground text-right space-y-1">
-                <p>Report Version: {external.reportVersion || external.report_version || "v1"}</p>
-                {generatedAt && (
-                    <p>
-                        Generated: {new Date(generatedAt).toLocaleDateString()}
-                    </p>
-                )}
+                <p>Report Version: {external.reportVersion}</p>
+                <p>
+                    Generated: {new Date(generatedAt).toLocaleDateString()}
+                </p>
             </div>
         </div>
     );
