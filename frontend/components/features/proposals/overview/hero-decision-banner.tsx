@@ -72,7 +72,7 @@ function ConfidenceRing({ confidence }: { confidence: "High" | "Medium" | "Low" 
                     style={{ strokeDasharray: circumference }}
                 />
             </svg>
-            <span className={cn("absolute text-xs font-bold", config.color)}>
+            <span className={cn("absolute text-[10px] font-semibold leading-none", config.color)}>
                 {confidence}
             </span>
         </div>

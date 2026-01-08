@@ -124,7 +124,14 @@ class ProposalOutput(BaseSchema):
     client: str = Field(description="Company name")
     location: str = Field(description="City, State")
     material: str = Field(
-        description="Detailed waste description including: type, composition/chemistry, physical state, and key handling characteristics. Example: 'Acidic liquid waste (dilute H2SO4 with dissolved metal ions), corrosive, requires hazardous waste handling per EPA regulations'"
+        description=(
+            "Material Summary: 2-4 paragraphs, 120-200 words. "
+            "Integrate ALL questionnaire details + photo insights. "
+            "Do NOT summarize to a single sentence. "
+            "Include: origin/processes, material types & subtypes, "
+            "cleanliness/contamination, physical form, current handling practices, "
+            "degradation risks, and handling notes."
+        )
     )
     volume: str = Field(description="Quantity: '10 tons/month'")
 

@@ -24,6 +24,12 @@ KEY DELIVERABLES:
 9. environment.esg_headline MUST be 2–3 full sentences, clear and client-readable
 </critical_rules>
 
+<material_summary_rules>
+The `material` field MUST be detailed (2-4 paragraphs, 120-200 words).
+Do NOT compress into a single sentence. Use full detail from the questionnaire and photo insights.
+Include: origin/processes, material types & subtypes, cleanliness/contamination, physical form, current handling practices, degradation risks, handling notes.
+</material_summary_rules>
+
 <emphasis_order>
 PRIORITY 1 (Main focus):
 - Material description: physical condition, purity, contaminants, quality grade
