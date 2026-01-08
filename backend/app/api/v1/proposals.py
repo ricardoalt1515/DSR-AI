@@ -321,11 +321,9 @@ async def get_proposal(
 
 @router.get(
     "/{project_id}/proposals/{proposal_id}/pdf",
-    summary="Generate or retrieve a proposal PDF",
-    response_class=Response,
+    summary="Generate or retrieve a proposal PDF URL",
     responses={
-        200: {"content": {"application/pdf": {}}},
-        302: {"description": "Redirect to PDF file"},
+        200: {"description": "PDF URL returned successfully"},
         404: {"model": ErrorResponse, "description": "Proposal not found"},
         500: {"model": ErrorResponse, "description": "PDF generation failed"},
         429: {"model": ErrorResponse, "description": "Too many requests"},
@@ -342,32 +340,20 @@ async def get_proposal_pdf(
     audience: Literal["internal", "external"] = "internal",
 ):
     """
-    Generate and download proposal as professional PDF.
-    
+    Generate and retrieve a presigned URL for proposal PDF.
+
     **On-demand generation with caching:**
     - First request: Generates PDF and saves to storage (S3 or local)
-    - Subsequent requests: Serves cached PDF from storage
+    - Subsequent requests: Returns cached PDF URL from storage
     - Use `?regenerate=true` to force regeneration
-    
-    **PDF Features:**
-    - Professional cover page with branding
-    - Financial summary with charts
-    - Equipment specifications with justifications
-    - Treatment efficiency tables
-    - Operational data and costs
-    - Implementation timeline
-    
-    **Storage:**
-    - **Production**: S3 with presigned URLs (24h expiry)
-    - **Development**: Local filesystem
-    
+
     **Parameters:**
     - **regenerate**: Force PDF regeneration (default: false)
     - **audience**: "internal" or "external" (default: internal)
-    
+
     **Returns:**
-    - PDF file as `application/pdf`
-    - Filename: `Proposal_{version}_{project_name}.pdf`
+    - JSON object with `url` field containing presigned URL
+    - Frontend should use `window.open(url)` to download
     """
     # Get proposal with relationships
     from app.models.proposal import Proposal
@@ -410,12 +396,7 @@ async def get_proposal_pdf(
             pdf_url = await get_presigned_url(cached_pdf_path, expires=3600)
             
             if pdf_url:
-                # Redirect to presigned URL (S3) or local URL
-                from fastapi.responses import RedirectResponse
-                return RedirectResponse(
-                    url=pdf_url,
-                    status_code=302  # Temporary redirect
-                )
+                return {"url": pdf_url}
         
         # Generate new PDF using existing ProfessionalPDFGenerator
         logger.info("Generating new PDF for proposal %s", proposal_id)
@@ -556,11 +537,7 @@ async def get_proposal_pdf(
         if not pdf_url:
             raise ValueError("Failed to generate download URL")
 
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(
-            url=pdf_url,
-            status_code=302
-        )
+        return {"url": pdf_url}
         
     except Exception as e:
         logger.error("PDF generation failed: %s", e, exc_info=True)

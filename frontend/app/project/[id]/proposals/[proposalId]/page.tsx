@@ -85,26 +85,16 @@ export default function ProposalDetailPage({ params }: PageProps) {
 		try {
 			toast.loading(`Generating ${audienceLabel} PDF...`, { id: "pdf-download" });
 
-			const blob = await ProposalsAPI.downloadProposalPDF(
+			const url = await ProposalsAPI.getProposalPDFUrl(
 				projectId,
 				proposalId,
 				false,
 				audience,
 			);
 
-			// Create download link
-			const url = URL.createObjectURL(blob);
-			const link = document.createElement("a");
-			link.href = url;
-			link.download = `${audienceLabel}_Report_${proposal.version}_${project.name.replace(/\s+/g, "_")}.pdf`;
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
+			window.open(url, "_blank");
 
-			// Cleanup
-			URL.revokeObjectURL(url);
-
-			toast.success(`${audienceLabel} PDF downloaded`, { id: "pdf-download" });
+			toast.success(`${audienceLabel} PDF opened`, { id: "pdf-download" });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Unknown error";
 			toast.error(`Failed to download PDF: ${message}`, { id: "pdf-download" });

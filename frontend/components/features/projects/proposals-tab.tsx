@@ -406,11 +406,15 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 											variant="outline"
 											size="sm"
 											className="flex-1 bg-transparent"
-											onClick={() =>
-												router.push(
-													routes.project.proposal.pdf(project.id, proposal.id),
-												)
-											}
+											onClick={async () => {
+												const url = await ProposalsAPI.getProposalPDFUrl(
+													project.id,
+													proposal.id,
+													false,
+													"internal",
+												);
+												window.open(url, "_blank");
+											}}
 										>
 											<Download className="h-4 w-4 mr-2" />
 											PDF

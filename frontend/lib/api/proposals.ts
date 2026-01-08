@@ -132,29 +132,26 @@ export class ProposalsAPI {
 	}
 
 	/**
-	 * Download proposal PDF
+	 * Get proposal PDF download URL
 	 *
 	 * The backend generates a professional PDF on-demand using WeasyPrint.
 	 * First request may take 1-3 seconds. Subsequent requests are cached.
+	 * Returns a presigned URL that can be opened directly with window.open().
 	 *
 	 * @param regenerate - Force regeneration even if cached PDF exists
 	 * @param audience - "internal" or "external" report type (default: internal)
-	 * @returns Blob containing the PDF file
+	 * @returns Presigned URL for the PDF file
 	 *
 	 * @example
-	 * const blob = await ProposalsAPI.downloadProposalPDF(projectId, proposalId)
-	 * const url = URL.createObjectURL(blob)
-	 * const link = document.createElement('a')
-	 * link.href = url
-	 * link.download = 'proposal.pdf'
-	 * link.click()
+	 * const url = await ProposalsAPI.getProposalPDFUrl(projectId, proposalId)
+	 * window.open(url, '_blank')
 	 */
-	static async downloadProposalPDF(
+	static async getProposalPDFUrl(
 		projectId: string,
 		proposalId: string,
 		regenerate = false,
 		audience: "internal" | "external" = "internal",
-	): Promise<Blob> {
+	): Promise<string> {
 		const endpointBase = `/ai/proposals/${projectId}/proposals/${proposalId}/pdf`;
 		const params = new URLSearchParams();
 		if (regenerate) {
@@ -163,14 +160,16 @@ export class ProposalsAPI {
 		params.set("audience", audience);
 		const endpoint = `${endpointBase}?${params.toString()}`;
 
-		logger.debug("PDF Download Request", {
+		logger.debug("PDF URL Request", {
 			endpoint,
 			audience,
 		});
 
-		return apiClient.downloadBlob(endpoint, {
+		const response = await apiClient.request<{ url: string }>(endpoint, {
+			method: "GET",
 			timeout: API_TIMEOUT.EXTENDED,
 		});
+		return response.url;
 	}
 
 	/**
