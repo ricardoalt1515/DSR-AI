@@ -6,4 +6,5 @@ export { useDebounce } from "./use-debounce";
 export { useFieldEditor } from "./use-field-editor";
 export { usePasswordStrength } from "./use-password-strength";
 export { useProposalGeneration } from "./use-proposal-generation";
+export { useLatestRequest } from "./use-latest-request";
 export { useToast } from "./use-toast";

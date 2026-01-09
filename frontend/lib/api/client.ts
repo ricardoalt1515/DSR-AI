@@ -34,7 +34,7 @@ interface APIError {
 
 class APIClientError extends Error {
 	code?: string | undefined;
-	details?: Record<string, any> | undefined;
+	details?: Record<string, unknown> | undefined;
 
 	constructor(error: APIError) {
 		super(error.message);
@@ -421,6 +421,10 @@ class APIClient {
 export const apiClient = new APIClient();
 
 // Export types
+export const API_ERROR_CODES = {
+	NOT_FOUND: "HTTP_404",
+} as const;
+
 export { APIClientError };
 export type { APIError, RequestConfig };
 

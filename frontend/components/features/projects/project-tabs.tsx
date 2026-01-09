@@ -110,10 +110,10 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 	}, [storeProject, project.id]);
 
 	const fileCount = useMemo(() => {
-		if (storeProject?.id !== project.id) return 0;
-		const detail = storeProject as ProjectDetail | null;
-		return detail?.files?.length ?? 0;
-	}, [storeProject, project.id]);
+		// Use filesCount from backend (official source of truth)
+		const summary = (storeProject?.id === project.id ? storeProject : project) as ProjectSummary;
+		return summary?.filesCount ?? 0;
+	}, [storeProject, project]);
 
 	const overviewProject = useMemo(() => {
 		const base = projectData as ProjectSummary;
@@ -172,10 +172,15 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 					>
 						<FolderOpen className="h-4 w-4" aria-hidden="true" />
 						<span className="hidden sm:inline">Files</span>
-						{fileCount > 0 && (
+						{fileCount > 0 ? (
 							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
 								{fileCount}
 							</Badge>
+						) : (
+							<span className="relative ml-0.5 sm:ml-1 flex" aria-hidden="true">
+								<span className="absolute inline-flex h-1.5 w-1.5 sm:h-2 sm:w-2 animate-ping rounded-full bg-amber-400/60" />
+								<span className="relative inline-flex h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-amber-500" />
+							</span>
 						)}
 					</TabsTrigger>
 					<TabsTrigger

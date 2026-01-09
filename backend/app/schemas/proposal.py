@@ -4,7 +4,7 @@ Proposal schemas for AI-generated proposals.
 Includes AI transparency schemas for Phase 1 (October 2025).
 """
 
-from typing import List, Optional, Dict, Any, Literal
+from typing import List, Optional, Dict, Any, Literal, ClassVar, Set
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, field_serializer
@@ -131,6 +131,30 @@ class ProposalResponse(BaseSchema):
     
     # Files
     pdf_path: Optional[str] = None
+
+    _ALLOWED_STATUSES: ClassVar[Set[str]] = {"Draft", "Current", "Archived"}
+    _ALLOWED_TYPES: ClassVar[Set[str]] = {"Conceptual", "Technical", "Detailed"}
+
+    @classmethod
+    def from_model_with_snapshot(cls, proposal: "Proposal") -> "ProposalResponse":
+        """
+        Convert a Proposal ORM model to ProposalResponse schema.
+        
+        Handles the conversion from SQLAlchemy model to Pydantic schema,
+        extracting all necessary fields including ai_metadata.
+        """
+        response = cls.model_validate(proposal)
+
+        if response.status not in cls._ALLOWED_STATUSES:
+            raise ValueError(f"Invalid proposal status: {response.status}")
+
+        if response.proposal_type not in cls._ALLOWED_TYPES:
+            raise ValueError(f"Invalid proposal type: {response.proposal_type}")
+
+        if not response.ai_metadata:
+            raise ValueError("Proposal ai_metadata is missing")
+
+        return response
 
 
 # ============================================================================

@@ -34,7 +34,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { ProposalsAPI } from "@/lib/api/proposals";
-import type { ProjectDetail, ProposalVersion } from "@/lib/project-types";
+import type { ProjectDetail } from "@/lib/project-types";
+import type {
+	ProposalStatus,
+	ProposalType,
+	ProposalUI,
+} from "@/lib/types/proposal-ui";
+import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
 import { routes } from "@/lib/routes";
 import {
 	useCurrentProject,
@@ -110,22 +116,36 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 		[sections],
 	);
 
-	const proposals = useMemo(() => {
+	const proposals = useMemo<ProposalUI[]>(() => {
 		if (!projectDetail?.proposals) return [];
 
-		return [...projectDetail.proposals].sort(
+		const mapped: ProposalUI[] = [];
+
+		for (const dto of projectDetail.proposals) {
+			try {
+				mapped.push(mapProposalDtoToUi(dto));
+			} catch (error) {
+				logger.error(
+					`Skipping invalid proposal (projectId=${project.id}, proposalId=${dto.id})`,
+					error,
+					"ProposalsTab",
+				);
+			}
+		}
+
+		return mapped.sort(
 			(a, b) =>
 				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 		);
-	}, [projectDetail?.proposals]);
+	}, [projectDetail?.proposals, project.id]);
 
-	const ProposalStatusLabels: Record<ProposalVersion["status"], string> = {
+	const ProposalStatusLabels: Record<ProposalStatus, string> = {
 		Draft: "Draft",
 		Current: "Current",
 		Archived: "Archived",
 	};
 
-	const ProposalTypeLabels: Record<ProposalVersion["type"], string> = {
+	const ProposalTypeLabels: Record<ProposalType, string> = {
 		Conceptual: "Conceptual",
 		Technical: "Technical",
 		Detailed: "Detailed",
@@ -181,15 +201,6 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 
 	return (
 		<div className="space-y-6">
-			{/* AI Data Quality Notice */}
-			<div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-border/50">
-				<Lightbulb className="h-4 w-4 flex-shrink-0 text-amber-500" />
-				<span>
-					<span className="hidden sm:inline">The more complete your data, the more accurate your AI proposal.</span>
-					<span className="sm:hidden">Better data = Better proposals.</span>
-				</span>
-			</div>
-
 			{shouldShowGenerator ? (
 				<IntelligentProposalGeneratorComponent
 					projectId={project.id}
@@ -381,7 +392,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 													{ProposalStatusLabels[proposal.status]}
 												</Badge>
 												<Badge variant="outline">
-													{ProposalTypeLabels[proposal.type]}
+													{ProposalTypeLabels[proposal.proposalType]}
 												</Badge>
 											</div>
 										</div>

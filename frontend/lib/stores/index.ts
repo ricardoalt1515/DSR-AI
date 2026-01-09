@@ -6,7 +6,6 @@ export type {
 	ProjectSector,
 	ProjectStatus,
 	ProjectSummary,
-	ProposalVersion,
 	TimelineEvent,
 } from "../project-types";
 export * from "./project-store";

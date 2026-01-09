@@ -1,6 +1,6 @@
 import type { DataSource } from "@/lib/constants";
 import type { Sector } from "@/lib/sectors-config";
-import type { AIMetadata } from "@/lib/types/proposal";
+import type { ProposalDTO } from "@/lib/types/proposal-dto";
 import type { TableSection } from "@/lib/types/technical-data";
 
 // Define ProjectStatus here (moved from constants to avoid circular dependency)
@@ -43,38 +43,8 @@ export interface ProjectSummary {
 	type: string;
 	description: string;
 	proposalsCount: number;
+	filesCount: number;
 	tags?: string[];
-}
-
-export interface ProposalSnapshot {
-	executiveSummary: string;
-	technicalApproach: string;
-	implementationPlan: string;
-	risks: string[];
-	metrics?: {
-		capex: number;
-		opex: number;
-		efficiency?: number;
-		duration?: string;
-	};
-}
-
-export interface ProposalVersion {
-	id: string;
-	version: string;
-	title: string;
-	type: "Conceptual" | "Technical" | "Detailed";
-	status: "Draft" | "Current" | "Archived";
-	createdAt: string;
-	author: string;
-	capex: number;
-	opex: number;
-	snapshot: ProposalSnapshot;
-	content: Record<string, unknown>;
-
-	// AI-generated data (from backend)
-	aiMetadata?: AIMetadata;
-	pdfPath?: string;
 }
 
 export interface ProposalComparison {
@@ -171,7 +141,7 @@ export interface ProjectFileDetail {
 
 export interface ProjectDetail extends ProjectSummary {
 	technicalSections: TableSection[];
-	proposals: ProposalVersion[];
+	proposals: ProposalDTO[];
 	timeline: TimelineEvent[];
 	files: ProjectFile[];
 	analytics?: {

@@ -129,6 +129,11 @@ class ProjectSummary(BaseSchema):
         description="Count from proposals relationship"
     )
     
+    files_count: int = Field(
+        ...,  # Required - fail fast if column_property not mapped
+        description="Count from files column_property (scalar subquery)"
+    )
+    
     # Metadata
     tags: List[str] = Field(default_factory=list)
     
@@ -179,7 +184,7 @@ class ProjectDetail(ProjectSummary):
         
         from app.schemas.proposal import ProposalResponse
         return [
-            ProposalResponse.model_validate(p).model_dump(by_alias=True)
+            ProposalResponse.from_model_with_snapshot(p).model_dump(by_alias=True)
             for p in proposals
         ]
     

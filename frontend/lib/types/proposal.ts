@@ -1,3 +1,5 @@
+import type { ExternalOpportunityReport } from "@/lib/types/external-opportunity-report";
+
 /**
  * Business Opportunity Analysis - Types
  * Simplified, buyer-pitch focused
@@ -173,5 +175,7 @@ export interface TransparencyMetadata {
 
 export interface AIMetadata {
 	proposal: WasteUpcyclingReport;
+	proposalExternal?: ExternalOpportunityReport;
+	markdownExternal?: string;
 	transparency: TransparencyMetadata;
 }

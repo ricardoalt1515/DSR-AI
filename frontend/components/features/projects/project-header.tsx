@@ -6,6 +6,7 @@ import {
 	Edit,
 	FileText,
 	Home,
+	Lightbulb,
 	MoreHorizontal,
 	Trash2,
 } from "lucide-react";
@@ -181,6 +182,15 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</div>
+				</div>
+
+				{/* AI Data Quality Insight */}
+				<div className="mt-4 flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-border/50">
+					<Lightbulb className="h-4 w-4 flex-shrink-0 text-amber-500" />
+					<span>
+						<span className="hidden sm:inline">The more complete your data, the more accurate your AI proposal.</span>
+						<span className="sm:hidden">Better data = Better proposals.</span>
+					</span>
 				</div>
 			</div>
 

@@ -54,6 +54,12 @@ const mapProjectSummary = (
 				: Array.isArray(detail.proposals)
 					? detail.proposals.length
 					: 0,
+		filesCount:
+			typeof summary.filesCount === "number"
+				? summary.filesCount
+				: Array.isArray(detail.files)
+					? detail.files.length
+					: 0,
 		tags: Array.isArray(project.tags) ? project.tags : [],
 	};
 };

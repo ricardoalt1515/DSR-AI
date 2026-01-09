@@ -3,11 +3,12 @@
  * Handles AI-powered proposal generation with polling support
  *
  * Best practices:
- * - Type-safe API calls with Zod validation
+ * - Type-safe API calls
  * - Automatic retry logic for resilience
  * - Proper error handling and logging
  */
 import type { AIMetadata } from "@/lib/types/proposal";
+import type { ProposalDTO } from "@/lib/types/proposal-dto";
 import { API_TIMEOUT } from "@/lib/constants/timings";
 import { logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
@@ -46,23 +47,7 @@ export interface ProposalJobStatus {
 	error?: string;
 }
 
-export interface ProposalResponse {
-	id: string;
-	version: string;
-	title: string;
-	proposalType: string;
-	status: string;
-	createdAt: string;
-	author: string;
-	capex: number;
-	opex: number;
-	executiveSummary?: string;
-	technicalApproach?: string;
-	implementationPlan?: string;
-	risks?: string[];
-	pdfPath?: string;
-	aiMetadata?: AIMetadata;
-}
+export type ProposalResponse = ProposalDTO;
 
 // ============================================================================
 // API Methods

@@ -43,25 +43,25 @@ const DECISION_CONFIG = {
 
 function ConfidenceRing({ confidence }: { confidence: "High" | "Medium" | "Low" }) {
     const config = CONFIDENCE_CONFIG[confidence];
-    const circumference = 2 * Math.PI * 18;
+    const circumference = 2 * Math.PI * 20;
     const strokeDashoffset = circumference - (config.percent / 100) * circumference;
 
     return (
-        <div className="relative w-14 h-14 flex items-center justify-center">
-            <svg className="w-14 h-14 -rotate-90" viewBox="0 0 44 44">
+        <div className="relative w-16 h-16 flex items-center justify-center">
+            <svg className="w-16 h-16 -rotate-90" viewBox="0 0 48 48">
                 <circle
-                    cx="22"
-                    cy="22"
-                    r="18"
+                    cx="24"
+                    cy="24"
+                    r="20"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="4"
                     className="text-muted/20"
                 />
                 <motion.circle
-                    cx="22"
-                    cy="22"
-                    r="18"
+                    cx="24"
+                    cy="24"
+                    r="20"
                     fill="none"
                     strokeWidth="4"
                     strokeLinecap="round"
@@ -72,7 +72,7 @@ function ConfidenceRing({ confidence }: { confidence: "High" | "Medium" | "Low" 
                     style={{ strokeDasharray: circumference }}
                 />
             </svg>
-            <span className={cn("absolute text-[10px] font-semibold leading-none", config.color)}>
+            <span className={cn("absolute text-xs font-semibold leading-none", config.color)}>
                 {confidence}
             </span>
         </div>
@@ -119,7 +119,7 @@ export function HeroDecisionBanner({
                             </div>
                         </div>
 
-                        <div className="flex flex-col items-center">
+                        <div className="flex flex-col items-center self-center">
                             <ConfidenceRing confidence={confidence} />
                             <span className="text-xs text-muted-foreground mt-1">Confidence</span>
                         </div>

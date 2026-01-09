@@ -3,8 +3,8 @@
  * @module ProposalTypes
  */
 
-import type { WasteUpcyclingReport } from "@/lib/types/proposal";
-import type { ExternalOpportunityReport } from "@/lib/types/external-opportunity-report";
+import type { AIMetadata } from "@/lib/types/proposal";
+import type { ProposalUI } from "@/lib/types/proposal-ui";
 
 // Project requirements for waste assessment
 export interface ProjectRequirements {
@@ -18,17 +18,7 @@ export interface ProjectRequirements {
 /**
  * AI Metadata structure for waste upcycling reports
  */
-export interface AIMetadata {
-	proposal: WasteUpcyclingReport;
-	proposalExternal?: ExternalOpportunityReport;
-	markdownExternal?: string;
-	transparency: {
-		clientMetadata?: Record<string, unknown>;
-		generatedAt: string;
-		generationTimeSeconds: number;
-		reportType: string;
-	};
-}
+export type { AIMetadata };
 
 export interface Project {
 	id: string;
@@ -39,27 +29,7 @@ export interface Project {
 /**
  * Waste Upcycling Report Proposal
  */
-export interface Proposal {
-	id: string;
-	title: string;
-	version: string;
-	status: "Draft" | "Current" | "Archived";
-	proposalType: "Conceptual" | "Technical" | "Detailed";
-	author: string;
-	createdAt: string;
-
-	// For waste reports, these are 0 (costs in tables)
-	capex: number;
-	opex: number;
-
-	executiveSummary: string;
-	technicalApproach: string;
-
-	// Single source of truth - all waste data here
-	aiMetadata: AIMetadata;
-
-	pdfPath?: string;
-}
+export type Proposal = ProposalUI;
 
 export interface ProposalDetailProps {
 	proposal: Proposal;

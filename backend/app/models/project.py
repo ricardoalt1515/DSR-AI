@@ -4,10 +4,10 @@ Represents waste assessment projects at client locations.
 """
 
 from typing import Optional
-from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, select, func
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, column_property
 
 from app.models.base import BaseModel
 
@@ -177,6 +177,8 @@ class Project(BaseModel):
         """Count of proposals for this project."""
         return len(self.proposals) if self.proposals else 0
     
+    # NOTE: files_count is defined AFTER class body via column_property (see bottom of file)
+    
     @property
     def company_name(self) -> Optional[str]:
         """Get company name from location relationship."""
@@ -190,3 +192,18 @@ class Project(BaseModel):
         if self.location_rel:
             return self.location_rel.name
         return self.location  # Fallback to legacy field
+
+
+# files_count: scalar subquery (avoids N+1 and raiseload conflicts)
+from app.models.file import ProjectFile
+
+Project.files_count = column_property(
+    select(func.count(ProjectFile.id))
+    .where(
+        ProjectFile.project_id == Project.id,
+        ProjectFile.organization_id == Project.organization_id,
+    )
+    .correlate_except(ProjectFile)
+    .scalar_subquery(),
+    deferred=False
+)
