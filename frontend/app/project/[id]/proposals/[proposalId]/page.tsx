@@ -10,7 +10,7 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ProposalDetail } from "@/components/features/proposals";
 import type { Proposal } from "@/components/features/proposals/types";
@@ -25,7 +25,7 @@ import { useLatestRequest } from "@/lib/hooks/use-latest-request";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
 
 interface PageProps {
-	params: { id: string; proposalId: string };
+	params: Promise<{ id: string; proposalId: string }>;
 }
 
 function CenteredSpinner({ label }: { label: string }) {
@@ -60,7 +60,7 @@ function ErrorState({
 }
 
 export default function ProposalDetailPage({ params }: PageProps) {
-	const { id: projectId, proposalId } = params;
+	const { id: projectId, proposalId } = use(params);
 	const storeProject = useCurrentProject();
 
 	// Local state (scoped to this component, not global)

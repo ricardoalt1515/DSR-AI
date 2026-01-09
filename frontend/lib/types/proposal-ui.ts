@@ -19,5 +19,5 @@ export interface ProposalUI {
 	executiveSummary: string;
 	technicalApproach: string;
 	aiMetadata: AIMetadata;
-	pdfPath?: string;
+	pdfPath?: string | undefined;
 }
