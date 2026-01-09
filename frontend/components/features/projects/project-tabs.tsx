@@ -26,7 +26,7 @@ const ProposalsTab = lazy(() => import("./proposals-tab").then(m => ({ default: 
 const FilesTabEnhanced = lazy(() => import("./files-tab-enhanced").then(m => ({ default: m.FilesTabEnhanced })));
 
 // Tab values at module level to avoid recreation on each render
-const TAB_VALUES = ["overview", "technical", "proposals", "files"] as const;
+const TAB_VALUES = ["overview", "technical", "files", "proposals"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 type ProjectTabsInput = ProjectSummary | ProjectDetail;
@@ -165,20 +165,6 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 						<span className="hidden sm:inline">Questionnaire</span>
 					</TabsTrigger>
 					<TabsTrigger
-						value="proposals"
-						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
-						aria-label={`Proposals${proposalCount > 0 ? `, ${proposalCount} available` : ""}`}
-						data-tour="tab-proposals"
-					>
-						<FileText className="h-4 w-4" aria-hidden="true" />
-						<span className="hidden sm:inline">Proposals</span>
-						{proposalCount > 0 && (
-							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
-								{proposalCount}
-							</Badge>
-						)}
-					</TabsTrigger>
-					<TabsTrigger
 						value="files"
 						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
 						aria-label={`Files${fileCount > 0 ? `, ${fileCount} uploaded` : ""}`}
@@ -189,6 +175,20 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 						{fileCount > 0 && (
 							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
 								{fileCount}
+							</Badge>
+						)}
+					</TabsTrigger>
+					<TabsTrigger
+						value="proposals"
+						className="flex items-center justify-center gap-2 py-2.5 px-3 min-w-[44px] sm:min-w-0 flex-shrink-0 sm:flex-shrink"
+						aria-label={`Proposals${proposalCount > 0 ? `, ${proposalCount} available` : ""}`}
+						data-tour="tab-proposals"
+					>
+						<FileText className="h-4 w-4" aria-hidden="true" />
+						<span className="hidden sm:inline">Proposals</span>
+						{proposalCount > 0 && (
+							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
+								{proposalCount}
 							</Badge>
 						)}
 					</TabsTrigger>
@@ -209,15 +209,15 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 					</Suspense>
 				</TabsContent>
 
-				<TabsContent value="proposals" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
-					<Suspense fallback={<ProposalSkeleton count={2} />}>
-						<ProposalsTab project={projectData} />
-					</Suspense>
-				</TabsContent>
-
 				<TabsContent value="files" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
 					<Suspense fallback={<FilesListSkeleton count={4} />}>
 						<FilesTabEnhanced projectId={project.id} />
+					</Suspense>
+				</TabsContent>
+
+				<TabsContent value="proposals" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+					<Suspense fallback={<ProposalSkeleton count={2} />}>
+						<ProposalsTab project={projectData} />
 					</Suspense>
 				</TabsContent>
 			</Tabs>

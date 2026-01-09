@@ -46,19 +46,19 @@ export default function ProjectPage() {
 				placement: "bottom",
 			},
 			{
+				id: "files",
+				target: "[data-tour='tab-files']",
+				title: "Files Tab",
+				content:
+					"Upload documents, images, and safety data sheets. The AI uses these to improve proposal accuracy.",
+				placement: "bottom",
+			},
+			{
 				id: "proposals",
 				target: "[data-tour='tab-proposals']",
 				title: "Proposals Tab",
 				content:
 					"Generate AI-powered proposals once you have enough data. Review and export them here.",
-				placement: "bottom",
-			},
-			{
-				id: "files",
-				target: "[data-tour='tab-files']",
-				title: "Files Tab",
-				content:
-					"Upload documents, images, and safety data sheets related to your project.",
 				placement: "bottom",
 			},
 		],
@@ -99,16 +99,16 @@ export default function ProjectPage() {
 	if (!currentProject) {
 		return (
 			<div className="min-h-screen bg-background flex items-center justify-center">
-					<div className="text-center space-y-4">
-						<h1 className="text-2xl font-semibold text-foreground">
-							Project not found
-						</h1>
-						<p className="text-muted-foreground">
-							The project you are looking for does not exist or you do not have permission to view it.
-						</p>
-					</div>
+				<div className="text-center space-y-4">
+					<h1 className="text-2xl font-semibold text-foreground">
+						Project not found
+					</h1>
+					<p className="text-muted-foreground">
+						The project you are looking for does not exist or you do not have permission to view it.
+					</p>
 				</div>
-			);
+			</div>
+		);
 	}
 
 	return (

@@ -181,6 +181,15 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 
 	return (
 		<div className="space-y-6">
+			{/* AI Data Quality Notice */}
+			<div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-border/50">
+				<Lightbulb className="h-4 w-4 flex-shrink-0 text-amber-500" />
+				<span>
+					<span className="hidden sm:inline">The more complete your data, the more accurate your AI proposal.</span>
+					<span className="sm:hidden">Better data = Better proposals.</span>
+				</span>
+			</div>
+
 			{shouldShowGenerator ? (
 				<IntelligentProposalGeneratorComponent
 					projectId={project.id}
