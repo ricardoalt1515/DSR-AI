@@ -17,14 +17,15 @@ import { useParams, useRouter } from "next/navigation";
  */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
-import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
-import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
-import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+	import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
+	import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
+	import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
+	import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
+	import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+	import { Badge } from "@/components/ui/badge";
+	import { Button } from "@/components/ui/button";
+	import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+	import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -41,9 +42,20 @@ export default function CompanyDetailPage() {
 	const router = useRouter();
 	const companyId = params.id as string;
 
-	const { currentCompany, loading, loadCompany } = useCompanyStore();
-	const { locations: allLocations, loadLocationsByCompany, deleteLocation } =
-		useLocationStore();
+	const {
+		currentCompany,
+		loading,
+		loadCompany,
+		error: companyError,
+		clearError: clearCompanyError,
+	} = useCompanyStore();
+	const {
+		locations: allLocations,
+		loadLocationsByCompany,
+		deleteLocation,
+		error: locationsError,
+		clearError: clearLocationsError,
+	} = useLocationStore();
 
 	// Filter locations for current company only (store may have cached data from other companies)
 	const locations = useMemo(() =>
@@ -59,8 +71,8 @@ export default function CompanyDetailPage() {
 
 	useEffect(() => {
 		if (companyId) {
-			loadCompany(companyId);
-			loadLocationsByCompany(companyId);
+			void loadCompany(companyId).catch(() => {});
+			void loadLocationsByCompany(companyId).catch(() => {});
 		}
 	}, [companyId, loadCompany, loadLocationsByCompany]);
 
@@ -78,8 +90,8 @@ export default function CompanyDetailPage() {
 			setDeleting(false);
 
 			// Reload data in background (non-blocking)
-			loadCompany(companyId);
-			loadLocationsByCompany(companyId);
+			void loadCompany(companyId).catch(() => {});
+			void loadLocationsByCompany(companyId).catch(() => {});
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
@@ -107,12 +119,34 @@ export default function CompanyDetailPage() {
 	return (
 		<div className="container mx-auto py-8 space-y-6">
 			{/* Breadcrumb */}
-			<Breadcrumb
-				items={[
-					{ label: "Companies", href: "/companies" },
-					{ label: currentCompany.name, icon: Building2 },
-				]}
-			/>
+				<Breadcrumb
+					items={[
+						{ label: "Companies", href: "/companies" },
+						{ label: currentCompany.name, icon: Building2 },
+					]}
+				/>
+
+				{(companyError || locationsError) && (
+					<Alert variant="destructive">
+						<AlertTitle>Could not load company data</AlertTitle>
+						<AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+							<p className="text-sm text-muted-foreground">
+								{companyError || locationsError}
+							</p>
+							<Button
+								variant="outline"
+								onClick={() => {
+									clearCompanyError();
+									clearLocationsError();
+									void loadCompany(companyId).catch(() => {});
+									void loadLocationsByCompany(companyId).catch(() => {});
+								}}
+							>
+								Retry
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
 
 			{/* Header */}
 			<div className="flex items-center gap-4">
@@ -235,13 +269,13 @@ export default function CompanyDetailPage() {
 						<MapPin className="h-6 w-6" />
 						Locations
 					</h2>
-					<CreateLocationDialog
-						companyId={companyId}
-						onSuccess={() => {
-							loadCompany(companyId);
-							loadLocationsByCompany(companyId);
-						}}
-					/>
+						<CreateLocationDialog
+							companyId={companyId}
+							onSuccess={() => {
+								void loadCompany(companyId).catch(() => {});
+								void loadLocationsByCompany(companyId).catch(() => {});
+							}}
+						/>
 				</div>
 
 				{locations.length === 0 ? (
@@ -252,19 +286,19 @@ export default function CompanyDetailPage() {
 							<p className="text-muted-foreground mb-4">
 								Add the first location for this company
 							</p>
-							<CreateLocationDialog
-								companyId={companyId}
-								trigger={
-									<Button>
-										<Plus className="mr-2 h-4 w-4" />
-										Add First Location
-									</Button>
-								}
-								onSuccess={() => {
-									loadCompany(companyId);
-									loadLocationsByCompany(companyId);
-								}}
-							/>
+								<CreateLocationDialog
+									companyId={companyId}
+									trigger={
+										<Button>
+											<Plus className="mr-2 h-4 w-4" />
+											Add First Location
+										</Button>
+									}
+									onSuccess={() => {
+										void loadCompany(companyId).catch(() => {});
+										void loadLocationsByCompany(companyId).catch(() => {});
+									}}
+								/>
 						</CardContent>
 					</Card>
 				) : (
@@ -417,13 +451,21 @@ export default function CompanyDetailPage() {
 						}),
 						...(currentCompany.notes && { notes: currentCompany.notes }),
 					}}
-					onSuccess={async () => {
-						setEditCompanyDialogOpen(false);
-						// Reload company data after edit
-						await loadCompany(companyId);
-					}}
-				/>
-			)}
+						onSuccess={async () => {
+							setEditCompanyDialogOpen(false);
+							// Reload company data after edit
+							try {
+								await loadCompany(companyId);
+							} catch (error) {
+								toast.error(
+									error instanceof Error
+										? error.message
+										: "Failed to reload company",
+								);
+							}
+						}}
+					/>
+				)}
 		</div>
 	);
 }

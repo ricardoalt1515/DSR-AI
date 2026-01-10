@@ -19,6 +19,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PremiumProjectWizard } from "@/components/features/dashboard";
+import { OrgContextBadge, OrgSelectionModal } from "@/components/features/org-context";
 import { DSRLogo } from "@/components/shared/branding/dsr-logo";
 import { ThemeToggle } from "@/components/shared/common/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -69,6 +70,12 @@ import { cn } from "@/lib/utils";
 import { NotificationDropdown } from "./notification-dropdown";
 import { ProposalProgressBadge } from "./proposal-progress-badge";
 
+// Wrapper component to conditionally load projects without violating hooks rule
+function EnsureProjectsLoaded(): null {
+	useEnsureProjectsLoaded();
+	return null;
+}
+
 // Navigation config - inline (DRY: only used here, no duplication)
 const PRIMARY_NAV_LINKS = [
 	{
@@ -114,7 +121,6 @@ export function NavBar() {
 	const router = useRouter();
 	const projects = useProjects();
 	const loadingProjects = useProjectLoading();
-	useEnsureProjectsLoaded();
 	const { user, logout, isSuperAdmin, isOrgAdmin } = useAuth();
 	const {
 		currentOrganization,
@@ -174,8 +180,12 @@ export function NavBar() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, []);
 
+	// Only auto-load projects when we have org context (or not a super admin)
+	const shouldAutoLoadProjects = !isSuperAdmin || Boolean(selectedOrgId);
+
 	return (
 		<>
+			{shouldAutoLoadProjects && <EnsureProjectsLoaded />}
 			<nav className="glass-nav sticky top-0 z-50 w-full">
 				<div className="mx-auto flex h-[4.25rem] w-full max-w-6xl items-center justify-between gap-6 px-4 md:px-6">
 					<div className="flex items-center gap-4 md:gap-6">
@@ -217,10 +227,18 @@ export function NavBar() {
 							estimatedTime={estimatedTime}
 						/>
 
-						{authedUser && (
+						{/* Organization context badge for super admins */}
+						{authedUser && isSuperAdmin && (
+							<div className="hidden items-center gap-2 md:flex">
+								<OrgContextBadge />
+							</div>
+						)}
+
+						{/* Organization name for regular users */}
+						{authedUser && !isSuperAdmin && currentOrganization && (
 							<div className="hidden items-center gap-2 md:flex">
 								<span className="rounded-full border border-border/40 bg-card/60 px-3 py-1 text-xs text-muted-foreground">
-									{currentOrganization?.name ?? "Organization"}
+									{currentOrganization.name}
 								</span>
 							</div>
 						)}
@@ -515,6 +533,9 @@ export function NavBar() {
 					// Project creation handled by wizard
 				}}
 			/>
+
+			{/* Organization Selection Modal for super admins */}
+			{isSuperAdmin && <OrgSelectionModal />}
 		</>
 	);
 }

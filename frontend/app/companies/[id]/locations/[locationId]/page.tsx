@@ -15,6 +15,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PremiumProjectWizard } from "@/components/features/dashboard/components/premium-project-wizard";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,11 +30,17 @@ export default function LocationDetailPage() {
 	const locationId = params.locationId as string;
 	const [wizardOpen, setWizardOpen] = useState(false);
 
-	const { currentLocation, loading, loadLocation } = useLocationStore();
+	const {
+		currentLocation,
+		loading,
+		loadLocation,
+		error,
+		clearError,
+	} = useLocationStore();
 
 	useEffect(() => {
 		if (locationId) {
-			loadLocation(locationId);
+			void loadLocation(locationId).catch(() => {});
 		}
 	}, [locationId, loadLocation]);
 
@@ -50,6 +57,28 @@ export default function LocationDetailPage() {
 		return (
 			<div className="flex items-center justify-center min-h-[400px]">
 				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	if (error && !currentLocation) {
+		return (
+			<div className="container mx-auto py-8">
+				<Alert variant="destructive">
+					<AlertTitle>Could not load location</AlertTitle>
+					<AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<p className="text-sm text-muted-foreground">{error}</p>
+						<Button
+							variant="outline"
+							onClick={() => {
+								clearError();
+								void loadLocation(locationId).catch(() => {});
+							}}
+						>
+							Retry
+						</Button>
+					</AlertDescription>
+				</Alert>
 			</div>
 		);
 	}
@@ -76,6 +105,24 @@ export default function LocationDetailPage() {
 					{ label: currentLocation.name, icon: MapPin },
 				]}
 			/>
+
+			{error && (
+				<Alert variant="destructive">
+					<AlertTitle>Some data may be out of date</AlertTitle>
+					<AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<p className="text-sm text-muted-foreground">{error}</p>
+						<Button
+							variant="outline"
+							onClick={() => {
+								clearError();
+								void loadLocation(locationId).catch(() => {});
+							}}
+						>
+							Retry
+						</Button>
+					</AlertDescription>
+				</Alert>
+			)}
 
 			{/* Header */}
 			<div className="flex items-center gap-4">
@@ -196,7 +243,11 @@ export default function LocationDetailPage() {
 				defaultLocationId={locationId}
 				onProjectCreated={async (projectId) => {
 					// Reload location to show new assessment
-					await loadLocation(locationId);
+					try {
+						await loadLocation(locationId);
+					} catch {
+						// Location store already captures error state for the UI
+					}
 					// Then navigate to project
 					router.push(`/project/${projectId}`);
 				}}

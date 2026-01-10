@@ -4,7 +4,8 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev --turbo",
-		"build": "npm run validate:env && next build",
+		"prebuild": "bun scripts/validate-env.ts",
+		"build": "next build",
 		"start": "next start",
 		"lint": "biome lint ./",
 		"lint:fix": "biome lint --write ./",
@@ -12,8 +13,8 @@
 		"format:check": "biome format ./",
 		"check": "biome check --write ./",
 		"check:ci": "biome ci ./",
-		"validate:env": "tsx scripts/validate-env.ts",
-		"export:parameter-ids": "tsx scripts/export-parameter-ids.ts"
+		"validate:env": "bun scripts/validate-env.ts",
+		"export:parameter-ids": "bun scripts/export-parameter-ids.ts"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^3.10.0",
@@ -74,7 +75,6 @@
 		"dotenv": "^17.2.3",
 		"postcss": "^8.5",
 		"tailwindcss": "^4.1.9",
-		"tsx": "^4.20.6",
 		"tw-animate-css": "1.3.3",
 		"typescript": "^5",
 		"ultracite": "^6.0.5"

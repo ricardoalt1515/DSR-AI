@@ -5,7 +5,7 @@
  * before building or running the application.
  *
  * Run this script in package.json before build:
- * "prebuild": "ts-node scripts/validate-env.ts"
+ * "prebuild": "bun scripts/validate-env.ts"
  */
 
 import { resolve } from "node:path";

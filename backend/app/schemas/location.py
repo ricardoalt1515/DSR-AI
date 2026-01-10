@@ -5,12 +5,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field
 from app.schemas.common import BaseSchema
 
 if TYPE_CHECKING:
     from app.schemas.company import CompanySummary
-    from app.schemas.project import ProjectSummary
+
+
+class LocationProjectSummary(BaseSchema):
+    """Minimal project summary for location detail views."""
+    id: UUID
+    name: str
+    status: str
+    created_at: datetime
 
 
 class LocationBase(BaseSchema):
@@ -55,4 +62,4 @@ class LocationSummary(LocationBase):
 class LocationDetail(LocationSummary):
     """Location detail with company info and projects."""
     company: Optional["CompanySummary"] = None
-    projects: list["ProjectSummary"] = Field(default_factory=list)
+    projects: list[LocationProjectSummary] = Field(default_factory=list)

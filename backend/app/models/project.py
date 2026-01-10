@@ -182,16 +182,32 @@ class Project(BaseModel):
     @property
     def company_name(self) -> Optional[str]:
         """Get company name from location relationship."""
-        if self.location_rel and self.location_rel.company:
-            return self.location_rel.company.name
-        return self.client  # Fallback to legacy field
+        state = sa_inspect(self)
+        if "location_rel" in state.unloaded:
+            return self.client
+
+        location = self.location_rel
+        if not location:
+            return self.client
+
+        location_state = sa_inspect(location)
+        if "company" in location_state.unloaded:
+            return self.client
+
+        return location.company.name if location.company else self.client
     
     @property
     def location_name(self) -> Optional[str]:
         """Get location name from relationship."""
-        if self.location_rel:
-            return self.location_rel.name
-        return self.location  # Fallback to legacy field
+        state = sa_inspect(self)
+        if "location_rel" in state.unloaded:
+            return self.location
+
+        location = self.location_rel
+        if not location:
+            return self.location
+
+        return location.name
 
 
 # files_count: scalar subquery (avoids N+1 and raiseload conflicts)

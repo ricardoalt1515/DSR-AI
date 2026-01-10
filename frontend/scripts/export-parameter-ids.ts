@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Export Parameter IDs Script
  *
@@ -8,7 +8,7 @@
  * Output: frontend/generated/parameter-ids.json
  *
  * Usage:
- *   npm run export:parameter-ids
+ *   bun run export:parameter-ids
  *
  * Principles:
  * - DRY: Single source of truth (parameter library)
@@ -34,7 +34,7 @@ async function exportParameterIds() {
 		console.log("📦 Loading parameter library...");
 
 		// Import PARAMETER_LIBRARY
-		const { PARAMETER_LIBRARY } = await import("../lib/parameters/index.js");
+		const { PARAMETER_LIBRARY } = await import("../lib/parameters/index");
 
 		if (!PARAMETER_LIBRARY || !Array.isArray(PARAMETER_LIBRARY)) {
 			throw new Error("PARAMETER_LIBRARY is not an array or is undefined");
@@ -64,7 +64,7 @@ async function exportParameterIds() {
 		// Write to file with pretty formatting
 		const output = {
 			_comment:
-				"Auto-generated file. DO NOT edit manually. Run 'npm run export:parameter-ids' to regenerate.",
+				"Auto-generated file. DO NOT edit manually. Run 'bun run export:parameter-ids' to regenerate.",
 			generated_at: new Date().toISOString(),
 			count: parameterIds.length,
 			parameter_ids: parameterIds,
