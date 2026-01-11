@@ -59,51 +59,44 @@ const best = await templatesAPI.searchBestMatch({
 
 ### 2. Zod Validation Schemas (1.5h)
 
-**Archivo**: `frontend/lib/schemas/project-data-schemas.ts` (130 líneas)
+**Archivo**: `frontend/lib/validation/template-schema.ts`
 
 **Schemas creados:**
 
 ```typescript
-// Field validation
-export const FieldSchema = z.object({
+// Minimal backend field + section schemas (snake_case contract)
+export const BackendFieldSchema = z.object({
   id: z.string().min(1),
   value: z.any().nullable(),
-  source: z.enum(["manual", "imported", "calculated"]),
-  importance: z.enum(["critical", "recommended", "optional"]).optional(),
-  required: z.boolean().optional(),
-  unit: z.string().optional(),
+  source: z.enum(["manual", "imported", "ai"]),
+  notes: z.string().optional(),
 });
 
-// Section validation
-export const SectionSchema = z.object({
+export const BackendSectionSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   description: z.string().optional(),
-  fields: z.array(FieldSchema),
-  allowCustomFields: z.boolean().default(true),
+  fields: z.array(BackendFieldSchema).min(1),
 });
 
-// Full project data
-export const ProjectDataSchema = z.object({
-  technical_sections: z.array(SectionSchema).optional(),
-  schema_version: z.number().default(1),
-});
+export const TechnicalSectionsSchema = z.array(BackendSectionSchema);
 ```
 
 **Funciones de validación:**
 
 ```typescript
-// Strict validation (throws)
-validateTechnicalSections(data: unknown): Section[]
+// Non-throwing validation (returns success boolean)
+validateTechnicalSections(data: unknown): ValidationResult<TechnicalSections>
 
-// Safe validation (returns empty array)
-safeParseTechnicalSections(data: unknown): Section[]
+// Full response validation
+validateProjectDataResponse(data: unknown): ValidationResult<ProjectDataResponse>
 
-// Field validation
-validateField(data: unknown): Field
+// Single node validation helpers
+validateField(data: unknown): ValidationResult<BackendField>
+validateSection(data: unknown): ValidationResult<BackendSection>
 
-// Schema version check
-getSchemaVersion(data: Record<string, unknown>): number
+// Display-friendly errors
+formatValidationErrors(error: z.ZodError): string[]
 ```
 
 **Por qué Zod:**
@@ -114,14 +107,16 @@ getSchemaVersion(data: Record<string, unknown>): number
 
 **Uso:**
 ```typescript
-import { validateTechnicalSections } from "@/lib/schemas/project-data-schemas";
+import { validateTechnicalSections, formatValidationErrors } from "@/lib/validation/template-schema";
 
-try {
-  const sections = validateTechnicalSections(apiResponse.technical_sections);
-  // ✅ sections is type-safe Section[]
-} catch (error) {
-  // ❌ Backend structure changed
-  console.error("Invalid data structure:", error);
+const result = validateTechnicalSections(projectData.technical_sections);
+
+if (!result.success) {
+  // ❌ Backend contract changed
+  console.error("Invalid data structure:", formatValidationErrors(result.error));
+} else {
+  // ✅ result.data is type-safe TechnicalSections
+  console.log(result.data);
 }
 ```
 
@@ -324,7 +319,7 @@ validateField(data: unknown): Field
 ### Test 2: Validación Zod
 ```typescript
 // En browser console
-import { validateTechnicalSections } from "@/lib/schemas/project-data-schemas";
+import { validateTechnicalSections } from "@/lib/validation/template-schema";
 
 // Test válido
 const valid = validateTechnicalSections([
@@ -336,13 +331,13 @@ const valid = validateTechnicalSections([
     ]
   }
 ]);
-console.log(valid); // ✅ Success
+console.log(valid.success); // ✅ true
 
 // Test inválido
 const invalid = validateTechnicalSections([
-  { id: "", title: "" } // Missing required fields
+  { id: "", title: "", fields: [] } // Missing required fields
 ]);
-// ❌ Throws ZodError
+console.log(invalid.success); // ❌ false
 ```
 
 ### Test 3: API Client
@@ -433,7 +428,7 @@ async function waitForTemplate(projectId: string, timeout = 10000) {
 
 **Archivos creados:**
 - `frontend/lib/api/templates.ts` (160 líneas)
-- `frontend/lib/schemas/project-data-schemas.ts` (130 líneas)
+- `frontend/lib/validation/template-schema.ts`
 - `frontend/lib/templates/DEPRECATED.md` (120 líneas)
 
 **Archivos modificados:**

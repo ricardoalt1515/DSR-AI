@@ -2,7 +2,7 @@
  * Company store - Zustand state management for companies
  */
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { CompaniesAPI } from "@/lib/api/companies";
 import type {
@@ -206,6 +206,10 @@ export const useCompanyStore = create<CompanyState>()(
 		})),
 		{
 			name: "waste-company-store",
+			storage:
+				typeof window === "undefined"
+					? undefined
+					: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
 				companies: state.companies,
 			}),

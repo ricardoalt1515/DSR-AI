@@ -19,6 +19,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDateTime } from "@/lib/format";
 import { ProposalOverview } from "./proposal-overview";
 import { ExternalReportView } from "./external-report-view";
 import { ReportAudienceToggle, type ReportAudience } from "./report-audience-toggle";
@@ -190,13 +191,4 @@ function ProposalPageSkeleton() {
 	);
 }
 
-/**
- * Format date-time for display
- */
-function formatDateTime(value: string): string {
-	return new Intl.DateTimeFormat("en-US", {
-		dateStyle: "medium",
-		timeStyle: "short",
-	}).format(new Date(value));
-}
 

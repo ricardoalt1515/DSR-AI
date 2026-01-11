@@ -61,8 +61,7 @@ function parseRevenue(
 }
 
 export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
-	// Legacy code uses deep nested access - requires major refactor to type properly
-	const report = proposal.aiMetadata.proposal as any;
+	const report = proposal.aiMetadata.proposal;
 	const businessOpp = report.businessOpportunity;
 	const lca = report.lca;
 
@@ -88,8 +87,30 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 		);
 	}
 
+	// Extract nested data with defaults for type safety
+	const pr = businessOpp.potentialRevenue;
+	const annualPotential = pr?.annualPotential ?? [];
+	const perKg = pr?.perKg ?? [];
+	const marketRate = pr?.marketRate ?? [];
+	const revenueNotes = pr?.notes ?? [];
+
+	const lr = businessOpp.landfillReduction;
+	const landfillBefore = lr?.before ?? [];
+	const landfillAfter = lr?.after ?? [];
+	const landfillSavings = lr?.annualSavings ?? [];
+
+	const wh = businessOpp.wasteHandlingCostSavings;
+	const wasteBefore = wh?.before ?? [];
+	const wasteAfter = wh?.after ?? [];
+	const wasteSavings = wh?.annualSavings ?? [];
+
+	const co2 = lca.co2Reduction;
+	const co2Tons = co2?.tons ?? [];
+	const co2Percent = co2?.percent ?? [];
+	const co2Method = co2?.method ?? [];
+
 	// Parse annual potential for visual range
-	const annualPotentialItems = businessOpp.potentialRevenue.annualPotential;
+	const annualPotentialItems = annualPotential;
 	const lowCase = annualPotentialItems.find((item: string) =>
 		item.toLowerCase().includes("low"),
 	);
@@ -172,9 +193,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							</div>
 
 							{/* Per-unit pricing */}
-							{businessOpp.potentialRevenue.perKg.length > 0 && (
+							{perKg.length > 0 && (
 								<div className="flex flex-wrap gap-2">
-									{businessOpp.potentialRevenue.perKg.map(
+									{perKg.map(
 										(price: string, idx: number) => (
 											<Badge key={idx} variant="outline" className="text-sm">
 												{price}
@@ -197,14 +218,14 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 
 					{/* Market Rates & Notes - COLLAPSIBLE */}
 					<Accordion type="single" collapsible className="w-full">
-						{businessOpp.potentialRevenue.marketRate.length > 0 && (
+						{marketRate.length > 0 && (
 							<AccordionItem value="market-rates" className="border-none">
 								<AccordionTrigger className="text-sm font-medium hover:no-underline py-2">
 									Market Rate Details
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{businessOpp.potentialRevenue.marketRate.map(
+										{marketRate.map(
 											(rate: string, idx: number) => (
 												<p
 													key={idx}
@@ -219,14 +240,14 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							</AccordionItem>
 						)}
 
-						{businessOpp.potentialRevenue.notes.length > 0 && (
+						{revenueNotes.length > 0 && (
 							<AccordionItem value="notes" className="border-none">
 								<AccordionTrigger className="text-sm font-medium hover:no-underline py-2">
 									Pricing Assumptions
 								</AccordionTrigger>
 								<AccordionContent>
 									<ul className="space-y-1 pt-2">
-										{businessOpp.potentialRevenue.notes.map(
+										{revenueNotes.map(
 											(note: string, idx: number) => (
 												<li key={idx} className="text-sm text-muted-foreground">
 													• {note}
@@ -265,7 +286,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Baseline
 							</p>
-							{businessOpp.landfillReduction.before.map(
+							{landfillBefore.map(
 								(item: string, idx: number) => (
 									<p key={idx} className="text-lg font-semibold">
 										{item}
@@ -278,7 +299,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-green-600 font-medium">
 								After DSR Acquisition
 							</p>
-							{businessOpp.landfillReduction.after.map(
+							{landfillAfter.map(
 								(item: string, idx: number) => (
 									<p key={idx} className="text-lg font-semibold text-green-600">
 										{item}
@@ -291,7 +312,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{businessOpp.landfillReduction.annualSavings.map(
+							{landfillSavings.map(
 								(item: string, idx: number) => (
 									<Badge key={idx} variant="default" className="mb-1 text-sm">
 										{item}
@@ -325,7 +346,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Costs
 							</p>
-							{businessOpp.wasteHandlingCostSavings.before.map(
+							{wasteBefore.map(
 								(item: string, idx: number) => (
 									<p key={idx} className="text-lg font-semibold">
 										{item}
@@ -338,7 +359,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-blue-600 font-medium">
 								After DSR
 							</p>
-							{businessOpp.wasteHandlingCostSavings.after.map(
+							{wasteAfter.map(
 								(item: string, idx: number) => (
 									<p
 										key={idx}
@@ -354,7 +375,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{businessOpp.wasteHandlingCostSavings.annualSavings.map(
+							{wasteSavings.map(
 								(item: string, idx: number) => (
 									<Badge key={idx} variant="secondary" className="mb-1 text-sm">
 										{item}
@@ -386,12 +407,12 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 				</CardHeader>
 				<CardContent className="space-y-6">
 					{/* BIG CO2 NUMBER */}
-					{lca.co2Reduction.tons.length > 0 && (
+					{co2Tons.length > 0 && (
 						<div className="text-center p-6 rounded-xl bg-green-100/50 dark:bg-green-900/20">
 							<div className="text-sm uppercase tracking-wide text-green-700 dark:text-green-300 mb-2">
 								Annual CO₂ Avoided
 							</div>
-							{lca.co2Reduction.tons.map((item: string, idx: number) => (
+							{co2Tons.map((item: string, idx: number) => (
 								<div
 									key={idx}
 									className="text-5xl font-bold text-green-600 dark:text-green-400"
@@ -399,9 +420,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 									{item}
 								</div>
 							))}
-							{lca.co2Reduction.percent.length > 0 && (
+							{co2Percent.length > 0 && (
 								<div className="mt-4 flex justify-center gap-2">
-									{lca.co2Reduction.percent.map((pct: string, idx: number) => (
+									{co2Percent.map((pct: string, idx: number) => (
 										<Badge
 											key={idx}
 											className="bg-green-600 text-base px-4 py-1"
@@ -482,7 +503,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 					})()}
 
 					{/* Methodology - Collapsible */}
-					{lca.co2Reduction.method.length > 0 && (
+					{co2Method.length > 0 && (
 						<Accordion type="single" collapsible className="w-full">
 							<AccordionItem value="methodology" className="border-none">
 								<AccordionTrigger className="text-sm font-medium hover:no-underline">
@@ -490,7 +511,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{lca.co2Reduction.method.map(
+										{co2Method.map(
 											(method: string, idx: number) => (
 												<p
 													key={idx}

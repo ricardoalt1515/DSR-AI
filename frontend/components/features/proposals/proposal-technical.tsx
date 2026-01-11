@@ -88,12 +88,35 @@ function parseBusinessOption(optionText: string): {
 	return result;
 }
 
+type RecommendationType = "GO" | "NO-GO" | "INVESTIGATE FURTHER" | "INVESTIGATE";
+
+function toRecommendation(value: string | undefined): RecommendationType {
+	if (value === "GO" || value === "NO-GO" || value === "INVESTIGATE") return value;
+	return "INVESTIGATE FURTHER";
+}
+
 export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
-	// Legacy code uses deep nested access - requires major refactor to type properly
-	const report = proposal.aiMetadata.proposal as any;
+	const report = proposal.aiMetadata.proposal;
 	const businessOpp = report.businessOpportunity;
-	const circularEconomyOptions = businessOpp?.circularEconomyOptions || [];
+	const circularEconomyOptions = businessOpp?.circularEconomyOptions ?? [];
 	const resourceConsiderations = businessOpp?.resourceConsiderations;
+
+	// Extract nested optional data with defaults
+	const envImpact = resourceConsiderations?.environmentalImpact;
+	const materialHandling = resourceConsiderations?.materialHandling;
+	const marketIntel = resourceConsiderations?.marketIntelligence;
+
+	const hazardLevel = materialHandling?.hazardLevel;
+	const ppeRequirements = materialHandling?.ppeRequirements ?? [];
+	const specificHazards = materialHandling?.specificHazards ?? [];
+	const storageRequirements = materialHandling?.storageRequirements ?? [];
+	const degradationRisks = materialHandling?.degradationRisks ?? [];
+	const qualityPriceImpact = materialHandling?.qualityPriceImpact ?? [];
+	const regulatoryNotes = materialHandling?.regulatoryNotes ?? [];
+
+	const buyerTypes = marketIntel?.buyerTypes ?? [];
+	const typicalRequirements = marketIntel?.typicalRequirements ?? [];
+	const pricingFactors = marketIntel?.pricingFactors ?? [];
 
 	// Use shared helpers for metric extraction (DRY)
 	const revenueEstimate = extractHighRevenue(report);
@@ -104,43 +127,38 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 		<div className="space-y-6">
 			{/* LEVEL 1: DECISION CONTEXT */}
 			<CompactDecisionHeader
-				recommendation={
-					businessOpp?.overallRecommendation || "INVESTIGATE FURTHER"
-				}
+				recommendation={toRecommendation(businessOpp?.overallRecommendation)}
 				keyFinancials={revenueEstimate}
 				keyEnvironmentalImpact={co2Avoided}
 				riskCount={businessOpp?.risks?.length || 0}
 			/>
 
 			{/* SAFETY ALERT - Show if Moderate or High Hazard */}
-			{resourceConsiderations?.materialHandling?.hazardLevel &&
-				(resourceConsiderations.materialHandling.hazardLevel === "Moderate" ||
-					resourceConsiderations.materialHandling.hazardLevel === "High") && (
+			{materialHandling?.hazardLevel &&
+				(materialHandling.hazardLevel === "Moderate" ||
+					materialHandling.hazardLevel === "High") && (
 					<Alert
 						variant={
-							resourceConsiderations.materialHandling.hazardLevel === "High"
+							materialHandling.hazardLevel === "High"
 								? "destructive"
 								: "default"
 						}
 						className={
-							resourceConsiderations.materialHandling.hazardLevel === "High"
+							materialHandling.hazardLevel === "High"
 								? "border-red-500 bg-red-50 dark:bg-red-950"
 								: "border-yellow-500 bg-yellow-50 dark:bg-yellow-950"
 						}
 					>
 						<AlertCircle className="h-4 w-4" />
 						<AlertTitle className="font-bold">
-							{resourceConsiderations.materialHandling.hazardLevel} Hazard
+							{materialHandling.hazardLevel} Hazard
 							Material
 						</AlertTitle>
 						<AlertDescription>
 							<span className="font-medium">PPE Required:</span>{" "}
-							{resourceConsiderations.materialHandling.ppeRequirements
-								.slice(0, 2)
-								.join(", ")}
-							{resourceConsiderations.materialHandling.ppeRequirements.length >
-								2 &&
-								` + ${resourceConsiderations.materialHandling.ppeRequirements.length - 2} more`}
+							{ppeRequirements.slice(0, 2).join(", ")}
+							{ppeRequirements.length > 2 &&
+								` + ${ppeRequirements.length - 2} more`}
 						</AlertDescription>
 					</Alert>
 				)}
@@ -338,10 +356,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 												Current Situation
 											</p>
 											<p className="text-sm text-muted-foreground">
-												{
-													resourceConsiderations.environmentalImpact
-														.currentSituation
-												}
+												{envImpact?.currentSituation}
 											</p>
 										</div>
 										<div>
@@ -349,10 +364,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 												Benefit If Diverted
 											</p>
 											<p className="text-sm text-green-600 dark:text-green-400">
-												{
-													resourceConsiderations.environmentalImpact
-														.benefitIfDiverted
-												}
+												{envImpact?.benefitIfDiverted}
 											</p>
 										</div>
 									</div>
@@ -360,7 +372,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								<div className="p-3 rounded-lg bg-green-100/50 dark:bg-green-900/20">
 									<p className="text-sm font-medium mb-1">ESG Story</p>
 									<p className="text-sm text-muted-foreground italic">
-										{resourceConsiderations.environmentalImpact.esgStory}
+										{envImpact?.esgStory}
 									</p>
 								</div>
 							</TabsContent>
@@ -370,35 +382,34 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								<div className="flex items-center gap-2">
 									<Badge
 										variant={
-											resourceConsiderations.materialHandling.hazardLevel ===
+											hazardLevel ===
 												"High"
 												? "destructive"
-												: resourceConsiderations.materialHandling
-													.hazardLevel === "Moderate"
+												: hazardLevel === "Moderate"
 													? "secondary"
 													: "outline"
 										}
 									>
-										{resourceConsiderations.materialHandling.hazardLevel} Hazard
+										{hazardLevel} Hazard
 										Level
 									</Badge>
 									<span className="text-xs text-muted-foreground">
 										{
-											resourceConsiderations.materialHandling.ppeRequirements
+											ppeRequirements
 												.length
 										}{" "}
 										PPE items required
 									</span>
 								</div>
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{resourceConsiderations.materialHandling.specificHazards
+									{specificHazards
 										?.length > 0 && (
 											<div>
 												<p className="text-sm font-medium mb-2">
 													Specific Hazards
 												</p>
 												<ul className="space-y-1">
-													{resourceConsiderations.materialHandling.specificHazards.map(
+													{specificHazards.map(
 														(item: string, idx: number) => (
 															<li
 																key={idx}
@@ -411,14 +422,14 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 												</ul>
 											</div>
 										)}
-									{resourceConsiderations.materialHandling.ppeRequirements
+									{ppeRequirements
 										?.length > 0 && (
 											<div>
 												<p className="text-sm font-medium mb-2">
 													PPE Requirements
 												</p>
 												<ul className="space-y-1">
-													{resourceConsiderations.materialHandling.ppeRequirements.map(
+													{ppeRequirements.map(
 														(item: string, idx: number) => (
 															<li
 																key={idx}
@@ -432,12 +443,12 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 											</div>
 										)}
 								</div>
-								{resourceConsiderations.materialHandling.regulatoryNotes
+								{regulatoryNotes
 									?.length > 0 && (
 										<div>
 											<p className="text-sm font-medium mb-2">Regulatory Notes</p>
 											<ul className="space-y-1">
-												{resourceConsiderations.materialHandling.regulatoryNotes.map(
+												{regulatoryNotes.map(
 													(item: string, idx: number) => (
 														<li
 															key={idx}
@@ -459,7 +470,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 										Storage Requirements
 									</p>
 									<ul className="space-y-1">
-										{resourceConsiderations.materialHandling.storageRequirements.map(
+										{storageRequirements.map(
 											(item: string, idx: number) => (
 												<li key={idx} className="text-sm text-muted-foreground">
 													• {item}
@@ -468,14 +479,14 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 										)}
 									</ul>
 								</div>
-								{resourceConsiderations.materialHandling.degradationRisks
+								{degradationRisks
 									?.length > 0 && (
 										<div>
 											<p className="text-sm font-medium mb-2">
 												Degradation Risks
 											</p>
 											<ul className="space-y-1">
-												{resourceConsiderations.materialHandling.degradationRisks.map(
+												{degradationRisks.map(
 													(item: string, idx: number) => (
 														<li
 															key={idx}
@@ -488,14 +499,14 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 											</ul>
 										</div>
 									)}
-								{resourceConsiderations.materialHandling.qualityPriceImpact
+								{qualityPriceImpact
 									?.length > 0 && (
 										<div>
 											<p className="text-sm font-medium mb-2">
 												Quality vs Price Impact
 											</p>
 											<ul className="space-y-1">
-												{resourceConsiderations.materialHandling.qualityPriceImpact.map(
+												{qualityPriceImpact.map(
 													(item: string, idx: number) => (
 														<li
 															key={idx}
@@ -515,7 +526,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								<div>
 									<p className="text-sm font-medium mb-2">Buyer Types</p>
 									<div className="flex flex-wrap gap-2">
-										{resourceConsiderations.marketIntelligence.buyerTypes.map(
+										{buyerTypes.map(
 											(type: string, idx: number) => (
 												<HoverCard key={idx}>
 													<HoverCardTrigger asChild>
@@ -526,14 +537,13 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 													<HoverCardContent className="w-80">
 														<div className="space-y-2">
 															<h4 className="text-sm font-semibold">{type}</h4>
-															{resourceConsiderations.marketIntelligence
-																.typicalRequirements?.length > 0 && (
+															{typicalRequirements.length > 0 && (
 																	<div>
 																		<p className="text-xs font-medium text-muted-foreground mb-1">
 																			Typical Requirements:
 																		</p>
 																		<ul className="text-xs text-muted-foreground space-y-0.5">
-																			{resourceConsiderations.marketIntelligence.typicalRequirements
+																			{typicalRequirements
 																				.slice(0, 3)
 																				.map((req: string, i: number) => (
 																					<li key={i}>• {req}</li>
@@ -541,14 +551,13 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 																		</ul>
 																	</div>
 																)}
-															{resourceConsiderations.marketIntelligence
-																.pricingFactors?.length > 0 && (
+															{pricingFactors.length > 0 && (
 																	<div>
 																		<p className="text-xs font-medium text-muted-foreground mb-1">
 																			Pricing Factors:
 																		</p>
 																		<ul className="text-xs text-muted-foreground space-y-0.5">
-																			{resourceConsiderations.marketIntelligence.pricingFactors
+																			{pricingFactors
 																				.slice(0, 3)
 																				.map((factor: string, i: number) => (
 																					<li key={i}>• {factor}</li>
@@ -564,14 +573,14 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 									</div>
 								</div>
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{resourceConsiderations.marketIntelligence.typicalRequirements
+									{typicalRequirements
 										?.length > 0 && (
 											<div>
 												<p className="text-sm font-medium mb-2">
 													Typical Requirements
 												</p>
 												<ul className="space-y-1">
-													{resourceConsiderations.marketIntelligence.typicalRequirements.map(
+													{typicalRequirements.map(
 														(item: string, idx: number) => (
 															<li
 																key={idx}
@@ -584,14 +593,14 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 												</ul>
 											</div>
 										)}
-									{resourceConsiderations.marketIntelligence.pricingFactors
+									{pricingFactors
 										?.length > 0 && (
 											<div>
 												<p className="text-sm font-medium mb-2">
 													Pricing Factors
 												</p>
 												<ul className="space-y-1">
-													{resourceConsiderations.marketIntelligence.pricingFactors.map(
+													{pricingFactors.map(
 														(item: string, idx: number) => (
 															<li
 																key={idx}

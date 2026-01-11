@@ -2,7 +2,7 @@
  * Location store - Zustand state management for locations
  */
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { LocationsAPI } from "@/lib/api/companies";
 import type {
@@ -272,6 +272,10 @@ export const useLocationStore = create<LocationState>()(
 		})),
 		{
 			name: "waste-location-store",
+			storage:
+				typeof window === "undefined"
+					? undefined
+					: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
 				locations: state.locations,
 			}),

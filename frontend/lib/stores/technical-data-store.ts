@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { create } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { useIsHydrated } from "@/lib/hooks/use-is-hydrated";
 import type {
 	TechnicalDataVersion,
 	VersionChange,
@@ -1012,7 +1014,10 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 		})),
 		{
 			name: "h2o-technical-data-store",
-			storage: createJSONStorage(() => localStorage),
+			storage:
+				typeof window === "undefined"
+					? undefined
+					: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
 				technicalData: state.technicalData,
 				versions: state.versions,
@@ -1023,29 +1028,20 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 // Hydration-safe selectors that return stable empty arrays
 export const useTechnicalSections = (projectId: string) => {
-	const [isHydrated, setIsHydrated] = useState(false);
+	const isHydrated = useIsHydrated();
 	const storeData = useTechnicalDataStore(
 		(state) => state.technicalData?.[projectId],
 	);
 
-	useEffect(() => {
-		setIsHydrated(true);
-	}, []);
-
-	// Sort sections by order field for consistent display
 	const sections = isHydrated ? storeData || EMPTY_SECTIONS : EMPTY_SECTIONS;
 	return useMemo(() => sortSectionsByOrder(sections), [sections]);
 };
 
 export const useTechnicalVersions = (projectId: string) => {
-	const [isHydrated, setIsHydrated] = useState(false);
+	const isHydrated = useIsHydrated();
 	const storeData = useTechnicalDataStore(
 		(state) => state.versions?.[projectId],
 	);
-
-	useEffect(() => {
-		setIsHydrated(true);
-	}, []);
 
 	return isHydrated ? storeData || EMPTY_VERSIONS : EMPTY_VERSIONS;
 };
@@ -1093,79 +1089,30 @@ const EMPTY_ACTIONS = {
 	updateSectionNotes: async () => { },
 };
 
+const actionsSelector = (s: TechnicalDataState) => ({
+	setActiveProject: s.setActiveProject,
+	loadTechnicalData: s.loadTechnicalData,
+	updateField: s.updateField,
+	applyFieldUpdates: s.applyFieldUpdates,
+	applyTemplate: s.applyTemplate,
+	copyFromProject: s.copyFromProject,
+	addCustomSection: s.addCustomSection,
+	removeSection: s.removeSection,
+	addField: s.addField,
+	removeField: s.removeField,
+	duplicateField: s.duplicateField,
+	updateFieldLabel: s.updateFieldLabel,
+	saveSnapshot: s.saveSnapshot,
+	revertToVersion: s.revertToVersion,
+	resetToInitial: s.resetToInitial,
+	clearError: s.clearError,
+	clearSyncError: s.clearSyncError,
+	retrySync: s.retrySync,
+	updateSectionNotes: s.updateSectionNotes,
+});
+
 export const useTechnicalDataActions = () => {
-	const [isHydrated, setIsHydrated] = useState(false);
-
-	useEffect(() => {
-		setIsHydrated(true);
-	}, []);
-
-	// ✅ Acceder directamente al store - las funciones son estables
-	const setActiveProject = useTechnicalDataStore((s) => s.setActiveProject);
-	const loadTechnicalData = useTechnicalDataStore((s) => s.loadTechnicalData);
-	const updateField = useTechnicalDataStore((s) => s.updateField);
-	const applyFieldUpdates = useTechnicalDataStore((s) => s.applyFieldUpdates);
-	const applyTemplate = useTechnicalDataStore((s) => s.applyTemplate);
-	const copyFromProject = useTechnicalDataStore((s) => s.copyFromProject);
-	const addCustomSection = useTechnicalDataStore((s) => s.addCustomSection);
-	const removeSection = useTechnicalDataStore((s) => s.removeSection);
-	const addField = useTechnicalDataStore((s) => s.addField);
-	const removeField = useTechnicalDataStore((s) => s.removeField);
-	const duplicateField = useTechnicalDataStore((s) => s.duplicateField);
-	const updateFieldLabel = useTechnicalDataStore((s) => s.updateFieldLabel);
-	const saveSnapshot = useTechnicalDataStore((s) => s.saveSnapshot);
-	const revertToVersion = useTechnicalDataStore((s) => s.revertToVersion);
-	const resetToInitial = useTechnicalDataStore((s) => s.resetToInitial);
-	const clearError = useTechnicalDataStore((s) => s.clearError);
-	const clearSyncError = useTechnicalDataStore((s) => s.clearSyncError);
-	const retrySync = useTechnicalDataStore((s) => s.retrySync);
-	const updateSectionNotes = useTechnicalDataStore((s) => s.updateSectionNotes);
-
-	// Memoizar el objeto de acciones para mantener referencia estable
-	const actions = useMemo(
-		() => ({
-			setActiveProject,
-			loadTechnicalData,
-			updateField,
-			applyFieldUpdates,
-			applyTemplate,
-			copyFromProject,
-			addCustomSection,
-			removeSection,
-			addField,
-			removeField,
-			duplicateField,
-			updateFieldLabel,
-			saveSnapshot,
-			revertToVersion,
-			resetToInitial,
-			clearError,
-			clearSyncError,
-			retrySync,
-			updateSectionNotes,
-		}),
-		[
-			setActiveProject,
-			loadTechnicalData,
-			updateField,
-			applyFieldUpdates,
-			applyTemplate,
-			copyFromProject,
-			addCustomSection,
-			removeSection,
-			addField,
-			removeField,
-			duplicateField,
-			updateFieldLabel,
-			saveSnapshot,
-			revertToVersion,
-			resetToInitial,
-			clearError,
-			clearSyncError,
-			retrySync,
-			updateSectionNotes,
-		],
-	);
-
+	const isHydrated = useIsHydrated();
+	const actions = useTechnicalDataStore(useShallow(actionsSelector));
 	return isHydrated ? actions : EMPTY_ACTIONS;
 };

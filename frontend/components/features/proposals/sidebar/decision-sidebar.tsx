@@ -1,5 +1,6 @@
 import { CalendarClock, FileText, Recycle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateTime } from "@/lib/format";
 import type { Proposal } from "../types";
 import { AIConfidenceCard } from "./ai-confidence-card";
 import { DecisionRecommendationCard } from "./decision-recommendation-card";
@@ -24,9 +25,7 @@ export function DecisionSidebar({
 	onDownloadPDF,
 	onStatusChange,
 }: DecisionSidebarProps) {
-	// Using 'as any' for deep optional property access without verbose null checking
-	// See WasteUpcyclingReport type in lib/types/proposal.ts for structure documentation
-	const report = proposal.aiMetadata.proposal as any;
+	const report = proposal.aiMetadata.proposal;
 	const businessOpp = report.businessOpportunity;
 	const pathwaysCount = businessOpp?.circularEconomyOptions?.length || 0;
 
@@ -41,10 +40,10 @@ export function DecisionSidebar({
 			{/* Decision Recommendation Card - Always show if businessOpportunity exists */}
 			{businessOpp && (
 				<DecisionRecommendationCard
-					recommendation={businessOpp.overallRecommendation}
-					rationale={businessOpp.decisionSummary}
+					recommendation={(businessOpp.overallRecommendation === "GO" || businessOpp.overallRecommendation === "NO-GO" || businessOpp.overallRecommendation === "INVESTIGATE FURTHER") ? businessOpp.overallRecommendation : "INVESTIGATE FURTHER"}
+					rationale={businessOpp.decisionSummary ?? "Analysis in progress"}
 					keyFinancials={
-						businessOpp.potentialRevenue.annualPotential[0] ||
+						businessOpp.potentialRevenue?.annualPotential?.[0] ||
 						"Revenue analysis pending"
 					}
 					keyEnvironmentalImpact={envSummary}
@@ -91,14 +90,4 @@ export function DecisionSidebar({
 			/>
 		</div>
 	);
-}
-
-/**
- * Format date-time for display
- */
-function formatDateTime(value: string): string {
-	return new Intl.DateTimeFormat("en-US", {
-		dateStyle: "medium",
-		timeStyle: "short",
-	}).format(new Date(value));
 }
