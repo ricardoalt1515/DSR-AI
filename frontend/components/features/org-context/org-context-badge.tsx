@@ -24,9 +24,8 @@ interface OrgContextBadgeProps {
  */
 export function OrgContextBadge({ className }: OrgContextBadgeProps) {
 	const { isSuperAdmin } = useAuth();
-	const { selectedOrgId, organizations, openSelectionModal } = useOrganizationStore();
+	const { selectedOrgId, organizations, openOrgSwitchModal } = useOrganizationStore();
 
-	// Only show for super admins with an org selected
 	if (!isSuperAdmin || !selectedOrgId) {
 		return null;
 	}
@@ -41,7 +40,7 @@ export function OrgContextBadge({ className }: OrgContextBadgeProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => openSelectionModal("switching")}
+						onClick={openOrgSwitchModal}
 						className={cn(
 							"gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground",
 							"border border-dashed border-border/50 hover:border-border",

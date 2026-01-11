@@ -1,7 +1,7 @@
 "use client";
 
-import { Building2 } from "lucide-react";
 import Link from "next/link";
+import { Building2 } from "lucide-react";
 import { DSRLogo } from "@/components/shared/branding/dsr-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,11 +39,15 @@ export function OrgRequiredScreen({
 	errorMessage,
 	onSelect,
 }: OrgRequiredScreenProps) {
-	const handleSelect = (orgId: string | null) => {
-		if (orgId) {
-			onSelect(orgId);
-		}
-	};
+	const title = errorMessage ? "Organization Unavailable" : "Select Organization";
+	const description =
+		errorMessage ??
+		"Choose an organization to continue. All data will be scoped to your selection.";
+
+	function handleSelect(orgId: string | null): void {
+		if (!orgId) return;
+		onSelect(orgId);
+	}
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -63,13 +67,8 @@ export function OrgRequiredScreen({
 						<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
 							<Building2 className="h-6 w-6 text-primary" />
 						</div>
-						<CardTitle>
-							{errorMessage ? "Organization Unavailable" : "Select Organization"}
-						</CardTitle>
-						<CardDescription>
-							{errorMessage ||
-								"Choose an organization to continue. All data will be scoped to your selection."}
-						</CardDescription>
+						<CardTitle>{title}</CardTitle>
+						<CardDescription>{description}</CardDescription>
 					</CardHeader>
 
 					<CardContent>
@@ -79,8 +78,6 @@ export function OrgRequiredScreen({
 								selectedOrgId={null}
 								onSelect={handleSelect}
 								isLoading={isLoading}
-								showAllOrgsOption={false}
-								autoFocus
 							/>
 						</div>
 					</CardContent>

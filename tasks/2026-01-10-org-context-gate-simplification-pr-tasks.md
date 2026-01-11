@@ -32,7 +32,10 @@ Make the org-context implementation simpler and more consistent **without changi
 ## Scope (files recently touched)
 Frontend:
 - `frontend/lib/constants/org-routes.ts`
+- `frontend/lib/constants/storage.ts` (new, if you do task #2)
 - `frontend/lib/stores/organization-store.ts`
+- `frontend/lib/api/client.ts` (task #2: org header storage key)
+- `frontend/lib/contexts/auth-context.tsx` (task #2: org storage key cleanup)
 - `frontend/components/features/org-context/*`
 - `frontend/components/features/admin/org-switcher.tsx` (only cleanup as needed)
 - `frontend/components/shared/layout/navbar.tsx`
@@ -46,22 +49,31 @@ Backend (do not change behavior):
 
 ## PR Tasks
 
-**Status (2026-01-10):** Completed #3 and #7. Remaining: #1, #2, #4, #5, #6, plus Definition of Done / QA.
+**Status (2026-01-10):** Completed #1–#7. Remaining: Definition of Done / QA.
 
 ### 1) Mechanical cleanup (low risk)
-- [ ] Fix formatting in `frontend/components/providers/client-layout.tsx` (indentation + long lines).
-- [ ] Ensure consistent import ordering in org-context files:
+- [x] Fix formatting in `frontend/components/providers/client-layout.tsx` (indentation + long lines).
+- [x] Ensure consistent import ordering in org-context files:
   - Next/React → third-party → internal `@/...` → relative `./...`
-- [ ] Remove comments that restate obvious code.
+- [x] Remove comments that restate obvious code.
 
 ### 2) Organization store: DRY + no magic strings
-File: `frontend/lib/stores/organization-store.ts`
-- [ ] Introduce `SELECTED_ORG_STORAGE_KEY` constant (avoid repeating `"selected_org_id"`).
-- [ ] Extract `resetScopedStores()` helper used by both `selectOrganization` and `clearSelection`.
-- [ ] Simplify modal state:
+Files:
+- `frontend/lib/constants/storage.ts` (new)
+- `frontend/lib/stores/organization-store.ts`
+- `frontend/lib/api/client.ts`
+- `frontend/lib/contexts/auth-context.tsx`
+
+- [x] Add `SELECTED_ORG_STORAGE_KEY = "selected_org_id"` in `frontend/lib/constants/storage.ts` and export it (single source of truth).
+- [x] Replace hardcoded `"selected_org_id"` usages with `SELECTED_ORG_STORAGE_KEY` in the files above.
+- [x] Extract `resetScopedStores()` helper used by both `selectOrganization` and `clearSelection`.
+- [x] Simplify modal state:
   - If the only supported reason is switching, replace `modalReason` with a boolean and rename APIs to something explicit:
     - `isOrgSwitchModalOpen`, `openOrgSwitchModal()`, `closeOrgSwitchModal()`
   - If you keep a reason, make it a real discriminated union (no `null`-everywhere) and keep naming explicit.
+- [x] (Optional) Avoid `useOrganizationStore.setState(...)` in UI:
+  - Add a store action like `upsertOrganization(org: Organization)` (dedupe by `id`).
+  - Update `frontend/components/features/admin/org-switcher.tsx` to call the action instead of mutating store state directly.
 
 ### 3) `OrgContextGuard`: reduce state + effects
 File: `frontend/components/features/org-context/org-context-guard.tsx`
@@ -71,32 +83,32 @@ File: `frontend/components/features/org-context/org-context-guard.tsx`
 - [x] Collapse the multi-effect flow into one effect that:
   - loads organizations when the guard applies (super admin + authenticated + non-exempt route)
   - after load, validates `selectedOrgId` against `organizations` and clears invalid selection
-- [ ] Remove conditional prop spreads; pass `errorMessage={requiredErrorMessage ?? undefined}` explicitly.
+- [x] Remove conditional prop spreads; pass `errorMessage={requiredErrorMessage ?? undefined}` explicitly.
 - [x] Make selection handling explicit:
   - clear any `requiredErrorMessage` on successful selection
   - keep existing toast copy
 
 ### 4) `OrgSelectorContent`: remove redundant empty handling
 File: `frontend/components/features/org-context/org-selector-content.tsx`
-- [ ] Remove duplicate empty rendering.
+- [x] Remove duplicate empty rendering.
   - Use `CommandEmpty` as the single empty-state source.
   - Do not separately render an empty message inside a `CommandGroup` when `organizations.length === 0`.
-- [ ] Replace skeleton magic numbers with a constant (e.g. `const SKELETON_ROWS = 3`).
-- [ ] Improve readability by computing `title/description` variables instead of ternaries in JSX.
+- [x] Replace skeleton magic numbers with a constant (e.g. `const SKELETON_ROWS = 3`).
+- [x] Improve readability by computing `title/description` variables instead of ternaries in JSX.
 
 ### 5) `OrgRequiredScreen`: clarity pass
 File: `frontend/components/features/org-context/org-required-screen.tsx`
-- [ ] Extract `title` and `description` variables (avoid inline ternaries).
-- [ ] Make `handleSelect()` a named function with explicit return type.
-- [ ] Avoid passing props that equal the default unless it helps comprehension.
+- [x] Extract `title` and `description` variables (avoid inline ternaries).
+- [x] Make `handleSelect()` a named function with explicit return type.
+- [x] Avoid passing props that equal the default unless it helps comprehension.
 
 ### 6) Switching modal + badge: align names + keep behavior
 Files:
 - `frontend/components/features/org-context/org-selection-modal.tsx`
 - `frontend/components/features/org-context/org-context-badge.tsx`
-- [ ] If store APIs were renamed in task #2, update call sites.
-- [ ] Keep modal dismiss behavior exactly the same.
-- [ ] Keep toast copy exactly the same.
+- [x] If store APIs were renamed in task #2, update call sites.
+- [x] Keep modal dismiss behavior exactly the same.
+- [x] Keep toast copy exactly the same.
 
 ### 7) NavBar: avoid 400 spam on exempt routes (no hooks rule violations)
 Problem: `NavBar` always calls `useEnsureProjectsLoaded()`, even when super admin has no org selected.
@@ -113,7 +125,7 @@ This should not change visible UI - it only prevents failing API calls when org 
 ---
 
 ## Definition of Done
-- [ ] `cd frontend && npm run check:ci` passes.
+- [x] `cd frontend && npm run check:ci` passes.
 - [ ] No behavior regressions:
   - Super admin on protected routes without org sees blocking `OrgRequiredScreen`.
   - Selecting org loads normal app and shows org badge.

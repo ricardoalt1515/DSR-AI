@@ -219,6 +219,7 @@ const ProjectCard = memo(function ProjectCard({
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
+								disabled={isDeleting}
 								className="text-destructive focus:text-destructive"
 								onSelect={(e) => {
 									e.preventDefault();

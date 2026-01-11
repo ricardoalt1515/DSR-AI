@@ -50,6 +50,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 		selectedOrgId,
 		selectOrganization,
 		clearSelection,
+		upsertOrganization,
 	} = useOrganizationStore();
 
 	const selectedOrg = organizations.find((org) => org.id === selectedOrgId);
@@ -72,9 +73,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 			setLoadState("retrying");
 			try {
 				const org = await organizationsAPI.get(storedOrgId);
-				useOrganizationStore.setState({
-					organizations: [...orgs, org],
-				});
+				upsertOrganization(org);
 				setLoadState("loaded");
 			} catch {
 				setLoadState("error");
@@ -82,7 +81,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 		} else {
 			setLoadState("loaded");
 		}
-	}, [loadOrganizations, selectedOrgId]);
+	}, [loadOrganizations, selectedOrgId, upsertOrganization]);
 
 	useEffect(() => {
 		fetchOrganizations();

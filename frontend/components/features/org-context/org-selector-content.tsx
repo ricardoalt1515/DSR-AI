@@ -25,13 +25,17 @@ interface OrgSelectorContentProps {
 	autoFocus?: boolean;
 }
 
+const SKELETON_ROWS = 3;
+
 function OrgSelectorSkeleton() {
+	const rows = Array.from({ length: SKELETON_ROWS }, (_, index) => index);
+
 	return (
 		<div className="p-2 space-y-2">
 			<Skeleton className="h-9 w-full rounded-md" />
 			<div className="space-y-1 pt-2">
-				{[1, 2, 3].map((i) => (
-					<div key={i} className="flex items-center gap-3 p-2">
+				{rows.map((rowIndex) => (
+					<div key={rowIndex} className="flex items-center gap-3 p-2">
 						<Skeleton className="h-8 w-8 rounded-lg" />
 						<div className="flex-1 space-y-1">
 							<Skeleton className="h-4 w-24" />
@@ -45,17 +49,18 @@ function OrgSelectorSkeleton() {
 }
 
 function OrgSelectorEmpty({ hasOrganizations }: { hasOrganizations: boolean }) {
+	const title = hasOrganizations
+		? "No organizations found"
+		: "No organizations yet";
+	const description = hasOrganizations
+		? "Try a different search term"
+		: "Create your first organization to get started";
+
 	return (
 		<div className="py-6 text-center">
 			<Building2 className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
-			<p className="text-sm font-medium">
-				{hasOrganizations ? "No organizations found" : "No organizations yet"}
-			</p>
-			<p className="text-xs text-muted-foreground mt-1">
-				{hasOrganizations
-					? "Try a different search term"
-					: "Create your first organization to get started"}
-			</p>
+			<p className="text-sm font-medium">{title}</p>
+			<p className="text-xs text-muted-foreground mt-1">{description}</p>
 		</div>
 	);
 }
@@ -120,43 +125,37 @@ export function OrgSelectorContent({
 					</>
 				)}
 
-				{organizations.length > 0 ? (
-					<CommandGroup heading="Organizations">
-						{organizations.map((org) => (
-							<CommandItem
-								key={org.id}
-								value={`${org.name} ${org.slug}`}
-								onSelect={() => onSelect(org.id)}
-								className="flex items-center gap-3"
-							>
-								<OrgAvatar name={org.name} slug={org.slug} size="sm" />
-								<div className="flex-1 min-w-0">
-									<div className="flex items-center gap-2">
-										<span className="truncate font-medium">{org.name}</span>
-										{!org.isActive && (
-											<Badge
-												variant="secondary"
-												className="text-[10px] px-1.5 py-0"
-											>
-												Inactive
-											</Badge>
-										)}
-									</div>
-									<div className="text-xs text-muted-foreground truncate font-mono">
-										{org.slug}
-									</div>
+				<CommandGroup heading="Organizations">
+					{organizations.map((org) => (
+						<CommandItem
+							key={org.id}
+							value={`${org.name} ${org.slug}`}
+							onSelect={() => onSelect(org.id)}
+							className="flex items-center gap-3"
+						>
+							<OrgAvatar name={org.name} slug={org.slug} size="sm" />
+							<div className="flex-1 min-w-0">
+								<div className="flex items-center gap-2">
+									<span className="truncate font-medium">{org.name}</span>
+									{!org.isActive && (
+										<Badge
+											variant="secondary"
+											className="text-[10px] px-1.5 py-0"
+										>
+											Inactive
+										</Badge>
+									)}
 								</div>
-								{selectedOrgId === org.id && (
-									<Check className="ml-auto h-4 w-4 shrink-0 text-primary" />
-								)}
-							</CommandItem>
-						))}
-					</CommandGroup>
-				) : (
-					<CommandGroup heading="Organizations">
-						<OrgSelectorEmpty hasOrganizations={false} />
-					</CommandGroup>
-				)}
+								<div className="text-xs text-muted-foreground truncate font-mono">
+									{org.slug}
+								</div>
+							</div>
+							{selectedOrgId === org.id && (
+								<Check className="ml-auto h-4 w-4 shrink-0 text-primary" />
+							)}
+						</CommandItem>
+					))}
+				</CommandGroup>
 
 				{onCreateNew && (
 					<>

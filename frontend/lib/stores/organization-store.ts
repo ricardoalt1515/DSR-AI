@@ -1,40 +1,42 @@
 import { create } from "zustand";
 import { organizationsAPI, type Organization } from "@/lib/api";
+import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { logger } from "@/lib/utils/logger";
 import { useCompanyStore } from "./company-store";
 import { useLocationStore } from "./location-store";
 import { useProjectStore } from "./project-store";
 
-type OrgModalReason = "switching" | null;
+function resetScopedStores(): void {
+	useCompanyStore.getState().resetStore();
+	useLocationStore.getState().resetStore();
+	useProjectStore.getState().resetStore();
+}
 
 interface OrganizationState {
 	currentOrganization: Organization | null;
 	organizations: Organization[];
 	selectedOrgId: string | null;
-	// Modal state for org switching
-	modalOpen: boolean;
-	modalReason: OrgModalReason;
+	isOrgSwitchModalOpen: boolean;
 	loadCurrentOrganization: () => Promise<void>;
 	loadOrganizations: () => Promise<void>;
 	selectOrganization: (orgId: string) => void;
 	clearSelection: () => void;
 	resetStore: () => void;
-	// Modal actions
-	openSelectionModal: (reason?: OrgModalReason) => void;
-	closeSelectionModal: () => void;
+	upsertOrganization: (org: Organization) => void;
+	openOrgSwitchModal: () => void;
+	closeOrgSwitchModal: () => void;
 }
 
-const getStoredOrgId = () => {
+function getStoredOrgId(): string | null {
 	if (typeof window === "undefined") return null;
-	return localStorage.getItem("selected_org_id");
-};
+	return localStorage.getItem(SELECTED_ORG_STORAGE_KEY);
+}
 
 export const useOrganizationStore = create<OrganizationState>((set) => ({
 	currentOrganization: null,
 	organizations: [],
 	selectedOrgId: getStoredOrgId(),
-	modalOpen: false,
-	modalReason: null,
+	isOrgSwitchModalOpen: false,
 
 	loadCurrentOrganization: async () => {
 		try {
@@ -57,24 +59,20 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 	},
 
 	selectOrganization: (orgId: string) => {
-		useCompanyStore.getState().resetStore();
-		useLocationStore.getState().resetStore();
-		useProjectStore.getState().resetStore();
+		resetScopedStores();
 
 		set({ selectedOrgId: orgId, currentOrganization: null });
 		if (typeof window !== "undefined") {
-			localStorage.setItem("selected_org_id", orgId);
+			localStorage.setItem(SELECTED_ORG_STORAGE_KEY, orgId);
 		}
 	},
 
 	clearSelection: () => {
-		useCompanyStore.getState().resetStore();
-		useLocationStore.getState().resetStore();
-		useProjectStore.getState().resetStore();
+		resetScopedStores();
 
 		set({ selectedOrgId: null, currentOrganization: null });
 		if (typeof window !== "undefined") {
-			localStorage.removeItem("selected_org_id");
+			localStorage.removeItem(SELECTED_ORG_STORAGE_KEY);
 		}
 	},
 
@@ -83,19 +81,29 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 			currentOrganization: null,
 			organizations: [],
 			selectedOrgId: null,
-			modalOpen: false,
-			modalReason: null,
+			isOrgSwitchModalOpen: false,
 		});
 		if (typeof window !== "undefined") {
-			localStorage.removeItem("selected_org_id");
+			localStorage.removeItem(SELECTED_ORG_STORAGE_KEY);
 		}
 	},
 
-	openSelectionModal: (reason = null) => {
-		set({ modalOpen: true, modalReason: reason });
+	upsertOrganization: (org: Organization) => {
+		set((state) => {
+			const existing = state.organizations.some((item) => item.id === org.id);
+			return {
+				organizations: existing
+					? state.organizations.map((item) => (item.id === org.id ? org : item))
+					: [...state.organizations, org],
+			};
+		});
 	},
 
-	closeSelectionModal: () => {
-		set({ modalOpen: false, modalReason: null });
+	openOrgSwitchModal: () => {
+		set({ isOrgSwitchModalOpen: true });
+	},
+
+	closeOrgSwitchModal: () => {
+		set({ isOrgSwitchModalOpen: false });
 	},
 }));

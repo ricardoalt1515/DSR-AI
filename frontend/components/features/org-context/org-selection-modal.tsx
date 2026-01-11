@@ -23,9 +23,9 @@ export function OrgSelectionModal() {
 	const {
 		organizations,
 		selectedOrgId,
-		modalOpen,
+		isOrgSwitchModalOpen,
 		selectOrganization,
-		closeSelectionModal,
+		closeOrgSwitchModal,
 	} = useOrganizationStore();
 
 	const handleSelect = (orgId: string | null) => {
@@ -35,12 +35,15 @@ export function OrgSelectionModal() {
 			if (org) {
 				toast.success(`Viewing data for ${org.name}`);
 			}
-			closeSelectionModal();
+			closeOrgSwitchModal();
 		}
 	};
 
 	return (
-		<Dialog open={modalOpen} onOpenChange={(open) => !open && closeSelectionModal()}>
+		<Dialog
+			open={isOrgSwitchModalOpen}
+			onOpenChange={(open) => !open && closeOrgSwitchModal()}
+		>
 			<DialogContent className="max-w-md p-0">
 				<DialogHeader className="px-6 pt-6 pb-2">
 					<DialogTitle>Switch Organization</DialogTitle>

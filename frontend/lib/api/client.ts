@@ -1,6 +1,7 @@
 // Base API client configuration for FastAPI backend integration
 
 import { API_TIMEOUT, RETRY } from "@/lib/constants/timings";
+import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { logger } from "@/lib/utils/logger";
 
 // Read API_DISABLED from environment variable
@@ -110,7 +111,7 @@ class APIClient {
 					...headers,
 				};
 				if (typeof window !== "undefined") {
-					const selectedOrgId = localStorage.getItem("selected_org_id");
+					const selectedOrgId = localStorage.getItem(SELECTED_ORG_STORAGE_KEY);
 					if (selectedOrgId) {
 						mergedHeaders["X-Organization-Id"] = selectedOrgId;
 					}
@@ -323,7 +324,7 @@ class APIClient {
 					...headers,
 				};
 				if (typeof window !== "undefined") {
-					const selectedOrgId = localStorage.getItem("selected_org_id");
+					const selectedOrgId = localStorage.getItem(SELECTED_ORG_STORAGE_KEY);
 					if (selectedOrgId) {
 						mergedHeaders["X-Organization-Id"] = selectedOrgId;
 					}

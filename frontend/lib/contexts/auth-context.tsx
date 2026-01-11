@@ -5,6 +5,7 @@ import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiClient, authAPI, type User } from "@/lib/api";
+import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProjectStore } from "@/lib/stores/project-store";
 import { logger } from "@/lib/utils/logger";
@@ -45,7 +46,7 @@ function clearUserData(): void {
 	localStorage.removeItem("active-proposal-generation");
 	localStorage.removeItem("waste-company-store");
 	localStorage.removeItem("waste-location-store");
-	localStorage.removeItem("selected_org_id");
+	localStorage.removeItem(SELECTED_ORG_STORAGE_KEY);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -169,8 +170,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			const currentUser = await authAPI.getCurrentUser();
 			setUser(currentUser);
-		} catch (error: any) {
-			const status = error?.status;
+		} catch (error: unknown) {
+			const status =
+				error && typeof error === "object" && "status" in error
+					? (error as { status?: unknown }).status
+					: undefined;
 			if (status === 401 || status === 403) {
 				setUser(null);
 			}
