@@ -182,7 +182,7 @@ async def get_job_status(
     
     **When completed:**
     - `result.proposal_id`: UUID of the generated proposal
-    - `result.preview`: Quick preview with summary, costs, technologies
+    - `result.preview`: Quick preview with summary and report type
     
     **Example usage:**
     ```javascript

@@ -39,9 +39,7 @@ export interface ProposalJobStatus {
 		proposalId: string;
 		preview: {
 			executiveSummary: string;
-			capex: number;
-			opex: number;
-			keyTechnologies: string[];
+			reportType: string;
 		};
 	};
 	error?: string;
@@ -271,17 +269,26 @@ export async function pollProposalStatus(
 		onError,
 	} = options;
 
+	const buildAbortError = () => {
+		const error = new Error("Polling cancelled");
+		error.name = "AbortError";
+		return error;
+	};
+
+	const isAbortError = (error: unknown): error is Error =>
+		error instanceof Error && error.name === "AbortError";
+
 	logger.info("Starting proposal generation polling", { jobId });
 
 	const startTime = Date.now();
 	let currentInterval = intervalMs;
+	let hasNotifiedError = false;
 
 	while (true) {
 		try {
-			// ✅ Check if cancelled via AbortSignal
+			// Check if cancelled via AbortSignal
 			if (signal?.aborted) {
-				logger.info("Polling cancelled by user", { jobId });
-				throw new Error("Polling cancelled by user");
+				throw buildAbortError();
 			}
 
 			// Check if we've exceeded max duration
@@ -289,6 +296,7 @@ export async function pollProposalStatus(
 				const elapsedMinutes = Math.round((Date.now() - startTime) / 60000);
 				const timeoutError = `Proposal generation timed out after ${elapsedMinutes} minutes`;
 				logger.error("Polling timeout", { jobId, elapsedMinutes });
+				hasNotifiedError = true;
 				onError?.(timeoutError);
 				throw new Error(timeoutError);
 			}
@@ -296,6 +304,9 @@ export async function pollProposalStatus(
 			// Poll for status
 			logger.debug("Polling proposal status", { jobId });
 			const status = await ProposalsAPI.getJobStatus(jobId);
+			if (signal?.aborted) {
+				throw buildAbortError();
+			}
 			logger.debug("Proposal status received", {
 				jobId,
 				status: status.status,
@@ -313,19 +324,51 @@ export async function pollProposalStatus(
 
 			if (status.status === "failed") {
 				const errorMsg = status.error || "Proposal generation failed";
+				hasNotifiedError = true;
 				onError?.(errorMsg);
 				throw new Error(errorMsg);
 			}
 
 			// Wait before next poll (with exponential backoff)
-			await new Promise((resolve) => setTimeout(resolve, currentInterval));
+			await new Promise<void>((resolve, reject) => {
+				let timeoutId: ReturnType<typeof setTimeout>;
+				const handleAbort = () => {
+					clearTimeout(timeoutId);
+					if (signal) {
+						signal.removeEventListener("abort", handleAbort);
+					}
+					reject(buildAbortError());
+				};
+
+				timeoutId = setTimeout(() => {
+					if (signal) {
+						signal.removeEventListener("abort", handleAbort);
+					}
+					resolve();
+				}, currentInterval);
+
+				if (signal) {
+					if (signal.aborted) {
+						handleAbort();
+						return;
+					}
+					signal.addEventListener("abort", handleAbort);
+				}
+			});
 
 			// Increase interval (max 10s)
 			currentInterval = Math.min(currentInterval * 1.2, 10000);
 		} catch (error) {
+			if (isAbortError(error)) {
+				logger.info("Polling cancelled by user", { jobId });
+				throw error;
+			}
+
 			// Network error or other exception
 			const errorMsg = error instanceof Error ? error.message : "Unknown error";
-			onError?.(errorMsg);
+			if (!hasNotifiedError) {
+				onError?.(errorMsg);
+			}
 			throw error;
 		}
 	}

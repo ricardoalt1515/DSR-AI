@@ -49,6 +49,7 @@ import {
 	useTechnicalDataActions,
 	useTechnicalSections,
 } from "@/lib/stores";
+import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
 import {
 	overallCompletion,
@@ -63,6 +64,18 @@ import {
 import type { ProjectSummary } from "@/lib/project-types";
 
 type Project = Pick<ProjectSummary, "id" | "name" | "type">;
+
+const ProposalStatusLabels: Record<ProposalStatus, string> = {
+	Draft: "Draft",
+	Current: "Current",
+	Archived: "Archived",
+};
+
+const ProposalTypeLabels: Record<ProposalType, string> = {
+	Conceptual: "Conceptual",
+	Technical: "Technical",
+	Detailed: "Detailed",
+};
 
 interface ProposalsTabProps {
 	project: Project;
@@ -139,21 +152,11 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 		);
 	}, [projectDetail?.proposals, project.id]);
 
-	const ProposalStatusLabels: Record<ProposalStatus, string> = {
-		Draft: "Draft",
-		Current: "Current",
-		Archived: "Archived",
-	};
-
-	const ProposalTypeLabels: Record<ProposalType, string> = {
-		Conceptual: "Conceptual",
-		Technical: "Technical",
-		Detailed: "Detailed",
-	};
-
-	// Keep component mounted during generation to preserve polling state
-	const [isGenerating, setIsGenerating] = useState(false);
-	const shouldShowGenerator = isReady || isGenerating;
+	const { isGenerating, projectId: generatingProjectId } =
+		useProposalGenerationStore();
+	const isGeneratingForProject =
+		isGenerating && generatingProjectId === project.id;
+	const shouldShowGenerator = isReady || isGeneratingForProject;
 
 	// Ref to trigger generation from "Generate First Proposal" button
 	const generatorRef = useRef<ProposalGeneratorHandle | null>(null);
@@ -205,11 +208,6 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 				<IntelligentProposalGeneratorComponent
 					projectId={project.id}
 					triggerRef={generatorRef}
-					onProposalGenerated={() => {
-						setIsGenerating(false);
-					}}
-					onGenerationStart={() => setIsGenerating(true)}
-					onGenerationEnd={() => setIsGenerating(false)}
 				/>
 			) : (
 				<Card className="alert-warning-card">

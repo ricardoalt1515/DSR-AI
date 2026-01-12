@@ -39,7 +39,11 @@ function calculateTimeEstimate(
 	if (progress < MIN_PROGRESS_FOR_TIME_ESTIMATE) return null;
 
 	const elapsedMs = Date.now() - startTime;
+	if (elapsedMs <= 0) return null;
+
 	const progressRate = progress / elapsedMs;
+	if (progressRate <= 0) return null;
+
 	const remainingProgress = 100 - progress;
 	const estimatedRemainingMs = remainingProgress / progressRate;
 	const estimatedMinutes = Math.ceil(estimatedRemainingMs / MS_TO_MINUTES);
@@ -148,7 +152,7 @@ function ProgressToastContent({
 					{isToastExpanded && reasoning.length > 0 && (
 						<div className="mt-4 pt-3 border-t border-border">
 							<p className="text-xs font-medium text-muted-foreground mb-2">
-								🔍 AI Agent Process:
+								AI Agent Process:
 							</p>
 							<ScrollArea className="h-32">
 								<div className="space-y-1 pr-3">

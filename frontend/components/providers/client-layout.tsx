@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { OrgContextGuard } from "@/components/features/org-context";
+import { ProposalGenerationManager } from "@/components/providers/proposal-generation-manager";
 import { CommandPalette } from "@/components/shared/command-palette";
 import { NavBar } from "@/components/shared/layout/navbar";
 import { AuthProvider } from "@/lib/contexts";
@@ -12,6 +13,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 		<AuthProvider>
 			<OrgContextGuard>
 				<Suspense fallback={null}>
+					<ProposalGenerationManager />
 					<div className="aqua-page min-h-screen">
 						<NavBar />
 						<main

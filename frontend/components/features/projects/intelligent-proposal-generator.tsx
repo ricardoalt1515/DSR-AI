@@ -3,10 +3,10 @@
  * Real AI-powered proposal generation with live progress tracking
  *
  * Architecture:
- * - Uses useProposalGeneration hook for API communication
- * - Real-time progress updates from backend AI agent
- * - Automatic polling with exponential backoff
- * - Error handling with retry capability
+ * - Starts proposal generation jobs via API
+ * - Global polling handled by proposal generation manager
+ * - Progress and status come from global store
+ * - Error handling for start failures only
  */
 
 "use client";
@@ -20,24 +20,28 @@ import {
 	Sparkles,
 	Zap,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import {
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useProposalGeneration } from "@/lib/hooks/use-proposal-generation";
+import { ProposalsAPI } from "@/lib/api/proposals";
 import type { ProjectDetail } from "@/lib/project-types";
-import { useCurrentProject, useLoadProjectAction } from "@/lib/stores";
+import { useCurrentProject } from "@/lib/stores";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { useTechnicalSummaryData } from "@/lib/stores/technical-data-store";
 import { PROPOSAL_READINESS_THRESHOLD } from "@/lib/technical-sheet-data";
 import { logger } from "@/lib/utils/logger";
-import {
-	showProposalErrorToast,
-	showProposalSuccessToast,
-} from "@/lib/utils/proposal-progress-toast";
+import { saveGenerationState } from "@/lib/utils/proposal-generation-persistence";
+import { showProposalErrorToast } from "@/lib/utils/proposal-progress-toast";
 
 /** Handle exposed to parent components via ref */
 export interface ProposalGeneratorHandle {
@@ -46,7 +50,6 @@ export interface ProposalGeneratorHandle {
 
 interface IntelligentProposalGeneratorProps {
 	projectId: string;
-	onProposalGenerated?: (proposalId: string) => void;
 	onGenerationStart?: () => void;
 	onGenerationEnd?: () => void;
 	/** Ref to expose generation trigger to parent */
@@ -55,22 +58,27 @@ interface IntelligentProposalGeneratorProps {
 
 export function IntelligentProposalGeneratorComponent({
 	projectId,
-	onProposalGenerated,
 	onGenerationStart,
 	onGenerationEnd,
 	triggerRef,
 }: IntelligentProposalGeneratorProps) {
-	const router = useRouter();
 	const storeProject = useCurrentProject();
-	const loadProject = useLoadProjectAction();
 	const { completion: completeness } = useTechnicalSummaryData(projectId);
 
-	// Global generation state for navbar badge
-	const { startGeneration, updateProgress, endGeneration } =
-		useProposalGenerationStore();
+	const {
+		startGeneration,
+		cancelGeneration,
+		isGenerating,
+		progress,
+		currentStep,
+		projectId: activeProjectId,
+		startedAt,
+	} = useProposalGenerationStore();
 
-	// Track start time for time estimation
-	const startTimeRef = useRef<number>(Date.now());
+	const [isStarting, setIsStarting] = useState(false);
+	const wasGeneratingRef = useRef(false);
+	const isGeneratingForProject = isGenerating && activeProjectId === projectId;
+	const generationStartTime = startedAt ?? Date.now();
 
 	// Hardcode to Conceptual for waste reports
 	const proposalType = "Conceptual" as const;
@@ -85,58 +93,26 @@ export function IntelligentProposalGeneratorComponent({
 	// Check if can generate
 	const canGenerate = completeness.percentage >= PROPOSAL_READINESS_THRESHOLD;
 
-	// Use proposal generation hook
-	const { generate, cancel, progress, isGenerating, currentStep } =
-		useProposalGeneration({
-			projectId,
-			onReloadProject: () => loadProject(projectId),
-			onComplete: async (proposalId) => {
-				// Update global state
-				endGeneration();
+	useEffect(() => {
+		if (isGeneratingForProject) {
+			wasGeneratingRef.current = true;
+			return;
+		}
 
-				// Show success toast with action
-				showProposalSuccessToast(proposalId, () => {
-					router.push(`/project/${projectId}/proposals/${proposalId}`);
-				});
-
-				onProposalGenerated?.(proposalId);
-				onGenerationEnd?.();
-
-				// Smart Redirect: If user is still on this page, go there automatically
-				router.push(`/project/${projectId}/proposals/${proposalId}`);
-			},
-			onError: (errorMsg) => {
-				// Update global state
-				endGeneration();
-
-				// Show error toast with retry option
-				showProposalErrorToast(errorMsg, () => {
-					generate({ proposalType });
-				});
-
-				onGenerationEnd?.();
-			},
-			onProgress: (progressValue, step) => {
-				// Calculate time estimate for badge
-				const elapsedMs = Date.now() - startTimeRef.current;
-				const progressRate = progressValue / elapsedMs;
-				const remainingProgress = 100 - progressValue;
-				const estimatedRemainingMs = remainingProgress / progressRate;
-				const estimatedMinutes = Math.ceil(estimatedRemainingMs / 60000);
-				const timeEstimate =
-					progressValue >= 10 && estimatedMinutes > 0
-						? `~${estimatedMinutes} min`
-						: null;
-
-				// Update global state for navbar badge (only shown when user navigates away)
-				updateProgress(progressValue, step, timeEstimate);
-			},
-		});
+		if (wasGeneratingRef.current) {
+			wasGeneratingRef.current = false;
+			onGenerationEnd?.();
+		}
+	}, [isGeneratingForProject, onGenerationEnd]);
 
 	/**
 	 * Handle start generation button click
 	 */
 	const handleStartGeneration = useCallback(async () => {
+		if (isStarting || isGenerating) {
+			return;
+		}
+
 		logger.debug("Proposal generation initiated", {
 			projectId: project?.id,
 			projectName: project?.name,
@@ -156,11 +132,7 @@ export function IntelligentProposalGeneratorComponent({
 			return;
 		}
 
-		// Update global state
-		startGeneration(projectId);
-		startTimeRef.current = Date.now();
-
-		onGenerationStart?.();
+		setIsStarting(true);
 
 		try {
 			logger.info("Starting proposal generation", {
@@ -169,8 +141,8 @@ export function IntelligentProposalGeneratorComponent({
 				completeness: completeness.percentage,
 			});
 
-			// Start generation
-			await generate({
+			const initialStatus = await ProposalsAPI.generateProposal({
+				projectId,
 				proposalType,
 				preferences: {
 					focusAreas: ["cost-optimization", "sustainability"],
@@ -180,41 +152,41 @@ export function IntelligentProposalGeneratorComponent({
 				},
 			});
 
-			logger.info("Proposal generation completed successfully", { projectId });
+			const startedAt = Date.now();
+			startGeneration(projectId, initialStatus.jobId, startedAt);
+			saveGenerationState({
+				projectId,
+				jobId: initialStatus.jobId,
+				startTime: startedAt,
+				lastProgress: 0,
+				proposalType,
+			});
+			onGenerationStart?.();
 		} catch (error) {
 			logger.error(
 				"Error in proposal generation flow",
 				error,
 				"ProposalGenerator",
 			);
-			endGeneration();
 			showProposalErrorToast(
 				error instanceof Error ? error.message : "Unknown error",
 			);
 			onGenerationEnd?.();
+		} finally {
+			setIsStarting(false);
 		}
 	}, [
-		projectId,
-		project,
 		canGenerate,
 		completeness.percentage,
-		startGeneration,
-		onGenerationStart,
-		proposalType,
-		generate,
-		endGeneration,
+		isGenerating,
+		isStarting,
 		onGenerationEnd,
+		onGenerationStart,
+		project,
+		projectId,
+		proposalType,
+		startGeneration,
 	]);
-
-	/**
-	 * Handle cancel generation
-	 */
-	const handleCancel = () => {
-		cancel();
-		endGeneration();
-		showProposalErrorToast("Generation cancelled by user");
-		onGenerationEnd?.();
-	};
 
 	// Expose trigger function to parent component via ref
 	useImperativeHandle(
@@ -226,13 +198,13 @@ export function IntelligentProposalGeneratorComponent({
 	);
 
 	// Render the Live Dashboard if generating
-	if (isGenerating) {
+	if (isGeneratingForProject) {
 		return (
 			<GenerationDashboard
 				progress={progress}
 				currentStep={currentStep}
-				onCancel={handleCancel}
-				startTime={startTimeRef.current}
+				onCancel={cancelGeneration}
+				startTime={generationStartTime}
 			/>
 		);
 	}
@@ -286,7 +258,7 @@ export function IntelligentProposalGeneratorComponent({
 				{/* Generate Button */}
 				<Button
 					onClick={handleStartGeneration}
-					disabled={isGenerating || !canGenerate}
+					disabled={isGenerating || isStarting || !canGenerate}
 					size="lg"
 					className={
 						canGenerate
@@ -430,48 +402,46 @@ function GenerationDashboard({
 
 						{/* Fixed Step Checklist */}
 						<div className="flex-1 space-y-3 mb-4">
-							{GENERATION_STEPS.map((step, index) => {
-								const state = getStepState(step.threshold, index);
-								return (
-									<motion.div
-										key={step.id}
-										initial={{ opacity: 0, x: -10 }}
-										animate={{ opacity: 1, x: 0 }}
-										transition={{ delay: index * 0.1 }}
-										className="flex items-center gap-3"
-									>
-										{/* Step Indicator */}
-										<div className="flex-shrink-0">
-											{state === "complete" ? (
-												<div className="h-6 w-6 rounded-full bg-success/20 flex items-center justify-center">
-													<CheckCircle2 className="h-4 w-4 text-success" />
-												</div>
-											) : state === "active" ? (
-												<div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
-													<Loader2 className="h-4 w-4 text-primary animate-spin" />
-												</div>
-											) : (
-												<div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center">
-													<div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-												</div>
-											)}
-										</div>
+						{GENERATION_STEPS.map((step, index) => {
+							const state = getStepState(step.threshold, index);
+							let stepClassName = "text-sm text-muted-foreground/50";
 
-										{/* Step Label */}
-										<span
-											className={
-												state === "complete"
-													? "text-sm text-muted-foreground"
-													: state === "active"
-														? "text-sm font-medium text-foreground"
-														: "text-sm text-muted-foreground/50"
-											}
-										>
-											{step.label}
-										</span>
-									</motion.div>
-								);
-							})}
+							if (state === "complete") {
+								stepClassName = "text-sm text-muted-foreground";
+							} else if (state === "active") {
+								stepClassName = "text-sm font-medium text-foreground";
+							}
+
+							return (
+								<motion.div
+									key={step.id}
+									initial={{ opacity: 0, x: -10 }}
+									animate={{ opacity: 1, x: 0 }}
+									transition={{ delay: index * 0.1 }}
+									className="flex items-center gap-3"
+								>
+									{/* Step Indicator */}
+									<div className="flex-shrink-0">
+										{state === "complete" ? (
+											<div className="h-6 w-6 rounded-full bg-success/20 flex items-center justify-center">
+												<CheckCircle2 className="h-4 w-4 text-success" />
+											</div>
+										) : state === "active" ? (
+											<div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+												<Loader2 className="h-4 w-4 text-primary animate-spin" />
+											</div>
+										) : (
+											<div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center">
+												<div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+											</div>
+										)}
+									</div>
+
+									{/* Step Label */}
+									<span className={stepClassName}>{step.label}</span>
+								</motion.div>
+							);
+						})}
 						</div>
 
 						{/* Progress Bar & Actions */}
