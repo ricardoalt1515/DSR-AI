@@ -49,7 +49,6 @@ interface ProjectCardProps {
 	companyName?: string;
 	locationName?: string;
 	status: ProjectStatus;
-	progress: number;
 	updatedAt: string;
 	createdAt: string;
 	proposalsCount?: number;
@@ -86,7 +85,6 @@ const ProjectCard = memo(function ProjectCard({
 	companyName,
 	locationName,
 	status,
-	progress: _progress, // Not used - using dynamic completion instead
 	updatedAt,
 	createdAt,
 	proposalsCount = 0,

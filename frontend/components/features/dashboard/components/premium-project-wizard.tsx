@@ -6,13 +6,10 @@ import {
 	Building2,
 	Check,
 	ChevronRight,
-	Factory,
 	FileText,
-	Home,
 	MapPin,
 	Recycle,
 	Sparkles,
-	Store,
 	Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -32,12 +29,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LocationCombobox } from "@/components/ui/location-combobox";
 import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import type { ProjectSector } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
-import { sectorsConfig } from "@/lib/sectors-config";
 import { useProjectActions } from "@/lib/stores";
 import { useCompanyStore } from "@/lib/stores/company-store";
 import { useLocationStore } from "@/lib/stores/location-store";
@@ -60,52 +54,6 @@ interface ProjectData {
 	locationId: string;
 	description: string;
 }
-
-interface Sector {
-	id: string;
-	name: string;
-	description: string;
-	icon: React.ComponentType<{ className?: string }>;
-	color: string;
-	subsectors: string[];
-	examples: string[];
-}
-
-// Icon mapping for sectors
-const SECTOR_ICONS = {
-	municipal: Building2,
-	commercial: Store,
-	industrial: Factory,
-	residential: Home,
-	other: Target,
-};
-
-// Map sectorsConfig to wizard format
-const SECTORS: Sector[] = sectorsConfig.map((sector) => ({
-	id: sector.id,
-	name: sector.label,
-	description: sector.description || "",
-	icon: SECTOR_ICONS[sector.id] || Target,
-	color:
-		sector.id === "municipal"
-			? "blue"
-			: sector.id === "commercial"
-				? "purple"
-				: sector.id === "industrial"
-					? "gray"
-					: sector.id === "residential"
-						? "green"
-						: "gray",
-	subsectors: sector.subsectors.map((sub) => sub.id), // Use ID instead of label
-	examples: [],
-}));
-
-// Helper to get subsector label from ID
-const getSubsectorLabel = (sectorId: string, subsectorId: string): string => {
-	const sector = sectorsConfig.find((s) => s.id === sectorId);
-	const subsector = sector?.subsectors.find((sub) => sub.id === subsectorId);
-	return subsector?.label || subsectorId;
-};
 
 const STEPS = [
 	{ id: 1, title: "Basic Information", description: "Company and location" },
@@ -263,32 +211,6 @@ export function PremiumProjectWizard({
 		router,
 	]);
 
-	const getSectorColors = (color: string) => {
-		const colorMap = {
-			blue: {
-				card: "border-primary/35 bg-primary/8",
-				icon: "bg-primary/15 text-primary",
-				accent: "text-primary",
-			},
-			gray: {
-				card: "border-border/40 bg-card/60",
-				icon: "bg-card/70 text-muted-foreground",
-				accent: "text-muted-foreground",
-			},
-			green: {
-				card: "border-success/35 bg-success/10",
-				icon: "bg-success/15 text-success",
-				accent: "text-success",
-			},
-			purple: {
-				card: "border-treatment-auxiliary/35 bg-treatment-auxiliary/10",
-				icon: "bg-treatment-auxiliary/15 text-treatment-auxiliary",
-				accent: "text-treatment-auxiliary",
-			},
-		};
-		return colorMap[color as keyof typeof colorMap] || colorMap.blue;
-	};
-
 	const renderStepContent = () => {
 		switch (currentStep) {
 			case 1:
@@ -316,9 +238,7 @@ export function PremiumProjectWizard({
 									placeholder="e.g. Wood Waste - January 2024"
 									value={projectData.name}
 									onChange={(e) => updateProjectData({ name: e.target.value })}
-									onBlur={() =>
-										setTouched((prev) => ({ ...prev, name: true }))
-									}
+									onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
 									className="h-12 text-base"
 									autoFocus
 								/>

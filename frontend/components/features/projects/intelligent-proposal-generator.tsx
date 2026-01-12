@@ -11,10 +11,17 @@
 
 "use client";
 
-import { AlertCircle, Brain, CheckCircle2, Loader2, Sparkles, Zap } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useImperativeHandle, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
+import {
+	AlertCircle,
+	Brain,
+	CheckCircle2,
+	Loader2,
+	Sparkles,
+	Zap,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,7 +86,7 @@ export function IntelligentProposalGeneratorComponent({
 	const canGenerate = completeness.percentage >= PROPOSAL_READINESS_THRESHOLD;
 
 	// Use proposal generation hook
-	const { generate, cancel, progress, isGenerating, reasoning, currentStep } =
+	const { generate, cancel, progress, isGenerating, currentStep } =
 		useProposalGeneration({
 			projectId,
 			onReloadProject: () => loadProject(projectId),
@@ -129,7 +136,7 @@ export function IntelligentProposalGeneratorComponent({
 	/**
 	 * Handle start generation button click
 	 */
-	const handleStartGeneration = async () => {
+	const handleStartGeneration = useCallback(async () => {
 		logger.debug("Proposal generation initiated", {
 			projectId: project?.id,
 			projectName: project?.name,
@@ -186,7 +193,18 @@ export function IntelligentProposalGeneratorComponent({
 			);
 			onGenerationEnd?.();
 		}
-	};
+	}, [
+		projectId,
+		project,
+		canGenerate,
+		completeness.percentage,
+		startGeneration,
+		onGenerationStart,
+		proposalType,
+		generate,
+		endGeneration,
+		onGenerationEnd,
+	]);
 
 	/**
 	 * Handle cancel generation
@@ -199,10 +217,13 @@ export function IntelligentProposalGeneratorComponent({
 	};
 
 	// Expose trigger function to parent component via ref
-	useImperativeHandle(triggerRef, () => ({
-		triggerGeneration: handleStartGeneration,
-	}), [handleStartGeneration]);
-
+	useImperativeHandle(
+		triggerRef,
+		() => ({
+			triggerGeneration: handleStartGeneration,
+		}),
+		[handleStartGeneration],
+	);
 
 	// Render the Live Dashboard if generating
 	if (isGenerating) {
@@ -217,70 +238,67 @@ export function IntelligentProposalGeneratorComponent({
 	}
 
 	return (
-		<>
-			{/* Main Card */}
-			<Card className="aqua-panel overflow-hidden relative group">
-				<div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+		<Card className="aqua-panel overflow-hidden relative group">
+			<div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Brain className="h-5 w-5 text-primary" />
-						Intelligent AI Generator
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-4 relative z-10">
-					{/* Completeness Badge */}
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-sm font-medium">Technical Data Completeness</p>
-							<p className="text-xs text-muted-foreground">
-								Minimum {PROPOSAL_READINESS_THRESHOLD}% to generate proposal
-							</p>
-						</div>
-						<Badge
-							variant={canGenerate ? "default" : "secondary"}
-							className={
-								canGenerate ? "bg-success text-success-foreground" : ""
-							}
-						>
-							{completeness.percentage}%
-						</Badge>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					<Brain className="h-5 w-5 text-primary" />
+					Intelligent AI Generator
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-4 relative z-10">
+				{/* Completeness Badge */}
+				<div className="flex items-center justify-between">
+					<div>
+						<p className="text-sm font-medium">Technical Data Completeness</p>
+						<p className="text-xs text-muted-foreground">
+							Minimum {PROPOSAL_READINESS_THRESHOLD}% to generate proposal
+						</p>
 					</div>
-
-					<Progress value={completeness.percentage} className="h-2" />
-
-					{/* Warning if insufficient data */}
-					{!canGenerate && (
-						<Alert className="border-warning/40 bg-warning/10">
-							<AlertCircle className="h-4 w-4 text-warning" />
-							<AlertDescription className="text-xs text-warning">
-								! Complete more technical data to enable intelligent generation.
-								Approximately{" "}
-								{Math.ceil(
-									((PROPOSAL_READINESS_THRESHOLD - completeness.percentage) * completeness.total) / 100,
-								)}{" "}
-								fields remaining.
-							</AlertDescription>
-						</Alert>
-					)}
-
-					{/* Generate Button */}
-					<Button
-						onClick={handleStartGeneration}
-						disabled={isGenerating || !canGenerate}
-						size="lg"
-						className={
-							canGenerate
-								? "w-full bg-gradient-to-r from-success/85 via-success to-success text-success-foreground shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 text-base font-semibold"
-								: "w-full bg-muted text-muted-foreground cursor-not-allowed"
-						}
+					<Badge
+						variant={canGenerate ? "default" : "secondary"}
+						className={canGenerate ? "bg-success text-success-foreground" : ""}
 					>
-						<Zap className="mr-2 h-5 w-5" />
-						Generate AI Report
-					</Button>
-				</CardContent>
-			</Card>
-		</>
+						{completeness.percentage}%
+					</Badge>
+				</div>
+
+				<Progress value={completeness.percentage} className="h-2" />
+
+				{/* Warning if insufficient data */}
+				{!canGenerate && (
+					<Alert className="border-warning/40 bg-warning/10">
+						<AlertCircle className="h-4 w-4 text-warning" />
+						<AlertDescription className="text-xs text-warning">
+							! Complete more technical data to enable intelligent generation.
+							Approximately{" "}
+							{Math.ceil(
+								((PROPOSAL_READINESS_THRESHOLD - completeness.percentage) *
+									completeness.total) /
+									100,
+							)}{" "}
+							fields remaining.
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{/* Generate Button */}
+				<Button
+					onClick={handleStartGeneration}
+					disabled={isGenerating || !canGenerate}
+					size="lg"
+					className={
+						canGenerate
+							? "w-full bg-gradient-to-r from-success/85 via-success to-success text-success-foreground shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 text-base font-semibold"
+							: "w-full bg-muted text-muted-foreground cursor-not-allowed"
+					}
+				>
+					<Zap className="mr-2 h-5 w-5" />
+					Generate AI Report
+				</Button>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -329,7 +347,9 @@ function GenerationDashboard({
 	const getStepState = (threshold: number, index: number) => {
 		if (progress >= threshold) return "complete";
 		// Find the current active step (first incomplete one)
-		const firstIncompleteIndex = GENERATION_STEPS.findIndex(s => progress < s.threshold);
+		const firstIncompleteIndex = GENERATION_STEPS.findIndex(
+			(s) => progress < s.threshold,
+		);
 		if (index === firstIncompleteIndex) return "active";
 		return "pending";
 	};
@@ -338,7 +358,6 @@ function GenerationDashboard({
 		<Card className="border-primary/20 bg-gradient-to-b from-background to-primary/5 overflow-hidden shadow-2xl">
 			<CardContent className="p-0">
 				<div className="grid grid-cols-1 lg:grid-cols-12 min-h-[320px]">
-
 					{/* Left Panel: Visualizer */}
 					<div className="lg:col-span-5 p-8 flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-border/50 bg-black/5 dark:bg-black/20 relative overflow-hidden">
 						{/* Animated Background Grid */}
@@ -365,7 +384,11 @@ function GenerationDashboard({
 									{/* Orbital Ring */}
 									<motion.div
 										animate={{ rotate: 360 }}
-										transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+										transition={{
+											duration: 8,
+											repeat: Infinity,
+											ease: "linear",
+										}}
 										className="absolute inset-[-8px] rounded-full border-t-2 border-r-2 border-primary/40"
 									/>
 								</div>
@@ -393,8 +416,13 @@ function GenerationDashboard({
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
-								<span className="text-xs text-muted-foreground">{getTimeEstimate()}</span>
-								<Badge variant="outline" className="border-primary/50 text-primary font-semibold">
+								<span className="text-xs text-muted-foreground">
+									{getTimeEstimate()}
+								</span>
+								<Badge
+									variant="outline"
+									className="border-primary/50 text-primary font-semibold"
+								>
 									{Math.round(progress)}%
 								</Badge>
 							</div>
@@ -450,8 +478,12 @@ function GenerationDashboard({
 						<div className="space-y-3 pt-3 border-t border-border/50">
 							<div className="space-y-1.5">
 								<div className="flex justify-between text-xs">
-									<span className="text-muted-foreground">Overall Progress</span>
-									<span className="font-medium text-primary">{currentStep}</span>
+									<span className="text-muted-foreground">
+										Overall Progress
+									</span>
+									<span className="font-medium text-primary">
+										{currentStep}
+									</span>
 								</div>
 								<Progress value={progress} className="h-2" />
 							</div>
@@ -471,5 +503,3 @@ function GenerationDashboard({
 		</Card>
 	);
 }
-
-

@@ -1,7 +1,13 @@
 "use client";
 
-import { Building2, Filter, FolderKanban, Loader2, Search, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import {
+	Building2,
+	Filter,
+	FolderKanban,
+	Loader2,
+	Search,
+	X,
+} from "lucide-react";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
 	DashboardHero,
@@ -30,7 +36,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { routes } from "@/lib/routes";
 import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import type { ProjectSummary } from "@/lib/project-types";
 import {
@@ -40,7 +45,6 @@ import {
 	useProjects,
 } from "@/lib/stores";
 import { useCompanyStore } from "@/lib/stores/company-store";
-
 
 /**
  * Memoized Waste Stream List Component
@@ -78,7 +82,6 @@ const WasteStreamList = memo(function WasteStreamList({
 					sector={project.sector}
 					location={project.location}
 					status={project.status}
-					progress={project.progress}
 					updatedAt={project.updatedAt}
 					createdAt={project.createdAt}
 					proposalsCount={project.proposalsCount}
@@ -93,10 +96,12 @@ const WasteStreamList = memo(function WasteStreamList({
  * Shows placeholder cards while data is loading
  */
 function WasteStreamGridSkeleton() {
+	const skeletonKeys = ["a", "b", "c", "d", "e", "f"] as const;
+
 	return (
 		<div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-			{Array.from({ length: 6 }).map((_, index) => (
-				<Card key={index} className="h-48">
+			{skeletonKeys.map((key) => (
+				<Card key={key} className="h-48">
 					<CardHeader>
 						<Skeleton className="h-6 w-3/4 mb-2" />
 						<Skeleton className="h-4 w-1/2" />
@@ -170,30 +175,33 @@ const DashboardContent = memo(function DashboardContent() {
 	const showOnboarding = projects.length < 3; // Show for new users
 
 	// Onboarding steps with dynamic completion
-	const onboardingSteps = useMemo(() => [
-		{
-			id: "create-company",
-			label: "Create your first company",
-			description: "Set up a company to associate with waste streams",
-			action: { label: "Add", onClick: () => { } }, // Companies created in wizard
-		},
-		{
-			id: "start-assessment",
-			label: "Start a waste stream",
-			description: "Create your first waste stream",
-			action: { label: "Start", onClick: handleOpenCreateModal },
-		},
-		{
-			id: "complete-data",
-			label: "Complete technical data (80%+)",
-			description: "Fill out the questionnaire for accurate proposals",
-		},
-		{
-			id: "generate-proposal",
-			label: "Generate your first AI proposal",
-			description: "Let AI analyze and create a deal report",
-		},
-	], [handleOpenCreateModal]);
+	const onboardingSteps = useMemo(
+		() => [
+			{
+				id: "create-company",
+				label: "Create your first company",
+				description: "Set up a company to associate with waste streams",
+				action: { label: "Add", onClick: () => {} }, // Companies created in wizard
+			},
+			{
+				id: "start-assessment",
+				label: "Start a waste stream",
+				description: "Create your first waste stream",
+				action: { label: "Start", onClick: handleOpenCreateModal },
+			},
+			{
+				id: "complete-data",
+				label: "Complete technical data (80%+)",
+				description: "Fill out the questionnaire for accurate proposals",
+			},
+			{
+				id: "generate-proposal",
+				label: "Generate your first AI proposal",
+				description: "Let AI analyze and create a deal report",
+			},
+		],
+		[handleOpenCreateModal],
+	);
 
 	// Calculate completed steps
 	const completedSteps = useMemo(() => {
@@ -204,8 +212,6 @@ const DashboardContent = memo(function DashboardContent() {
 		if (hasProposals) completed.push("generate-proposal");
 		return completed;
 	}, [companies.length, projects.length, hasHighProgress, hasProposals]);
-
-	const router = useRouter();
 
 	return (
 		<div className="space-y-8">
@@ -234,12 +240,8 @@ const DashboardContent = memo(function DashboardContent() {
 				<ProjectPipeline />
 			</div>
 
-
 			{/* Stats Section */}
-			<div
-				className="animate-fade-in-up"
-				style={{ animationDelay: "300ms" }}
-			>
+			<div className="animate-fade-in-up" style={{ animationDelay: "300ms" }}>
 				<SimplifiedStats />
 			</div>
 
@@ -367,14 +369,16 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 	const remainingProjects = totalProjects - projects.length;
 
 	// Show search-specific empty state
-	const showSearchEmpty = searchTerm.trim() && filtered.length === 0 && !loading;
+	const showSearchEmpty =
+		searchTerm.trim() && filtered.length === 0 && !loading;
 
 	return (
 		<div className="space-y-4">
 			{/* Results Counter */}
 			{searchTerm.trim() && filtered.length > 0 && (
 				<p className="text-sm text-muted-foreground">
-					Found {filtered.length} waste stream{filtered.length !== 1 ? "s" : ""} matching "{searchTerm}"
+					Found {filtered.length} waste stream{filtered.length !== 1 ? "s" : ""}{" "}
+					matching "{searchTerm}"
 				</p>
 			)}
 

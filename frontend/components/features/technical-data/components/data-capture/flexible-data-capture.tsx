@@ -1,21 +1,11 @@
 "use client";
 
-import { Save } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Accordion } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import type { Sector, Subsector } from "@/lib/sectors-config";
+import { Card, CardContent } from "@/components/ui/card";
 import { isFixedSection } from "@/lib/technical-sheet-data";
-import type { TableField, TableSection } from "@/lib/types/technical-data";
+import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 import { SectionAccordionItem } from "./section-accordion-item";
 
@@ -24,7 +14,7 @@ interface FlexibleDataCaptureProps {
 	onFieldChange: (
 		sectionId: string,
 		fieldId: string,
-		value: any,
+		value: unknown,
 		unit?: string,
 		notes?: string,
 	) => void;
@@ -39,12 +29,8 @@ interface FlexibleDataCaptureProps {
 export function FlexibleDataCapture({
 	sections,
 	onFieldChange,
-	projectId,
-	onSave,
-	autoSave = true,
 	className,
 	focusSectionId,
-	onUpdateSectionNotes,
 }: FlexibleDataCaptureProps) {
 	// State for custom sections accordion
 	const [accordionValue, setAccordionValue] = useState<string[]>(() => {
@@ -90,30 +76,6 @@ export function FlexibleDataCapture({
 	}, [focusSectionId]);
 
 	// handleAddParametersFromLibrary removed - not needed for fixed questionnaire
-
-	// ✅ OPTIMIZACIÓN: Memoizar cálculos pesados
-	const completedFields = useMemo(
-		() =>
-			sections.reduce((acc, section) => {
-				return (
-					acc +
-					section.fields.filter((field) => field.value && field.value !== "")
-						.length
-				);
-			}, 0),
-		[sections],
-	);
-
-	const totalFields = useMemo(
-		() => sections.reduce((acc, section) => acc + section.fields.length, 0),
-		[sections],
-	);
-
-	const completionPercentage = useMemo(
-		() =>
-			totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0,
-		[completedFields, totalFields],
-	);
 
 	return (
 		<div className={cn("space-y-6", className)}>
@@ -179,21 +141,27 @@ export function FlexibleDataCapture({
 						value={[...accordionValue, ...fixedAccordionValue]}
 						onValueChange={(newValue) => {
 							// Split values back into custom and fixed for state management
-							const customIds = sections.filter((s) => !isFixedSection(s.id)).map((s) => s.id);
-							const fixedIds = sections.filter((s) => isFixedSection(s.id)).map((s) => s.id);
+							const customIds = sections
+								.filter((s) => !isFixedSection(s.id))
+								.map((s) => s.id);
+							const fixedIds = sections
+								.filter((s) => isFixedSection(s.id))
+								.map((s) => s.id);
 							setAccordionValue(newValue.filter((v) => customIds.includes(v)));
-							setFixedAccordionValue(newValue.filter((v) => fixedIds.includes(v)));
+							setFixedAccordionValue(
+								newValue.filter((v) => fixedIds.includes(v)),
+							);
 						}}
 						className="space-y-3"
 					>
 						{/* Render sections in original order (sorted by backend order field) */}
 						{sections.map((section) => (
-								<SectionAccordionItem
-									key={section.id}
-									section={section}
-									onFieldChange={onFieldChange}
-								/>
-							))}
+							<SectionAccordionItem
+								key={section.id}
+								section={section}
+								onFieldChange={onFieldChange}
+							/>
+						))}
 					</Accordion>
 				</>
 			)}

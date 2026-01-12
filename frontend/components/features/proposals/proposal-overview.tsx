@@ -2,59 +2,97 @@
 
 import { MapPin } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ActionPlaybook } from "./overview/action-playbook";
 import { AIBadge } from "./overview/ai-badge";
+import { FinancialsSnapshot } from "./overview/financials-snapshot";
 import { HeroDecisionBanner } from "./overview/hero-decision-banner";
 import { PathwayCards } from "./overview/pathway-cards";
-import { TopResources, type ResourceInsight } from "./overview/top-resources";
-import { FinancialsSnapshot } from "./overview/financials-snapshot";
-import { SafetyAlert } from "./overview/safety-alert";
-import { ActionPlaybook } from "./overview/action-playbook";
 import { QuickActions } from "./overview/quick-actions";
+import { SafetyAlert } from "./overview/safety-alert";
 import { SectionErrorBoundary } from "./overview/section-error-boundary";
+import { type ResourceInsight, TopResources } from "./overview/top-resources";
 import type { Proposal } from "./types";
 
 interface ProposalOverviewProps {
 	proposal: Proposal;
 }
 
+const PHOTO_INSIGHTS_LIMIT = 6;
+const CONFIDENCE_SCORES = { High: 92, Medium: 85, Low: 75 } as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object";
+}
+
+function parsePhotoInsights(clientMetadata: unknown): ResourceInsight[] {
+	if (!isRecord(clientMetadata)) return [];
+
+	const attachmentsSummary = clientMetadata.attachmentsSummary;
+	if (!isRecord(attachmentsSummary)) return [];
+
+	const photoInsights = attachmentsSummary.photoInsights;
+	if (!Array.isArray(photoInsights)) return [];
+
+	const insights: ResourceInsight[] = [];
+
+	for (const item of photoInsights.slice(0, PHOTO_INSIGHTS_LIMIT)) {
+		if (!isRecord(item)) continue;
+
+		const analysis = item.analysis;
+		if (!isRecord(analysis)) continue;
+
+		const fileId = typeof item.fileId === "string" ? item.fileId : undefined;
+		const imageUrl =
+			typeof item.imageUrl === "string" ? item.imageUrl : undefined;
+
+		const qualityValue = analysis.qualityGrade;
+		const quality =
+			qualityValue === "High" ||
+			qualityValue === "Medium" ||
+			qualityValue === "Low"
+				? qualityValue
+				: "Medium";
+
+		const lifecycleValue = analysis.lifecycleStatus;
+		const lifecycle =
+			lifecycleValue === "Like-new" ||
+			lifecycleValue === "Good" ||
+			lifecycleValue === "Used" ||
+			lifecycleValue === "Degraded" ||
+			lifecycleValue === "End-of-life"
+				? lifecycleValue
+				: undefined;
+
+		const confidenceValue = analysis.confidence;
+		const confidence =
+			confidenceValue === "High"
+				? CONFIDENCE_SCORES.High
+				: confidenceValue === "Low"
+					? CONFIDENCE_SCORES.Low
+					: CONFIDENCE_SCORES.Medium;
+
+		insights.push({
+			id: String(fileId || analysis.materialType || Math.random()),
+			...(fileId === undefined ? {} : { fileId }),
+			...(imageUrl === undefined ? {} : { imageUrl }),
+			material: String(analysis.materialType || "Unknown"),
+			quality,
+			...(lifecycle === undefined ? {} : { lifecycle }),
+			priceHint: String(analysis.priceBandHint || "TBD"),
+			insight: String(analysis.summary || "AI analyzed this material"),
+			confidence,
+		});
+	}
+
+	return insights;
+}
+
 export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 	const report = proposal.aiMetadata.proposal;
 
-	// Extract photo insights from metadata with fileId for real images
-	const resourceInsights: ResourceInsight[] = [];
-	const clientMetadata = proposal.aiMetadata.transparency.clientMetadata;
-
-	if (clientMetadata && typeof clientMetadata === "object") {
-		const attachmentsSummary = (clientMetadata as Record<string, unknown>)
-			.attachmentsSummary as { photoInsights?: unknown[] } | undefined;
-		const photoInsights = attachmentsSummary?.photoInsights;
-
-		if (Array.isArray(photoInsights)) {
-			for (const item of photoInsights.slice(0, 6)) {
-				if (!item || typeof item !== "object") continue;
-				const typedItem = item as {
-					fileId?: string;
-					filename?: string;
-					imageUrl?: string;
-					analysis?: Record<string, unknown>;
-				};
-				const a = typedItem.analysis;
-				if (!a) continue;
-
-				resourceInsights.push({
-					id: String(typedItem.fileId || a.materialType || Math.random()),
-					fileId: typedItem.fileId ?? undefined,
-					imageUrl: typedItem.imageUrl ?? undefined,
-					material: String(a.materialType || "Unknown"),
-					quality: (a.qualityGrade as "High" | "Medium" | "Low") || "Medium",
-					lifecycle: (a.lifecycleStatus as ResourceInsight["lifecycle"]) ?? undefined,
-					priceHint: String(a.priceBandHint || "TBD"),
-					insight: String(a.summary || "AI analyzed this material"),
-					confidence: a.confidence === "High" ? 92 : a.confidence === "Low" ? 75 : 85,
-				} as ResourceInsight);
-			}
-		}
-	}
+	const resourceInsights = parsePhotoInsights(
+		proposal.aiMetadata.transparency.clientMetadata,
+	);
 
 	return (
 		<div className="space-y-8 animate-in fade-in duration-500">
@@ -62,7 +100,9 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 			<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<div>
 					<div className="flex items-center gap-3 mb-1">
-						<h1 className="text-2xl font-bold tracking-tight">{proposal.title}</h1>
+						<h1 className="text-2xl font-bold tracking-tight">
+							{proposal.title}
+						</h1>
 						<AIBadge />
 					</div>
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -80,7 +120,9 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				<div className="flex items-center justify-between">
 					<div>
 						<h4 className="font-semibold text-foreground">Material Summary</h4>
-						<p className="text-sm text-muted-foreground">{report.material} · {report.volume}</p>
+						<p className="text-sm text-muted-foreground">
+							{report.material} · {report.volume}
+						</p>
 					</div>
 					<span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
 						From questionnaire
@@ -139,10 +181,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 			</SectionErrorBoundary>
 
 			{/* 7. QUICK ACTIONS */}
-			<QuickActions
-				proposalId={proposal.id}
-				proposalTitle={proposal.title}
-			/>
+			<QuickActions proposalId={proposal.id} proposalTitle={proposal.title} />
 
 			<Separator className="my-8" />
 
