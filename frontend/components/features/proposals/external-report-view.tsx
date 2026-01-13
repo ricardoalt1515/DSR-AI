@@ -8,7 +8,7 @@
  * profitability band without sensitive commercial details.
  */
 
-import { Leaf, Droplets, Recycle, TrendingUp, ArrowRight, Info } from "lucide-react";
+import { Leaf, Droplets, Recycle, TrendingUp, ArrowRight, Info, CheckCircle, Package, Wrench, Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -32,6 +32,8 @@ const PROFITABILITY_COLORS = {
     Low: "bg-rose-500/10 text-rose-600 border-rose-500/30",
     Unknown: "bg-muted text-muted-foreground border-border",
 } as const;
+
+const ANNUAL_IMPACT_PLACEHOLDER = "To be confirmed";
 
 function MetricCard({
     icon: Icon,
@@ -120,6 +122,16 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
     const sustainability = external.sustainability;
     const profitabilityBand = external.profitabilityBand;
     const generatedAt = external.generatedAt;
+    const annualImpactBand = external.annualImpactMagnitudeBand ?? "Unknown";
+    const annualImpactBasis = external.annualImpactBasis ?? "Unknown";
+    const annualImpactConfidence = external.annualImpactConfidence ?? "Low";
+    const annualImpactNotes = external.annualImpactNotes ?? [];
+    const hasAnnualImpact =
+        external.annualImpactMagnitudeBand !== undefined ||
+        external.annualImpactBasis !== undefined ||
+        annualImpactNotes.length > 0;
+    const profitabilityStatement = external.profitabilityStatement?.trim() ?? "";
+    const isHighlyProfitable = profitabilityStatement.toLowerCase() === "highly profitable";
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -146,6 +158,84 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                         </p>
                     </CardContent>
                 </Card>
+            )}
+
+            {/* Material Description */}
+            {external.materialDescription && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-slate-500/10 text-slate-600">
+                                <Package className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-base">Material Overview</CardTitle>
+                                <CardDescription>Detailed description of the waste stream</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                            {external.materialDescription}
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Recommended Actions & Handling Guidance */}
+            {(external.recommendedActions?.length > 0 || external.handlingGuidance?.length > 0) && (
+                <div className="grid gap-4 md:grid-cols-2">
+                    {external.recommendedActions?.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                                        <CheckCircle className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-base">Valorization Options</CardTitle>
+                                        <CardDescription>Recommended processing actions</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="space-y-2">
+                                    {external.recommendedActions.map((action, i) => (
+                                        <li key={i} className="flex items-start gap-2">
+                                            <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                                            <span className="text-sm">{action}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    )}
+                    {external.handlingGuidance?.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
+                                        <Wrench className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-base">Handling Requirements</CardTitle>
+                                        <CardDescription>Storage and transport guidance</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="space-y-2">
+                                    {external.handlingGuidance.map((guidance, i) => (
+                                        <li key={i} className="flex items-start gap-2">
+                                            <ArrowRight className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                                            <span className="text-sm">{guidance}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             )}
 
             {/* Sustainability Metrics Grid */}
@@ -207,36 +297,105 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                 </Card>
                 )}
 
-                {/* Overall Environmental Impact */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Overall Environmental Impact</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">
-                            {sustainability.overallEnvironmentalImpact}
-                        </p>
-                    </CardContent>
-                </Card>
+            {/* Overall Environmental Impact */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Overall Environmental Impact</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">
+                        {sustainability.overallEnvironmentalImpact}
+                    </p>
+                </CardContent>
+            </Card>
 
-            <Separator />
-
-            {/* Profitability Band */}
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Profitability Band */}
+            {/* Annual Impact Estimate */}
+            {hasAnnualImpact && (
                 <Card>
                     <CardHeader>
                         <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
-                                <TrendingUp className="h-5 w-5" />
+                            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                                <Coins className="h-5 w-5" />
                             </div>
                             <div>
-                                <CardTitle className="text-base">Profitability Assessment</CardTitle>
-                                <CardDescription>Qualitative opportunity evaluation</CardDescription>
+                                <CardTitle className="text-base">Annual Impact Estimate</CardTitle>
+                                <CardDescription>Magnitude-only economic impact summary</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <p className="text-lg font-semibold">
+                            {annualImpactBand === "Unknown"
+                                ? ANNUAL_IMPACT_PLACEHOLDER
+                                : `${annualImpactBand} annual impact (estimate)`}
+                        </p>
+                        {annualImpactBasis !== "Unknown" && (
+                            <p className="text-sm text-muted-foreground">Basis: {annualImpactBasis}</p>
+                        )}
+                        {annualImpactConfidence && (
+                            <p className="text-sm text-muted-foreground">
+                                Confidence: {annualImpactConfidence}
+                            </p>
+                        )}
+                        {annualImpactNotes.length > 0 && (
+                            <ul className="text-sm text-muted-foreground space-y-1">
+                                {annualImpactNotes.map((note) => (
+                                    <li key={note} className="flex items-start gap-2">
+                                        <ArrowRight className="h-4 w-4 text-primary/60 mt-0.5" />
+                                        {note}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Potential End-Use Industries */}
+            {external.endUseIndustryExamples?.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-slate-500/10 text-slate-600">
+                                <Recycle className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-base">Potential End-Use Industries</CardTitle>
+                                <CardDescription>Example markets for valorized materials</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                            {external.endUseIndustryExamples.map((industry) => (
+                                <Badge key={industry} variant="outline" className="text-xs">
+                                    {industry}
+                                </Badge>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            <Separator />
+
+            {/* Profitability Assessment */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
+                            <TrendingUp className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-base">Commercial Assessment</CardTitle>
+                            <CardDescription>Qualitative opportunity evaluation</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {isHighlyProfitable ? (
+                        <p className="text-lg font-semibold text-emerald-700">Highly profitable</p>
+                    ) : (
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -255,10 +414,13 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-                    </CardContent>
-                </Card>
+                    )}
+                    {!isHighlyProfitable && profitabilityStatement && (
+                        <p className="text-sm text-muted-foreground">{profitabilityStatement}</p>
+                    )}
+                </CardContent>
+            </Card>
 
-            </div>
 
             {/* Footer */}
             <div className="text-xs text-muted-foreground text-right space-y-1">

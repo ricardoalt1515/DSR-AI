@@ -7,6 +7,7 @@ Extracted from pdf_generator.py for modularity.
 
 from typing import Any
 
+from app.services.proposal_service import sanitize_external_list, sanitize_external_text
 
 def _get_badge_class(value: str) -> str:
     """Return CSS class for badge based on value."""
@@ -56,20 +57,21 @@ def _build_external_sections(
     profitability_band = proposal_data.get("profitabilityBand") or "Unknown"
 
     def clean_context_value(value: str | None) -> str | None:
-        if not value:
-            return None
-        trimmed = value.strip()
-        if not trimmed or trimmed.lower() in {"n/a", "na", "unknown", "not specified"}:
-            return None
-        if "$" in trimmed or "@" in trimmed:
-            return "Details available upon request."
-        return trimmed
+        return sanitize_external_text(value)
+
+    def clean_context_list(values: Any) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        return sanitize_external_list(values)
 
     def format_metric(metric: dict[str, Any]) -> str:
         value = metric.get("value")
         if not value or value in {"N/A", "Not computed"}:
             return ""
         return value
+
+    profitability_statement = clean_context_value(proposal_data.get("profitabilityStatement"))
+    is_highly_profitable = profitability_statement == "Highly profitable"
 
     summary = sustainability.get("summary")
     overall_impact = sustainability.get("overallEnvironmentalImpact")
@@ -87,8 +89,22 @@ def _build_external_sections(
     volume = clean_context_value(context.get("volume"))
     location = clean_context_value(context.get("location"))
     facility_type = clean_context_value(context.get("facilityType"))
+    material_description = clean_context_value(proposal_data.get("materialDescription"))
 
+    show_material_line = False
     if material:
+        if not material_description:
+            show_material_line = True
+        else:
+            normalized_material = " ".join(material.lower().split())
+            normalized_description = " ".join(material_description.lower().split())
+            show_material_line = (
+                len(material) < 120
+                and normalized_material
+                and normalized_material not in normalized_description
+            )
+
+    if show_material_line:
         external_html += f"<p><strong>Material:</strong> {material}</p>"
     if volume:
         external_html += f"<p><strong>Volume:</strong> {volume}</p>"
@@ -96,9 +112,11 @@ def _build_external_sections(
         external_html += f"<p><strong>Location:</strong> {location}</p>"
     if facility_type:
         external_html += f"<p><strong>Facility:</strong> {facility_type}</p>"
+    if material_description:
+        external_html += f"<p><strong>Description:</strong> {material_description}</p>"
 
-    if any([material, volume, location, facility_type]):
-        if profitability_band and profitability_band != "Unknown":
+    if any([material, volume, location, facility_type, material_description]):
+        if not is_highly_profitable and profitability_band and profitability_band != "Unknown":
             badge_class = _get_badge_class(profitability_band)
             external_html += (
                 f'<p><strong>Opportunity Level:</strong> '
@@ -162,14 +180,45 @@ def _build_external_sections(
             "</div>"
         )
 
+    # Annual Impact Estimate
+    annual_impact_block = ""
+    annual_band = clean_context_value(proposal_data.get("annualImpactMagnitudeBand"))
+    annual_basis = clean_context_value(proposal_data.get("annualImpactBasis"))
+    annual_confidence = clean_context_value(proposal_data.get("annualImpactConfidence"))
+    annual_notes = clean_context_list(proposal_data.get("annualImpactNotes"))
+    if annual_band == "Unknown":
+        annual_band = None
+    if annual_basis == "Unknown":
+        annual_basis = None
+    if annual_band or annual_basis or annual_confidence or annual_notes:
+        annual_impact_parts = []
+        label = annual_band or "To be confirmed"
+        annual_impact_parts.append(f"<p><strong>Estimated magnitude:</strong> {label}</p>")
+        if annual_basis:
+            annual_impact_parts.append(f"<p><strong>Basis:</strong> {annual_basis}</p>")
+        if annual_confidence:
+            annual_impact_parts.append(
+                f"<p><strong>Confidence:</strong> {annual_confidence}</p>"
+            )
+        if annual_notes:
+            notes = "".join(f"<li>{note}</li>" for note in annual_notes)
+            annual_impact_parts.append(f'<ul class="esg-list">{notes}</ul>')
+        annual_impact_block = (
+            '<div class="technical-section">'
+            '<h2 class="section-title">Annual Impact Estimate</h2>'
+            + "".join(annual_impact_parts)
+            + '</div>'
+        )
+
     # Valorization Options section (cards)
     valorization_block = ""
     valorization = context.get("valorization") or []
+    recommended_actions = clean_context_list(proposal_data.get("recommendedActions"))
     if valorization:
         cards = "".join(
             f'<div class="valorization-card">'
-            f'<h4>{v.get("action", "")}</h4>'
-            f'<p>{v.get("rationale", "")}</p>'
+            f'<h4>{clean_context_value(v.get("action")) or ""}</h4>'
+            f'<p>{clean_context_value(v.get("rationale")) or ""}</p>'
             f'</div>'
             for v in valorization
         )
@@ -179,10 +228,35 @@ def _build_external_sections(
             f'<div class="valorization-cards">{cards}</div>'
             '</div>'
         )
+    elif recommended_actions:
+        cards = "".join(
+            f'<div class="valorization-card">'
+            f'<h4>{action}</h4>'
+            f'</div>'
+            for action in recommended_actions
+        )
+        valorization_block = (
+            '<div class="technical-section">'
+            '<h2 class="section-title">Valorization Options</h2>'
+            f'<div class="valorization-cards">{cards}</div>'
+            '</div>'
+        )
+
+    # Handling Requirements section (styled list)
+    handling_block = ""
+    handling_guidance = clean_context_list(proposal_data.get("handlingGuidance"))
+    if handling_guidance:
+        items = "".join(f"<li>{item}</li>" for item in handling_guidance)
+        handling_block = (
+            '<div class="technical-section">'
+            '<h2 class="section-title">Handling Requirements</h2>'
+            f'<ul class="esg-list">{items}</ul>'
+            '</div>'
+        )
 
     # ESG Benefits section (styled list)
     esg_block = ""
-    esg_benefits = context.get("esgBenefits") or []
+    esg_benefits = clean_context_list(context.get("esgBenefits"))
     if esg_benefits:
         items = "".join(f"<li>{b}</li>" for b in esg_benefits)
         esg_block = (
@@ -202,17 +276,23 @@ def _build_external_sections(
             f"<p><strong>{viable_count} viable pathway{plural}</strong> "
             "identified for material valorization.</p>"
         )
-    if profitability_band and profitability_band != "Unknown":
-        badge_class = _get_badge_class(profitability_band)
-        opportunity_parts.append(
-            f'<p><strong>Opportunity Level:</strong> '
-            f'<span class="metric-badge {badge_class}">{profitability_band}</span></p>'
-        )
-    elif profitability_band == "Unknown":
-        opportunity_parts.append(
-            '<p><strong>Opportunity Level:</strong> '
-            '<span class="metric-badge badge-unknown">To be confirmed</span></p>'
-        )
+    if not is_highly_profitable:
+        if profitability_band and profitability_band != "Unknown":
+            badge_class = _get_badge_class(profitability_band)
+            opportunity_parts.append(
+                f'<p><strong>Opportunity Level:</strong> '
+                f'<span class="metric-badge {badge_class}">{profitability_band}</span></p>'
+            )
+        elif profitability_band == "Unknown":
+            opportunity_parts.append(
+                '<p><strong>Opportunity Level:</strong> '
+                '<span class="metric-badge badge-unknown">To be confirmed</span></p>'
+            )
+    if profitability_statement:
+        if is_highly_profitable:
+            opportunity_parts.append(f"<p><strong>{profitability_statement}</strong></p>")
+        else:
+            opportunity_parts.append(f"<p>{profitability_statement}</p>")
     if opportunity_parts:
         opportunity_block = (
             '<div class="technical-section">'
@@ -240,7 +320,9 @@ def _build_external_sections(
             summary_block,
             metrics_block,
             overall_block,
+            annual_impact_block,
             valorization_block,
+            handling_block,
             esg_block,
             end_use_block,
             opportunity_block,

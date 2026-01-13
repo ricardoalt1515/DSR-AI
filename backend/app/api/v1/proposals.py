@@ -4,7 +4,7 @@ AI Proposal generation endpoints.
 Includes PDF generation and AI transparency features (Oct 2025).
 """
 
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi.responses import Response
@@ -28,6 +28,7 @@ from app.schemas.common import ErrorResponse
 from app.services.proposal_service import (
     ProposalService,
     build_external_markdown_from_data,
+    sanitize_external_text,
 )
 from app.visualization.pdf_generator import pdf_generator
 from app.services.s3_service import (
@@ -433,10 +434,12 @@ async def get_proposal_pdf(
         if audience == "external" and internal_data:
             # Basic context fields
             context = {
-                "material": internal_data.get("material"),
-                "volume": internal_data.get("volume"),
-                "location": internal_data.get("location") or project.location,
-                "facilityType": internal_data.get("facilityType") or project.sector,
+                "material": sanitize_external_text(internal_data.get("material")),
+                "volume": sanitize_external_text(internal_data.get("volume")),
+                "location": sanitize_external_text(internal_data.get("location") or project.location),
+                "facilityType": sanitize_external_text(
+                    internal_data.get("facilityType") or project.sector
+                ),
             }
             
             # Enrichment: sanitized pathway data for Valorization/ESG sections
@@ -445,19 +448,21 @@ async def get_proposal_pdf(
                 # Valorization options: action + why_it_works (no prices)
                 valorization = []
                 for p in pathways[:3]:
-                    action = p.get("action") or ""
-                    why = p.get("whyItWorks") or ""
-                    if action and why and "$" not in why and "@" not in why:
+                    action = sanitize_external_text(p.get("action"))
+                    why = sanitize_external_text(p.get("whyItWorks"))
+                    if action and why and why != "Details available upon request.":
                         valorization.append({"action": action, "rationale": why})
-                context["valorization"] = valorization
+                if valorization:
+                    context["valorization"] = valorization
                 
                 # ESG benefits: esg_pitch (filtered for sensitive data)
                 esg_benefits = []
                 for p in pathways[:3]:
-                    pitch = p.get("esgPitch") or ""
-                    if pitch and "$" not in pitch and "@" not in pitch:
+                    pitch = sanitize_external_text(p.get("esgPitch"))
+                    if pitch and pitch != "Details available upon request.":
                         esg_benefits.append(pitch)
-                context["esgBenefits"] = esg_benefits
+                if esg_benefits:
+                    context["esgBenefits"] = esg_benefits
                 
                 # Feasibility summary: count of viable pathways
                 high_count = sum(1 for p in pathways if p.get("feasibility") == "High")

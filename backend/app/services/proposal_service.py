@@ -5,6 +5,7 @@ Handles proposal generation workflow and job management.
 
 import asyncio
 import logging
+import re
 import time
 import uuid
 from datetime import datetime
@@ -833,6 +834,181 @@ _END_USE_ALLOWLIST = {
     "consumer goods manufacturers": "Consumer goods manufacturers",
 }
 
+_EXTERNAL_REDACTION_MESSAGE = "Details available upon request."
+_EXTERNAL_EMPTY_VALUES = {
+    "n/a",
+    "na",
+    "unknown",
+    "not specified",
+    "not computed",
+    "not_computed",
+}
+_EXTERNAL_SENSITIVE_PATTERN = re.compile(
+    r"(\$|@|\bROI\b|\bmargin\b|\bmargins\b|\bprice\b|\boffer\b|\bnetback\b|"
+    r"\bbuyer pays\b|\bcontract rate\b|\bper\s*ton\b|/\s*ton\b|"
+    r"\bper\s*lb\b|/\s*lb\b|\bper\s*tonne\b|/\s*tonne\b|"
+    r"http[s]?://|www\.|\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b)",
+    re.IGNORECASE,
+)
+_BUYER_CLAIMS_PREFIXES = (
+    "buyer claims:",
+    "buyer claim:",
+)
+
+_ANNUAL_IMPACT_BANDS = (
+    ("Seven figures+", 1_000_000),
+    ("Six figures", 100_000),
+    ("Five figures", 10_000),
+    ("Under five figures", 1),
+)
+
+_ROI_HIGH_THRESHOLD = 100.0
+
+_HIGHLY_PROFITABLE_LABEL = "Highly profitable"
+_PROFITABILITY_STATEMENTS = {
+    "High": "This opportunity shows strong commercial potential with favorable economics.",
+    "Medium": "This opportunity shows moderate commercial potential.",
+    "Low": "Commercial viability requires further analysis.",
+    "Unknown": "Commercial potential to be determined after detailed assessment.",
+}
+
+
+def _strip_buyer_claims_prefix(text: str) -> str:
+    lowered = text.lower().strip()
+    for prefix in _BUYER_CLAIMS_PREFIXES:
+        if lowered.startswith(prefix):
+            return text[len(prefix):].strip().strip("\"'")
+    return text
+
+
+def sanitize_external_text(value: str | None) -> str | None:
+    if not value or not isinstance(value, str):
+        return None
+    trimmed = value.strip()
+    if not trimmed or trimmed.lower() in _EXTERNAL_EMPTY_VALUES:
+        return None
+    cleaned = _strip_buyer_claims_prefix(trimmed)
+    if _EXTERNAL_SENSITIVE_PATTERN.search(cleaned):
+        return _EXTERNAL_REDACTION_MESSAGE
+    return cleaned
+
+
+def sanitize_external_list(values: list[Any] | None) -> list[str]:
+    if not values:
+        return []
+    cleaned = [sanitize_external_text(value) for value in values]
+    return [value for value in cleaned if value]
+
+
+def _parse_roi_percent(roi_summary: str) -> float | None:
+    """Parse ROI percentage from roi_summary string."""
+    if not roi_summary:
+        return None
+    patterns = [
+        r"(\d+(?:\.\d+)?)\s*%\s*(?:first[-\s]?year\s*)?roi",
+        r"roi[^0-9]*(\d+(?:\.\d+)?)\s*%",
+        r"(\d+(?:\.\d+)?)\s*%\s*(?:return|roi)",
+        r"=\s*(\d+(?:\.\d+)?)\s*%",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, roi_summary, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def _derive_profitability_statement(band: str, roi_summary: str) -> str:
+    """Derive qualitative statement. ROI > 100% yields "Highly profitable"."""
+    roi_percent = _parse_roi_percent(roi_summary)
+    if roi_percent and roi_percent > _ROI_HIGH_THRESHOLD:
+        return _HIGHLY_PROFITABLE_LABEL
+    return _PROFITABILITY_STATEMENTS.get(band, _PROFITABILITY_STATEMENTS["Unknown"])
+
+
+def _extract_actions(pathways: list) -> list[str]:
+    """Extract unique actions from High/Medium feasibility pathways."""
+    actions = []
+    for p in pathways:
+        if p.feasibility in ("High", "Medium") and p.action not in actions:
+            actions.append(p.action)
+    return actions[:5]
+
+
+def _extract_handling(pathways: list) -> list[str]:
+    """Extract unique handling guidance from pathways."""
+    seen: set[str] = set()
+    guidance = []
+    for p in pathways:
+        if p.handling and p.handling not in seen:
+            seen.add(p.handling)
+            guidance.append(p.handling)
+    return guidance[:5]
+
+
+def _parse_annual_amounts(value: str | None) -> list[float]:
+    if not value:
+        return []
+    lowered = value.lower()
+    if not any(token in lowered for token in ("yr", "year", "annual", "/yr")):
+        return []
+    matches = re.findall(r"(\d+(?:\.\d+)?)\s*(k|m|mm|b)?", lowered)
+    amounts: list[float] = []
+    for number, suffix in matches:
+        amount = float(number.replace(",", ""))
+        if suffix in {"k"}:
+            amount *= 1_000
+        elif suffix in {"m", "mm"}:
+            amount *= 1_000_000
+        elif suffix == "b":
+            amount *= 1_000_000_000
+        amounts.append(amount)
+    return amounts
+
+
+def _annual_impact_band(amount: float | None) -> str:
+    if not amount:
+        return "Unknown"
+    for label, threshold in _ANNUAL_IMPACT_BANDS:
+        if amount >= threshold:
+            return label
+    return "Unknown"
+
+
+def _derive_annual_impact(internal: ProposalOutput) -> tuple[str, str, str, list[str]]:
+    pathway_amounts: list[float] = []
+    for pathway in internal.pathways:
+        pathway_amounts.extend(_parse_annual_amounts(pathway.annual_value))
+    cost_amounts = _parse_annual_amounts(internal.financials.current_cost)
+    all_amounts = pathway_amounts + cost_amounts
+
+    if not all_amounts:
+        return (
+            "Unknown",
+            "Unknown",
+            "Low",
+            [
+                "Provide annual disposal cost or revenue estimates to refine the impact band.",
+            ],
+        )
+
+    max_amount = max(all_amounts)
+    if pathway_amounts and cost_amounts:
+        basis = "Mixed"
+        confidence = "High"
+    elif pathway_amounts:
+        basis = "Revenue potential"
+        confidence = "Medium"
+    else:
+        basis = "Avoided disposal cost"
+        confidence = "Medium"
+
+    return (
+        _annual_impact_band(max_amount),
+        basis,
+        confidence,
+        [],
+    )
+
 
 def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityReport:
     """Derive a client-facing report from internal data (allowlist-only)."""
@@ -877,10 +1053,27 @@ def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityRepor
         overall_environmental_impact=overall_impact,
     )
 
+    band = internal.economics_deep_dive.profitability_band
+    annual_band, annual_basis, annual_confidence, annual_notes = _derive_annual_impact(internal)
+    profitability_statement = sanitize_external_text(
+        _derive_profitability_statement(band, internal.roi_summary)
+    )
+    external_band = band
+    if profitability_statement == _HIGHLY_PROFITABLE_LABEL:
+        external_band = "Unknown"
+
     return ExternalOpportunityReport(
         sustainability=sustainability,
-        profitability_band=internal.economics_deep_dive.profitability_band,
+        profitability_band=external_band,
         end_use_industry_examples=_extract_end_use_examples(internal.pathways),
+        material_description=sanitize_external_text(internal.material) or "",
+        recommended_actions=sanitize_external_list(_extract_actions(internal.pathways)),
+        handling_guidance=sanitize_external_list(_extract_handling(internal.pathways)),
+        profitability_statement=profitability_statement or "",
+        annual_impact_magnitude_band=annual_band,
+        annual_impact_basis=annual_basis,
+        annual_impact_confidence=annual_confidence,
+        annual_impact_notes=annual_notes,
     )
 
 
@@ -914,9 +1107,10 @@ def _build_metric(
 def _safe_external_summary(text: str | None) -> str:
     if not text:
         return "Sustainability impact summary is pending additional inputs."
-    if "$" in text or "usd" in text.lower():
+    sanitized = sanitize_external_text(text)
+    if not sanitized or sanitized == _EXTERNAL_REDACTION_MESSAGE:
         return "Sustainability impact summary is pending additional inputs."
-    return text.strip()
+    return sanitized
 
 
 def _extract_end_use_examples(pathways: list[Any]) -> list[str]:
@@ -999,24 +1193,48 @@ def _generate_markdown_external_report(
             circularity_lines.append(f"- **{indicator.name}:** {indicator.metric.value}")
     circularity_md = chr(10).join(circularity_lines) if circularity_lines else ""
     
-    # Profitability band (only if not Unknown)
+    # Profitability assessment
     profitability_md = ""
-    if output.profitability_band and output.profitability_band != "Unknown":
-        profitability_md = f"**Opportunity Level:** {output.profitability_band}"
+    if output.profitability_statement:
+        if output.profitability_statement == _HIGHLY_PROFITABLE_LABEL:
+            profitability_md = f"**Opportunity Level:** {output.profitability_statement}"
+        elif output.profitability_band and output.profitability_band != "Unknown":
+            profitability_md = f"**Opportunity Level:** {output.profitability_band}"
     
-    # NEW: Valorization Options from internal pathways
+    # Annual impact estimate
+    annual_impact_lines = []
+    impact_band = output.annual_impact_magnitude_band
+    if impact_band and impact_band != "Unknown":
+        annual_impact_lines.append(f"**Estimated Annual Impact:** {impact_band}")
+    else:
+        annual_impact_lines.append("**Estimated Annual Impact:** To be confirmed")
+    if output.annual_impact_basis and output.annual_impact_basis != "Unknown":
+        annual_impact_lines.append(f"**Basis:** {output.annual_impact_basis}")
+    if output.annual_impact_confidence:
+        annual_impact_lines.append(f"**Confidence:** {output.annual_impact_confidence}")
+    if output.annual_impact_notes:
+        annual_impact_lines.extend(f"- {note}" for note in output.annual_impact_notes)
+    annual_impact_md = chr(10).join(annual_impact_lines) if annual_impact_lines else ""
+
+    # Valorization Options from internal pathways
     valorization_lines = []
     if internal and internal.pathways:
         for p in internal.pathways[:3]:  # Top 3 only
-            valorization_lines.append(f"- **{p.action}** — {p.why_it_works}")
+            action = sanitize_external_text(p.action)
+            rationale = sanitize_external_text(p.why_it_works)
+            if action and rationale and rationale != _EXTERNAL_REDACTION_MESSAGE:
+                valorization_lines.append(f"- **{action}** — {rationale}")
+            elif action:
+                valorization_lines.append(f"- **{action}**")
     valorization_md = chr(10).join(valorization_lines) if valorization_lines else ""
     
-    # NEW: ESG Benefits from internal pathways
+    # ESG Benefits from internal pathways
     esg_lines = []
     if internal and internal.pathways:
         for p in internal.pathways[:3]:
-            if p.esg_pitch:
-                esg_lines.append(f"- {p.esg_pitch}")
+            pitch = sanitize_external_text(p.esg_pitch)
+            if pitch and pitch != _EXTERNAL_REDACTION_MESSAGE:
+                esg_lines.append(f"- {pitch}")
     esg_md = chr(10).join(esg_lines) if esg_lines else ""
     
     # NEW: Feasibility summary
@@ -1052,6 +1270,12 @@ def _generate_markdown_external_report(
     sections.append(f"""## Overall Environmental Impact
 
 {sustainability.overall_environmental_impact}""")
+
+    # Annual impact estimate
+    if annual_impact_md:
+        sections.append(f"""## Annual Impact Estimate
+
+{annual_impact_md}""")
     
     # Valorization Options (NEW)
     if valorization_md:
@@ -1071,6 +1295,8 @@ def _generate_markdown_external_report(
         opportunity_parts.append(feasibility_md)
     if profitability_md:
         opportunity_parts.append(profitability_md)
+    if output.profitability_statement and output.profitability_statement != _HIGHLY_PROFITABLE_LABEL:
+        opportunity_parts.append(output.profitability_statement)
     if opportunity_parts:
         sections.append(f"""## Opportunity Assessment
 
