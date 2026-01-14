@@ -310,7 +310,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
             </Card>
 
             {/* Annual Impact Estimate */}
-            {hasAnnualImpact && (
+            {(hasAnnualImpact || external.annualImpactNarrative) && (
                 <Card>
                     <CardHeader>
                         <div className="flex items-center gap-2">
@@ -319,33 +319,41 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                             </div>
                             <div>
                                 <CardTitle className="text-base">Annual Impact Estimate</CardTitle>
-                                <CardDescription>Magnitude-only economic impact summary</CardDescription>
+                                <CardDescription>Economic impact summary</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <p className="text-lg font-semibold">
-                            {annualImpactBand === "Unknown"
-                                ? ANNUAL_IMPACT_PLACEHOLDER
-                                : `${annualImpactBand} annual impact (estimate)`}
-                        </p>
-                        {annualImpactBasis !== "Unknown" && (
-                            <p className="text-sm text-muted-foreground">Basis: {annualImpactBasis}</p>
-                        )}
-                        {annualImpactConfidence && (
-                            <p className="text-sm text-muted-foreground">
-                                Confidence: {annualImpactConfidence}
+                        {external.annualImpactNarrative ? (
+                            <p className="text-muted-foreground leading-relaxed">
+                                {external.annualImpactNarrative}
                             </p>
-                        )}
-                        {annualImpactNotes.length > 0 && (
-                            <ul className="text-sm text-muted-foreground space-y-1">
-                                {annualImpactNotes.map((note) => (
-                                    <li key={note} className="flex items-start gap-2">
-                                        <ArrowRight className="h-4 w-4 text-primary/60 mt-0.5" />
-                                        {note}
-                                    </li>
-                                ))}
-                            </ul>
+                        ) : (
+                            <>
+                                <p className="text-lg font-semibold">
+                                    {annualImpactBand === "Unknown"
+                                        ? ANNUAL_IMPACT_PLACEHOLDER
+                                        : `${annualImpactBand} annual impact (estimate)`}
+                                </p>
+                                {annualImpactBasis !== "Unknown" && (
+                                    <p className="text-sm text-muted-foreground">Basis: {annualImpactBasis}</p>
+                                )}
+                                {annualImpactConfidence && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Confidence: {annualImpactConfidence}
+                                    </p>
+                                )}
+                                {annualImpactNotes.length > 0 && (
+                                    <ul className="text-sm text-muted-foreground space-y-1">
+                                        {annualImpactNotes.map((note) => (
+                                            <li key={note} className="flex items-start gap-2">
+                                                <ArrowRight className="h-4 w-4 text-primary/60 mt-0.5" />
+                                                {note}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </>
                         )}
                     </CardContent>
                 </Card>
@@ -379,7 +387,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 
             <Separator />
 
-            {/* Profitability Assessment */}
+            {/* Commercial Assessment */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center gap-2">
@@ -387,14 +395,21 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                             <TrendingUp className="h-5 w-5" />
                         </div>
                         <div>
-                            <CardTitle className="text-base">Commercial Assessment</CardTitle>
-                            <CardDescription>Qualitative opportunity evaluation</CardDescription>
+                            <CardTitle className="text-base">Opportunity Assessment</CardTitle>
+                            <CardDescription>Commercial opportunity evaluation</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {external.opportunityNarrative && (
+                        <p className="text-muted-foreground leading-relaxed">
+                            {external.opportunityNarrative}
+                        </p>
+                    )}
                     {isHighlyProfitable ? (
-                        <p className="text-lg font-semibold text-emerald-700">Highly profitable</p>
+                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                            Highly Profitable
+                        </Badge>
                     ) : (
                         <TooltipProvider>
                             <Tooltip>
@@ -402,7 +417,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                                     <Badge
                                         variant="outline"
                                         className={cn(
-                                            "text-lg px-4 py-2 cursor-help",
+                                            "text-base px-3 py-1.5 cursor-help",
                                             PROFITABILITY_COLORS[profitabilityBand],
                                         )}
                                     >
@@ -414,9 +429,6 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-                    )}
-                    {!isHighlyProfitable && profitabilityStatement && (
-                        <p className="text-sm text-muted-foreground">{profitabilityStatement}</p>
                     )}
                 </CardContent>
             </Card>

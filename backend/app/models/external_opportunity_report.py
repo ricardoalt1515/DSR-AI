@@ -137,4 +137,12 @@ class ExternalOpportunityReport(BaseSchema):
         default_factory=list,
         description="Notes or data gaps for the annual impact estimate.",
     )
+    annual_impact_narrative: str = Field(
+        default="",
+        description="Rich narrative explanation of annual impact (composed from internal data).",
+    )
+    opportunity_narrative: str = Field(
+        default="",
+        description="Summary of opportunity with pathways (composed from internal data).",
+    )
 

@@ -182,6 +182,7 @@ def _build_external_sections(
 
     # Annual Impact Estimate
     annual_impact_block = ""
+    annual_narrative = clean_context_value(proposal_data.get("annualImpactNarrative"))
     annual_band = clean_context_value(proposal_data.get("annualImpactMagnitudeBand"))
     annual_basis = clean_context_value(proposal_data.get("annualImpactBasis"))
     annual_confidence = clean_context_value(proposal_data.get("annualImpactConfidence"))
@@ -190,7 +191,15 @@ def _build_external_sections(
         annual_band = None
     if annual_basis == "Unknown":
         annual_basis = None
-    if annual_band or annual_basis or annual_confidence or annual_notes:
+
+    if annual_narrative:
+        annual_impact_block = (
+            '<div class="technical-section">'
+            '<h2 class="section-title">Annual Impact Estimate</h2>'
+            f'<p>{annual_narrative}</p>'
+            '</div>'
+        )
+    elif annual_band or annual_basis or annual_confidence or annual_notes:
         annual_impact_parts = []
         label = annual_band or "To be confirmed"
         annual_impact_parts.append(f"<p><strong>Estimated magnitude:</strong> {label}</p>")
@@ -268,31 +277,30 @@ def _build_external_sections(
 
     # Opportunity Assessment section
     opportunity_block = ""
+    opportunity_narrative = clean_context_value(proposal_data.get("opportunityNarrative"))
     viable_count = context.get("viablePathwaysCount") or 0
     opportunity_parts = []
-    if viable_count > 0:
+
+    if opportunity_narrative:
+        opportunity_parts.append(f"<p>{opportunity_narrative}</p>")
+    elif viable_count > 0:
         plural = "s" if viable_count != 1 else ""
         opportunity_parts.append(
             f"<p><strong>{viable_count} viable pathway{plural}</strong> "
             "identified for material valorization.</p>"
         )
-    if not is_highly_profitable:
-        if profitability_band and profitability_band != "Unknown":
-            badge_class = _get_badge_class(profitability_band)
-            opportunity_parts.append(
-                f'<p><strong>Opportunity Level:</strong> '
-                f'<span class="metric-badge {badge_class}">{profitability_band}</span></p>'
-            )
-        elif profitability_band == "Unknown":
-            opportunity_parts.append(
-                '<p><strong>Opportunity Level:</strong> '
-                '<span class="metric-badge badge-unknown">To be confirmed</span></p>'
-            )
-    if profitability_statement:
-        if is_highly_profitable:
-            opportunity_parts.append(f"<p><strong>{profitability_statement}</strong></p>")
-        else:
-            opportunity_parts.append(f"<p>{profitability_statement}</p>")
+
+    if is_highly_profitable:
+        opportunity_parts.append(
+            '<p><span class="metric-badge badge-high">Highly Profitable</span></p>'
+        )
+    elif profitability_band and profitability_band != "Unknown":
+        badge_class = _get_badge_class(profitability_band)
+        opportunity_parts.append(
+            f'<p><strong>Opportunity Level:</strong> '
+            f'<span class="metric-badge {badge_class}">{profitability_band}</span></p>'
+        )
+
     if opportunity_parts:
         opportunity_block = (
             '<div class="technical-section">'

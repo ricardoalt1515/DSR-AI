@@ -57,7 +57,7 @@ from app.models.external_opportunity_report import (
     SustainabilityMetric,
     SustainabilitySection,
 )
-from app.models.proposal_output import ProposalOutput
+from app.models.proposal_output import BusinessPathway, ProposalOutput
 from app.schemas.proposal import ProposalGenerationRequest
 from app.services.cache_service import cache_service
 from app.services.s3_service import get_presigned_url
@@ -945,6 +945,81 @@ def _extract_handling(pathways: list) -> list[str]:
     return guidance[:5]
 
 
+def _compose_annual_impact_narrative(
+    magnitude_band: str,
+    basis: str,
+    confidence: str,
+    profitability_summary: str,
+) -> str:
+    """Compose annual impact narrative from existing internal data."""
+    impact_phrase = {
+        "Seven figures+": "represents a substantial annual impact",
+        "Six figures": "represents a meaningful annual impact",
+        "Five figures": "represents a moderate annual impact",
+        "Under five figures": "represents a modest annual impact",
+        "Unknown": "has impact potential to be confirmed",
+    }.get(magnitude_band, "has impact potential to be confirmed")
+
+    basis_phrase = {
+        "Revenue potential": "driven primarily by new revenue streams from material sales",
+        "Avoided disposal cost": "driven primarily by reduced disposal costs",
+        "Mixed": "combining reduced disposal costs and new revenue streams",
+        "Unknown": "based on current market conditions",
+    }.get(basis, "based on current market conditions")
+
+    confidence_phrase = {
+        "High": "High confidence based on verified market data.",
+        "Medium": "Moderate confidence pending additional validation.",
+        "Low": "Preliminary assessment pending detailed analysis.",
+    }.get(confidence, "")
+
+    narrative = f"This opportunity {impact_phrase} {basis_phrase}. {confidence_phrase}"
+
+    if profitability_summary:
+        sanitized = sanitize_external_text(profitability_summary)
+        if sanitized and len(sanitized) > 20 and sanitized != _EXTERNAL_REDACTION_MESSAGE:
+            narrative += f" {sanitized}"
+
+    return narrative.strip()
+
+
+def _compose_opportunity_narrative(
+    pathways: list[BusinessPathway],
+    profitability_statement: str,
+) -> str:
+    """Compose opportunity narrative from pathways data."""
+    viable_pathways = [p for p in pathways if p.feasibility in ("High", "Medium")]
+    pathway_count = len(viable_pathways)
+
+    count_phrase = {
+        0: "Pathways are being evaluated",
+        1: "One viable pathway has been identified",
+        2: "Two viable pathways have been identified",
+        3: "Three viable pathways have been identified",
+    }.get(pathway_count, f"{pathway_count} viable pathways have been identified")
+
+    top_actions = [p.action for p in viable_pathways[:3]]
+    actions_phrase = ""
+    if top_actions:
+        if len(top_actions) == 1:
+            actions_phrase = f", including {top_actions[0].lower()}"
+        else:
+            formatted = ", ".join(a.lower() for a in top_actions[:-1])
+            actions_phrase = f", including {formatted} and {top_actions[-1].lower()}"
+
+    rationale = ""
+    if viable_pathways and viable_pathways[0].why_it_works:
+        sanitized_rationale = sanitize_external_text(viable_pathways[0].why_it_works)
+        if sanitized_rationale and len(sanitized_rationale) > 20 and sanitized_rationale != _EXTERNAL_REDACTION_MESSAGE:
+            rationale = f" {sanitized_rationale}"
+
+    outlook = ""
+    if profitability_statement:
+        outlook = f" Commercial outlook: {profitability_statement.lower()}."
+
+    return f"{count_phrase} for material valorization{actions_phrase}.{rationale}{outlook}".strip()
+
+
 def _parse_annual_amounts(value: str | None) -> list[float]:
     if not value:
         return []
@@ -1062,6 +1137,18 @@ def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityRepor
     if profitability_statement == _HIGHLY_PROFITABLE_LABEL:
         external_band = "Unknown"
 
+    annual_impact_narrative = _compose_annual_impact_narrative(
+        magnitude_band=annual_band,
+        basis=annual_basis,
+        confidence=annual_confidence,
+        profitability_summary=internal.economics_deep_dive.profitability_summary,
+    )
+
+    opportunity_narrative = _compose_opportunity_narrative(
+        pathways=internal.pathways,
+        profitability_statement=profitability_statement or "",
+    )
+
     return ExternalOpportunityReport(
         sustainability=sustainability,
         profitability_band=external_band,
@@ -1074,6 +1161,8 @@ def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityRepor
         annual_impact_basis=annual_basis,
         annual_impact_confidence=annual_confidence,
         annual_impact_notes=annual_notes,
+        annual_impact_narrative=annual_impact_narrative,
+        opportunity_narrative=opportunity_narrative,
     )
 
 

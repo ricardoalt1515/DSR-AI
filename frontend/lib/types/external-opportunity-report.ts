@@ -47,5 +47,7 @@ export interface ExternalOpportunityReport {
 	annualImpactBasis?: AnnualImpactBasis;
 	annualImpactConfidence?: AnnualImpactConfidence;
 	annualImpactNotes?: string[];
+	annualImpactNarrative?: string;
+	opportunityNarrative?: string;
 }
 

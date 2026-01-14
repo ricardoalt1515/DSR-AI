@@ -14,6 +14,11 @@ AI waste-opportunity platform: ingest opportunities (direct/partners), capture w
 - use 'knip' to remove unused code if making large changes.
 - Don't Use emojis
 
+## Plan Mode
+
+- Make the plan extremely concise. Sacrifice grammar for the sake of concision.
+- At the end of each plan, give me a list of unresolved questions to answer, if any.
+
 ## React
 
 - avoid massive jsx blocks and compose smaller components.

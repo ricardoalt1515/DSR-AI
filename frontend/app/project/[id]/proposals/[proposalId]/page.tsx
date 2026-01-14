@@ -126,8 +126,6 @@ export default function ProposalDetailPage({ params }: PageProps) {
 
 	// Load proposal with race condition protection
 	const loadProposalData = useCallback(async () => {
-		if (proposal?.id === proposalId) return; // Guard: don't refetch the same proposal
-
 		const requestId = startProposalRequest();
 
 		setProposalLoading(true);
@@ -135,17 +133,6 @@ export default function ProposalDetailPage({ params }: PageProps) {
 		setProposalNotFound(false);
 
 		try {
-			// Check store first
-			if (storeProject?.id === projectId) {
-				const storeProposal = storeProject.proposals?.find((p) => p.id === proposalId);
-				if (storeProposal) {
-					if (isLatestProposalRequest(requestId)) {
-						setProposal(mapProposalDtoToUi(storeProposal));
-					}
-					return;
-				}
-			}
-
 			const apiProposal = await ProposalsAPI.getProposal(projectId, proposalId);
 			if (isLatestProposalRequest(requestId)) {
 				setProposal(mapProposalDtoToUi(apiProposal));
@@ -171,8 +158,6 @@ export default function ProposalDetailPage({ params }: PageProps) {
 		proposalId,
 		startProposalRequest,
 		isLatestProposalRequest,
-		proposal,
-		storeProject,
 	]);
 
 	// Initial data load
@@ -206,7 +191,6 @@ export default function ProposalDetailPage({ params }: PageProps) {
 				title="Failed to load proposal"
 				message={proposalError}
 				onRetry={() => {
-					setProposal(null); // Reset guard
 					void loadProposalData();
 				}}
 			/>
