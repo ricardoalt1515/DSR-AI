@@ -4,13 +4,12 @@ Timeline service for tracking project activity.
 Provides a simple helper to create timeline events without repetition.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.timeline import TimelineEvent
-
 
 # Map backend event types to frontend TimelineEventType
 EVENT_TYPE_MAP = {
@@ -29,12 +28,12 @@ async def create_timeline_event(
     event_type: str,
     title: str,
     actor: str,
-    description: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    description: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> TimelineEvent:
     """
     Create and persist a timeline event.
-    
+
     Args:
         db: Database session
         project_id: Project UUID
@@ -43,16 +42,16 @@ async def create_timeline_event(
         actor: User email or identifier
         description: Optional detailed description
         metadata: Optional additional data
-    
+
     Returns:
         Created TimelineEvent instance
-    
+
     Note:
         Event type is automatically mapped to frontend format using EVENT_TYPE_MAP.
     """
     # Map to frontend event type
     frontend_type = EVENT_TYPE_MAP.get(event_type, "edit")
-    
+
     event = TimelineEvent(
         project_id=project_id,
         organization_id=organization_id,
@@ -62,6 +61,6 @@ async def create_timeline_event(
         actor=actor,
         event_metadata=metadata,
     )
-    
+
     db.add(event)
     return event

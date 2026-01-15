@@ -100,7 +100,8 @@ export class ProjectDataAPI {
 		const updatedAt = response.updatedAt ?? response.updated_at;
 		if (updatedAt) result.updatedAt = updatedAt;
 
-		if (typeof response.progress === "number") result.progress = response.progress;
+		if (typeof response.progress === "number")
+			result.progress = response.progress;
 
 		return result;
 	}

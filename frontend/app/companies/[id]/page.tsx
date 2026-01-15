@@ -17,15 +17,15 @@ import { useParams, useRouter } from "next/navigation";
  */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-	import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
-	import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
-	import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
-	import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
-	import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-	import { Badge } from "@/components/ui/badge";
-	import { Button } from "@/components/ui/button";
-	import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-	import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
+import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
+import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
+import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -58,9 +58,9 @@ export default function CompanyDetailPage() {
 	} = useLocationStore();
 
 	// Filter locations for current company only (store may have cached data from other companies)
-	const locations = useMemo(() =>
-		allLocations.filter(loc => loc.companyId === companyId),
-		[allLocations, companyId]
+	const locations = useMemo(
+		() => allLocations.filter((loc) => loc.companyId === companyId),
+		[allLocations, companyId],
 	);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [locationToDelete, setLocationToDelete] =
@@ -119,34 +119,34 @@ export default function CompanyDetailPage() {
 	return (
 		<div className="container mx-auto py-8 space-y-6">
 			{/* Breadcrumb */}
-				<Breadcrumb
-					items={[
-						{ label: "Companies", href: "/companies" },
-						{ label: currentCompany.name, icon: Building2 },
-					]}
-				/>
+			<Breadcrumb
+				items={[
+					{ label: "Companies", href: "/companies" },
+					{ label: currentCompany.name, icon: Building2 },
+				]}
+			/>
 
-				{(companyError || locationsError) && (
-					<Alert variant="destructive">
-						<AlertTitle>Could not load company data</AlertTitle>
-						<AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-							<p className="text-sm text-muted-foreground">
-								{companyError || locationsError}
-							</p>
-							<Button
-								variant="outline"
-								onClick={() => {
-									clearCompanyError();
-									clearLocationsError();
-									void loadCompany(companyId).catch(() => {});
-									void loadLocationsByCompany(companyId).catch(() => {});
-								}}
-							>
-								Retry
-							</Button>
-						</AlertDescription>
-					</Alert>
-				)}
+			{(companyError || locationsError) && (
+				<Alert variant="destructive">
+					<AlertTitle>Could not load company data</AlertTitle>
+					<AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<p className="text-sm text-muted-foreground">
+							{companyError || locationsError}
+						</p>
+						<Button
+							variant="outline"
+							onClick={() => {
+								clearCompanyError();
+								clearLocationsError();
+								void loadCompany(companyId).catch(() => {});
+								void loadLocationsByCompany(companyId).catch(() => {});
+							}}
+						>
+							Retry
+						</Button>
+					</AlertDescription>
+				</Alert>
+			)}
 
 			{/* Header */}
 			<div className="flex items-center gap-4">
@@ -181,8 +181,10 @@ export default function CompanyDetailPage() {
 				</CardHeader>
 				<CardContent className="space-y-4">
 					{/* Sector/Subsector - only show if not default 'other' */}
-					{currentCompany.sector && currentCompany.subsector &&
-						currentCompany.sector !== "other" && currentCompany.subsector !== "other" && (
+					{currentCompany.sector &&
+						currentCompany.subsector &&
+						currentCompany.sector !== "other" &&
+						currentCompany.subsector !== "other" && (
 							<>
 								<div>
 									<p className="text-sm font-medium text-muted-foreground mb-2">
@@ -269,13 +271,13 @@ export default function CompanyDetailPage() {
 						<MapPin className="h-6 w-6" />
 						Locations
 					</h2>
-						<CreateLocationDialog
-							companyId={companyId}
-							onSuccess={() => {
-								void loadCompany(companyId).catch(() => {});
-								void loadLocationsByCompany(companyId).catch(() => {});
-							}}
-						/>
+					<CreateLocationDialog
+						companyId={companyId}
+						onSuccess={() => {
+							void loadCompany(companyId).catch(() => {});
+							void loadLocationsByCompany(companyId).catch(() => {});
+						}}
+					/>
 				</div>
 
 				{locations.length === 0 ? (
@@ -286,19 +288,19 @@ export default function CompanyDetailPage() {
 							<p className="text-muted-foreground mb-4">
 								Add the first location for this company
 							</p>
-								<CreateLocationDialog
-									companyId={companyId}
-									trigger={
-										<Button>
-											<Plus className="mr-2 h-4 w-4" />
-											Add First Location
-										</Button>
-									}
-									onSuccess={() => {
-										void loadCompany(companyId).catch(() => {});
-										void loadLocationsByCompany(companyId).catch(() => {});
-									}}
-								/>
+							<CreateLocationDialog
+								companyId={companyId}
+								trigger={
+									<Button>
+										<Plus className="mr-2 h-4 w-4" />
+										Add First Location
+									</Button>
+								}
+								onSuccess={() => {
+									void loadCompany(companyId).catch(() => {});
+									void loadLocationsByCompany(companyId).catch(() => {});
+								}}
+							/>
 						</CardContent>
 					</Card>
 				) : (
@@ -355,18 +357,11 @@ export default function CompanyDetailPage() {
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
 													<DropdownMenuItem
-														onSelect={(event) => {
-															event.preventDefault();
-															setOpenMenuId(null);
-															setLocationToDelete(location);
-															requestAnimationFrame(() => {
-																setDeleteDialogOpen(true);
-															});
-														}}
-														className="text-destructive focus:text-destructive"
+														disabled
+														className="text-muted-foreground cursor-not-allowed"
 													>
 														<Trash2 className="mr-2 h-4 w-4" />
-														Delete
+														Delete (Coming soon)
 													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
@@ -451,21 +446,21 @@ export default function CompanyDetailPage() {
 						}),
 						...(currentCompany.notes && { notes: currentCompany.notes }),
 					}}
-						onSuccess={async () => {
-							setEditCompanyDialogOpen(false);
-							// Reload company data after edit
-							try {
-								await loadCompany(companyId);
-							} catch (error) {
-								toast.error(
-									error instanceof Error
-										? error.message
-										: "Failed to reload company",
-								);
-							}
-						}}
-					/>
-				)}
+					onSuccess={async () => {
+						setEditCompanyDialogOpen(false);
+						// Reload company data after edit
+						try {
+							await loadCompany(companyId);
+						} catch (error) {
+							toast.error(
+								error instanceof Error
+									? error.message
+									: "Failed to reload company",
+							);
+						}
+					}}
+				/>
+			)}
 		</div>
 	);
 }

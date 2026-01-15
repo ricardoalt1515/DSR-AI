@@ -135,8 +135,7 @@ export function TagInput({
 			{/* Helper text */}
 			{maxTags && (
 				<p className="text-xs text-muted-foreground">
-					{tags.length} / {maxTags}{" "}
-					{tags.length === 1 ? "item" : "items"}
+					{tags.length} / {maxTags} {tags.length === 1 ? "item" : "items"}
 				</p>
 			)}
 		</div>

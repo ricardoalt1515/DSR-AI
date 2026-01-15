@@ -494,11 +494,11 @@ export function FileUploader({
 					prev.map((f) =>
 						f.id === fileId
 							? {
-								...f,
-								status: "error" as const,
-								error:
-									_error instanceof Error ? _error.message : "Upload failed",
-							}
+									...f,
+									status: "error" as const,
+									error:
+										_error instanceof Error ? _error.message : "Upload failed",
+								}
 							: f,
 					),
 				);
@@ -849,7 +849,10 @@ export function FileUploader({
 														)}
 													>
 														<processingBadge.IconComponent
-															className={cn("h-3 w-3", processingBadge.iconClassName)}
+															className={cn(
+																"h-3 w-3",
+																processingBadge.iconClassName,
+															)}
 														/>
 														{processingBadge.label}
 													</Badge>

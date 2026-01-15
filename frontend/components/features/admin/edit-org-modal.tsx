@@ -59,7 +59,10 @@ export function EditOrgModal({
 		}
 	}, [organization]);
 
-	const handleInputChange = (field: keyof typeof form, value: string | boolean) => {
+	const handleInputChange = (
+		field: keyof typeof form,
+		value: string | boolean,
+	) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
 	};
 
@@ -103,7 +106,8 @@ export function EditOrgModal({
 			if (form.contactPhone !== (organization.contactPhone || "")) {
 				updates.contactPhone = form.contactPhone.trim() || null;
 			}
-			if (form.isActive !== organization.isActive) updates.isActive = form.isActive;
+			if (form.isActive !== organization.isActive)
+				updates.isActive = form.isActive;
 
 			await onSubmit(organization.id, updates);
 			onOpenChange(false);
@@ -156,7 +160,9 @@ export function EditOrgModal({
 								type="email"
 								placeholder="admin@company.com"
 								value={form.contactEmail}
-								onChange={(e) => handleInputChange("contactEmail", e.target.value)}
+								onChange={(e) =>
+									handleInputChange("contactEmail", e.target.value)
+								}
 							/>
 						</div>
 						<div className="space-y-2">
@@ -165,7 +171,9 @@ export function EditOrgModal({
 								id="contactPhone"
 								placeholder="+1 555 123 4567"
 								value={form.contactPhone}
-								onChange={(e) => handleInputChange("contactPhone", e.target.value)}
+								onChange={(e) =>
+									handleInputChange("contactPhone", e.target.value)
+								}
 							/>
 						</div>
 						<div className="flex items-center justify-between rounded-lg border p-4">
@@ -195,13 +203,16 @@ export function EditOrgModal({
 				</DialogContent>
 			</Dialog>
 
-			<AlertDialog open={showDeactivateConfirm} onOpenChange={setShowDeactivateConfirm}>
+			<AlertDialog
+				open={showDeactivateConfirm}
+				onOpenChange={setShowDeactivateConfirm}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Deactivate Organization?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This will prevent all users in this organization from accessing the
-							platform. You can reactivate it later.
+							This will prevent all users in this organization from accessing
+							the platform. You can reactivate it later.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

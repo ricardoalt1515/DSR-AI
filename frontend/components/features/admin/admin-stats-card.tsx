@@ -51,33 +51,34 @@ export function AdminStatsCard({
 			className={cn(
 				"flex items-center gap-4 rounded-xl border p-4 transition-all duration-200",
 				"hover:shadow-md hover:-translate-y-0.5",
-				styles.container
+				styles.container,
 			)}
 		>
 			<div
 				className={cn(
 					"flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-					styles.icon
+					styles.icon,
 				)}
 			>
 				<Icon className="h-5 w-5" />
 			</div>
 			<div className="min-w-0 flex-1">
-				<p className="text-xs font-medium text-muted-foreground">
-					{label}
-				</p>
+				<p className="text-xs font-medium text-muted-foreground">{label}</p>
 				<div className="flex items-baseline gap-2">
-					<p className={cn("text-2xl font-semibold tabular-nums", styles.value)}>
+					<p
+						className={cn("text-2xl font-semibold tabular-nums", styles.value)}
+					>
 						{value}
 					</p>
 					{trend && (
 						<span
 							className={cn(
 								"text-xs font-medium",
-								trend.isPositive ? "text-green-600" : "text-red-600"
+								trend.isPositive ? "text-green-600" : "text-red-600",
 							)}
 						>
-							{trend.isPositive ? "+" : "-"}{trend.value}%
+							{trend.isPositive ? "+" : "-"}
+							{trend.value}%
 						</span>
 					)}
 				</div>

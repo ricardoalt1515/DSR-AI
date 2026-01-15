@@ -14,7 +14,7 @@ from app.schemas.common import BaseSchema
 
 class BusinessPathway(BaseSchema):
     """Single business opportunity - ready to pitch to buyers."""
-    
+
     action: str = Field(description="What we do: 'Shred to flakes', 'Sell as-is'")
     buyer_types: str = Field(description="Generic buyers: 'recyclers, furniture makers'")
     price_range: str = Field(description="Market rate: '$150-200/ton'")
@@ -36,7 +36,7 @@ class BusinessPathway(BaseSchema):
 
 class FinancialSummary(BaseSchema):
     """Financial overview - one line each."""
-    
+
     current_cost: str = Field(description="What generator pays now: '$18k/yr landfill'")
     offer_terms: str = Field(description="Offer structure/value prop: 'We buy @ $50/ton'")
     estimated_margin: str = Field(description="Estimated margin: '~60% after transport'")
@@ -97,7 +97,7 @@ class EnvironmentalImpact(BaseSchema):
 
 class SafetyHandling(BaseSchema):
     """Safety and handling guidance."""
-    
+
     hazard: Literal["None", "Low", "Moderate", "High"] = Field(default="Low")
     warnings: str = Field(description="Health/safety risks")
     storage: str = Field(description="How to store/transport")
@@ -106,18 +106,14 @@ class SafetyHandling(BaseSchema):
 class ProposalOutput(BaseSchema):
     """
     Opportunity Report - Internal (operator team).
-    
+
     Purpose: Support internal decision-making and enable buyer-ready pitching.
     Audience: Internal operators and sales team.
     """
 
     # 1. QUICK SUMMARY (for internal team)
-    recommendation: Literal["GO", "NO-GO", "INVESTIGATE"] = Field(
-        description="Internal decision"
-    )
-    headline: str = Field(
-        description="One-line summary: 'High-margin HDPE, $28k/yr potential'"
-    )
+    recommendation: Literal["GO", "NO-GO", "INVESTIGATE"] = Field(description="Internal decision")
+    headline: str = Field(description="One-line summary: 'High-margin HDPE, $28k/yr potential'")
     confidence: Literal["High", "Medium", "Low"] = Field(default="Medium")
 
     # 2. CONTEXT (who/what)
@@ -140,10 +136,10 @@ class ProposalOutput(BaseSchema):
     economics_deep_dive: EconomicsDeepDive = Field(
         description="Detailed economics for internal review (all estimate-only).",
     )
-    
+
     # 4. ENVIRONMENT (for buyer pitches)
     environment: EnvironmentalImpact
-    
+
     # 5. SAFETY
     safety: SafetyHandling
 
@@ -151,23 +147,14 @@ class ProposalOutput(BaseSchema):
     pathways: list[BusinessPathway] = Field(
         min_length=3,
         max_length=10,
-        description="Ideas ordered by margin and feasibility. Include creative options."
+        description="Ideas ordered by margin and feasibility. Include creative options.",
     )
 
     # 7. RISKS & NEXT STEPS
-    risks: list[str] = Field(
-        min_length=1,
-        max_length=4,
-        description="Key blockers"
-    )
-    next_steps: list[str] = Field(
-        min_length=1,
-        max_length=3,
-        description="What the team does next"
-    )
-    
+    risks: list[str] = Field(min_length=1, max_length=4, description="Key blockers")
+    next_steps: list[str] = Field(min_length=1, max_length=3, description="What the team does next")
+
     # 8. ROI SUMMARY (like Wastetide's "$100 → $1000")
     roi_summary: str = Field(
-        default="",
-        description="Simple ROI pitch: 'Acquisition $5k → Revenue $28k/yr = 460% ROI'"
+        default="", description="Simple ROI pitch: 'Acquisition $5k → Revenue $28k/yr = 460% ROI'"
     )

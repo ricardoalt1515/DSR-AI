@@ -6,4 +6,3 @@ export { OrgAvatar } from "./org-avatar";
 export { OrgCard } from "./org-card";
 export { OrgSwitcher } from "./org-switcher";
 export { UsersTable } from "./users-table";
-

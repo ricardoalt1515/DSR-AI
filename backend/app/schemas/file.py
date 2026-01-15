@@ -2,15 +2,16 @@
 File-related schemas for uploads and downloads.
 """
 
-from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime
+from typing import Any
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
 class FileUploadResponse(BaseModel):
     """Response after successful file upload."""
-    
+
     id: UUID
     filename: str
     file_size: int = Field(description="File size in bytes")
@@ -19,7 +20,7 @@ class FileUploadResponse(BaseModel):
     processing_status: str = Field(description="queued, processing, completed, not_processed")
     uploaded_at: datetime
     message: str = "File uploaded successfully"
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -37,7 +38,7 @@ class FileUploadResponse(BaseModel):
 
 class FileInfo(BaseModel):
     """Basic file information for list views."""
-    
+
     id: UUID
     filename: str
     file_size: int
@@ -53,11 +54,11 @@ class FileInfo(BaseModel):
 
 class FileListResponse(BaseModel):
     """List of files for a project."""
-    
+
     project_id: UUID
-    files: List[FileInfo]
+    files: list[FileInfo]
     total: int
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -82,7 +83,7 @@ class FileListResponse(BaseModel):
 
 class FileDetailResponse(BaseModel):
     """Detailed file information including processed content."""
-    
+
     id: UUID
     project_id: UUID
     filename: str
@@ -90,8 +91,8 @@ class FileDetailResponse(BaseModel):
     file_type: str
     category: str
     uploaded_at: datetime
-    processed_text: Optional[str] = Field(None, description="Extracted text content")
-    ai_analysis: Optional[Dict[str, Any]] = Field(None, description="AI analysis results")
-    
+    processed_text: str | None = Field(None, description="Extracted text content")
+    ai_analysis: dict[str, Any] | None = Field(None, description="AI analysis results")
+
     class Config:
         from_attributes = True

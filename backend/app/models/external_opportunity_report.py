@@ -5,13 +5,12 @@ Sustainability-first, with explicit "not_computed" placeholders and no
 sensitive commercial details.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import Field
 
 from app.schemas.common import BaseSchema
-
 
 MetricStatus = Literal["computed", "not_computed"]
 ProfitabilityBand = Literal["High", "Medium", "Low", "Unknown"]
@@ -33,7 +32,7 @@ AnnualImpactConfidence = Literal["Low", "Medium", "High"]
 
 def _utc_now_iso() -> str:
     """Return current UTC time as ISO string for JSON serialization."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class SustainabilityMetric(BaseSchema):
@@ -68,12 +67,8 @@ class SustainabilitySection(BaseSchema):
     """Sustainability overview for the external report."""
 
     summary: str = Field(description="Executive sustainability summary.")
-    co2e_reduction: SustainabilityMetric = Field(
-        description="CO2e reduction metric."
-    )
-    water_savings: SustainabilityMetric = Field(
-        description="Water savings metric."
-    )
+    co2e_reduction: SustainabilityMetric = Field(description="CO2e reduction metric.")
+    water_savings: SustainabilityMetric = Field(description="Water savings metric.")
     circularity: list[CircularityIndicator] = Field(
         default_factory=list,
         description="Circularity indicators with metrics.",
@@ -145,4 +140,3 @@ class ExternalOpportunityReport(BaseSchema):
         default="",
         description="Summary of opportunity with pathways (composed from internal data).",
     )
-

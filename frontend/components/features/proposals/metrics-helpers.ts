@@ -3,7 +3,10 @@
  * Updated for new buyer-focused schema
  */
 
-import type { WasteUpcyclingReport, BusinessPathway } from "@/lib/types/proposal";
+import type {
+	WasteUpcyclingReport,
+	BusinessPathway,
+} from "@/lib/types/proposal";
 
 /**
  * Extract annual value from pathways (highest)
@@ -53,7 +56,10 @@ export function getESGHeadline(report: WasteUpcyclingReport): string {
 /**
  * Get top pathways for display
  */
-export function getTopPathways(report: WasteUpcyclingReport, limit = 3): BusinessPathway[] {
+export function getTopPathways(
+	report: WasteUpcyclingReport,
+	limit = 3,
+): BusinessPathway[] {
 	return report.pathways?.slice(0, limit) || [];
 }
 

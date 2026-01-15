@@ -104,7 +104,8 @@ export default function ProjectPage() {
 						Project not found
 					</h1>
 					<p className="text-muted-foreground">
-						The project you are looking for does not exist or you do not have permission to view it.
+						The project you are looking for does not exist or you do not have
+						permission to view it.
 					</p>
 				</div>
 			</div>

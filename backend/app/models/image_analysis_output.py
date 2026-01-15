@@ -11,7 +11,6 @@ from pydantic import Field
 
 from app.schemas.common import BaseSchema
 
-
 # EPA WaRM CO₂ factors (tonnes CO2e avoided per tonne recycled vs landfilled)
 EPA_WARM_FACTORS = {
     "HDPE": 2.0,
@@ -38,7 +37,7 @@ class CompositionItem(BaseSchema):
 class ImageAnalysisOutput(BaseSchema):
     """
     Visual + LCA analysis output.
-    
+
     Single responsibility: Extract what CAN BE SEEN + calculate environmental impact.
     Does NOT include: pricing, buyers, business ideas (Proposal Agent handles those).
     """
@@ -46,7 +45,7 @@ class ImageAnalysisOutput(BaseSchema):
     # ═══════════════════════════════════════════════════════════════════════════
     # VISUAL IDENTIFICATION
     # ═══════════════════════════════════════════════════════════════════════════
-    
+
     material_type: str = Field(
         description="Primary material identified (e.g., 'HDPE plastic drums')"
     )
@@ -67,37 +66,27 @@ class ImageAnalysisOutput(BaseSchema):
     # ═══════════════════════════════════════════════════════════════════════════
     # LCA / ENVIRONMENTAL IMPACT
     # ═══════════════════════════════════════════════════════════════════════════
-    
+
     current_disposal_pathway: Literal[
         "Landfill", "Incineration", "Stockpiling", "Open burning", "Unknown"
-    ] = Field(
-        default="Landfill",
-        description="What happens if this waste is not diverted"
-    )
+    ] = Field(default="Landfill", description="What happens if this waste is not diverted")
     co2_if_disposed: float = Field(
-        default=0.0,
-        description="Estimated CO₂e if current disposal continues (tonnes/year)"
+        default=0.0, description="Estimated CO₂e if current disposal continues (tonnes/year)"
     )
     co2_if_diverted: float = Field(
-        default=0.0,
-        description="Estimated CO₂e if recycled/upcycled (tonnes/year)"
+        default=0.0, description="Estimated CO₂e if recycled/upcycled (tonnes/year)"
     )
-    co2_savings: float = Field(
-        default=0.0,
-        description="CO₂e avoided by diversion (tonnes/year)"
-    )
-    esg_statement: str = Field(
-        description="Ready-to-use statement for customer ESG reports"
-    )
+    co2_savings: float = Field(default=0.0, description="CO₂e avoided by diversion (tonnes/year)")
+    esg_statement: str = Field(description="Ready-to-use statement for customer ESG reports")
     lca_assumptions: str = Field(
         default="",
-        description="Key assumptions made (e.g., 'Based on ~200kg visible, EPA WaRM factors')"
+        description="Key assumptions made (e.g., 'Based on ~200kg visible, EPA WaRM factors')",
     )
 
     # ═══════════════════════════════════════════════════════════════════════════
     # HANDLING & SAFETY
     # ═══════════════════════════════════════════════════════════════════════════
-    
+
     ppe_requirements: list[str] = Field(
         default_factory=list,
         description="Required PPE for handling (e.g., 'Gloves', 'N95 mask')",
@@ -118,7 +107,7 @@ class ImageAnalysisOutput(BaseSchema):
     # ═══════════════════════════════════════════════════════════════════════════
     # SUMMARY
     # ═══════════════════════════════════════════════════════════════════════════
-    
+
     summary: str = Field(
         description="One-line summary of the material and its condition (20-30 words)"
     )

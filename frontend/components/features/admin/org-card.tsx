@@ -4,11 +4,7 @@ import { Calendar, Edit2, Mail, Phone, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { Organization } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { OrgAvatar } from "./org-avatar";
@@ -25,7 +21,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 				month: "short",
 				day: "numeric",
 				year: "numeric",
-		  })
+			})
 		: null;
 
 	return (
@@ -33,7 +29,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 			className={cn(
 				"group relative h-full transition-all duration-200",
 				"hover:shadow-lg hover:border-primary/40 hover:-translate-y-1",
-				!organization.isActive && "opacity-70"
+				!organization.isActive && "opacity-70",
 			)}
 		>
 			<CardHeader className="pb-4">
@@ -59,7 +55,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 									"shrink-0",
 									organization.isActive
 										? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
-										: "bg-muted text-muted-foreground"
+										: "bg-muted text-muted-foreground",
 								)}
 							>
 								{organization.isActive ? "Active" : "Inactive"}
@@ -112,12 +108,15 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 				)}
 
 				<div className="flex items-center gap-2 pt-2">
-						<Link href={`/admin/organizations/${organization.id}`} className="flex-1">
-							<Button variant="outline" size="sm" className="w-full">
-								<Users className="h-3.5 w-3.5 mr-2 text-blue-500" />
-								Manage Members
-							</Button>
-						</Link>
+					<Link
+						href={`/admin/organizations/${organization.id}`}
+						className="flex-1"
+					>
+						<Button variant="outline" size="sm" className="w-full">
+							<Users className="h-3.5 w-3.5 mr-2 text-blue-500" />
+							Manage Members
+						</Button>
+					</Link>
 					{onEdit && (
 						<Button
 							variant="ghost"

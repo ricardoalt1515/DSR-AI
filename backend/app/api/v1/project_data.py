@@ -2,14 +2,14 @@
 API endpoints for flexible project data management.
 """
 
-from typing import Any, Dict
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
 import structlog
+from fastapi import APIRouter, HTTPException, Request
 
-from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep, AsyncDB
-from app.services.project_data_service import ProjectDataService
+from app.api.dependencies import AsyncDB, CurrentUser, OrganizationContext, ProjectDep
 from app.schemas.common import SuccessResponse
+from app.services.project_data_service import ProjectDataService
 
 logger = structlog.get_logger(__name__)
 
@@ -45,9 +45,9 @@ async def update_project_data(
     project: ProjectDep,
     current_user: CurrentUser,
     org: OrganizationContext,
-    updates: Dict[str, Any],
+    updates: dict[str, Any],
     db: AsyncDB,
-    merge: bool = True
+    merge: bool = True,
 ):
     """Update project data (merges by default, set merge=false to replace)."""
     updated = await ProjectDataService.update_project_data(
@@ -56,7 +56,7 @@ async def update_project_data(
         current_user=current_user,
         org_id=org.id,
         updates=updates,
-        merge=merge
+        merge=merge,
     )
     logger.info("project_data_updated", project_id=str(project.id))
     return {
@@ -74,7 +74,7 @@ async def replace_project_data(
     project: ProjectDep,
     current_user: CurrentUser,
     org: OrganizationContext,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     db: AsyncDB,
 ):
     """Replace project data completely (no merge)."""
@@ -84,7 +84,7 @@ async def replace_project_data(
         current_user=current_user,
         org_id=org.id,
         updates=data,
-        merge=False
+        merge=False,
     )
     logger.info("project_data_replaced", project_id=str(project.id))
     return {
@@ -114,15 +114,19 @@ async def add_quality_parameter(
     if "quality" not in data:
         data["quality"] = {}
     data["quality"][parameter_name] = {"value": value, "unit": unit}
-    
+
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
-        updates={"quality": data["quality"]}, merge=True
+        db=db,
+        project_id=project.id,
+        current_user=current_user,
+        org_id=org.id,
+        updates={"quality": data["quality"]},
+        merge=True,
     )
     logger.info("quality_parameter_added", parameter=parameter_name, value=value)
     return SuccessResponse(
         message=f"Parameter '{parameter_name}' added successfully",
-        data={"parameter": parameter_name, "value": value, "unit": unit}
+        data={"parameter": parameter_name, "value": value, "unit": unit},
     )
 
 
@@ -143,11 +147,15 @@ async def delete_quality_parameter(
     quality = data.get("quality", {})
     if parameter_name not in quality:
         raise HTTPException(404, f"Parameter '{parameter_name}' not found")
-    
+
     del quality[parameter_name]
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
-        updates={"quality": quality}, merge=True
+        db=db,
+        project_id=project.id,
+        current_user=current_user,
+        org_id=org.id,
+        updates={"quality": quality},
+        merge=True,
     )
     logger.info("quality_parameter_deleted", parameter=parameter_name)
     return SuccessResponse(message=f"Parameter '{parameter_name}' deleted successfully")
@@ -160,7 +168,7 @@ async def add_custom_section(
     project: ProjectDep,
     current_user: CurrentUser,
     org: OrganizationContext,
-    section: Dict[str, Any],
+    section: dict[str, Any],
     db: AsyncDB,
 ):
     """Add a custom section to the project."""
@@ -171,10 +179,14 @@ async def add_custom_section(
     if "order" not in section:
         section["order"] = len(sections)
     sections.append(section)
-    
+
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
-        updates={"sections": sections}, merge=True
+        db=db,
+        project_id=project.id,
+        current_user=current_user,
+        org_id=org.id,
+        updates={"sections": sections},
+        merge=True,
     )
     logger.info("section_added", title=section.get("title"))
     return SuccessResponse(message="Section added successfully", data={"section": section})
@@ -196,16 +208,20 @@ async def delete_custom_section(
     )
     sections = data.get("sections", [])
     filtered_sections = [s for s in sections if s.get("id") != section_id]
-    
+
     if len(sections) == len(filtered_sections):
         raise HTTPException(404, f"Section '{section_id}' not found")
-    
+
     for idx, section in enumerate(filtered_sections):
         section["order"] = idx
-    
+
     await ProjectDataService.update_project_data(
-        db=db, project_id=project.id, current_user=current_user, org_id=org.id,
-        updates={"sections": filtered_sections}, merge=True
+        db=db,
+        project_id=project.id,
+        current_user=current_user,
+        org_id=org.id,
+        updates={"sections": filtered_sections},
+        merge=True,
     )
     logger.info("section_deleted", section_id=section_id)
     return SuccessResponse(message="Section deleted successfully")

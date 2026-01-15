@@ -300,7 +300,12 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 					{/* History Sheet */}
 					<Sheet>
 						<SheetTrigger asChild>
-							<Button variant="ghost" size="icon" className="h-9 w-9 min-w-[44px] min-h-[44px]" aria-label="View activity history">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-9 w-9 min-w-[44px] min-h-[44px]"
+								aria-label="View activity history"
+							>
 								<History className="h-4 w-4" />
 							</Button>
 						</SheetTrigger>
@@ -518,8 +523,8 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 						<span className="font-semibold">
 							Current progress: {completion.percentage}% complete.
 						</span>{" "}
-						At least {PROPOSAL_READINESS_THRESHOLD}% is required to enable the intelligent
-						generator.
+						At least {PROPOSAL_READINESS_THRESHOLD}% is required to enable the
+						intelligent generator.
 						{prioritizedGaps.length > 0 && (
 							<div className="mt-2 space-y-2 text-sm">
 								<p className="font-medium">

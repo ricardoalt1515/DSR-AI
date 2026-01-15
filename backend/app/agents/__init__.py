@@ -1,12 +1,12 @@
 """AI Agents for proposal generation and analysis."""
 
-from app.agents.proposal_agent import (
-    generate_enhanced_proposal,
-    ProposalGenerationError,
-)
 from app.agents.image_analysis_agent import (
-    analyze_image,
     ImageAnalysisError,
+    analyze_image,
+)
+from app.agents.proposal_agent import (
+    ProposalGenerationError,
+    generate_enhanced_proposal,
 )
 
 __all__ = [

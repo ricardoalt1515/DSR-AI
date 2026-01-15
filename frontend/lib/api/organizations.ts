@@ -69,7 +69,9 @@ interface RawUserResponse {
 	organization_id?: string | null;
 }
 
-function transformOrganization(response: RawOrganizationResponse): Organization {
+function transformOrganization(
+	response: RawOrganizationResponse,
+): Organization {
 	return {
 		id: response.id,
 		name: response.name,
@@ -77,7 +79,8 @@ function transformOrganization(response: RawOrganizationResponse): Organization 
 		contactEmail: response.contactEmail ?? response.contact_email ?? null,
 		contactPhone: response.contactPhone ?? response.contact_phone ?? null,
 		isActive: response.isActive ?? response.is_active ?? true,
-		createdAt: response.createdAt ?? response.created_at ?? new Date().toISOString(),
+		createdAt:
+			response.createdAt ?? response.created_at ?? new Date().toISOString(),
 	};
 }
 
@@ -105,7 +108,8 @@ export class OrganizationsAPI {
 	 * List all organizations (Platform Admin only)
 	 */
 	static async list(): Promise<Organization[]> {
-		const data = await apiClient.get<RawOrganizationResponse[]>("/organizations");
+		const data =
+			await apiClient.get<RawOrganizationResponse[]>("/organizations");
 		return data.map(transformOrganization);
 	}
 
@@ -113,7 +117,9 @@ export class OrganizationsAPI {
 	 * Get organization by ID (Platform Admin only)
 	 */
 	static async get(orgId: string): Promise<Organization> {
-		const data = await apiClient.get<RawOrganizationResponse>(`/organizations/${orgId}`);
+		const data = await apiClient.get<RawOrganizationResponse>(
+			`/organizations/${orgId}`,
+		);
 		return transformOrganization(data);
 	}
 
@@ -121,7 +127,9 @@ export class OrganizationsAPI {
 	 * Get current organization (any authenticated user)
 	 */
 	static async getCurrent(): Promise<Organization> {
-		const data = await apiClient.get<RawOrganizationResponse>("/organizations/current");
+		const data = await apiClient.get<RawOrganizationResponse>(
+			"/organizations/current",
+		);
 		return transformOrganization(data);
 	}
 
@@ -135,7 +143,10 @@ export class OrganizationsAPI {
 			contact_email: payload.contactEmail,
 			contact_phone: payload.contactPhone,
 		};
-		const data = await apiClient.post<RawOrganizationResponse>("/organizations", body);
+		const data = await apiClient.post<RawOrganizationResponse>(
+			"/organizations",
+			body,
+		);
 		return transformOrganization(data);
 	}
 
@@ -143,14 +154,19 @@ export class OrganizationsAPI {
 	 * List users of a specific organization (Platform Admin only)
 	 */
 	static async listOrgUsers(orgId: string): Promise<User[]> {
-		const data = await apiClient.get<RawUserResponse[]>(`/organizations/${orgId}/users`);
+		const data = await apiClient.get<RawUserResponse[]>(
+			`/organizations/${orgId}/users`,
+		);
 		return data.map(transformUser);
 	}
 
 	/**
 	 * Create user in a specific organization (Platform Admin only)
 	 */
-	static async createOrgUser(orgId: string, payload: OrgUserCreateInput): Promise<User> {
+	static async createOrgUser(
+		orgId: string,
+		payload: OrgUserCreateInput,
+	): Promise<User> {
 		const body = {
 			email: payload.email,
 			password: payload.password,
@@ -158,7 +174,10 @@ export class OrganizationsAPI {
 			last_name: payload.lastName,
 			role: payload.role,
 		};
-		const data = await apiClient.post<RawUserResponse>(`/organizations/${orgId}/users`, body);
+		const data = await apiClient.post<RawUserResponse>(
+			`/organizations/${orgId}/users`,
+			body,
+		);
 		return transformUser(data);
 	}
 
@@ -166,7 +185,9 @@ export class OrganizationsAPI {
 	 * List users of current organization (Org Admin or Platform Admin)
 	 */
 	static async listMyOrgUsers(): Promise<User[]> {
-		const data = await apiClient.get<RawUserResponse[]>("/organizations/current/users");
+		const data = await apiClient.get<RawUserResponse[]>(
+			"/organizations/current/users",
+		);
 		return data.map(transformUser);
 	}
 
@@ -181,21 +202,32 @@ export class OrganizationsAPI {
 			last_name: payload.lastName,
 			role: payload.role,
 		};
-		const data = await apiClient.post<RawUserResponse>("/organizations/current/users", body);
+		const data = await apiClient.post<RawUserResponse>(
+			"/organizations/current/users",
+			body,
+		);
 		return transformUser(data);
 	}
 
 	/**
 	 * Update an organization (Platform Admin only)
 	 */
-	static async update(orgId: string, payload: OrganizationUpdateInput): Promise<Organization> {
+	static async update(
+		orgId: string,
+		payload: OrganizationUpdateInput,
+	): Promise<Organization> {
 		const body: Record<string, unknown> = {};
 		if (payload.name !== undefined) body.name = payload.name;
-		if (payload.contactEmail !== undefined) body.contact_email = payload.contactEmail;
-		if (payload.contactPhone !== undefined) body.contact_phone = payload.contactPhone;
+		if (payload.contactEmail !== undefined)
+			body.contact_email = payload.contactEmail;
+		if (payload.contactPhone !== undefined)
+			body.contact_phone = payload.contactPhone;
 		if (payload.isActive !== undefined) body.is_active = payload.isActive;
 
-		const data = await apiClient.patch<RawOrganizationResponse>(`/organizations/${orgId}`, body);
+		const data = await apiClient.patch<RawOrganizationResponse>(
+			`/organizations/${orgId}`,
+			body,
+		);
 		return transformOrganization(data);
 	}
 
@@ -212,25 +244,34 @@ export class OrganizationsAPI {
 	static async updateOrgUser(
 		orgId: string,
 		userId: string,
-		payload: OrgUserUpdateInput
+		payload: OrgUserUpdateInput,
 	): Promise<User> {
 		const body: Record<string, unknown> = {};
 		if (payload.role !== undefined) body.role = payload.role;
 		if (payload.isActive !== undefined) body.is_active = payload.isActive;
 
-		const data = await apiClient.patch<RawUserResponse>(`/organizations/${orgId}/users/${userId}`, body);
+		const data = await apiClient.patch<RawUserResponse>(
+			`/organizations/${orgId}/users/${userId}`,
+			body,
+		);
 		return transformUser(data);
 	}
 
 	/**
 	 * Update user in current organization (Org Admin or Platform Admin)
 	 */
-	static async updateMyOrgUser(userId: string, payload: OrgUserUpdateInput): Promise<User> {
+	static async updateMyOrgUser(
+		userId: string,
+		payload: OrgUserUpdateInput,
+	): Promise<User> {
 		const body: Record<string, unknown> = {};
 		if (payload.role !== undefined) body.role = payload.role;
 		if (payload.isActive !== undefined) body.is_active = payload.isActive;
 
-		const data = await apiClient.patch<RawUserResponse>(`/organizations/current/users/${userId}`, body);
+		const data = await apiClient.patch<RawUserResponse>(
+			`/organizations/current/users/${userId}`,
+			body,
+		);
 		return transformUser(data);
 	}
 }

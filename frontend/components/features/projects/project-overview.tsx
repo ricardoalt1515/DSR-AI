@@ -56,7 +56,11 @@ export function ProjectOverview({
 					label="Data Complete"
 					value={`${project.progress}%`}
 					subtitle="Click to continue"
-					variant={project.progress >= PROPOSAL_READINESS_THRESHOLD ? "success" : "primary"}
+					variant={
+						project.progress >= PROPOSAL_READINESS_THRESHOLD
+							? "success"
+							: "primary"
+					}
 					onClick={onNavigateToTechnical}
 				/>
 				<MetricCard
@@ -106,14 +110,16 @@ export function ProjectOverview({
 							) : (
 								<>
 									<p className="text-muted-foreground">
-										Complete at least {PROPOSAL_READINESS_THRESHOLD}% of your questionnaire to unlock AI
-										proposal generation.
+										Complete at least {PROPOSAL_READINESS_THRESHOLD}% of your
+										questionnaire to unlock AI proposal generation.
 									</p>
 									<div className="flex items-center gap-3 mt-2">
 										<div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
 											<div
 												className="h-full bg-primary transition-all duration-500"
-												style={{ width: `${(project.progress / PROPOSAL_READINESS_THRESHOLD) * 100}%` }}
+												style={{
+													width: `${(project.progress / PROPOSAL_READINESS_THRESHOLD) * 100}%`,
+												}}
 											/>
 										</div>
 										<span className="text-sm font-medium text-muted-foreground">

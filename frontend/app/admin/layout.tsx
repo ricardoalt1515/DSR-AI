@@ -3,7 +3,11 @@
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { AdminMobileNav, AdminSidebar, OrgSwitcher } from "@/components/features/admin";
+import {
+	AdminMobileNav,
+	AdminSidebar,
+	OrgSwitcher,
+} from "@/components/features/admin";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -70,8 +74,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 					<div className="flex items-center gap-3">
 						<AdminMobileNav />
 						<div className="hidden md:block">
-							<h1 className="text-base font-medium text-foreground">Admin Console</h1>
-							<p className="text-xs text-muted-foreground">Manage organizations and users</p>
+							<h1 className="text-base font-medium text-foreground">
+								Admin Console
+							</h1>
+							<p className="text-xs text-muted-foreground">
+								Manage organizations and users
+							</p>
 						</div>
 					</div>
 					{showOrgSwitcher ? (
@@ -88,7 +96,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 									</Badge>
 								</TooltipTrigger>
 								<TooltipContent>
-									<p>Platform admins are global. Org filters do not apply here.</p>
+									<p>
+										Platform admins are global. Org filters do not apply here.
+									</p>
 								</TooltipContent>
 							</Tooltip>
 						</TooltipProvider>
@@ -101,4 +111,3 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 		</div>
 	);
 }
-

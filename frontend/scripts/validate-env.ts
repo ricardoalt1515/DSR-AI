@@ -98,8 +98,8 @@ function validateEnvironmentVariables(): ValidationResult {
 		// Success
 		const displayValue =
 			envVar.name.includes("KEY") ||
-				envVar.name.includes("SECRET") ||
-				envVar.name.includes("DSN")
+			envVar.name.includes("SECRET") ||
+			envVar.name.includes("DSN")
 				? "***REDACTED***"
 				: value;
 

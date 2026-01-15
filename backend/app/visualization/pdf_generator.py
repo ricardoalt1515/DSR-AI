@@ -8,24 +8,25 @@ This module serves as the orchestrator, delegating to:
 - pdf_sections.py: Section builders
 """
 
-import structlog
 from datetime import datetime
-from typing import Any
-import markdown
-from weasyprint import HTML, CSS
-from weasyprint.text.fonts import FontConfiguration
 from io import BytesIO
+from typing import Any
 
-from app.visualization.pdf_styles import get_professional_css
-from app.visualization.pdf_templates import (
-    get_document_template,
-    get_cover_template,
-    get_footer_template,
-    get_markdown_section_template,
-)
+import markdown
+import structlog
+from weasyprint import CSS, HTML
+from weasyprint.text.fonts import FontConfiguration
+
 from app.visualization.pdf_sections import (
     build_business_sections,
     build_charts_section,
+)
+from app.visualization.pdf_styles import get_professional_css
+from app.visualization.pdf_templates import (
+    get_cover_template,
+    get_document_template,
+    get_footer_template,
+    get_markdown_section_template,
 )
 
 logger = structlog.get_logger(__name__)
@@ -62,17 +63,13 @@ class ProfessionalPDFGenerator:
         try:
             logger.info(f"Generating report PDF for conversation {conversation_id}")
 
-            html_content = self._create_technical_html(
-                markdown_content, metadata, charts
-            )
+            html_content = self._create_technical_html(markdown_content, metadata, charts)
             css_content = get_professional_css()
 
             pdf_buffer = BytesIO()
             html_doc = HTML(string=html_content)
             css_doc = CSS(string=css_content)
-            html_doc.write_pdf(
-                pdf_buffer, stylesheets=[css_doc], font_config=self.font_config
-            )
+            html_doc.write_pdf(pdf_buffer, stylesheets=[css_doc], font_config=self.font_config)
 
             pdf_filename = (
                 f"proposals/opportunity_report_{conversation_id}_"
@@ -80,8 +77,8 @@ class ProfessionalPDFGenerator:
             )
 
             from app.services.s3_service import (
-                upload_file_to_s3,
                 USE_S3,
+                upload_file_to_s3,
             )
 
             pdf_buffer.seek(0)
@@ -109,17 +106,13 @@ class ProfessionalPDFGenerator:
 
         The agent output (ProposalOutput) is passed in metadata["proposal"].
         """
-        md_html = markdown.markdown(
-            markdown_content or "", extensions=["tables", "fenced_code"]
-        )
+        md_html = markdown.markdown(markdown_content or "", extensions=["tables", "fenced_code"])
 
         proposal_data = metadata.get("proposal") or {}
         audience = metadata.get("audience", "internal")
 
         report_title = (
-            "Opportunity Report"
-            if audience == "internal"
-            else "Sustainability Opportunity Report"
+            "Opportunity Report" if audience == "internal" else "Sustainability Opportunity Report"
         )
         audience_label = "Internal" if audience == "internal" else "Client"
 
@@ -148,9 +141,7 @@ class ProfessionalPDFGenerator:
         cover_html = get_cover_template(
             report_title=report_title,
             audience_label=audience_label,
-            proposal_title=(
-                report_title if audience == "internal" else "Sustainability Report"
-            ),
+            proposal_title=(report_title if audience == "internal" else "Sustainability Report"),
             facility_type=facility_type,
             client_name=client_name,
             location=location,

@@ -103,8 +103,7 @@ class APIClient {
 			try {
 				const url = `${this.baseURL}${endpoint}`;
 
-				const isFormData =
-					body instanceof FormData;
+				const isFormData = body instanceof FormData;
 
 				const mergedHeaders: Record<string, string> = {
 					...this.defaultHeaders,

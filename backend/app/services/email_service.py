@@ -9,11 +9,11 @@ Usage:
     await email_service.send_password_reset(email, reset_url)
 """
 
-import structlog
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import aiosmtplib
+import structlog
 
 from app.core.config import settings
 

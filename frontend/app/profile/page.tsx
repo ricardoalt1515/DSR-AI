@@ -6,7 +6,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,10 +107,12 @@ export default function ProfilePage() {
 					{/* Role & membership */}
 					<div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
 						<div>
-							<span className="font-medium text-foreground">Role:</span> {roleLabel}
+							<span className="font-medium text-foreground">Role:</span>{" "}
+							{roleLabel}
 						</div>
 						<div>
-							<span className="font-medium text-foreground">Member since:</span> {memberSince}
+							<span className="font-medium text-foreground">Member since:</span>{" "}
+							{memberSince}
 						</div>
 					</div>
 					{/* Email (read-only) */}

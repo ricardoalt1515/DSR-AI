@@ -6,7 +6,7 @@ Each template defines complete section structures with field IDs.
 
 Usage:
     from app.templates import get_template
-    
+
     template = get_template("industrial", "oil_gas")
     sections = template["sections"]
 """

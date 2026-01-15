@@ -130,7 +130,9 @@ const DEFAULT_SECTION_ORDER = 0;
  * Sections without an order field are treated as order 0.
  * Maintains stable sort by using id as tiebreaker.
  */
-export const sortSectionsByOrder = (sections: TableSection[]): TableSection[] => {
+export const sortSectionsByOrder = (
+	sections: TableSection[],
+): TableSection[] => {
 	return [...sections].sort((a, b) => {
 		const orderA = a.order ?? DEFAULT_SECTION_ORDER;
 		const orderB = b.order ?? DEFAULT_SECTION_ORDER;
@@ -243,14 +245,12 @@ export const applyFieldUpdates = (
 
 export const sectionCompletion = (section: TableSection) => {
 	const total = section.fields.length;
-	const completed = section.fields.filter(
-		(field) => {
-			const value = field.value;
-			if (value === undefined || value === null || value === "") return false;
-			if (Array.isArray(value)) return value.length > 0;
-			return true;
-		},
-	).length;
+	const completed = section.fields.filter((field) => {
+		const value = field.value;
+		if (value === undefined || value === null || value === "") return false;
+		if (Array.isArray(value)) return value.length > 0;
+		return true;
+	}).length;
 	const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 	return { total, completed, percentage };
 };

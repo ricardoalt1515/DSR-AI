@@ -57,7 +57,8 @@ export const sectorsConfig: SectorConfig[] = [
 	{
 		id: "residential",
 		label: "Residential",
-		description: "Waste streams for single-family homes and residential complexes",
+		description:
+			"Waste streams for single-family homes and residential complexes",
 		subsectors: [
 			{ id: "single_home", label: "Single Family Home" },
 			{ id: "multi_family", label: "Multi-Family Complex" },
@@ -67,7 +68,8 @@ export const sectorsConfig: SectorConfig[] = [
 	{
 		id: "industrial",
 		label: "Industrial",
-		description: "Waste streams for manufacturing plants and industrial processes",
+		description:
+			"Waste streams for manufacturing plants and industrial processes",
 		subsectors: [
 			{ id: "food_processing", label: "Food Processing Plant" },
 			{ id: "beverage_bottling", label: "Beverage Bottling Plant" },

@@ -71,9 +71,13 @@ export class AuthAPI {
 		formData.append("username", credentials.email); // FastAPI Users uses 'username' instead of 'email'
 		formData.append("password", credentials.password);
 
-		const response = await apiClient.post<BackendTokenResponse>("/auth/jwt/login", formData, {
-			"Content-Type": "application/x-www-form-urlencoded",
-		});
+		const response = await apiClient.post<BackendTokenResponse>(
+			"/auth/jwt/login",
+			formData,
+			{
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+		);
 
 		// Backend returns: { access_token, token_type, expires_in }
 		// expires_in is injected by middleware in backend
@@ -124,16 +128,18 @@ export class AuthAPI {
 	}
 
 	static async logout(): Promise<void> {
+		const token = localStorage.getItem("access_token");
+		apiClient.clearAuthToken();
+		localStorage.removeItem("access_token");
+
+		if (!token) return;
+
 		try {
-			// FastAPI Users provides logout endpoint (JWT strategy)
-			await apiClient.post("/auth/jwt/logout");
+			await apiClient.post("/auth/jwt/logout", undefined, {
+				Authorization: `Bearer ${token}`,
+			});
 		} catch (_error) {
-			// Even if logout fails on backend, clear local tokens
-			// Silently handle error - local cleanup is more important
-		} finally {
-			// Always clear local tokens
-			apiClient.clearAuthToken();
-			localStorage.removeItem("access_token");
+			return;
 		}
 	}
 
@@ -142,7 +148,9 @@ export class AuthAPI {
 		request: PasswordResetRequest,
 	): Promise<void> {
 		// FastAPI Users endpoint for password reset
-		return apiClient.post<void>("/auth/forgot-password", { email: request.email });
+		return apiClient.post<void>("/auth/forgot-password", {
+			email: request.email,
+		});
 	}
 
 	static async confirmPasswordReset(
@@ -181,13 +189,16 @@ export class AuthAPI {
 	static async updateProfile(data: UpdateProfileRequest): Promise<User> {
 		// Send only non-undefined fields to backend
 		const payload = Object.fromEntries(
-			Object.entries(data).filter(([_, v]) => v !== undefined)
+			Object.entries(data).filter(([_, v]) => v !== undefined),
 		);
 		await apiClient.patch("/auth/me", payload);
 		return AuthAPI.getCurrentUser();
 	}
 
-	static async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+	static async changePassword(
+		currentPassword: string,
+		newPassword: string,
+	): Promise<void> {
 		// FastAPI Users allows password change via PATCH /auth/me
 		await apiClient.patch("/auth/me", { password: newPassword });
 	}

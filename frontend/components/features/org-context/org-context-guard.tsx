@@ -94,7 +94,9 @@ export function OrgContextGuard({ children }: OrgContextGuardProps) {
 					const orgExists = loadedOrgs.some((org) => org.id === currentOrgId);
 					if (!orgExists) {
 						clearSelection();
-						setErrorMessage("The previously selected organization is no longer available.");
+						setErrorMessage(
+							"The previously selected organization is no longer available.",
+						);
 						toast.error("Organization unavailable - please select again");
 					}
 				}
@@ -124,7 +126,7 @@ export function OrgContextGuard({ children }: OrgContextGuardProps) {
 				toast.success(`Viewing data for ${org.name}`);
 			}
 		},
-		[selectOrganization, organizations]
+		[selectOrganization, organizations],
 	);
 
 	// --- Guard Logic ---

@@ -27,12 +27,14 @@ logger = structlog.get_logger(__name__)
 
 class ProposalGenerationError(Exception):
     """Raised when proposal generation fails."""
+
     pass
 
 
 @dataclass
 class ProposalContext:
     """Context for proposal generation."""
+
     project_data: FlexibleWaterProjectData
     client_metadata: dict[str, Any]
     photo_insights: list[dict[str, Any]] | None = None
@@ -70,7 +72,7 @@ proposal_agent = Agent(
 def inject_context(ctx: RunContext[ProposalContext]) -> str:
     """
     Single context injection (DRY principle).
-    
+
     Combines: project context, waste data, client metadata, and photo insights.
     """
     meta = ctx.deps.client_metadata
@@ -83,9 +85,9 @@ def inject_context(ctx: RunContext[ProposalContext]) -> str:
     # 1. Project context
     sections.append(f"""
 PROJECT:
-- Company: {meta.get('company_name', 'N/A')}
-- Sector: {meta.get('selected_sector', 'Industrial')} / {meta.get('selected_subsector', 'General')}
-- Location: {meta.get('user_location', 'Not specified')}
+- Company: {meta.get("company_name", "N/A")}
+- Sector: {meta.get("selected_sector", "Industrial")} / {meta.get("selected_subsector", "General")}
+- Location: {meta.get("user_location", "Not specified")}
 """)
 
     # 2. Waste assessment data (clean, no UI metadata)
@@ -121,15 +123,15 @@ PHOTO {i}: {material} (confidence: {confidence})
 - Quality: {quality} | Lifecycle: {lifecycle}
 - CO₂ savings: {co2_savings} tCO₂e/year
 - ESG statement: {esg_statement}
-- LCA basis: {lca_assumptions if lca_assumptions else 'N/A'}
-- Storage: {', '.join(storage) if storage else 'N/A'}
-- PPE: {', '.join(ppe) if ppe else 'Standard'}
-- Visible hazards: {', '.join(hazards) if hazards else 'None'}
+- LCA basis: {lca_assumptions if lca_assumptions else "N/A"}
+- Storage: {", ".join(storage) if storage else "N/A"}
+- PPE: {", ".join(ppe) if ppe else "Standard"}
+- Visible hazards: {", ".join(hazards) if hazards else "None"}
 """)
 
         sections.append(f"""
 PHOTO ANALYSIS (use CO₂ data for environmental sections, generate your own pricing/buyers):
-{''.join(photo_sections)}
+{"".join(photo_sections)}
 """)
 
     return "".join(sections)
@@ -142,15 +144,15 @@ async def generate_proposal(
 ) -> ProposalOutput:
     """
     Generate waste upcycling feasibility report.
-    
+
     Args:
         project_data: Waste assessment questionnaire data
         client_metadata: Client info (company, sector, location)
         photo_insights: Optional photo analysis from image_analysis_agent
-    
+
     Returns:
         ProposalOutput with GO/NO-GO decision and analysis
-    
+
     Raises:
         ProposalGenerationError: On failure
     """

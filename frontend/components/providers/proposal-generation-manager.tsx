@@ -125,11 +125,7 @@ export function ProposalGenerationManager() {
 		if (!persisted) return;
 
 		startGeneration(persisted.projectId, persisted.jobId, persisted.startTime);
-		updateProgress(
-			persisted.lastProgress,
-			"Resuming generation...",
-			null,
-		);
+		updateProgress(persisted.lastProgress, "Resuming generation...", null);
 		const proposalType = normalizeProposalType(persisted.proposalType);
 		lastRequestRef.current = {
 			projectId: persisted.projectId,
@@ -234,22 +230,20 @@ export function ProposalGenerationManager() {
 
 				const retry = retryRequest
 					? () => {
-						startNewGeneration({
-							projectId: retryRequest.projectId,
-							proposalType: retryRequest.proposalType,
-						}).catch((error) => {
-							logger.error(
-								"Retry failed",
-								error,
-								"ProposalGenerationManager",
-							);
-							showProposalErrorToast(
-								error instanceof Error
-									? error.message
-									: "Retry failed",
-							);
-						});
-					}
+							startNewGeneration({
+								projectId: retryRequest.projectId,
+								proposalType: retryRequest.proposalType,
+							}).catch((error) => {
+								logger.error(
+									"Retry failed",
+									error,
+									"ProposalGenerationManager",
+								);
+								showProposalErrorToast(
+									error instanceof Error ? error.message : "Retry failed",
+								);
+							});
+						}
 					: undefined;
 
 				showProposalErrorToast(errorMsg, retry);
@@ -259,11 +253,7 @@ export function ProposalGenerationManager() {
 				return;
 			}
 
-			logger.error(
-				"Polling failed",
-				error,
-				"ProposalGenerationManager",
-			);
+			logger.error("Polling failed", error, "ProposalGenerationManager");
 		});
 
 		return () => {

@@ -1,9 +1,20 @@
 "use client";
 
-import { AlertTriangle, CheckCircle, Plus, RefreshCcw, Users, XCircle } from "lucide-react";
+import {
+	AlertTriangle,
+	CheckCircle,
+	Plus,
+	RefreshCcw,
+	Users,
+	XCircle,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AddUserModal, AdminStatsCard, UsersTable } from "@/components/features/admin";
+import {
+	AddUserModal,
+	AdminStatsCard,
+	UsersTable,
+} from "@/components/features/admin";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -20,10 +31,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	organizationsAPI,
-	type OrgUserCreateInput,
-} from "@/lib/api";
+import { organizationsAPI, type OrgUserCreateInput } from "@/lib/api";
 import { useAuth } from "@/lib/contexts";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import type { User, UserRole } from "@/lib/types/user";
@@ -31,7 +39,8 @@ import type { User, UserRole } from "@/lib/types/user";
 export default function SettingsTeamPage() {
 	const { user: currentUser, isOrgAdmin, isSuperAdmin } = useAuth();
 	const canManageUsers = isOrgAdmin;
-	const { currentOrganization, loadCurrentOrganization } = useOrganizationStore();
+	const { currentOrganization, loadCurrentOrganization } =
+		useOrganizationStore();
 
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -69,19 +78,26 @@ export default function SettingsTeamPage() {
 			setUsers((prev) => [...prev, newUser]);
 			toast.success(`User "${newUser.email}" created`);
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to create user";
+			const message =
+				error instanceof Error ? error.message : "Failed to create user";
 			toast.error(message);
 			throw error;
 		}
 	};
 
-	const handleRoleChange = async (userId: string, newRole: Exclude<UserRole, "admin">) => {
+	const handleRoleChange = async (
+		userId: string,
+		newRole: Exclude<UserRole, "admin">,
+	) => {
 		try {
-			const updated = await organizationsAPI.updateMyOrgUser(userId, { role: newRole });
+			const updated = await organizationsAPI.updateMyOrgUser(userId, {
+				role: newRole,
+			});
 			setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
 			toast.success("Role updated");
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to update role";
+			const message =
+				error instanceof Error ? error.message : "Failed to update role";
 			toast.error(message);
 			throw error;
 		}
@@ -89,11 +105,14 @@ export default function SettingsTeamPage() {
 
 	const handleStatusChange = async (userId: string, isActive: boolean) => {
 		try {
-			const updated = await organizationsAPI.updateMyOrgUser(userId, { isActive });
+			const updated = await organizationsAPI.updateMyOrgUser(userId, {
+				isActive,
+			});
 			setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
 			toast.success(isActive ? "User activated" : "User deactivated");
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to update status";
+			const message =
+				error instanceof Error ? error.message : "Failed to update status";
 			toast.error(message);
 			throw error;
 		}
@@ -122,14 +141,23 @@ export default function SettingsTeamPage() {
 		<div className="container mx-auto py-6 space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="text-2xl font-semibold tracking-tight">Organization Members</h1>
+					<h1 className="text-2xl font-semibold tracking-tight">
+						Organization Members
+					</h1>
 					<p className="text-sm text-muted-foreground mt-1">
 						Members of your organization
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading}>
-						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={fetchUsers}
+						disabled={isLoading}
+					>
+						<RefreshCcw
+							className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+						/>
 					</Button>
 					<TooltipProvider>
 						<Tooltip>

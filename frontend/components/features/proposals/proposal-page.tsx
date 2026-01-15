@@ -22,7 +22,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
 import { ProposalOverview } from "./proposal-overview";
 import { ExternalReportView } from "./external-report-view";
-import { ReportAudienceToggle, type ReportAudience } from "./report-audience-toggle";
+import {
+	ReportAudienceToggle,
+	type ReportAudience,
+} from "./report-audience-toggle";
 import { QuickActionsCard } from "./sidebar";
 import type { Project, Proposal } from "./types";
 
@@ -113,11 +116,15 @@ export function ProposalPage({
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem onClick={() => handleDownloadPDF("internal")}>
+									<DropdownMenuItem
+										onClick={() => handleDownloadPDF("internal")}
+									>
 										<FileText className="h-4 w-4 mr-2" />
 										Internal Report
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleDownloadPDF("external")}>
+									<DropdownMenuItem
+										onClick={() => handleDownloadPDF("external")}
+									>
 										<FileText className="h-4 w-4 mr-2" />
 										Client Report
 									</DropdownMenuItem>
@@ -190,5 +197,3 @@ function ProposalPageSkeleton() {
 		</div>
 	);
 }
-
-

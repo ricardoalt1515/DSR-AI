@@ -19,7 +19,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PremiumProjectWizard } from "@/components/features/dashboard";
-import { OrgContextBadge, OrgSelectionModal } from "@/components/features/org-context";
+import {
+	OrgContextBadge,
+	OrgSelectionModal,
+} from "@/components/features/org-context";
 import { DSRLogo } from "@/components/shared/branding/dsr-logo";
 import { ThemeToggle } from "@/components/shared/common/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -181,7 +184,8 @@ export function NavBar() {
 	}, []);
 
 	// Only auto-load projects when we have org context (or not a super admin)
-	const shouldAutoLoadProjects = !isSuperAdmin || Boolean(selectedOrgId);
+	const shouldAutoLoadProjects =
+		Boolean(authedUser) && (!isSuperAdmin || Boolean(selectedOrgId));
 
 	return (
 		<>

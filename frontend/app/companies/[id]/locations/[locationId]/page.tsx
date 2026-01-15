@@ -30,13 +30,8 @@ export default function LocationDetailPage() {
 	const locationId = params.locationId as string;
 	const [wizardOpen, setWizardOpen] = useState(false);
 
-	const {
-		currentLocation,
-		loading,
-		loadLocation,
-		error,
-		clearError,
-	} = useLocationStore();
+	const { currentLocation, loading, loadLocation, error, clearError } =
+		useLocationStore();
 
 	useEffect(() => {
 		if (locationId) {
@@ -140,7 +135,9 @@ export default function LocationDetailPage() {
 				</div>
 				<Badge variant="outline">
 					{currentLocation.projectCount}{" "}
-					{currentLocation.projectCount === 1 ? "waste stream" : "waste streams"}
+					{currentLocation.projectCount === 1
+						? "waste stream"
+						: "waste streams"}
 				</Badge>
 			</div>
 
@@ -200,7 +197,9 @@ export default function LocationDetailPage() {
 					<Card>
 						<CardContent className="py-12 text-center">
 							<FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-							<h3 className="text-lg font-semibold mb-2">No waste streams yet</h3>
+							<h3 className="text-lg font-semibold mb-2">
+								No waste streams yet
+							</h3>
 							<p className="text-muted-foreground mb-4">
 								Create the first waste stream for this location
 							</p>

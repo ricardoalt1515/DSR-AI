@@ -3,13 +3,13 @@ Service layer for project data management.
 Handles JSONB operations and AI serialization.
 """
 
-from typing import Any, Dict, Optional
-from uuid import UUID
 from datetime import datetime
+from typing import Any
+from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project
 from app.models.user import User
@@ -20,27 +20,23 @@ class ProjectDataService:
     """Service for managing flexible project data"""
 
     @staticmethod
-    def deep_merge(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+    def deep_merge(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
         """
         Deep merge two dictionaries.
         Updates override base, but preserves nested structures.
         """
         result = base.copy()
-        
+
         for key, value in updates.items():
-            if (
-                isinstance(value, dict) 
-                and key in result 
-                and isinstance(result[key], dict)
-            ):
+            if isinstance(value, dict) and key in result and isinstance(result[key], dict):
                 result[key] = ProjectDataService.deep_merge(result[key], value)
             else:
                 result[key] = value
-        
+
         return result
 
     @staticmethod
-    def calculate_progress(sections: list[Dict[str, Any]] | None) -> int:
+    def calculate_progress(sections: list[dict[str, Any]] | None) -> int:
         """
         Calculate completion percentage from technical sections.
         Empty values (None, "", []) are not counted as completed.
@@ -65,14 +61,14 @@ class ProjectDataService:
                 completed += 1
 
         return round((completed / total) * 100) if total > 0 else 0
-    
+
     @staticmethod
     async def get_project_data(
         db: AsyncSession,
         project_id: UUID,
         current_user: User,
         org_id: UUID,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get project data with ownership check"""
         result = await db.execute(
             select(Project).where(
@@ -81,27 +77,27 @@ class ProjectDataService:
             )
         )
         project = result.scalar_one_or_none()
-        
+
         if not project:
             raise HTTPException(404, "Project not found")
 
         if not current_user.can_see_all_org_projects() and project.user_id != current_user.id:
             raise HTTPException(404, "Project not found")
-        
+
         return project.project_data or {}
-    
+
     @staticmethod
     async def update_project_data(
         db: AsyncSession,
         project_id: UUID,
         current_user: User,
         org_id: UUID,
-        updates: Dict[str, Any],
-        merge: bool = True
+        updates: dict[str, Any],
+        merge: bool = True,
     ) -> Project:
         """
         Update project data.
-        
+
         Args:
             merge: If True, deep merges with existing data.
                    If False, replaces completely.
@@ -113,13 +109,13 @@ class ProjectDataService:
             )
         )
         project = result.scalar_one_or_none()
-        
+
         if not project:
             raise HTTPException(404, "Project not found")
 
         if not current_user.can_see_all_org_projects() and project.user_id != current_user.id:
             raise HTTPException(404, "Project not found")
-        
+
         if merge:
             # Merge with existing data
             current_data = project.project_data or {}
@@ -134,12 +130,12 @@ class ProjectDataService:
             project.progress = ProjectDataService.calculate_progress(sections)
 
         project.updated_at = datetime.utcnow()
-        
+
         await db.commit()
         await db.refresh(project)
-        
+
         return project
-    
+
     @staticmethod
     def serialize_for_ai(project: Project) -> ProjectAIInput:
         """
@@ -147,7 +143,7 @@ class ProjectDataService:
         Extracts known fields and preserves custom sections.
         """
         data = project.project_data or {}
-        
+
         # Extract structured sections
         basic_info = data.get("basic_info", {})
         consumption = data.get("consumption", {})
@@ -155,11 +151,11 @@ class ProjectDataService:
         requirements = data.get("requirements", {})
         objectives = data.get("objectives", [])
         custom_sections = data.get("sections", [])
-        
+
         # Build water quality analysis dict
         water_quality_analysis = {}
         water_quality_parameters = []
-        
+
         for param_name, param_data in quality.items():
             if isinstance(param_data, dict):
                 value = param_data.get("value", "")
@@ -167,22 +163,22 @@ class ProjectDataService:
                 water_quality_analysis[param_name] = f"{value} {unit}".strip()
             else:
                 water_quality_analysis[param_name] = str(param_data)
-            
+
             water_quality_parameters.append(param_name)
-        
+
         # Format consumption data
         water_consumption_str = None
         if consumption.get("water_consumption"):
             water_consumption_str = f"{consumption['water_consumption']} m³/day"
-        
+
         wastewater_generation_str = None
         if consumption.get("wastewater_generation"):
             wastewater_generation_str = f"{consumption['wastewater_generation']} m³/day"
-        
+
         water_cost_str = None
         if consumption.get("water_cost"):
             water_cost_str = f"{consumption['water_cost']} USD/m³"
-        
+
         # Build AI input
         ai_input = ProjectAIInput(
             # Basic info
@@ -191,42 +187,35 @@ class ProjectDataService:
             project_location=basic_info.get("location") or project.location,
             sector_info=basic_info.get("sector") or project.sector,
             subsector_details=basic_info.get("subsector") or project.subsector,
-            
             # Consumption
             water_consumption_data=water_consumption_str,
             wastewater_generation_data=wastewater_generation_str,
             water_cost_data=water_cost_str,
             people_served_data=consumption.get("people_served"),
-            
             # Water quality
             water_quality_analysis=water_quality_analysis,
             water_quality_parameters=water_quality_parameters,
-            
             # Source & usage
             water_source_info=basic_info.get("water_source"),
             water_uses_info=basic_info.get("water_uses"),
             current_discharge_method=basic_info.get("discharge_method"),
             discharge_location=basic_info.get("discharge_location"),
-            
             # Requirements
             regulatory_requirements=requirements.get("regulatory"),
             existing_treatment_systems=requirements.get("existing_treatment"),
             project_constraints=requirements.get("constraints"),
-            
             # Objectives
             project_objectives=objectives,
-            
             # Custom sections
             custom_sections=custom_sections,
-            
             # Raw data backup
-            raw_data=data
+            raw_data=data,
         )
-        
+
         return ai_input
-    
+
     @staticmethod
-    def get_default_structure() -> Dict[str, Any]:
+    def get_default_structure() -> dict[str, Any]:
         """Get default empty structure for new projects"""
         return {
             "basic_info": {},
@@ -234,5 +223,5 @@ class ProjectDataService:
             "quality": {},
             "requirements": {},
             "objectives": [],
-            "sections": []
+            "sections": [],
         }

@@ -114,7 +114,8 @@ export default function ProposalDetailPage({ params }: PageProps) {
 			if (isNotFound) {
 				setProjectNotFound(true);
 			} else {
-				const message = err instanceof Error ? err.message : "Failed to load project";
+				const message =
+					err instanceof Error ? err.message : "Failed to load project";
 				setProjectError(message);
 			}
 		} finally {
@@ -145,7 +146,8 @@ export default function ProposalDetailPage({ params }: PageProps) {
 			if (isNotFound) {
 				setProposalNotFound(true);
 			} else {
-				const message = err instanceof Error ? err.message : "Failed to load proposal";
+				const message =
+					err instanceof Error ? err.message : "Failed to load proposal";
 				setProposalError(message);
 			}
 		} finally {
@@ -153,12 +155,7 @@ export default function ProposalDetailPage({ params }: PageProps) {
 				setProposalLoading(false);
 			}
 		}
-	}, [
-		projectId,
-		proposalId,
-		startProposalRequest,
-		isLatestProposalRequest,
-	]);
+	}, [projectId, proposalId, startProposalRequest, isLatestProposalRequest]);
 
 	// Initial data load
 	useEffect(() => {
@@ -239,7 +236,9 @@ export default function ProposalDetailPage({ params }: PageProps) {
 		const audienceLabel = audience === "internal" ? "Internal" : "Client";
 
 		try {
-			toast.loading(`Generating ${audienceLabel} PDF...`, { id: "pdf-download" });
+			toast.loading(`Generating ${audienceLabel} PDF...`, {
+				id: "pdf-download",
+			});
 
 			const url = await ProposalsAPI.getProposalPDFUrl(
 				projectId,

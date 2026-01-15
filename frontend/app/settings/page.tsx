@@ -19,7 +19,13 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authAPI } from "@/lib/api";
@@ -47,7 +53,8 @@ export default function SettingsPage() {
 		/[A-Z]/.test(newPassword) &&
 		/[0-9]/.test(newPassword);
 	const passwordsMatch = newPassword === confirmPassword;
-	const canChangePassword = passwordValid && passwordsMatch && confirmPassword.length > 0;
+	const canChangePassword =
+		passwordValid && passwordsMatch && confirmPassword.length > 0;
 
 	const handleChangePassword = async () => {
 		if (!canChangePassword) return;
@@ -93,7 +100,11 @@ export default function SettingsPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
-						{theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+						{theme === "dark" ? (
+							<Moon className="h-5 w-5" />
+						) : (
+							<Sun className="h-5 w-5" />
+						)}
 						Appearance
 					</CardTitle>
 					<CardDescription>Choose your preferred theme</CardDescription>
@@ -152,7 +163,9 @@ export default function SettingsPage() {
 							placeholder="Confirm new password"
 						/>
 						{confirmPassword && !passwordsMatch && (
-							<p className="text-xs text-destructive">Passwords don&apos;t match</p>
+							<p className="text-xs text-destructive">
+								Passwords don&apos;t match
+							</p>
 						)}
 					</div>
 
@@ -193,7 +206,8 @@ export default function SettingsPage() {
 								<AlertDialogHeader>
 									<AlertDialogTitle>Delete Account?</AlertDialogTitle>
 									<AlertDialogDescription>
-										This action cannot be undone. All your data will be permanently deleted.
+										This action cannot be undone. All your data will be
+										permanently deleted.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 								<div className="py-4">
@@ -203,7 +217,9 @@ export default function SettingsPage() {
 									<Input
 										id="deleteConfirm"
 										value={deleteText}
-										onChange={(e) => setDeleteText(e.target.value.toUpperCase())}
+										onChange={(e) =>
+											setDeleteText(e.target.value.toUpperCase())
+										}
 										placeholder="DELETE"
 										className="mt-2"
 									/>
@@ -217,7 +233,9 @@ export default function SettingsPage() {
 										disabled={deleteText !== "DELETE" || deleting}
 										className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 									>
-										{deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+										{deleting && (
+											<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+										)}
 										Delete Account
 									</AlertDialogAction>
 								</AlertDialogFooter>

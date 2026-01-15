@@ -13,9 +13,9 @@ from app.models.base import BaseModel
 class Proposal(BaseModel):
     """
     Proposal model representing an AI-generated technical proposal.
-    
+
     Single source of truth: All technical data stored in ai_metadata JSONB field.
-    
+
     Structure:
         ai_metadata = {
             "proposal": {
@@ -39,7 +39,7 @@ class Proposal(BaseModel):
                 "generationTimeSeconds": 28.5
             }
         }
-    
+
     Attributes:
         project_id: Parent project UUID
         version: Proposal version (e.g., "v1.0", "v2.1")
@@ -54,7 +54,7 @@ class Proposal(BaseModel):
         ai_metadata: Complete AI output + transparency metadata (JSONB)
         pdf_path: Path to generated PDF file
     """
-    
+
     __tablename__ = "proposals"
 
     __table_args__ = (
@@ -79,68 +79,68 @@ class Proposal(BaseModel):
         nullable=False,
         index=True,
     )
-    
+
     # Metadata
     version = Column(
         String(20),
         nullable=False,
         comment="Proposal version (e.g., v1.0, v2.1)",
     )
-    
+
     title = Column(String(255), nullable=False)
-    
+
     proposal_type = Column(
         String(50),
         nullable=False,
         comment="Conceptual, Technical, or Detailed",
     )
-    
+
     status = Column(
         String(50),
         default="Draft",
         nullable=False,
         comment="Draft, Current, or Archived",
     )
-    
+
     author = Column(
         String(255),
         default="H2O Allegiant AI",
         nullable=False,
     )
-    
+
     # Financial Summary
     capex = Column(
         Float,
         default=0.0,
         comment="Capital expenditure estimate in USD",
     )
-    
+
     opex = Column(
         Float,
         default=0.0,
         comment="Annual operational expenditure estimate in USD",
     )
-    
+
     # Content Sections (kept for summary/display)
     executive_summary = Column(Text, nullable=True)
     technical_approach = Column(Text, nullable=True)
-    
+
     # Generated Files
     pdf_path = Column(
         String(500),
         nullable=True,
         comment="Path to generated PDF file (S3 URL or local path)",
     )
-    
+
     # Single source of truth for all technical data ✅
     ai_metadata = Column(
         JSONB,
         nullable=True,
         comment="Complete AI output + transparency: {proposal: {technicalData, markdownContent, confidenceLevel}, transparency: {provenCases, generatedAt, generationTimeSeconds}}",
     )
-    
+
     # Relationships
     project = relationship("Project", back_populates="proposals")
-    
+
     def __repr__(self) -> str:
         return f"<Proposal {self.version} for Project {self.project_id}>"

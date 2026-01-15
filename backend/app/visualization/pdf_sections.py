@@ -9,6 +9,7 @@ from typing import Any
 
 from app.services.proposal_service import sanitize_external_list, sanitize_external_text
 
+
 def _get_badge_class(value: str) -> str:
     """Return CSS class for badge based on value."""
     normalized = value.lower().strip()
@@ -119,7 +120,7 @@ def _build_external_sections(
         if not is_highly_profitable and profitability_band and profitability_band != "Unknown":
             badge_class = _get_badge_class(profitability_band)
             external_html += (
-                f'<p><strong>Opportunity Level:</strong> '
+                f"<p><strong>Opportunity Level:</strong> "
                 f'<span class="metric-badge {badge_class}">{profitability_band}</span></p>'
             )
         external_html += "</div>"
@@ -154,28 +155,21 @@ def _build_external_sections(
             if indicator_value:
                 badge_class = _get_badge_class(indicator_value)
                 circularity_blocks.append(
-                    f'<p><strong>{name}:</strong> '
+                    f"<p><strong>{name}:</strong> "
                     f'<span class="metric-badge {badge_class}">{indicator_value}</span></p>'
                 )
         if circularity_blocks:
-            metric_sections.append(
-                "<h3>Circularity Indicators</h3>"
-                + "".join(circularity_blocks)
-            )
+            metric_sections.append("<h3>Circularity Indicators</h3>" + "".join(circularity_blocks))
 
     metrics_block = ""
     if metric_sections:
-        metrics_block = (
-            "<div class=\"technical-section\">"
-            + "".join(metric_sections)
-            + "</div>"
-        )
+        metrics_block = '<div class="technical-section">' + "".join(metric_sections) + "</div>"
 
     # Overall impact block
     overall_block = ""
     if overall_impact:
         overall_block = (
-            "<div class=\"technical-section\">"
+            '<div class="technical-section">'
             f"<p><strong>Overall Impact:</strong> {overall_impact}</p>"
             "</div>"
         )
@@ -196,8 +190,8 @@ def _build_external_sections(
         annual_impact_block = (
             '<div class="technical-section">'
             '<h2 class="section-title">Annual Impact Estimate</h2>'
-            f'<p>{annual_narrative}</p>'
-            '</div>'
+            f"<p>{annual_narrative}</p>"
+            "</div>"
         )
     elif annual_band or annual_basis or annual_confidence or annual_notes:
         annual_impact_parts = []
@@ -206,9 +200,7 @@ def _build_external_sections(
         if annual_basis:
             annual_impact_parts.append(f"<p><strong>Basis:</strong> {annual_basis}</p>")
         if annual_confidence:
-            annual_impact_parts.append(
-                f"<p><strong>Confidence:</strong> {annual_confidence}</p>"
-            )
+            annual_impact_parts.append(f"<p><strong>Confidence:</strong> {annual_confidence}</p>")
         if annual_notes:
             notes = "".join(f"<li>{note}</li>" for note in annual_notes)
             annual_impact_parts.append(f'<ul class="esg-list">{notes}</ul>')
@@ -216,7 +208,7 @@ def _build_external_sections(
             '<div class="technical-section">'
             '<h2 class="section-title">Annual Impact Estimate</h2>'
             + "".join(annual_impact_parts)
-            + '</div>'
+            + "</div>"
         )
 
     # Valorization Options section (cards)
@@ -226,29 +218,27 @@ def _build_external_sections(
     if valorization:
         cards = "".join(
             f'<div class="valorization-card">'
-            f'<h4>{clean_context_value(v.get("action")) or ""}</h4>'
-            f'<p>{clean_context_value(v.get("rationale")) or ""}</p>'
-            f'</div>'
+            f"<h4>{clean_context_value(v.get('action')) or ''}</h4>"
+            f"<p>{clean_context_value(v.get('rationale')) or ''}</p>"
+            f"</div>"
             for v in valorization
         )
         valorization_block = (
             '<div class="technical-section">'
             '<h2 class="section-title">Valorization Options</h2>'
             f'<div class="valorization-cards">{cards}</div>'
-            '</div>'
+            "</div>"
         )
     elif recommended_actions:
         cards = "".join(
-            f'<div class="valorization-card">'
-            f'<h4>{action}</h4>'
-            f'</div>'
+            f'<div class="valorization-card"><h4>{action}</h4></div>'
             for action in recommended_actions
         )
         valorization_block = (
             '<div class="technical-section">'
             '<h2 class="section-title">Valorization Options</h2>'
             f'<div class="valorization-cards">{cards}</div>'
-            '</div>'
+            "</div>"
         )
 
     # Handling Requirements section (styled list)
@@ -260,7 +250,7 @@ def _build_external_sections(
             '<div class="technical-section">'
             '<h2 class="section-title">Handling Requirements</h2>'
             f'<ul class="esg-list">{items}</ul>'
-            '</div>'
+            "</div>"
         )
 
     # ESG Benefits section (styled list)
@@ -272,7 +262,7 @@ def _build_external_sections(
             '<div class="technical-section">'
             '<h2 class="section-title">ESG Benefits for Stakeholders</h2>'
             f'<ul class="esg-list">{items}</ul>'
-            '</div>'
+            "</div>"
         )
 
     # Opportunity Assessment section
@@ -297,7 +287,7 @@ def _build_external_sections(
     elif profitability_band and profitability_band != "Unknown":
         badge_class = _get_badge_class(profitability_band)
         opportunity_parts.append(
-            f'<p><strong>Opportunity Level:</strong> '
+            f"<p><strong>Opportunity Level:</strong> "
             f'<span class="metric-badge {badge_class}">{profitability_band}</span></p>'
         )
 
@@ -306,7 +296,7 @@ def _build_external_sections(
             '<div class="technical-section">'
             '<h2 class="section-title">Opportunity Assessment</h2>'
             + "".join(opportunity_parts)
-            + '</div>'
+            + "</div>"
         )
 
     # End-Use Industries section (tags)
@@ -317,13 +307,14 @@ def _build_external_sections(
         end_use_block = (
             '<div class="technical-section">'
             '<h2 class="section-title">Potential End-Use Industries</h2>'
-            '<p>Example markets for valorized materials:</p>'
+            "<p>Example markets for valorized materials:</p>"
             f'<div class="end-use-grid">{tags}</div>'
-            '</div>'
+            "</div>"
         )
 
     sections.extend(
-        block for block in [
+        block
+        for block in [
             external_html,
             summary_block,
             metrics_block,
@@ -334,7 +325,8 @@ def _build_external_sections(
             esg_block,
             end_use_block,
             opportunity_block,
-        ] if block
+        ]
+        if block
     )
     return "\n".join(sections)
 
@@ -387,10 +379,10 @@ def _build_internal_sections(proposal_data: dict[str, Any]) -> str:
             </thead>
             <tbody>
     """
-    internal_html += f"<tr><td class=\"stage-name\">Client</td><td>{client}</td></tr>"
-    internal_html += f"<tr><td class=\"stage-name\">Location</td><td>{location}</td></tr>"
-    internal_html += f"<tr><td class=\"stage-name\">Material</td><td>{material}</td></tr>"
-    internal_html += f"<tr><td class=\"stage-name\">Volume</td><td>{volume}</td></tr>"
+    internal_html += f'<tr><td class="stage-name">Client</td><td>{client}</td></tr>'
+    internal_html += f'<tr><td class="stage-name">Location</td><td>{location}</td></tr>'
+    internal_html += f'<tr><td class="stage-name">Material</td><td>{material}</td></tr>'
+    internal_html += f'<tr><td class="stage-name">Volume</td><td>{volume}</td></tr>'
     internal_html += """
             </tbody>
         </table>
@@ -412,7 +404,9 @@ def _build_internal_sections(proposal_data: dict[str, Any]) -> str:
             </thead>
             <tbody>
     """
-    finance_html += f"<tr><td>{current_cost}</td><td>{offer_terms}</td><td>{estimated_margin}</td></tr>"
+    finance_html += (
+        f"<tr><td>{current_cost}</td><td>{offer_terms}</td><td>{estimated_margin}</td></tr>"
+    )
     finance_html += """
             </tbody>
         </table>

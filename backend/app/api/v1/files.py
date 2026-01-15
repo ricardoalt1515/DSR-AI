@@ -22,7 +22,7 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep, AsyncDB
+from app.api.dependencies import AsyncDB, CurrentUser, OrganizationContext, ProjectDep
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_async_db
 from app.models.file import ProjectFile
@@ -268,17 +268,19 @@ async def list_files(
         has_text = f.processed_text is not None
         has_ai = f.ai_analysis is not None
         processing_status = "completed" if (has_text or has_ai) else "not_processed"
-        file_list.append({
-            "id": f.id,
-            "filename": f.filename,
-            "file_size": f.file_size,
-            "file_type": f.file_type,
-            "category": f.category,
-            "uploaded_at": f.created_at,
-            "processed_text": has_text,
-            "ai_analysis": has_ai,
-            "processing_status": processing_status,
-        })
+        file_list.append(
+            {
+                "id": f.id,
+                "filename": f.filename,
+                "file_size": f.file_size,
+                "file_type": f.file_type,
+                "category": f.category,
+                "uploaded_at": f.created_at,
+                "processed_text": has_text,
+                "ai_analysis": has_ai,
+                "processing_status": processing_status,
+            }
+        )
 
     return FileListResponse(
         project_id=project.id,
@@ -356,7 +358,7 @@ async def download_file(
     Frontend should fetch the blob from the returned URL.
     """
     from app.services.s3_service import StorageError
-    
+
     # Get file (verify access through join)
     conditions = [
         ProjectFile.id == file_id,
@@ -381,9 +383,8 @@ async def download_file(
         if "not found" in str(e).lower():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    
-    return {"url": url, "filename": file.filename, "mime_type": file.mime_type}
 
+    return {"url": url, "filename": file.filename, "mime_type": file.mime_type}
 
 
 @router.delete(
@@ -459,7 +460,7 @@ async def process_file_with_ai(
     file_type: str,
 ):
     """Process file with AI in background using its own DB session.
-    
+
     Loads project context (sector/subsector) to provide industry-specific
     analysis for waste materials.
     """
@@ -474,11 +475,11 @@ async def process_file_with_ai(
                 .where(ProjectFile.id == file_id)
             )
             row = result_db.one_or_none()
-            
+
             if not row:
                 logger.error(f"File {file_id} not found")
                 return
-            
+
             project_file, project = row
             project_sector = project.sector
             project_subsector = project.subsector
@@ -487,12 +488,13 @@ async def process_file_with_ai(
         processor = DocumentProcessor()
 
         # Unified file reading: works for both S3 keys and local paths (DRY)
-        from app.services.s3_service import download_file_content
         from io import BytesIO
-        
+
+        from app.services.s3_service import download_file_content
+
         file_bytes = await download_file_content(file_path)
         file_content = BytesIO(file_bytes)
-        
+
         try:
             result = await processor.process(
                 file_content=file_content,
@@ -514,7 +516,9 @@ async def process_file_with_ai(
                     file.processed_text = result.get("text")
                     file.ai_analysis = result.get("analysis")
                     await db.commit()
-                    logger.info("File processed successfully", file_id=str(file_id), sector=project_sector)
+                    logger.info(
+                        "File processed successfully", file_id=str(file_id), sector=project_sector
+                    )
             except Exception:
                 await db.rollback()
                 raise

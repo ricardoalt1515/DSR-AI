@@ -1,11 +1,15 @@
 """
 Pydantic schemas for Location model.
 """
+
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from uuid import UUID
+
 from pydantic import Field
+
 from app.schemas.common import BaseSchema
 
 if TYPE_CHECKING:
@@ -14,6 +18,7 @@ if TYPE_CHECKING:
 
 class LocationProjectSummary(BaseSchema):
     """Minimal project summary for location detail views."""
+
     id: UUID
     name: str
     status: str
@@ -22,35 +27,39 @@ class LocationProjectSummary(BaseSchema):
 
 class LocationBase(BaseSchema):
     """Base location schema with common fields."""
+
     name: str = Field(..., min_length=1, max_length=255)
     city: str = Field(..., min_length=1, max_length=100)
     state: str = Field(..., min_length=1, max_length=100)
-    address: Optional[str] = Field(None, max_length=500)
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    notes: Optional[str] = Field(None, max_length=1000)
+    address: str | None = Field(None, max_length=500)
+    latitude: float | None = None
+    longitude: float | None = None
+    notes: str | None = Field(None, max_length=1000)
 
 
 class LocationCreate(LocationBase):
     """Schema for creating a new location."""
+
     company_id: UUID
 
 
 class LocationUpdate(BaseSchema):
     """Schema for updating a location (all fields optional)."""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    city: Optional[str] = Field(None, min_length=1, max_length=100)
-    state: Optional[str] = Field(None, min_length=1, max_length=100)
-    address: Optional[str] = Field(None, max_length=500)
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    notes: Optional[str] = Field(None, max_length=1000)
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    city: str | None = Field(None, min_length=1, max_length=100)
+    state: str | None = Field(None, min_length=1, max_length=100)
+    address: str | None = Field(None, max_length=500)
+    latitude: float | None = None
+    longitude: float | None = None
+    notes: str | None = Field(None, max_length=1000)
 
 
 class LocationSummary(LocationBase):
     """Location summary (list view)."""
+
     # Inherits from_attributes=True from BaseSchema
-    
+
     id: UUID
     company_id: UUID
     full_address: str
@@ -61,5 +70,6 @@ class LocationSummary(LocationBase):
 
 class LocationDetail(LocationSummary):
     """Location detail with company info and projects."""
-    company: Optional["CompanySummary"] = None
+
+    company: CompanySummary | None = None
     projects: list[LocationProjectSummary] = Field(default_factory=list)

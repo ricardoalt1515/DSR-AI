@@ -35,7 +35,6 @@ Why ID-only?
 - Simple: Backend just orchestrates which fields appear in which sections
 """
 
-from typing import Dict, Tuple, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -62,10 +61,9 @@ BASE_TEMPLATE = {
                 {"id": "existing-system-description"},
                 {"id": "project-objective"},
                 {"id": "reuse-goals"},
-                {"id": "discharge-point"}
-            ]
+                {"id": "discharge-point"},
+            ],
         },
-
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # SECTION 2: Economics & Scale (5 fields)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -78,10 +76,9 @@ BASE_TEMPLATE = {
                 {"id": "water-consumption"},
                 {"id": "wastewater-generated"},
                 {"id": "people-served-daily"},
-                {"id": "peak-factor"}
-            ]
+                {"id": "peak-factor"},
+            ],
         },
-
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # SECTION 3: Project Constraints (2 fields)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -89,12 +86,8 @@ BASE_TEMPLATE = {
             "id": "project-constraints",
             "title": "Project Constraints",
             "description": "Limitations and special considerations affecting design",
-            "fields": [
-                {"id": "constraints"},
-                {"id": "regulatory-requirements"}
-            ]
+            "fields": [{"id": "constraints"}, {"id": "regulatory-requirements"}],
         },
-
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # SECTION 4: Water Quality (5 fields)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -107,10 +100,9 @@ BASE_TEMPLATE = {
                 {"id": "turbidity"},
                 {"id": "tds"},
                 {"id": "hardness"},
-                {"id": "temperature"}
-            ]
+                {"id": "temperature"},
+            ],
         },
-
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # SECTION 5: Field Notes (1 field) - ALWAYS LAST
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -118,11 +110,9 @@ BASE_TEMPLATE = {
             "id": "field-notes",
             "title": "Field Notes",
             "description": "Engineer observations, assumptions and detected risks on site",
-            "fields": [
-                {"id": "field-notes"}
-            ]
-        }
-    ]
+            "fields": [{"id": "field-notes"}],
+        },
+    ],
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -141,8 +131,8 @@ INDUSTRIAL_TEMPLATE = {
                 {"id": "project-objective"},
                 {"id": "design-flow-rate"},
                 {"id": "treatment-goals"},
-                {"id": "industry-type"}
-            ]
+                {"id": "industry-type"},
+            ],
         },
         {
             "id": "water-quality",
@@ -155,8 +145,8 @@ INDUSTRIAL_TEMPLATE = {
                 {"id": "temperature"},
                 {"id": "bod"},
                 {"id": "cod"},
-                {"id": "conductivity"}
-            ]
+                {"id": "conductivity"},
+            ],
         },
         {
             "id": "treatment-process",
@@ -165,10 +155,10 @@ INDUSTRIAL_TEMPLATE = {
             "fields": [
                 {"id": "treatment-type"},
                 {"id": "process-units"},
-                {"id": "discharge-requirements"}
-            ]
-        }
-    ]
+                {"id": "discharge-requirements"},
+            ],
+        },
+    ],
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -188,8 +178,8 @@ OIL_GAS_TEMPLATE = {
                 {"id": "design-flow-rate", "required": True, "importance": "critical"},
                 {"id": "treatment-goals", "required": True, "importance": "critical"},
                 {"id": "production-type", "required": True, "importance": "critical"},
-                {"id": "water-source", "required": True, "importance": "critical"}
-            ]
+                {"id": "water-source", "required": True, "importance": "critical"},
+            ],
         },
         {
             "id": "water-quality",
@@ -199,25 +189,32 @@ OIL_GAS_TEMPLATE = {
                 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 # ⭐ 5 ESSENTIAL PARAMETERS (per engineer's questionnaire)
                 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                
                 # 1. pH - Critical for treatment and corrosion control
                 {"id": "ph", "required": True, "importance": "critical"},
-                
                 # 2. TDS (Sólidos Disueltos Totales) - Very high in produced water (brine)
                 {"id": "tds", "required": True, "importance": "critical"},
-                
                 # 3. TSS (Sólidos Suspendidos) - From oil & gas wastewater
                 {"id": "tss", "required": True, "importance": "critical"},
-                
                 # 4. TPH (Hidrocarburos Totales de Petróleo) - Regulatory requirement
                 {"id": "tph", "required": True, "importance": "critical"},
-                
                 # 5. Heavy Metals (Metales Pesados) - Individual fields for better structure
-                {"id": "cadmium", "required": False, "importance": "critical"},   # Cd - Highly toxic
-                {"id": "chromium", "required": False, "importance": "critical"},  # Cr - Total chromium
-                {"id": "lead", "required": False, "importance": "critical"},      # Pb - Toxic heavy metal
-                {"id": "mercury", "required": False, "importance": "critical"}    # Hg - Extremely toxic
-            ]
+                {"id": "cadmium", "required": False, "importance": "critical"},  # Cd - Highly toxic
+                {
+                    "id": "chromium",
+                    "required": False,
+                    "importance": "critical",
+                },  # Cr - Total chromium
+                {
+                    "id": "lead",
+                    "required": False,
+                    "importance": "critical",
+                },  # Pb - Toxic heavy metal
+                {
+                    "id": "mercury",
+                    "required": False,
+                    "importance": "critical",
+                },  # Hg - Extremely toxic
+            ],
         },
         {
             "id": "project-constraints",
@@ -225,8 +222,8 @@ OIL_GAS_TEMPLATE = {
             "description": "Regulatory and operational constraints for oil & gas projects",
             "fields": [
                 {"id": "regulatory-requirements", "required": True, "importance": "critical"},
-                {"id": "constraints", "required": False, "importance": "critical"}
-            ]
+                {"id": "constraints", "required": False, "importance": "critical"},
+            ],
         },
         {
             "id": "treatment-process",
@@ -236,10 +233,10 @@ OIL_GAS_TEMPLATE = {
                 {"id": "treatment-type", "required": True, "importance": "critical"},
                 {"id": "process-units", "required": True, "importance": "critical"},
                 {"id": "discharge-requirements", "required": True, "importance": "critical"},
-                {"id": "reuse-objectives", "required": False, "importance": "recommended"}
-            ]
-        }
-    ]
+                {"id": "reuse-objectives", "required": False, "importance": "recommended"},
+            ],
+        },
+    ],
 }
 
 MUNICIPAL_TEMPLATE = {
@@ -254,8 +251,8 @@ MUNICIPAL_TEMPLATE = {
                 {"id": "project-objective"},
                 {"id": "design-flow-rate"},
                 {"id": "treatment-goals"},
-                {"id": "population-served"}
-            ]
+                {"id": "population-served"},
+            ],
         },
         {
             "id": "water-quality",
@@ -267,8 +264,8 @@ MUNICIPAL_TEMPLATE = {
                 {"id": "tds"},
                 {"id": "temperature"},
                 {"id": "chlorine-residual"},
-                {"id": "coliform"}
-            ]
+                {"id": "coliform"},
+            ],
         },
         {
             "id": "treatment-process",
@@ -277,10 +274,10 @@ MUNICIPAL_TEMPLATE = {
             "fields": [
                 {"id": "treatment-type"},
                 {"id": "process-units"},
-                {"id": "regulatory-standards"}
-            ]
-        }
-    ]
+                {"id": "regulatory-standards"},
+            ],
+        },
+    ],
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -289,14 +286,12 @@ MUNICIPAL_TEMPLATE = {
 
 # Key format: (sector, subsector)
 # subsector can be None for sector-only templates
-TEMPLATES: Dict[Tuple[str, Optional[str]], dict] = {
+TEMPLATES: dict[tuple[str, str | None], dict] = {
     # Sector-level templates
     ("industrial", None): INDUSTRIAL_TEMPLATE,
     ("municipal", None): MUNICIPAL_TEMPLATE,
-    
     # Subsector-level templates
     ("industrial", "oil_gas"): OIL_GAS_TEMPLATE,
-    
     # Add more subsectors as needed:
     # ("industrial", "food_processing"): FOOD_PROCESSING_TEMPLATE,
     # ("industrial", "mining"): MINING_TEMPLATE,
@@ -307,6 +302,7 @@ TEMPLATES: Dict[Tuple[str, Optional[str]], dict] = {
 # ═══════════════════════════════════════════════════════════
 # METADATA
 # ═══════════════════════════════════════════════════════════
+
 
 def get_template_metadata() -> dict:
     """
@@ -320,7 +316,7 @@ def get_template_metadata() -> dict:
         "base_template": {
             "name": BASE_TEMPLATE["name"],
             "sections": len(BASE_TEMPLATE["sections"]),
-            "total_fields": sum(len(s["fields"]) for s in BASE_TEMPLATE["sections"])
+            "total_fields": sum(len(s["fields"]) for s in BASE_TEMPLATE["sections"]),
         },
         "registered_templates": [
             {
@@ -328,16 +324,17 @@ def get_template_metadata() -> dict:
                 "subsector": subsector,
                 "name": template["name"],
                 "sections": len(template["sections"]),
-                "total_fields": sum(len(s["fields"]) for s in template["sections"])
+                "total_fields": sum(len(s["fields"]) for s in template["sections"]),
             }
             for (sector, subsector), template in TEMPLATES.items()
-        ]
+        ],
     }
 
 
 # ═══════════════════════════════════════════════════════════
 # VALIDATION ON STARTUP
 # ═══════════════════════════════════════════════════════════
+
 
 def _validate_all_templates_on_startup():
     """
@@ -355,6 +352,7 @@ def _validate_all_templates_on_startup():
         # Validate BASE_TEMPLATE
         try:
             from app.templates.schemas import validate_template
+
             validate_template(BASE_TEMPLATE)
             logger.info("✅ BASE_TEMPLATE validated successfully")
         except Exception as e:
@@ -364,9 +362,7 @@ def _validate_all_templates_on_startup():
         results = validate_all_templates(TEMPLATES)
 
         if results["invalid_count"] == 0:
-            logger.info(
-                f"✅ All {results['valid_count']} templates validated successfully"
-            )
+            logger.info(f"✅ All {results['valid_count']} templates validated successfully")
         else:
             logger.warning(
                 f"⚠️  Template validation: {results['valid_count']} valid, "
@@ -374,15 +370,12 @@ def _validate_all_templates_on_startup():
             )
             for error in results["errors"]:
                 logger.error(
-                    f"❌ Template {error['sector']}/{error['subsector']}: "
-                    f"{error['error']}"
+                    f"❌ Template {error['sector']}/{error['subsector']}: {error['error']}"
                 )
 
     except ImportError:
         # Pydantic not installed or schemas.py missing
-        logger.warning(
-            "⚠️  Template validation skipped (schemas module not available)"
-        )
+        logger.warning("⚠️  Template validation skipped (schemas module not available)")
     except Exception as e:
         logger.error(f"❌ Template validation error: {e}")
 

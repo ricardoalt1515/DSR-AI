@@ -56,7 +56,10 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 	const selectedOrg = organizations.find((org) => org.id === selectedOrgId);
 	const hasContext = Boolean(selectedOrgId);
 	const hasUnresolvedContext =
-		hasContext && !selectedOrg && loadState !== "loading" && loadState !== "retrying";
+		hasContext &&
+		!selectedOrg &&
+		loadState !== "loading" &&
+		loadState !== "retrying";
 	const contextBadgeLabel = selectedOrg
 		? `Context active: ${selectedOrg.name}`
 		: "Context active";
@@ -98,7 +101,12 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 
 	if (loadState === "loading" || loadState === "retrying") {
 		return (
-			<div className="flex items-center gap-2" role="status" aria-live="polite" aria-busy="true">
+			<div
+				className="flex items-center gap-2"
+				role="status"
+				aria-live="polite"
+				aria-busy="true"
+			>
 				<Skeleton className={`h-10 ${SWITCHER_WIDTH_CLASS} rounded-lg`} />
 				<span className="text-xs text-muted-foreground animate-pulse">
 					{loadState === "retrying" ? "Verifying context..." : "Loading..."}
@@ -119,7 +127,9 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 								className={`${WARNING_WIDTH_CLASS} justify-start gap-2 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400`}
 							>
 								<AlertTriangle className="h-4 w-4 shrink-0" />
-								<span className="text-sm">Context active (org unavailable)</span>
+								<span className="text-sm">
+									Context active (org unavailable)
+								</span>
 								<code className="ml-auto text-xs font-mono opacity-70">
 									{shortOrgId}
 								</code>
@@ -127,8 +137,8 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 						</TooltipTrigger>
 						<TooltipContent side="bottom" className="max-w-[320px]">
 							<p className="text-xs">
-								An organization context is active but the organization could not be loaded.
-								Clear the context to view all organizations safely.
+								An organization context is active but the organization could not
+								be loaded. Clear the context to view all organizations safely.
 							</p>
 						</TooltipContent>
 					</Tooltip>
@@ -170,7 +180,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 										open && "shadow-md ring-1 ring-primary/20",
 										hasContext
 											? "border-[var(--context-scoped-border)] bg-[var(--context-scoped-bg)] hover:bg-[var(--context-scoped-bg)]/80"
-											: "border-dashed border-[var(--context-global-border)] bg-[var(--context-global-bg)] hover:bg-muted/50"
+											: "border-dashed border-[var(--context-global-border)] bg-[var(--context-global-bg)] hover:bg-muted/50",
 									)}
 								>
 									{selectedOrg ? (
@@ -179,7 +189,11 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 											<span className="text-xs text-[var(--context-scoped-text)] shrink-0">
 												Context:
 											</span>
-											<OrgAvatar name={selectedOrg.name} slug={selectedOrg.slug} size="sm" />
+											<OrgAvatar
+												name={selectedOrg.name}
+												slug={selectedOrg.slug}
+												size="sm"
+											/>
 											<span className="truncate font-medium text-foreground">
 												{selectedOrg.name}
 											</span>
@@ -187,13 +201,15 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 									) : (
 										<div className="flex items-center gap-2.5">
 											<Building2 className="h-4 w-4 text-muted-foreground" />
-											<span className="text-muted-foreground">All organizations</span>
+											<span className="text-muted-foreground">
+												All organizations
+											</span>
 										</div>
 									)}
 									<ChevronDown
 										className={cn(
 											"ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-											open && "rotate-180"
+											open && "rotate-180",
 										)}
 									/>
 								</Button>
@@ -217,7 +233,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 								onCreateNew: () => {
 									setOpen(false);
 									onCreateNew();
-								}
+								},
 							})}
 						/>
 					</PopoverContent>
@@ -239,7 +255,9 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 									className="border-[var(--context-scoped-border)] bg-[var(--context-scoped-bg)] text-[var(--context-scoped-text)] gap-1.5 px-2 py-1"
 								>
 									<span className="h-1.5 w-1.5 rounded-full bg-[var(--context-scoped-text)] animate-pulse" />
-									<span className={cn("truncate", CONTEXT_BADGE_MAX_WIDTH_CLASS)}>
+									<span
+										className={cn("truncate", CONTEXT_BADGE_MAX_WIDTH_CLASS)}
+									>
 										{contextBadgeLabel}
 									</span>
 								</Badge>

@@ -48,8 +48,8 @@ export function SimplifiedStats() {
 		completionRate:
 			backendStats.total_projects && backendStats.total_projects > 0
 				? Math.round(
-					((backendStats.completed ?? 0) / backendStats.total_projects) * 100,
-				)
+						((backendStats.completed ?? 0) / backendStats.total_projects) * 100,
+					)
 				: 0,
 	};
 
@@ -59,9 +59,7 @@ export function SimplifiedStats() {
 			: "Require attention";
 
 	const readyDescription =
-		stats.ready === 0
-			? "No proposals ready yet"
-			: "For review and delivery";
+		stats.ready === 0 ? "No proposals ready yet" : "For review and delivery";
 
 	const efficiencyDescription =
 		stats.total === 0
@@ -145,7 +143,7 @@ export function SimplifiedStats() {
 							colors.card,
 							"transition-all duration-200 hover:shadow-md",
 							stat.priority === "high" &&
-							"ring-2 ring-primary/20 animate-pulse",
+								"ring-2 ring-primary/20 animate-pulse",
 						)}
 					>
 						<CardContent className="p-6">

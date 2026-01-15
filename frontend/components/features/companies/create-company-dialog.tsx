@@ -221,7 +221,10 @@ export function CreateCompanyDialog({
 								setFormData((prev) => ({ ...prev, sector }))
 							}
 							onSubsectorChange={(subsector) =>
-								setFormData((prev) => ({ ...prev, subsector: subsector as Subsector }))
+								setFormData((prev) => ({
+									...prev,
+									subsector: subsector as Subsector,
+								}))
 							}
 							error={
 								touched.name && formData.name.trim() && !formData.sector
@@ -252,9 +255,7 @@ export function CreateCompanyDialog({
 								onChange={(e) =>
 									setFormData({ ...formData, contactEmail: e.target.value })
 								}
-								onBlur={() =>
-									setTouched((prev) => ({ ...prev, email: true }))
-								}
+								onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
 								placeholder="name@company.com"
 							/>
 							{touched.email && formData.contactEmail && !isEmailValid && (

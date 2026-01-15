@@ -3,10 +3,11 @@ Cache service using Redis for storing job status and temporary data.
 """
 
 import json
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
-import structlog
+
 import redis.asyncio as aioredis
+import structlog
 
 from app.core.config import settings
 
@@ -18,10 +19,10 @@ class CacheService:
     Service for caching data in Redis.
     Handles job status, temporary data, and session management.
     """
-    
+
     def __init__(self):
-        self._redis: Optional[aioredis.Redis] = None
-    
+        self._redis: aioredis.Redis | None = None
+
     async def connect(self) -> None:
         """Connect to Redis."""
         try:
@@ -36,113 +37,108 @@ class CacheService:
         except Exception as e:
             logger.error(f"❌ Error connecting to Redis: {e}")
             self._redis = None
-    
+
     async def close(self) -> None:
         """Close Redis connection."""
         if self._redis:
             await self._redis.close()
             logger.info("Redis connection closed")
-    
-    async def set(
-        self,
-        key: str,
-        value: Any,
-        ttl: Optional[int] = None
-    ) -> bool:
+
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """
         Set a value in cache.
-        
+
         Args:
             key: Cache key
             value: Value to cache (will be JSON serialized)
             ttl: Time to live in seconds (optional)
-            
+
         Returns:
             True if successful, False otherwise
         """
         if not self._redis:
             logger.warning("Redis not connected")
             return False
-        
+
         try:
             # Serialize value to JSON
             json_value = json.dumps(value, default=str)
-            
+
             if ttl:
                 await self._redis.setex(key, ttl, json_value)
             else:
                 await self._redis.set(key, json_value)
-            
+
             return True
         except Exception as e:
             logger.error(f"Error setting cache key {key}: {e}")
             return False
-    
-    async def get(self, key: str) -> Optional[Any]:
+
+    async def get(self, key: str) -> Any | None:
         """
         Get a value from cache.
-        
+
         Args:
             key: Cache key
-            
+
         Returns:
             Cached value (deserialized from JSON) or None
         """
         if not self._redis:
             logger.warning("Redis not connected")
             return None
-        
+
         try:
             value = await self._redis.get(key)
             if value is None:
                 return None
-            
+
             # Deserialize from JSON
             return json.loads(value)
         except Exception as e:
             logger.error(f"Error getting cache key {key}: {e}")
             return None
-    
+
     async def delete(self, key: str) -> bool:
         """
         Delete a key from cache.
-        
+
         Args:
             key: Cache key
-            
+
         Returns:
             True if deleted, False otherwise
         """
         if not self._redis:
             logger.warning("Redis not connected")
             return False
-        
+
         try:
             await self._redis.delete(key)
             return True
         except Exception as e:
             logger.error(f"Error deleting cache key {key}: {e}")
             return False
-    
+
     async def exists(self, key: str) -> bool:
         """
         Check if a key exists in cache.
-        
+
         Args:
             key: Cache key
-            
+
         Returns:
             True if exists, False otherwise
         """
         if not self._redis:
             return False
-        
+
         try:
             return await self._redis.exists(key) > 0
         except Exception as e:
             logger.error(f"Error checking cache key {key}: {e}")
             return False
-    
+
     async def set_job_status_scoped(
         self,
         org_id: UUID,
@@ -168,7 +164,7 @@ class CacheService:
         org_id: UUID,
         user_id: UUID,
         job_id: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get job status scoped by org and user.
         """

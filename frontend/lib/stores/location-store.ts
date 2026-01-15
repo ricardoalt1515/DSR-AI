@@ -89,7 +89,9 @@ export const useLocationStore = create<LocationState>()(
 						);
 						const merged = [...otherCompanies, ...locations];
 						state.locations = Array.from(
-							new Map(merged.map((location) => [location.id, location])).values(),
+							new Map(
+								merged.map((location) => [location.id, location]),
+							).values(),
 						);
 						state.loading = false;
 					});

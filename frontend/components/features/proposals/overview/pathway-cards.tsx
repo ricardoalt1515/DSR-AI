@@ -2,244 +2,288 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, ChevronDown, Copy, Crown, Lightbulb, RefreshCw } from "lucide-react";
+import {
+	Check,
+	ChevronDown,
+	Copy,
+	Crown,
+	Lightbulb,
+	RefreshCw,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export interface PathwayData {
-    action: string;
-    buyerTypes: string;
-    priceRange: string;
-    annualValue: string;
-    esgPitch: string;
-    handling: string;
+	action: string;
+	buyerTypes: string;
+	priceRange: string;
+	annualValue: string;
+	esgPitch: string;
+	handling: string;
 }
 
 interface PathwayCardsProps {
-    pathways: PathwayData[];
-    onRefresh?: () => void;
+	pathways: PathwayData[];
+	onRefresh?: () => void;
 }
 
 function extractAnnualValue(value: string): number {
-    // Extract numeric value from "$22k-26k/yr" or "$22,000/yr"
-    const match = value.match(/\$?([\d.,]+)k?/i);
-    if (!match?.[1]) return 0;
-    const num = parseFloat(match[1].replace(/,/g, ""));
-    return value.toLowerCase().includes("k") ? num * 1000 : num;
+	// Extract numeric value from "$22k-26k/yr" or "$22,000/yr"
+	const match = value.match(/\$?([\d.,]+)k?/i);
+	if (!match?.[1]) return 0;
+	const num = parseFloat(match[1].replace(/,/g, ""));
+	return value.toLowerCase().includes("k") ? num * 1000 : num;
 }
 
 function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-        toast.success("ESG pitch copied to clipboard", {
-            description: "Ready to paste for your buyer presentation",
-            duration: 3000,
-        });
-    }).catch(() => {
-        toast.error("Failed to copy");
-    });
+	navigator.clipboard
+		.writeText(text)
+		.then(() => {
+			toast.success("ESG pitch copied to clipboard", {
+				description: "Ready to paste for your buyer presentation",
+				duration: 3000,
+			});
+		})
+		.catch(() => {
+			toast.error("Failed to copy");
+		});
 }
 
 function PathwayCard({
-    pathway,
-    index,
-    isBest,
-    isHero,
+	pathway,
+	index,
+	isBest,
+	isHero,
 }: {
-    pathway: PathwayData;
-    index: number;
-    isBest: boolean;
-    isHero: boolean;
+	pathway: PathwayData;
+	index: number;
+	isBest: boolean;
+	isHero: boolean;
 }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [copied, setCopied] = useState(false);
+	const [isOpen, setIsOpen] = useState(false);
+	const [copied, setCopied] = useState(false);
 
-    const handleCopy = () => {
-        copyToClipboard(pathway.esgPitch);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+	const handleCopy = () => {
+		copyToClipboard(pathway.esgPitch);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	};
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={cn(isHero && "col-span-full")}
-        >
-            <Card className={cn(
-                "overflow-hidden transition-all duration-200",
-                isHero && "border-2 border-primary/50 shadow-lg",
-                !isHero && "hover:shadow-md hover:border-border/80"
-            )}>
-                <CardContent className={cn("p-4", isHero && "p-6")}>
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-2">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                {index + 1}
-                            </span>
-                            {isBest && (
-                                <Badge variant="default" className="gap-1 bg-amber-500 hover:bg-amber-600">
-                                    <Crown className="h-3 w-3" />
-                                    Best ROI
-                                </Badge>
-                            )}
-                        </div>
-                    </div>
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ delay: index * 0.1 }}
+			className={cn(isHero && "col-span-full")}
+		>
+			<Card
+				className={cn(
+					"overflow-hidden transition-all duration-200",
+					isHero && "border-2 border-primary/50 shadow-lg",
+					!isHero && "hover:shadow-md hover:border-border/80",
+				)}
+			>
+				<CardContent className={cn("p-4", isHero && "p-6")}>
+					{/* Header */}
+					<div className="flex items-start justify-between gap-3 mb-3">
+						<div className="flex items-center gap-2">
+							<span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+								{index + 1}
+							</span>
+							{isBest && (
+								<Badge
+									variant="default"
+									className="gap-1 bg-amber-500 hover:bg-amber-600"
+								>
+									<Crown className="h-3 w-3" />
+									Best ROI
+								</Badge>
+							)}
+						</div>
+					</div>
 
-                    {/* Action Title */}
-                    <h3 className={cn(
-                        "font-semibold text-foreground mb-2",
-                        isHero ? "text-xl" : "text-base"
-                    )}>
-                        {pathway.action}
-                    </h3>
+					{/* Action Title */}
+					<h3
+						className={cn(
+							"font-semibold text-foreground mb-2",
+							isHero ? "text-xl" : "text-base",
+						)}
+					>
+						{pathway.action}
+					</h3>
 
-                    {/* Metrics Row */}
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-x-4 gap-y-2 text-sm mb-3">
-                        <span className="text-muted-foreground">{pathway.buyerTypes}</span>
-                        <div className="flex gap-4">
-                            <span className="font-medium text-muted-foreground" title="Reference estimate - actual prices vary by market">
-                                {pathway.priceRange} (est.)
-                            </span>
-                            <span className="font-medium text-muted-foreground" title="Estimated annual value">
-                                {pathway.annualValue}
-                            </span>
-                        </div>
-                    </div>
+					{/* Metrics Row */}
+					<div className="flex flex-col sm:flex-row flex-wrap gap-x-4 gap-y-2 text-sm mb-3">
+						<span className="text-muted-foreground">{pathway.buyerTypes}</span>
+						<div className="flex gap-4">
+							<span
+								className="font-medium text-muted-foreground"
+								title="Reference estimate - actual prices vary by market"
+							>
+								{pathway.priceRange} (est.)
+							</span>
+							<span
+								className="font-medium text-muted-foreground"
+								title="Estimated annual value"
+							>
+								{pathway.annualValue}
+							</span>
+						</div>
+					</div>
 
-                    {/* ESG Pitch */}
-                    <div className={cn(
-                        "p-3 sm:p-4 rounded-lg mb-3",
-                        "bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/50"
-                    )}>
-                        <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-                            <div className="flex-1">
-                                <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">
-                                    ESG Pitch for Buyer
-                                </p>
-                                <p className="text-sm text-green-800 dark:text-green-300 italic leading-relaxed">
-                                    &ldquo;{pathway.esgPitch}&rdquo;
-                                </p>
-                            </div>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className={cn(
-                                    "shrink-0 gap-2 h-9",
-                                    "border-green-300 dark:border-green-700",
-                                    "hover:bg-green-100 dark:hover:bg-green-900/50",
-                                    copied && "bg-green-100 dark:bg-green-900/50 text-green-600"
-                                )}
-                                onClick={handleCopy}
-                            >
-                                {copied ? (
-                                    <><Check className="h-4 w-4" /> Copied</>
-                                ) : (
-                                    <><Copy className="h-4 w-4" /> Copy</>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
+					{/* ESG Pitch */}
+					<div
+						className={cn(
+							"p-3 sm:p-4 rounded-lg mb-3",
+							"bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/50",
+						)}
+					>
+						<div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+							<div className="flex-1">
+								<p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">
+									ESG Pitch for Buyer
+								</p>
+								<p className="text-sm text-green-800 dark:text-green-300 italic leading-relaxed">
+									&ldquo;{pathway.esgPitch}&rdquo;
+								</p>
+							</div>
+							<Button
+								size="sm"
+								variant="outline"
+								className={cn(
+									"shrink-0 gap-2 h-9",
+									"border-green-300 dark:border-green-700",
+									"hover:bg-green-100 dark:hover:bg-green-900/50",
+									copied && "bg-green-100 dark:bg-green-900/50 text-green-600",
+								)}
+								onClick={handleCopy}
+							>
+								{copied ? (
+									<>
+										<Check className="h-4 w-4" /> Copied
+									</>
+								) : (
+									<>
+										<Copy className="h-4 w-4" /> Copy
+									</>
+								)}
+							</Button>
+						</div>
+					</div>
 
-                    {/* Handling (Collapsible) */}
-                    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                        <CollapsibleTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-between text-muted-foreground hover:text-foreground"
-                            >
-                                <span className="text-xs">Handling & Storage</span>
-                                <ChevronDown className={cn(
-                                    "h-4 w-4 transition-transform",
-                                    isOpen && "rotate-180"
-                                )} />
-                            </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                            <div className="pt-2 px-1 text-sm text-muted-foreground">
-                                {pathway.handling}
-                            </div>
-                        </CollapsibleContent>
-                    </Collapsible>
-                </CardContent>
-            </Card>
-        </motion.div>
-    );
+					{/* Handling (Collapsible) */}
+					<Collapsible open={isOpen} onOpenChange={setIsOpen}>
+						<CollapsibleTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="w-full justify-between text-muted-foreground hover:text-foreground"
+							>
+								<span className="text-xs">Handling & Storage</span>
+								<ChevronDown
+									className={cn(
+										"h-4 w-4 transition-transform",
+										isOpen && "rotate-180",
+									)}
+								/>
+							</Button>
+						</CollapsibleTrigger>
+						<CollapsibleContent>
+							<div className="pt-2 px-1 text-sm text-muted-foreground">
+								{pathway.handling}
+							</div>
+						</CollapsibleContent>
+					</Collapsible>
+				</CardContent>
+			</Card>
+		</motion.div>
+	);
 }
 
 export function PathwayCards({ pathways, onRefresh }: PathwayCardsProps) {
-    if (!pathways || pathways.length === 0) {
-        return <PathwayCardsEmpty onRefresh={onRefresh} />;
-    }
+	if (!pathways || pathways.length === 0) {
+		return <PathwayCardsEmpty onRefresh={onRefresh} />;
+	}
 
-    // Find best ROI pathway
-    const pathwaysWithValue = pathways.map((p, i) => ({
-        ...p,
-        numericValue: extractAnnualValue(p.annualValue),
-        originalIndex: i,
-    }));
+	// Find best ROI pathway
+	const pathwaysWithValue = pathways.map((p, i) => ({
+		...p,
+		numericValue: extractAnnualValue(p.annualValue),
+		originalIndex: i,
+	}));
 
-    const bestIndex = pathwaysWithValue.reduce(
-        (best, curr, i) => {
-            const bestVal = pathwaysWithValue[best]?.numericValue ?? 0;
-            return curr.numericValue > bestVal ? i : best;
-        },
-        0
-    );
+	const bestIndex = pathwaysWithValue.reduce((best, curr, i) => {
+		const bestVal = pathwaysWithValue[best]?.numericValue ?? 0;
+		return curr.numericValue > bestVal ? i : best;
+	}, 0);
 
-    return (
-        <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">Business Pathways</h3>
+	return (
+		<div className="space-y-4">
+			<h3 className="text-lg font-semibold text-foreground">
+				Business Pathways
+			</h3>
 
-            <div className="grid grid-cols-1 gap-4">
-                {pathways.map((pathway, index) => (
-                    <PathwayCard
-                        key={index}
-                        pathway={pathway}
-                        index={index}
-                        isBest={index === bestIndex}
-                        isHero={false}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+			<div className="grid grid-cols-1 gap-4">
+				{pathways.map((pathway, index) => (
+					<PathwayCard
+						key={index}
+						pathway={pathway}
+						index={index}
+						isBest={index === bestIndex}
+						isHero={false}
+					/>
+				))}
+			</div>
+		</div>
+	);
 }
 
 // Empty State Component
-function PathwayCardsEmpty({ onRefresh }: { onRefresh?: (() => void) | undefined }) {
-    return (
-        <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">Business Pathways</h3>
-            <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                    <div className="rounded-full bg-muted p-4">
-                        <Lightbulb className="h-8 w-8 text-muted-foreground animate-pulse" />
-                    </div>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-semibold text-foreground">Analyzing opportunities...</h3>
-                        <p className="text-sm text-muted-foreground max-w-xs">
-                            AI is identifying business pathways for this material. This may take a moment.
-                        </p>
-                    </div>
-                    {onRefresh && (
-                        <Button onClick={onRefresh} variant="outline" size="sm" className="gap-2">
-                            <RefreshCw className="h-4 w-4" />
-                            Refresh
-                        </Button>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    );
+function PathwayCardsEmpty({
+	onRefresh,
+}: {
+	onRefresh?: (() => void) | undefined;
+}) {
+	return (
+		<div className="space-y-4">
+			<h3 className="text-lg font-semibold text-foreground">
+				Business Pathways
+			</h3>
+			<Card className="border-dashed">
+				<CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+					<div className="rounded-full bg-muted p-4">
+						<Lightbulb className="h-8 w-8 text-muted-foreground animate-pulse" />
+					</div>
+					<div className="space-y-1">
+						<h3 className="text-base font-semibold text-foreground">
+							Analyzing opportunities...
+						</h3>
+						<p className="text-sm text-muted-foreground max-w-xs">
+							AI is identifying business pathways for this material. This may
+							take a moment.
+						</p>
+					</div>
+					{onRefresh && (
+						<Button
+							onClick={onRefresh}
+							variant="outline"
+							size="sm"
+							className="gap-2"
+						>
+							<RefreshCw className="h-4 w-4" />
+							Refresh
+						</Button>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
 }

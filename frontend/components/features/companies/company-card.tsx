@@ -78,7 +78,9 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 					</div>
 					<div className="flex items-center gap-2">
 						<Badge variant="outline">
-							{company.subsector ? formatSubsector(company.subsector) : company.sector}
+							{company.subsector
+								? formatSubsector(company.subsector)
+								: company.sector}
 						</Badge>
 						{onDelete && (
 							<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -122,8 +124,10 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 
 			<CardContent className="space-y-3">
 				{/* Sector/Subsector - only show if not default 'other' */}
-				{company.sector && company.subsector &&
-					company.sector !== "other" && company.subsector !== "other" && (
+				{company.sector &&
+					company.subsector &&
+					company.sector !== "other" &&
+					company.subsector !== "other" && (
 						<div className="flex flex-wrap gap-2">
 							<Badge variant="secondary" className="capitalize">
 								{company.sector}
@@ -138,27 +142,27 @@ export function CompanyCard({ company, onClick, onDelete }: CompanyCardProps) {
 				{(company.contactName ||
 					company.contactEmail ||
 					company.contactPhone) && (
-						<div className="space-y-1 text-sm">
-							{company.contactName && (
-								<div className="text-muted-foreground">
-									<span className="font-medium">Contact:</span>{" "}
-									{company.contactName}
-								</div>
-							)}
-							{company.contactEmail && (
-								<div className="text-muted-foreground">
-									<span className="font-medium">Email:</span>{" "}
-									{company.contactEmail}
-								</div>
-							)}
-							{company.contactPhone && (
-								<div className="text-muted-foreground">
-									<span className="font-medium">Phone:</span>{" "}
-									{company.contactPhone}
-								</div>
-							)}
-						</div>
-					)}
+					<div className="space-y-1 text-sm">
+						{company.contactName && (
+							<div className="text-muted-foreground">
+								<span className="font-medium">Contact:</span>{" "}
+								{company.contactName}
+							</div>
+						)}
+						{company.contactEmail && (
+							<div className="text-muted-foreground">
+								<span className="font-medium">Email:</span>{" "}
+								{company.contactEmail}
+							</div>
+						)}
+						{company.contactPhone && (
+							<div className="text-muted-foreground">
+								<span className="font-medium">Phone:</span>{" "}
+								{company.contactPhone}
+							</div>
+						)}
+					</div>
+				)}
 
 				{/* Stats */}
 				<div className="flex items-center gap-4 text-sm">

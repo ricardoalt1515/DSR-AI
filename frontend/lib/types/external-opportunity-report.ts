@@ -50,4 +50,3 @@ export interface ExternalOpportunityReport {
 	annualImpactNarrative?: string;
 	opportunityNarrative?: string;
 }
-

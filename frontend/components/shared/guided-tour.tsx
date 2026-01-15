@@ -23,7 +23,12 @@ type GuidedTourProps = {
 
 const TOUR_STORAGE_PREFIX = "guided-tour-completed-";
 
-export function GuidedTour({ steps, tourId, onComplete, onSkip }: GuidedTourProps) {
+export function GuidedTour({
+	steps,
+	tourId,
+	onComplete,
+	onSkip,
+}: GuidedTourProps) {
 	const [currentStep, setCurrentStep] = useState(0);
 	const [isVisible, setIsVisible] = useState(false);
 	const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -133,8 +138,14 @@ export function GuidedTour({ steps, tourId, onComplete, onSkip }: GuidedTourProp
 		}
 
 		// Keep tooltip in viewport
-		left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
-		top = Math.max(padding, Math.min(top, window.innerHeight - tooltipHeight - padding));
+		left = Math.max(
+			padding,
+			Math.min(left, window.innerWidth - tooltipWidth - padding),
+		);
+		top = Math.max(
+			padding,
+			Math.min(top, window.innerHeight - tooltipHeight - padding),
+		);
 
 		return { top, left, width: tooltipWidth };
 	};
@@ -245,7 +256,9 @@ export function GuidedTour({ steps, tourId, onComplete, onSkip }: GuidedTourProp
 						</Button>
 						<Button size="sm" onClick={handleNext} className="gap-1">
 							{currentStep === steps.length - 1 ? "Finish" : "Next"}
-							{currentStep < steps.length - 1 && <ChevronRight className="h-4 w-4" />}
+							{currentStep < steps.length - 1 && (
+								<ChevronRight className="h-4 w-4" />
+							)}
 						</Button>
 					</div>
 				</div>

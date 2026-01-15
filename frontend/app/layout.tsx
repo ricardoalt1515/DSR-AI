@@ -25,7 +25,6 @@ const jetbrains = JetBrains_Mono({
 	display: "swap",
 });
 
-
 export const metadata: Metadata = {
 	title: "DSR Inc. - Waste Resource Management Platform",
 	description:

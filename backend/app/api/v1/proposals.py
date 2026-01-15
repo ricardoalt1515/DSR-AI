@@ -4,39 +4,39 @@ AI Proposal generation endpoints.
 Includes PDF generation and AI transparency features (Oct 2025).
 """
 
+import os
 from typing import Any, Literal
 from uuid import UUID
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
-from fastapi.responses import Response
+
 import structlog
-import os
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-from app.core.database import get_async_db
 from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep
-from app.models.project import Project
+from app.core.database import get_async_db
 from app.models.file import ProjectFile
+from app.models.project import Project
+from app.schemas.common import ErrorResponse
 from app.schemas.proposal import (
+    AIMetadataResponse,
     ProposalGenerationRequest,
     ProposalJobStatus,
     ProposalResponse,
-    AIMetadataResponse,
 )
-from app.schemas.common import ErrorResponse
 from app.services.proposal_service import (
     ProposalService,
     build_external_markdown_from_data,
     sanitize_external_text,
 )
-from app.visualization.pdf_generator import pdf_generator
 from app.services.s3_service import (
-    get_presigned_url,
-    USE_S3,
     LOCAL_UPLOADS_DIR,
+    USE_S3,
     delete_file_from_s3,
+    get_presigned_url,
 )
+from app.visualization.pdf_generator import pdf_generator
 
 logger = structlog.get_logger(__name__)
 
@@ -102,9 +102,7 @@ async def generate_proposal(
     if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
 
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
+    result = await db.execute(select(Project).where(*conditions))
     project = result.scalar_one_or_none()
 
     if not project:
@@ -168,30 +166,30 @@ async def get_job_status(
 ):
     """
     Get the current status of a proposal generation job.
-    
+
     **Poll this endpoint** every 2-3 seconds after submitting a generation request.
-    
+
     **Status values:**
     - **queued**: Job is waiting to be processed
     - **processing**: AI is generating the proposal
     - **completed**: Proposal is ready (check `result` for proposal_id)
     - **failed**: Generation failed (check `error` for details)
-    
+
     **Progress tracking:**
     - `progress`: 0-100 percentage
     - `current_step`: Human-readable description of current operation
-    
+
     **When completed:**
     - `result.proposal_id`: UUID of the generated proposal
     - `result.preview`: Quick preview with summary and report type
-    
+
     **Example usage:**
     ```javascript
     // Poll every 2 seconds
     const checkStatus = async (jobId) => {
       const response = await fetch(`/api/v1/ai/proposals/jobs/${jobId}`);
       const data = await response.json();
-      
+
       if (data.status === 'completed') {
         // Navigate to proposal
         navigate(`/projects/${projectId}/proposals/${data.result.proposal_id}`);
@@ -216,13 +214,13 @@ async def get_job_status(
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Job status unavailable") from exc
-    
+
     if not status_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found or expired",
         )
-    
+
     return ProposalJobStatus(**status_data)
 
 
@@ -237,7 +235,7 @@ async def list_proposals(
 ):
     """
     Get all proposals for a project.
-    
+
     Returns proposals ordered by creation date (newest first).
     Each proposal includes version, costs, and status.
     """
@@ -264,11 +262,12 @@ async def get_proposal(
 ):
     """
     Get detailed proposal information.
-    
+
     Includes full markdown content, equipment specs, costs, and efficiency data.
     """
     # Find proposal
     from app.models.proposal import Proposal
+
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
@@ -277,7 +276,7 @@ async def get_proposal(
         )
     )
     proposal = result.scalar_one_or_none()
-    
+
     if not proposal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -358,6 +357,7 @@ async def get_proposal_pdf(
     """
     # Get proposal with relationships
     from app.models.proposal import Proposal
+
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
@@ -366,24 +366,20 @@ async def get_proposal_pdf(
         )
     )
     proposal = result.scalar_one_or_none()
-    
+
     if not proposal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Proposal not found",
         )
-    
+
     try:
         ai_metadata = proposal.ai_metadata if isinstance(proposal.ai_metadata, dict) else {}
         pdf_paths = ai_metadata.get("pdfPaths") if isinstance(ai_metadata, dict) else None
         if not isinstance(pdf_paths, dict):
             pdf_paths = {}
 
-        cached_pdf_path = (
-            proposal.pdf_path
-            if audience == "internal"
-            else pdf_paths.get("external")
-        )
+        cached_pdf_path = proposal.pdf_path if audience == "internal" else pdf_paths.get("external")
 
         # Check if PDF exists and regeneration not requested
         if cached_pdf_path and not regenerate:
@@ -392,13 +388,13 @@ async def get_proposal_pdf(
                 proposal_id,
                 audience,
             )
-            
+
             # Generate fresh presigned URL or serve local path
             pdf_url = await get_presigned_url(cached_pdf_path, expires=3600)
-            
+
             if pdf_url:
                 return {"url": pdf_url}
-        
+
         # Generate new PDF using existing ProfessionalPDFGenerator
         logger.info("Generating new PDF for proposal %s", proposal_id)
 
@@ -410,7 +406,9 @@ async def get_proposal_pdf(
 
         if ai_metadata:
             internal_data = ai_metadata.get("proposal") or {}
-            proposal_data = internal_data if audience == "internal" else ai_metadata.get("proposalExternal")
+            proposal_data = (
+                internal_data if audience == "internal" else ai_metadata.get("proposalExternal")
+            )
 
             markdown_key = "markdownExternal" if audience == "external" else "markdownInternal"
             markdown_content = ai_metadata.get(markdown_key) or ""
@@ -436,12 +434,14 @@ async def get_proposal_pdf(
             context = {
                 "material": sanitize_external_text(internal_data.get("material")),
                 "volume": sanitize_external_text(internal_data.get("volume")),
-                "location": sanitize_external_text(internal_data.get("location") or project.location),
+                "location": sanitize_external_text(
+                    internal_data.get("location") or project.location
+                ),
                 "facilityType": sanitize_external_text(
                     internal_data.get("facilityType") or project.sector
                 ),
             }
-            
+
             # Enrichment: sanitized pathway data for Valorization/ESG sections
             pathways = internal_data.get("pathways") or []
             if pathways:
@@ -454,7 +454,7 @@ async def get_proposal_pdf(
                         valorization.append({"action": action, "rationale": why})
                 if valorization:
                     context["valorization"] = valorization
-                
+
                 # ESG benefits: esg_pitch (filtered for sensitive data)
                 esg_benefits = []
                 for p in pathways[:3]:
@@ -463,7 +463,7 @@ async def get_proposal_pdf(
                         esg_benefits.append(pitch)
                 if esg_benefits:
                     context["esgBenefits"] = esg_benefits
-                
+
                 # Feasibility summary: count of viable pathways
                 high_count = sum(1 for p in pathways if p.get("feasibility") == "High")
                 med_count = sum(1 for p in pathways if p.get("feasibility") == "Medium")
@@ -497,12 +497,12 @@ async def get_proposal_pdf(
             if audience == "internal"
             else {},
         }
-        
+
         charts = {}
         if audience == "internal":
             # Generate charts before creating PDF (like backend-chatbot)
             from app.visualization.modern_charts import premium_chart_generator
-            
+
             logger.info("Generating executive charts for proposal %s", proposal_id)
             charts = premium_chart_generator.generate_executive_charts(metadata)
             logger.info(
@@ -510,13 +510,13 @@ async def get_proposal_pdf(
                 len(charts),
                 list(charts.keys()) if charts else "none",
             )
-        
+
         # Generate PDF with charts (returns relative filename: "proposals/file.pdf")
         pdf_filename = await pdf_generator.create_pdf(
             markdown_content=markdown_content,
             metadata=metadata,
             charts=charts,
-            conversation_id=str(proposal_id)
+            conversation_id=str(proposal_id),
         )
 
         if not pdf_filename:
@@ -543,7 +543,7 @@ async def get_proposal_pdf(
             raise ValueError("Failed to generate download URL")
 
         return {"url": pdf_url}
-        
+
     except Exception as e:
         logger.error("PDF generation failed: %s", e, exc_info=True)
         raise HTTPException(
@@ -587,6 +587,7 @@ async def delete_proposal(
     """
     # Get proposal
     from app.models.proposal import Proposal
+
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
@@ -652,11 +653,11 @@ async def get_proposal_ai_metadata(
 ):
     """
     Get AI reasoning and transparency metadata for a proposal.
-    
+
     **Transparency Features (Engineering Co-Pilot):**
     This endpoint exposes the "why" behind the AI's decisions, enabling
     engineers to validate, trust, and improve the proposal.
-    
+
     **Data Included:**
     - **usage_stats**: Token usage, model info, generation time
     - **proven_cases**: Similar projects consulted during generation
@@ -665,13 +666,13 @@ async def get_proposal_ai_metadata(
     - **technology_justification**: Detailed reasoning for selections
     - **confidence_level**: AI's confidence ("High", "Medium", "Low")
     - **recommendations**: Additional recommendations from AI
-    
+
     **Use Cases:**
     1. **Validation Tab**: Show proven cases and deviations in UI
     2. **Q&A Context**: Use for contextual chat with proposal
     3. **Audit Trail**: Document AI decision-making process
     4. **Learning**: Understand AI reasoning to improve inputs
-    
+
     **Example Response:**
     ```json
     {
@@ -695,13 +696,14 @@ async def get_proposal_ai_metadata(
       "confidence_level": "High"
     }
     ```
-    
+
     **Frontend Integration:**
     Use this data in a "Validation" or "AI Insights" tab to show
     engineers the reasoning behind the proposal.
     """
     # Get proposal
     from app.models.proposal import Proposal
+
     result = await db.execute(
         select(Proposal).where(
             Proposal.id == proposal_id,
@@ -710,23 +712,23 @@ async def get_proposal_ai_metadata(
         )
     )
     proposal = result.scalar_one_or_none()
-    
+
     if not proposal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Proposal not found",
         )
-    
+
     # Get AI metadata directly from PostgreSQL (single source of truth)
     ai_metadata = proposal.ai_metadata
-    
+
     if not ai_metadata:
         logger.warning("No AI metadata found for proposal %s", proposal_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No AI metadata available for this proposal."
+            detail="No AI metadata available for this proposal.",
         )
-    
+
     try:
         # Validate with Pydantic (catches corrupted data)
         validated_metadata = AIMetadataResponse(**ai_metadata)
@@ -736,8 +738,8 @@ async def get_proposal_ai_metadata(
                 "proposal_id": str(proposal_id),
                 "confidence": validated_metadata.confidence_level,
                 "proven_cases_count": len(validated_metadata.proven_cases),
-                "model": validated_metadata.usage_stats.model_used
-            }
+                "model": validated_metadata.usage_stats.model_used,
+            },
         )
         return validated_metadata
     except Exception as e:
@@ -745,9 +747,9 @@ async def get_proposal_ai_metadata(
             "Failed to validate AI metadata: %s",
             e,
             extra={"proposal_id": str(proposal_id)},
-            exc_info=True
+            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"AI metadata validation failed: {str(e)}"
+            detail=f"AI metadata validation failed: {str(e)}",
         )

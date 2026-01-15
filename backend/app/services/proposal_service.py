@@ -47,16 +47,16 @@ from app.agents.proposal_agent import (
     ProposalGenerationError,
     generate_enhanced_proposal,
 )
-from app.models.file import ProjectFile
-from app.models.project import Project
-from app.models.project_input import FlexibleWaterProjectData
-from app.models.proposal import Proposal
 from app.models.external_opportunity_report import (
     CircularityIndicator,
     ExternalOpportunityReport,
     SustainabilityMetric,
     SustainabilitySection,
 )
+from app.models.file import ProjectFile
+from app.models.project import Project
+from app.models.project_input import FlexibleWaterProjectData
+from app.models.proposal import Proposal
 from app.models.proposal_output import BusinessPathway, ProposalOutput
 from app.schemas.proposal import ProposalGenerationRequest
 from app.services.cache_service import cache_service
@@ -72,29 +72,24 @@ logger = structlog.get_logger(__name__)
 # Do NOT retry on permanent errors (validation, schema, business logic)
 # ═══════════════════════════════════════════════════════════════════
 
+
 @retry(
     # Stop after 2 attempts (1 retry)
     stop=stop_after_attempt(2),
-
     # Exponential backoff: wait 4s, 8s, 10s (max)
-    wait=wait_exponential(
-        multiplier=1,
-        min=4,
-        max=10
-    ),
-
+    wait=wait_exponential(multiplier=1, min=4, max=10),
     # Only retry on transient OpenAI errors and timeouts
-    retry=retry_if_exception_type((
-        APIError,           # OpenAI server errors (5xx)
-        RateLimitError,     # Rate limit exceeded (429)
-        APITimeoutError,    # Request timeout
-        APIConnectionError, # Network connection issues
-        asyncio.TimeoutError, # Our custom timeout
-    )),
-
+    retry=retry_if_exception_type(
+        (
+            APIError,  # OpenAI server errors (5xx)
+            RateLimitError,  # Rate limit exceeded (429)
+            APITimeoutError,  # Request timeout
+            APIConnectionError,  # Network connection issues
+            asyncio.TimeoutError,  # Our custom timeout
+        )
+    ),
     # Log retry attempts for monitoring
     before_sleep=before_sleep_log(logger, logging.WARNING),
-
     # Re-raise exception after all retries exhausted
     reraise=True,
 )
@@ -106,24 +101,24 @@ async def _generate_with_retry(
 ) -> Any:
     """
     Generate proposal with automatic retry on transient failures.
-    
+
     This wrapper function provides resilience against:
     - OpenAI rate limits (429)
     - OpenAI server errors (5xx)
     - Network timeouts
     - Connection issues
-    
+
     Permanent errors (validation, schema) are NOT retried and fail immediately.
-    
+
     Args:
         project_data: Project technical data
         client_metadata: Client and project metadata
         job_id: Unique job identifier for tracking
         photo_insights: Optional photo analysis from images
-    
+
     Returns:
         ProposalOutput from AI agent
-        
+
     Raises:
         ProposalGenerationError: After all retries exhausted
         ValidationError: Immediate failure (no retry)
@@ -138,7 +133,7 @@ async def _generate_with_retry(
                 client_metadata=client_metadata,
                 photo_insights=photo_insights,
             ),
-            timeout=480  # 8 minutes (fail before frontend 10min timeout)
+            timeout=480,  # 8 minutes (fail before frontend 10min timeout)
         )
 
         logger.info(f"Proposal generated successfully for job {job_id}")
@@ -163,24 +158,26 @@ class ProposalService:
     def _serialize_technical_data(project: Project) -> FlexibleWaterProjectData:
         """
         Serialize project technical data for AI agent consumption.
-        
+
         Loads from project.project_data (JSONB) which contains user's dynamic data.
         This ensures the AI agent receives the EXACT data the user entered,
         including custom contaminants, regulations, and field notes.
-        
+
         Args:
             project: SQLAlchemy Project instance
-            
+
         Returns:
             FlexibleWaterProjectData instance with user's dynamic data
-            
+
         Example:
             >>> project = await db.get(Project, project_id)
             >>> water_data = ProposalService._serialize_technical_data(project)
             >>> print(water_data.count_filled_fields())  # All user fields
         """
         # Load from JSONB data (frontend's dynamic structure)
-        jsonb_sections = project.project_data.get('technical_sections') if project.project_data else None
+        jsonb_sections = (
+            project.project_data.get("technical_sections") if project.project_data else None
+        )
 
         if jsonb_sections:
             # User has entered dynamic data in frontend
@@ -188,7 +185,7 @@ class ProposalService:
                 "loading_jsonb_technical_data",
                 project_id=str(project.id),
                 sections_count=len(jsonb_sections),
-                source="jsonb"
+                source="jsonb",
             )
             try:
                 water_data = FlexibleWaterProjectData.from_project_jsonb(project)
@@ -197,7 +194,9 @@ class ProposalService:
                     project_id=str(project.id),
                     filled_fields=water_data.count_filled_fields(),
                     total_fields=water_data.count_fields(),
-                    completeness_percent=round(water_data.count_filled_fields() / water_data.count_fields() * 100, 1)
+                    completeness_percent=round(
+                        water_data.count_filled_fields() / water_data.count_fields() * 100, 1
+                    ),
                 )
                 return water_data
             except Exception as e:
@@ -205,7 +204,7 @@ class ProposalService:
                     "jsonb_parsing_error",
                     exc_info=True,
                     project_id=str(project.id),
-                    error_type=type(e).__name__
+                    error_type=type(e).__name__,
                 )
                 # Fall through to minimal structure
 
@@ -214,7 +213,7 @@ class ProposalService:
             "no_technical_data_found",
             project_id=str(project.id),
             source="none",
-            action="returning_minimal_structure"
+            action="returning_minimal_structure",
         )
         return FlexibleWaterProjectData(
             project_name=project.name,
@@ -294,13 +293,13 @@ class ProposalService:
         """
         Start a proposal generation job.
         Returns job ID for status polling.
-        
+
         Args:
             db: Database session
             project_id: Project UUID
             request: Proposal generation request
             user_id: User UUID
-            
+
         Returns:
             Job ID string
         """
@@ -346,7 +345,7 @@ class ProposalService:
     ) -> None:
         """
         Generate proposal asynchronously (to be called by background worker).
-        
+
         Args:
             db: Database session
             project_id: Project UUID
@@ -421,7 +420,9 @@ class ProposalService:
                 filled_fields=technical_data.count_filled_fields(),
                 completeness_percent=round(
                     technical_data.count_filled_fields() / technical_data.count_fields() * 100, 1
-                ) if technical_data.count_fields() > 0 else 0,
+                )
+                if technical_data.count_fields() > 0
+                else 0,
                 context_sections=len([k for k, v in ai_context.items() if isinstance(v, dict)]),
                 estimated_tokens=len(ai_context_str) // 4,
             )
@@ -514,7 +515,7 @@ class ProposalService:
                     job_id=job_id,
                     duration_seconds=round(duration, 2),
                     attempts=2,
-                    last_error=str(e.last_attempt.exception())
+                    last_error=str(e.last_attempt.exception()),
                 )
                 await cache_service.set_job_status_scoped(
                     org_id=org_id,
@@ -540,7 +541,7 @@ class ProposalService:
                     job_id=job_id,
                     duration_seconds=round(duration, 2),
                     error_type=type(e).__name__,
-                    error_message=str(e)
+                    error_message=str(e),
                 )
                 await cache_service.set_job_status_scoped(
                     org_id=org_id,
@@ -593,28 +594,29 @@ class ProposalService:
                 project_id=project_id,
                 project_name=project.name,
                 request=request,
-                new_version=new_version
+                new_version=new_version,
             )
             proposal.organization_id = org_id
-            
+
             logger.info(
                 "waste_report_created",
                 project_id=str(project_id),
-                confidence_level=proposal.ai_metadata['proposal'].get('confidence', 'Medium')
+                confidence_level=proposal.ai_metadata["proposal"].get("confidence", "Medium"),
             )
 
             db.add(proposal)
             await db.flush()  # Get ID before timeline event
-            
+
             # Create timeline event
             from app.services.timeline_service import create_timeline_event
+
             await create_timeline_event(
                 db=db,
                 project_id=project_id,
                 organization_id=org_id,
                 event_type="proposal_generated",
                 title=f"Waste Report Generated: {new_version}",
-                description=f"Waste upcycling feasibility report generated with AI",
+                description="Waste upcycling feasibility report generated with AI",
                 actor=f"user_{user_id}",
                 metadata={
                     "proposal_id": str(proposal.id),
@@ -622,9 +624,9 @@ class ProposalService:
                     "proposal_type": request.proposal_type,
                     "report_type": "waste_upcycling_feasibility",
                     "generation_time": round(generation_duration, 2),
-                }
+                },
             )
-            
+
             await db.commit()
             await db.refresh(proposal)
 
@@ -635,7 +637,7 @@ class ProposalService:
                 version=new_version,
                 proposal_type=request.proposal_type,
                 report_type="waste_upcycling_feasibility",
-                has_ai_metadata=True
+                has_ai_metadata=True,
             )
 
             # Complete job
@@ -664,7 +666,7 @@ class ProposalService:
                 project_id=str(project_id),
                 job_id=job_id,
                 version=new_version,
-                total_duration_seconds=round(time.time() - start_time, 2)
+                total_duration_seconds=round(time.time() - start_time, 2),
             )
 
         except Exception as e:
@@ -674,7 +676,7 @@ class ProposalService:
                 project_id=str(project_id),
                 job_id=job_id,
                 error_type=type(e).__name__,
-                error_message=str(e)
+                error_message=str(e),
             )
             await cache_service.set_job_status_scoped(
                 org_id=org_id,
@@ -697,10 +699,10 @@ class ProposalService:
     ) -> dict[str, Any] | None:
         """
         Get proposal generation job status.
-        
+
         Args:
             job_id: Job identifier
-            
+
         Returns:
             Job status data or None
         """
@@ -720,7 +722,7 @@ class ProposalService:
     ) -> None:
         """
         Background task wrapper - creates its own DB session.
-        
+
         IMPORTANT: Background tasks should NOT receive db session from endpoint
         because the endpoint's session closes when it returns.
         """
@@ -734,9 +736,11 @@ class ProposalService:
                 user_id=user_id,
             )
 
+
 # ============================================================================
 # HELPER FUNCTIONS - Proposal Building
 # ============================================================================
+
 
 def create_proposal(
     proposal_output: ProposalOutput,
@@ -746,7 +750,7 @@ def create_proposal(
     project_id: UUID,
     project_name: str,
     request: ProposalGenerationRequest,
-    new_version: str
+    new_version: str,
 ) -> Proposal:
     """Create Proposal from ProposalOutput (DRY principle)."""
     proposal_data = proposal_output.model_dump(by_alias=True, exclude_none=True)
@@ -756,7 +760,7 @@ def create_proposal(
         exclude_none=True,
         mode="json",
     )
-    
+
     internal_markdown = _generate_markdown_report(proposal_output)
     external_markdown = _generate_markdown_external_report(external_report, proposal_output)
 
@@ -768,8 +772,8 @@ def create_proposal(
             "clientMetadata": client_metadata,
             "generatedAt": datetime.utcnow().isoformat(),
             "generationTimeSeconds": round(generation_duration, 2),
-            "reportType": "waste_opportunity"
-        }
+            "reportType": "waste_opportunity",
+        },
     }
 
     return Proposal(
@@ -877,7 +881,7 @@ def _strip_buyer_claims_prefix(text: str) -> str:
     lowered = text.lower().strip()
     for prefix in _BUYER_CLAIMS_PREFIXES:
         if lowered.startswith(prefix):
-            return text[len(prefix):].strip().strip("\"'")
+            return text[len(prefix) :].strip().strip("\"'")
     return text
 
 
@@ -1010,7 +1014,11 @@ def _compose_opportunity_narrative(
     rationale = ""
     if viable_pathways and viable_pathways[0].why_it_works:
         sanitized_rationale = sanitize_external_text(viable_pathways[0].why_it_works)
-        if sanitized_rationale and len(sanitized_rationale) > 20 and sanitized_rationale != _EXTERNAL_REDACTION_MESSAGE:
+        if (
+            sanitized_rationale
+            and len(sanitized_rationale) > 20
+            and sanitized_rationale != _EXTERNAL_REDACTION_MESSAGE
+        ):
             rationale = f" {sanitized_rationale}"
 
     outlook = ""
@@ -1235,7 +1243,7 @@ def _normalize_buyer_type(value: str) -> str:
     cleaned = value.strip().lower()
     for prefix in ("the ", "a ", "an "):
         if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix):]
+            cleaned = cleaned[len(prefix) :]
             break
     cleaned = "".join(ch if ch.isalnum() or ch.isspace() else " " for ch in cleaned)
     return " ".join(cleaned.split())
@@ -1253,35 +1261,35 @@ def _generate_markdown_external_report(
     internal: ProposalOutput | None = None,
 ) -> str:
     """Generate external (client-facing) markdown from structured data.
-    
+
     Enriches report with valorization options and ESG benefits from internal data.
     """
     sustainability = output.sustainability
 
     # Build sustainability metrics (only show if computed)
     metrics_lines = []
-    
+
     co2 = sustainability.co2e_reduction
     if co2.status == "computed" and co2.value:
         metrics_lines.append(f"**CO₂e Reduction:** {co2.value}")
         if co2.basis:
             metrics_lines.append(f"  *{co2.basis}*")
-    
+
     water = sustainability.water_savings
     if water.status == "computed" and water.value:
         metrics_lines.append(f"**Water Savings:** {water.value}")
         if water.basis:
             metrics_lines.append(f"  *{water.basis}*")
-    
+
     metrics_md = chr(10).join(metrics_lines) if metrics_lines else ""
-    
+
     # Circularity (only if computed)
     circularity_lines = []
     for indicator in sustainability.circularity:
         if indicator.metric.status == "computed" and indicator.metric.value:
             circularity_lines.append(f"- **{indicator.name}:** {indicator.metric.value}")
     circularity_md = chr(10).join(circularity_lines) if circularity_lines else ""
-    
+
     # Profitability assessment
     profitability_md = ""
     if output.profitability_statement:
@@ -1289,7 +1297,7 @@ def _generate_markdown_external_report(
             profitability_md = f"**Opportunity Level:** {output.profitability_statement}"
         elif output.profitability_band and output.profitability_band != "Unknown":
             profitability_md = f"**Opportunity Level:** {output.profitability_band}"
-    
+
     # Annual impact estimate
     annual_impact_lines = []
     impact_band = output.annual_impact_magnitude_band
@@ -1316,7 +1324,7 @@ def _generate_markdown_external_report(
             elif action:
                 valorization_lines.append(f"- **{action}**")
     valorization_md = chr(10).join(valorization_lines) if valorization_lines else ""
-    
+
     # ESG Benefits from internal pathways
     esg_lines = []
     if internal and internal.pathways:
@@ -1325,7 +1333,7 @@ def _generate_markdown_external_report(
             if pitch and pitch != _EXTERNAL_REDACTION_MESSAGE:
                 esg_lines.append(f"- {pitch}")
     esg_md = chr(10).join(esg_lines) if esg_lines else ""
-    
+
     # NEW: Feasibility summary
     feasibility_md = ""
     if internal and internal.pathways:
@@ -1334,27 +1342,27 @@ def _generate_markdown_external_report(
         total_viable = high_count + med_count
         if total_viable > 0:
             feasibility_md = f"**{total_viable} viable pathway{'s' if total_viable != 1 else ''}** identified for material valorization."
-    
+
     # Build final markdown
     sections = []
-    
+
     # Summary section
     sections.append(f"""## Sustainability Summary
 
 {sustainability.summary}""")
-    
+
     # Metrics section (if any computed)
     if metrics_md:
         sections.append(f"""## Environmental Metrics
 
 {metrics_md}""")
-    
+
     # Circularity (if any computed)
     if circularity_md:
         sections.append(f"""## Circularity Indicators
 
 {circularity_md}""")
-    
+
     # Overall impact
     sections.append(f"""## Overall Environmental Impact
 
@@ -1365,41 +1373,41 @@ def _generate_markdown_external_report(
         sections.append(f"""## Annual Impact Estimate
 
 {annual_impact_md}""")
-    
+
     # Valorization Options (NEW)
     if valorization_md:
         sections.append(f"""## Valorization Options
 
 {valorization_md}""")
-    
+
     # ESG Benefits (NEW)
     if esg_md:
         sections.append(f"""## ESG Benefits for Stakeholders
 
 {esg_md}""")
-    
+
     # Feasibility + Profitability (NEW combined section)
     opportunity_parts = []
     if feasibility_md:
         opportunity_parts.append(feasibility_md)
     if profitability_md:
         opportunity_parts.append(profitability_md)
-    if output.profitability_statement and output.profitability_statement != _HIGHLY_PROFITABLE_LABEL:
+    if (
+        output.profitability_statement
+        and output.profitability_statement != _HIGHLY_PROFITABLE_LABEL
+    ):
         opportunity_parts.append(output.profitability_statement)
     if opportunity_parts:
         sections.append(f"""## Opportunity Assessment
 
 {chr(10).join(opportunity_parts)}""")
-    
-    return chr(10) + chr(10) + "---" + chr(10) + chr(10).join(
-        s + chr(10) for s in sections
-    )
 
+    return chr(10) + chr(10) + "---" + chr(10) + chr(10).join(s + chr(10) for s in sections)
 
 
 def _generate_markdown_report(output: ProposalOutput) -> str:
     """Generate internal opportunity markdown from structured data."""
-    
+
     # Format pathways
     pathway_lines = []
     for i, p in enumerate(output.pathways, 1):
@@ -1416,7 +1424,7 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 - **Target Locations:** {target_locations}
 - **Why it works:** {p.why_it_works}
 """)
-    
+
     pathways_md = "".join(pathway_lines)
 
     economics = output.economics_deep_dive
@@ -1432,7 +1440,7 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
         if economics.data_gaps
         else "- N/A"
     )
-    
+
     return f"""# Opportunity Report
 
 ## {output.recommendation}: {output.headline}
@@ -1478,9 +1486,9 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 ## Environmental Impact
 
 - **CO₂ Avoided:** {output.environment.co2_avoided}
-- **Water Savings:** {output.environment.water_savings or 'Requires water footprint data'}
+- **Water Savings:** {output.environment.water_savings or "Requires water footprint data"}
 - **Circularity Potential:** {output.environment.circularity_potential}
-- **Circularity Rationale:** {output.environment.circularity_rationale or 'N/A'}
+- **Circularity Rationale:** {output.environment.circularity_rationale or "N/A"}
 - **ESG Headline:** {output.environment.esg_headline}
 - **If Not Diverted:** {output.environment.current_harm}
 
@@ -1501,19 +1509,19 @@ def _generate_markdown_report(output: ProposalOutput) -> str:
 
 ## Risks
 
-{chr(10).join(f'- {r}' for r in output.risks)}
+{chr(10).join(f"- {r}" for r in output.risks)}
 
 ---
 
 ## Next Steps
 
-{chr(10).join(f'{i}. {s}' for i, s in enumerate(output.next_steps, 1))}
+{chr(10).join(f"{i}. {s}" for i, s in enumerate(output.next_steps, 1))}
 
 ---
 
 ## ROI Summary
 
-**{output.roi_summary or 'ROI calculation pending'}**
+**{output.roi_summary or "ROI calculation pending"}**
 """
 
 

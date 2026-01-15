@@ -17,7 +17,11 @@ interface ProposalGenerationState {
 	cancelHandler: (() => void) | null;
 
 	// Actions
-	startGeneration: (projectId: string, jobId: string, startedAt?: number) => void;
+	startGeneration: (
+		projectId: string,
+		jobId: string,
+		startedAt?: number,
+	) => void;
 	updateProgress: (
 		progress: number,
 		currentStep?: string,

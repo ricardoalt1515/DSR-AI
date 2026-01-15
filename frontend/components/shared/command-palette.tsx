@@ -193,7 +193,10 @@ export function CommandPalette() {
 
 				{/* Theme */}
 				<CommandGroup heading="Theme">
-					<CommandItem value="toggle-theme" onSelect={() => runCommand(toggleTheme)}>
+					<CommandItem
+						value="toggle-theme"
+						onSelect={() => runCommand(toggleTheme)}
+					>
 						{theme === "dark" ? (
 							<Sun className="mr-2 h-4 w-4" />
 						) : (

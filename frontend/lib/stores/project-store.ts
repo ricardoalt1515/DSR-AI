@@ -303,9 +303,7 @@ export const useProjectStore = create<ProjectState>()(
 						state.currentProject = null;
 						state.loading = false;
 						state.error =
-							error instanceof Error
-								? error.message
-								: "Failed to load project";
+							error instanceof Error ? error.message : "Failed to load project";
 					});
 				}
 			},

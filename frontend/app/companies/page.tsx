@@ -104,7 +104,9 @@ export default function CompaniesPage() {
 			) : filteredCompanies.length === 0 ? (
 				<div className="text-center py-12">
 					<Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-					<h3 className="text-lg font-semibold mb-2">No companies match your search</h3>
+					<h3 className="text-lg font-semibold mb-2">
+						No companies match your search
+					</h3>
 					<p className="text-muted-foreground mb-4">
 						Try adjusting your search terms
 					</p>

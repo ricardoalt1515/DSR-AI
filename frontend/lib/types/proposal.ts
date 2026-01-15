@@ -14,7 +14,7 @@ export interface BusinessPathway {
 	buyerTypes: string;
 	priceRange: string;
 	annualValue: string;
-	esgPitch: string;  // Ready to copy-paste for buyers
+	esgPitch: string; // Ready to copy-paste for buyers
 	handling: string;
 }
 

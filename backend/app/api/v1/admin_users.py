@@ -1,6 +1,5 @@
 """Admin endpoints for managing users (list, create, update)."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,7 +16,7 @@ router = APIRouter()
 from app.main import limiter
 
 
-@router.get("", response_model=List[UserRead], summary="List platform admins")
+@router.get("", response_model=list[UserRead], summary="List platform admins")
 @limiter.limit("60/minute")
 async def list_platform_admins(
     request: Request,
@@ -36,6 +35,7 @@ async def list_platform_admins(
 
 class AdminCreateUserRequest(UserCreate):
     """Extend UserCreate for admin user creation."""
+
     is_superuser: bool = True
     role: str = "admin"  # Platform admin role
 
@@ -59,10 +59,11 @@ async def create_user(
 
 class AdminUpdateUserRequest(UserUpdate):
     """Allow partial updates including role changes."""
-    is_superuser: Optional[bool] = None
-    is_active: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
+
+    is_superuser: bool | None = None
+    is_active: bool | None = None
+    password: str | None = None
+    role: str | None = None
 
 
 @router.patch("/{user_id}", response_model=UserRead)
@@ -91,7 +92,9 @@ async def update_user(
     requested_is_superuser = update_data.get("is_superuser")
     will_be_active = update_data.get("is_active", user.is_active)
 
-    if requested_is_superuser is False or (requested_role is not None and requested_role != "admin"):
+    if requested_is_superuser is False or (
+        requested_role is not None and requested_role != "admin"
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Platform admins cannot be demoted via admin endpoint",
@@ -107,7 +110,9 @@ async def update_user(
 
     # Self-protection: admins cannot demote or deactivate themselves
     if user.id == current_admin.id:
-        if requested_is_superuser is False or (requested_role is not None and requested_role != "admin"):
+        if requested_is_superuser is False or (
+            requested_role is not None and requested_role != "admin"
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Admins cannot remove their own admin role",

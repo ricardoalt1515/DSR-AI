@@ -20,8 +20,9 @@ export default function ForgotPasswordPage() {
 		>
 			<div className="space-y-4 text-sm text-muted-foreground">
 				<p>
-					If you&apos;ve forgotten your password, please contact your organization admin. They
-					can reset your password from the admin panel and share the new credentials with you.
+					If you&apos;ve forgotten your password, please contact your
+					organization admin. They can reset your password from the admin panel
+					and share the new credentials with you.
 				</p>
 				<Button asChild variant="outline" className="w-full mt-2">
 					<Link href="/login">Go to sign in</Link>

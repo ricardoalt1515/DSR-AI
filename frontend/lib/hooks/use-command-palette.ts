@@ -60,20 +60,23 @@ export function useRecentProjects() {
 		}
 	}, []);
 
-	const addRecentProject = useCallback((project: { id: string; name: string }) => {
-		setRecentProjects((prev) => {
-			// Remove if already exists
-			const filtered = prev.filter((p) => p.id !== project.id);
-			// Add to front
-			const updated = [
-				{ id: project.id, name: project.name, visitedAt: Date.now() },
-				...filtered,
-			].slice(0, MAX_RECENT_PROJECTS);
+	const addRecentProject = useCallback(
+		(project: { id: string; name: string }) => {
+			setRecentProjects((prev) => {
+				// Remove if already exists
+				const filtered = prev.filter((p) => p.id !== project.id);
+				// Add to front
+				const updated = [
+					{ id: project.id, name: project.name, visitedAt: Date.now() },
+					...filtered,
+				].slice(0, MAX_RECENT_PROJECTS);
 
-			localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
-			return updated;
-		});
-	}, []);
+				localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
+				return updated;
+			});
+		},
+		[],
+	);
 
 	const clearRecentProjects = useCallback(() => {
 		setRecentProjects([]);

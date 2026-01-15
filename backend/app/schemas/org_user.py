@@ -1,8 +1,9 @@
 import uuid
-from pydantic import BaseModel, Field, EmailStr
 
-from app.schemas.user_fastapi import UserCreate
+from pydantic import BaseModel, EmailStr, Field
+
 from app.models.user import UserRole
+from app.schemas.user_fastapi import UserCreate
 
 
 class OrgUserCreateRequest(BaseModel):

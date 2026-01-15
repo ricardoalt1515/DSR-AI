@@ -12,10 +12,12 @@ Best practices:
 - Supports any industry/sector
 """
 
-from typing import Optional, List, Dict, Any
-from pydantic import Field, ConfigDict, field_validator
-from app.schemas.common import BaseSchema
+from typing import Any
+
 import structlog
+from pydantic import ConfigDict, Field, field_validator
+
+from app.schemas.common import BaseSchema
 
 logger = structlog.get_logger(__name__)
 
@@ -45,13 +47,13 @@ class DynamicField(BaseSchema):
     id: str = Field(description="Unique field identifier")
     label: str = Field(description="Human-readable field name")
     value: Any = Field(description="Field value (flexible type)")
-    unit: Optional[str] = Field(default=None, description="Unit of measurement")
+    unit: str | None = Field(default=None, description="Unit of measurement")
     type: str = Field(default="text", description="Field type: text, number, unit, select")
     source: str = Field(default="manual", description="Data source: manual, imported, ai")
-    importance: Optional[str] = Field(
+    importance: str | None = Field(
         default=None, description="Priority: critical, recommended, optional"
     )
-    notes: Optional[str] = Field(default=None, description="Engineer's notes for this field")
+    notes: str | None = Field(default=None, description="Engineer's notes for this field")
 
     def format_value(self) -> str:
         """Format value with unit for display."""
@@ -83,13 +85,13 @@ class DynamicSection(BaseSchema):
 
     id: str = Field(description="Section identifier")
     title: str = Field(description="Section title")
-    description: Optional[str] = Field(default=None, description="Section description")
-    fields: List[DynamicField] = Field(default_factory=list, description="Fields in this section")
-    notes: Optional[str] = Field(default=None, description="Section notes")
+    description: str | None = Field(default=None, description="Section description")
+    fields: list[DynamicField] = Field(default_factory=list, description="Fields in this section")
+    notes: str | None = Field(default=None, description="Section notes")
 
     @field_validator("fields", mode="before")
     @classmethod
-    def convert_field_dicts(cls, v: Any) -> List[DynamicField]:
+    def convert_field_dicts(cls, v: Any) -> list[DynamicField]:
         """Convert dict representations to DynamicField instances."""
         if isinstance(v, list):
             return [DynamicField(**item) if isinstance(item, dict) else item for item in v]
@@ -127,19 +129,19 @@ class FlexibleWaterProjectData(BaseSchema):
     project_name: str = Field(description="Project name")
     client: str = Field(description="Client/company name")
     sector: str = Field(description="Industry sector")
-    subsector: Optional[str] = Field(default=None, description="Industry subsector")
+    subsector: str | None = Field(default=None, description="Industry subsector")
     location: str = Field(description="Project location")
-    budget: Optional[float] = Field(default=None, description="Project budget in USD")
+    budget: float | None = Field(default=None, description="Project budget in USD")
 
     # Dynamic technical data (the key part!)
-    technical_sections: List[DynamicSection] = Field(
+    technical_sections: list[DynamicSection] = Field(
         default_factory=list, description="User-defined technical sections with custom fields"
     )
 
     # Additional context
-    notes: Optional[str] = Field(default=None, description="General notes")
-    regulations: Optional[List[str]] = Field(default=None, description="Applicable regulations")
-    field_observations: Optional[str] = Field(default=None, description="Field observations")
+    notes: str | None = Field(default=None, description="General notes")
+    regulations: list[str] | None = Field(default=None, description="Applicable regulations")
+    field_observations: str | None = Field(default=None, description="Field observations")
 
     @classmethod
     def from_project_jsonb(cls, project) -> "FlexibleWaterProjectData":
@@ -257,7 +259,7 @@ class FlexibleWaterProjectData(BaseSchema):
                 count += 1
         return count
 
-    def to_ai_context(self) -> Dict[str, Any]:
+    def to_ai_context(self) -> dict[str, Any]:
         """
         Extract ONLY AI-relevant data without UI metadata.
 
@@ -296,7 +298,7 @@ class FlexibleWaterProjectData(BaseSchema):
             - Reduces token count by ~85% vs full serialization
         """
         # Basic project metadata
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "project_name": self.project_name,
             "client": self.client,
             "sector": self.sector,
@@ -358,7 +360,7 @@ class FlexibleWaterProjectData(BaseSchema):
         return context
 
     @staticmethod
-    def format_ai_context_to_string(context: Dict[str, Any]) -> str:
+    def format_ai_context_to_string(context: dict[str, Any]) -> str:
         """
         Format clean context dict into readable markdown string for AI prompts.
 

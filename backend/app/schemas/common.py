@@ -2,9 +2,10 @@
 Common schemas shared across the API.
 """
 
-from typing import Any, Dict, Generic, List, Optional, TypeVar
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+from typing import Generic, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def to_camel_case(string: str) -> str:
@@ -16,8 +17,8 @@ def to_camel_case(string: str) -> str:
         updated_at → updatedAt
         proposals_count → proposalsCount
     """
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
+    components = string.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
 
 
 class BaseSchema(BaseModel):
@@ -53,7 +54,7 @@ T = TypeVar("T")
 class PaginatedResponse(BaseModel, Generic[T]):
     """
     Generic paginated response matching frontend expectations.
-    
+
     Frontend expects:
     {
       "items": [...],
@@ -63,13 +64,13 @@ class PaginatedResponse(BaseModel, Generic[T]):
       "pages": 5
     }
     """
-    
-    items: List[T] = Field(..., description="List of items for current page")
+
+    items: list[T] = Field(..., description="List of items for current page")
     total: int = Field(..., description="Total number of items")
     page: int = Field(..., description="Current page number (1-indexed)")
     size: int = Field(..., description="Number of items per page")
     pages: int = Field(..., description="Total number of pages")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -85,7 +86,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 class APIError(BaseModel):
     """
     Standard API error response matching frontend expectations.
-    
+
     Frontend expects:
     {
       "error": {
@@ -96,11 +97,11 @@ class APIError(BaseModel):
       "timestamp": "2025-09-30T..."
     }
     """
-    
+
     message: str = Field(..., description="Human-readable error message")
     code: str = Field(..., description="Machine-readable error code")
-    details: Optional[dict] = Field(default=None, description="Additional error details")
-    
+    details: dict | None = Field(default=None, description="Additional error details")
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -113,18 +114,18 @@ class APIError(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Wrapper for error responses with timestamp."""
-    
+
     error: APIError
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class SuccessResponse(BaseModel):
     """Generic success response."""
-    
+
     success: bool = True
-    message: Optional[str] = None
-    data: Optional[dict] = None
-    
+    message: str | None = None
+    data: dict | None = None
+
     class Config:
         json_schema_extra = {
             "example": {

@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -20,7 +19,6 @@ import { type LoginFormData, loginSchema } from "@/lib/validation/auth-schemas";
 export default function LoginPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const { login } = useAuth();
-	const router = useRouter();
 
 	const {
 		register,
@@ -41,7 +39,6 @@ export default function LoginPage() {
 		try {
 			await login(data.email, data.password);
 			// Success toast is handled by AuthContext
-			router.push("/dashboard");
 		} catch (_error) {
 			// Error toast is handled by AuthContext
 			// Logging handled by AuthContext
@@ -56,7 +53,8 @@ export default function LoginPage() {
 			subtitle="Sign in with the credentials provided by your admin"
 			footer={
 				<div className="text-center text-sm text-muted-foreground">
-					Accounts are created by your organization admin. If you need access or forgot your password, please contact your admin.
+					Accounts are created by your organization admin. If you need access or
+					forgot your password, please contact your admin.
 				</div>
 			}
 		>

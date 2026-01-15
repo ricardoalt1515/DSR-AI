@@ -5,11 +5,11 @@ Uses pydantic-ai with BinaryContent for vision model capabilities.
 Extracts structured business intelligence from photos of waste materials.
 """
 
-import structlog
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
+import structlog
 from pydantic_ai import Agent, BinaryContent, RunContext
 from pydantic_ai.settings import ModelSettings
 

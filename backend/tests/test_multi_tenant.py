@@ -257,7 +257,147 @@ async def test_user_org_a_cannot_see_companies_org_b(client, db_session, set_cur
     assert data[0]["name"] == "Company A"
 
     await cleanup_org(db_session, org_a.id)
-    await cleanup_org(db_session, org_b.id)
+
+
+@pytest.mark.asyncio
+async def test_field_agent_location_detail_only_shows_own_projects_same_org(client, db_session, set_current_user):
+    org = await create_org(db_session, "Org A8", "org-a8")
+    user_a = await create_user(
+        db_session,
+        email="usera8@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    user_b = await create_user(
+        db_session,
+        email="userb8@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Company A8")
+    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Location A8")
+    project_a = await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user_a.id,
+        location_id=location.id,
+        name="Project A8",
+    )
+    await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user_b.id,
+        location_id=location.id,
+        name="Project B8",
+    )
+
+    set_current_user(user_a)
+    response = await client.get(f"/api/v1/companies/locations/{location.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["projectCount"] == 1
+    assert len(data.get("projects") or []) == 1
+    assert data["projects"][0]["id"] == str(project_a.id)
+
+    await cleanup_org(db_session, org.id)
+
+
+@pytest.mark.asyncio
+async def test_field_agent_locations_list_scopes_project_count_same_org(client, db_session, set_current_user):
+    org = await create_org(db_session, "Org A9", "org-a9")
+    user_a = await create_user(
+        db_session,
+        email="usera9@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    user_b = await create_user(
+        db_session,
+        email="userb9@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Company A9")
+    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Location A9")
+    await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user_a.id,
+        location_id=location.id,
+        name="Project A9",
+    )
+    await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user_b.id,
+        location_id=location.id,
+        name="Project B9",
+    )
+
+    set_current_user(user_a)
+    response = await client.get(f"/api/v1/companies/locations?company_id={company.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == str(location.id)
+    assert data[0]["projectCount"] == 1
+
+    await cleanup_org(db_session, org.id)
+
+
+@pytest.mark.asyncio
+async def test_org_admin_location_detail_shows_all_projects_same_org(client, db_session, set_current_user):
+    org = await create_org(db_session, "Org A10", "org-a10")
+    org_admin = await create_user(
+        db_session,
+        email="orgadmin10@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    user_a = await create_user(
+        db_session,
+        email="usera10@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    user_b = await create_user(
+        db_session,
+        email="userb10@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Company A10")
+    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Location A10")
+    await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user_a.id,
+        location_id=location.id,
+        name="Project A10",
+    )
+    await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user_b.id,
+        location_id=location.id,
+        name="Project B10",
+    )
+
+    set_current_user(org_admin)
+    response = await client.get(f"/api/v1/companies/locations/{location.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["projectCount"] == 2
+    assert len(data.get("projects") or []) == 2
+
+    await cleanup_org(db_session, org.id)
 
 
 @pytest.mark.asyncio

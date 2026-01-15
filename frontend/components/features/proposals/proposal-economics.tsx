@@ -195,13 +195,11 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							{/* Per-unit pricing */}
 							{perKg.length > 0 && (
 								<div className="flex flex-wrap gap-2">
-									{perKg.map(
-										(price: string, idx: number) => (
-											<Badge key={idx} variant="outline" className="text-sm">
-												{price}
-											</Badge>
-										),
-									)}
+									{perKg.map((price: string, idx: number) => (
+										<Badge key={idx} variant="outline" className="text-sm">
+											{price}
+										</Badge>
+									))}
 								</div>
 							)}
 						</div>
@@ -225,16 +223,14 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{marketRate.map(
-											(rate: string, idx: number) => (
-												<p
-													key={idx}
-													className="text-sm text-muted-foreground leading-relaxed"
-												>
-													{rate}
-												</p>
-											),
-										)}
+										{marketRate.map((rate: string, idx: number) => (
+											<p
+												key={idx}
+												className="text-sm text-muted-foreground leading-relaxed"
+											>
+												{rate}
+											</p>
+										))}
 									</div>
 								</AccordionContent>
 							</AccordionItem>
@@ -247,13 +243,11 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<ul className="space-y-1 pt-2">
-										{revenueNotes.map(
-											(note: string, idx: number) => (
-												<li key={idx} className="text-sm text-muted-foreground">
-													• {note}
-												</li>
-											),
-										)}
+										{revenueNotes.map((note: string, idx: number) => (
+											<li key={idx} className="text-sm text-muted-foreground">
+												• {note}
+											</li>
+										))}
 									</ul>
 								</AccordionContent>
 							</AccordionItem>
@@ -286,39 +280,33 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Baseline
 							</p>
-							{landfillBefore.map(
-								(item: string, idx: number) => (
-									<p key={idx} className="text-lg font-semibold">
-										{item}
-									</p>
-								),
-							)}
+							{landfillBefore.map((item: string, idx: number) => (
+								<p key={idx} className="text-lg font-semibold">
+									{item}
+								</p>
+							))}
 						</div>
 
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-green-600 font-medium">
 								After DSR Acquisition
 							</p>
-							{landfillAfter.map(
-								(item: string, idx: number) => (
-									<p key={idx} className="text-lg font-semibold text-green-600">
-										{item}
-									</p>
-								),
-							)}
+							{landfillAfter.map((item: string, idx: number) => (
+								<p key={idx} className="text-lg font-semibold text-green-600">
+									{item}
+								</p>
+							))}
 						</div>
 
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{landfillSavings.map(
-								(item: string, idx: number) => (
-									<Badge key={idx} variant="default" className="mb-1 text-sm">
-										{item}
-									</Badge>
-								),
-							)}
+							{landfillSavings.map((item: string, idx: number) => (
+								<Badge key={idx} variant="default" className="mb-1 text-sm">
+									{item}
+								</Badge>
+							))}
 						</div>
 					</div>
 				</CardContent>
@@ -346,42 +334,36 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Costs
 							</p>
-							{wasteBefore.map(
-								(item: string, idx: number) => (
-									<p key={idx} className="text-lg font-semibold">
-										{item}
-									</p>
-								),
-							)}
+							{wasteBefore.map((item: string, idx: number) => (
+								<p key={idx} className="text-lg font-semibold">
+									{item}
+								</p>
+							))}
 						</div>
 
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-blue-600 font-medium">
 								After DSR
 							</p>
-							{wasteAfter.map(
-								(item: string, idx: number) => (
-									<p
-										key={idx}
-										className="text-lg font-semibold text-blue-600 dark:text-blue-400"
-									>
-										{item}
-									</p>
-								),
-							)}
+							{wasteAfter.map((item: string, idx: number) => (
+								<p
+									key={idx}
+									className="text-lg font-semibold text-blue-600 dark:text-blue-400"
+								>
+									{item}
+								</p>
+							))}
 						</div>
 
 						<div className="space-y-2">
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{wasteSavings.map(
-								(item: string, idx: number) => (
-									<Badge key={idx} variant="secondary" className="mb-1 text-sm">
-										{item}
-									</Badge>
-								),
-							)}
+							{wasteSavings.map((item: string, idx: number) => (
+								<Badge key={idx} variant="secondary" className="mb-1 text-sm">
+									{item}
+								</Badge>
+							))}
 						</div>
 					</div>
 				</CardContent>
@@ -511,16 +493,14 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{co2Method.map(
-											(method: string, idx: number) => (
-												<p
-													key={idx}
-													className="text-sm text-muted-foreground leading-relaxed"
-												>
-													{method}
-												</p>
-											),
-										)}
+										{co2Method.map((method: string, idx: number) => (
+											<p
+												key={idx}
+												className="text-sm text-muted-foreground leading-relaxed"
+											>
+												{method}
+											</p>
+										))}
 									</div>
 								</AccordionContent>
 							</AccordionItem>

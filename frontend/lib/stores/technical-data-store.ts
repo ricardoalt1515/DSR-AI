@@ -534,9 +534,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				const next = sections.map((section) =>
 					section.id === sectionId
 						? {
-							...section,
-							notes,
-						}
+								...section,
+								notes,
+							}
 						: section,
 				);
 
@@ -656,9 +656,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-								...section,
-								fields: [...section.fields, field],
-							}
+									...section,
+									fields: [...section.fields, field],
+								}
 							: section,
 					);
 					state.saving = true;
@@ -699,11 +699,11 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-								...section,
-								fields: section.fields.filter(
-									(field) => field.id !== fieldId,
-								),
-							}
+									...section,
+									fields: section.fields.filter(
+										(field) => field.id !== fieldId,
+									),
+								}
 							: section,
 					);
 					state.saving = true;
@@ -757,9 +757,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-								...section,
-								fields: [...section.fields, duplicated],
-							}
+									...section,
+									fields: [...section.fields, duplicated],
+								}
 							: section,
 					);
 					state.saving = true;
@@ -784,7 +784,11 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				} catch (error) {
 					const errorMessage =
 						error instanceof Error ? error.message : "Sync failed";
-					logger.error("Failed to duplicate field", error, "TechnicalDataStore");
+					logger.error(
+						"Failed to duplicate field",
+						error,
+						"TechnicalDataStore",
+					);
 
 					set((state) => {
 						state.saving = false;
@@ -800,13 +804,13 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					state.technicalData[projectId] = sections.map((section) =>
 						section.id === sectionId
 							? {
-								...section,
-								fields: section.fields.map((field) =>
-									field.id === fieldId
-										? { ...field, label: newLabel }
-										: field,
-								),
-							}
+									...section,
+									fields: section.fields.map((field) =>
+										field.id === fieldId
+											? { ...field, label: newLabel }
+											: field,
+									),
+								}
 							: section,
 					);
 					state.saving = true;
@@ -1068,25 +1072,25 @@ export const getTechnicalDataCompleteness = (projectId: string) => {
 
 // Stable empty actions object for SSR
 const EMPTY_ACTIONS = {
-	setActiveProject: () => { },
-	loadTechnicalData: async () => { },
-	updateField: async () => { },
-	applyFieldUpdates: async () => { },
-	applyTemplate: async () => { },
-	copyFromProject: async () => { },
+	setActiveProject: () => {},
+	loadTechnicalData: async () => {},
+	updateField: async () => {},
+	applyFieldUpdates: async () => {},
+	applyTemplate: async () => {},
+	copyFromProject: async () => {},
 	addCustomSection: async () => null,
-	removeSection: async () => { },
-	addField: async () => { },
-	removeField: async () => { },
-	duplicateField: async () => { },
-	updateFieldLabel: async () => { },
+	removeSection: async () => {},
+	addField: async () => {},
+	removeField: async () => {},
+	duplicateField: async () => {},
+	updateFieldLabel: async () => {},
 	saveSnapshot: () => null,
-	revertToVersion: async () => { },
-	resetToInitial: async () => { },
-	clearError: () => { },
-	clearSyncError: () => { },
-	retrySync: async () => { },
-	updateSectionNotes: async () => { },
+	revertToVersion: async () => {},
+	resetToInitial: async () => {},
+	clearError: () => {},
+	clearSyncError: () => {},
+	retrySync: async () => {},
+	updateSectionNotes: async () => {},
 };
 
 const actionsSelector = (s: TechnicalDataState) => ({

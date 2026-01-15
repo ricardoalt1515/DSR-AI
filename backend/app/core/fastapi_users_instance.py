@@ -15,12 +15,12 @@ Best Practices:
 """
 
 import uuid
+
 from fastapi_users import FastAPIUsers
 
-from app.models.user import User
-from app.core.user_manager import get_user_manager
 from app.core.auth_backend import auth_backend
-
+from app.core.user_manager import get_user_manager
+from app.models.user import User
 
 # Main FastAPI Users instance
 # This is the core object that provides all FastAPI Users functionality

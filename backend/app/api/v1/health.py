@@ -5,16 +5,15 @@ Health check endpoints for monitoring and load balancers.
 import os
 from datetime import datetime
 
+import structlog
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
 from pydantic import BaseModel
+from sqlalchemy import text
 
+from app.core.config import settings
 from app.core.database import async_engine
 from app.services.cache_service import cache_service
-from app.core.config import settings
-
-import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -55,7 +54,7 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "database": "unknown",
         "redis": "unknown",
-        "openai": "unknown"
+        "openai": "unknown",
     }
 
     all_healthy = True
@@ -101,10 +100,7 @@ async def health_check():
     # Set overall status
     if not all_healthy:
         health_status["status"] = "degraded"
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content=health_status
-        )
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=health_status)
 
     return HealthStatus(**health_status)
 
@@ -144,13 +140,13 @@ async def readiness_probe():
         logger.error(f"❌ Readiness check failed: {e}")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "not ready", "database": f"error: {str(e)[:50]}"}
+            content={"status": "not ready", "database": f"error: {str(e)[:50]}"},
         )
 
 
 class VersionInfo(BaseModel):
     """Application version information."""
-    
+
     version: str
     environment: str
     commit: str
@@ -166,7 +162,7 @@ class VersionInfo(BaseModel):
 async def get_version():
     """
     Get application version information.
-    
+
     Useful for:
     - Verifying deployment succeeded
     - Debugging which version is running
@@ -178,4 +174,3 @@ async def get_version():
         commit=os.environ.get("GIT_COMMIT", "unknown"),
         deployed_at=os.environ.get("DEPLOYED_AT", datetime.utcnow().isoformat()),
     )
-

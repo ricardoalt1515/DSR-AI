@@ -2,27 +2,28 @@
 H2O Allegiant Backend - Main application entry point.
 """
 
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
-from fastapi_users.password import PasswordHelper
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+
 import structlog
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi_users.password import PasswordHelper
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.core.database import init_db, close_db, AsyncSessionLocal
-from app.schemas.common import ErrorResponse, APIError
+from app.core.database import AsyncSessionLocal, close_db
 from app.models.user import User
+from app.schemas.common import APIError, ErrorResponse
 
 # ============================================================================
 # Structured Logging Configuration (Best Practice 2025)
@@ -83,6 +84,7 @@ logger = structlog.get_logger(__name__)
 # Ensure log directory exists
 os.makedirs(os.path.dirname(settings.LOG_FILE), exist_ok=True)
 
+
 # Rate Limiter Configuration (slowapi with Redis backend)
 # Redis-backed storage for distributed rate limiting across multiple ECS tasks
 # This ensures rate limits work correctly when auto-scaling (>1 task)
@@ -92,12 +94,11 @@ def get_redis_url() -> str:
         return f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
     return f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
 
+
 # Use Redis storage if available, fallback to in-memory for local dev
 try:
     limiter = Limiter(
-        key_func=get_remote_address,
-        storage_uri=get_redis_url(),
-        strategy="fixed-window"
+        key_func=get_remote_address, storage_uri=get_redis_url(), strategy="fixed-window"
     )
     logger.info("✅ Rate limiter initialized with Redis backend (distributed)")
 except Exception as e:
@@ -162,20 +163,22 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting H2O Allegiant Backend...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"Debug mode: {settings.DEBUG}")
-    
+
     # Validate configuration before accepting traffic
-    from app.core.startup_checks import validate_required_secrets, validate_production_config
+    from app.core.startup_checks import validate_production_config, validate_required_secrets
+
     validate_required_secrets()
     validate_production_config()
-    
+
     # Initialize database (only in development)
     # DISABLED: Use Alembic migrations instead
     # if settings.DEBUG:
     #     logger.warning("Debug mode: initializing database tables...")
     #     await init_db()
-    
+
     # Initialize Redis cache
     from app.services.cache_service import cache_service
+
     await cache_service.connect()
 
     # Create initial superuser (idempotent)
@@ -185,11 +188,11 @@ async def lifespan(app: FastAPI):
     if settings.USE_LOCAL_STORAGE:
         os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
         logger.info(f"Local storage path: {settings.LOCAL_STORAGE_PATH}")
-    
+
     logger.info("✅ Application started successfully")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("🛑 Shutting down application...")
     await close_db()
@@ -263,10 +266,8 @@ AUTH_ENDPOINT_LIMITS = {
     f"{settings.API_V1_PREFIX}/auth/register": "3/minute",
     f"{settings.API_V1_PREFIX}/auth/forgot-password": "3/minute",
     f"{settings.API_V1_PREFIX}/auth/reset-password": "3/minute",
-
     # Profile access - Generous (frequent legitimate use)
     f"{settings.API_V1_PREFIX}/auth/me": "60/minute",
-
     # Verification - Moderate
     f"{settings.API_V1_PREFIX}/auth/verify": "10/minute",
     f"{settings.API_V1_PREFIX}/auth/request-verify-token": "5/minute",
@@ -291,27 +292,29 @@ async def granular_rate_limit_middleware(request: Request, call_next):
             # Parse limit string (e.g., "5/minute")
             count, period = limit_str.split("/")
             count = int(count)
-            
+
             # Get client IP
             client_ip = get_remote_address(request)
-            
+
             # Create cache key for Redis
             cache_key = f"rate_limit:{path}:{client_ip}"
-            
+
             # Use Redis for distributed rate limiting
             from app.services.cache_service import cache_service
-            
+
             if cache_service._redis:
                 # Increment counter in Redis
                 current_count = await cache_service._redis.incr(cache_key)
-                
+
                 # Set expiration on first request (60 seconds for "per minute")
                 if current_count == 1:
                     await cache_service._redis.expire(cache_key, 60)
-                
+
                 # Check if limit exceeded
                 if current_count > count:
-                    logger.warning(f"Rate limit exceeded: {path} from {client_ip} ({current_count}/{count})")
+                    logger.warning(
+                        f"Rate limit exceeded: {path} from {client_ip} ({current_count}/{count})"
+                    )
                     return JSONResponse(
                         status_code=429,
                         content={
@@ -320,7 +323,7 @@ async def granular_rate_limit_middleware(request: Request, call_next):
                                 "code": "RATE_LIMIT_EXCEEDED",
                             }
                         },
-                        headers={"Retry-After": "60"}
+                        headers={"Retry-After": "60"},
                     )
             else:
                 # Fallback: If Redis unavailable, allow request (fail open)
@@ -333,11 +336,11 @@ async def granular_rate_limit_middleware(request: Request, call_next):
 
     # Continue with request
     response = await call_next(request)
-    
+
     # Note: expires_in injection removed - causes Content-Length mismatch
     # Frontend now hardcodes expires_in = 86400 (24h) in auth.ts
     # TODO: Implement custom login endpoint if dynamic expires_in is needed
-    
+
     return response
 
 
@@ -365,16 +368,13 @@ HTTP_ERROR_CODES = {
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(
-    request: Request,
-    exc: HTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """
     Handle all HTTPExceptions with consistent error response format.
-    
+
     This ensures all 4xx errors are wrapped in our standard ErrorResponse
     schema instead of just returning {"detail": "..."}.
-    
+
     Preserves exc.headers (e.g., Retry-After for rate limiting).
     """
     # Handle detail that might be a string or a dict
@@ -387,7 +387,7 @@ async def http_exception_handler(
         message = str(exc.detail)
         error_code = HTTP_ERROR_CODES.get(exc.status_code, "ERROR")
         details = None
-    
+
     error_response = ErrorResponse(
         error=APIError(
             message=message,
@@ -395,7 +395,7 @@ async def http_exception_handler(
             details=details,
         )
     )
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content=error_response.model_dump(mode="json"),
@@ -405,12 +405,11 @@ async def http_exception_handler(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request,
-    exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handle validation errors with proper error response format."""
     logger.error(f"Validation error: {exc.errors()}")
-    
+
     error_response = ErrorResponse(
         error=APIError(
             message="Validation error",
@@ -418,7 +417,7 @@ async def validation_exception_handler(
             details={"errors": exc.errors()},
         )
     )
-    
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=error_response.model_dump(mode="json"),
@@ -426,13 +425,10 @@ async def validation_exception_handler(
 
 
 @app.exception_handler(Exception)
-async def general_exception_handler(
-    request: Request,
-    exc: Exception
-) -> JSONResponse:
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected errors."""
     logger.error("Unexpected error", exc_info=True, error_type=type(exc).__name__)
-    
+
     error_response = ErrorResponse(
         error=APIError(
             message="Internal server error" if not settings.DEBUG else str(exc),
@@ -440,7 +436,7 @@ async def general_exception_handler(
             details={"type": type(exc).__name__} if settings.DEBUG else None,
         )
     )
-    
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=error_response.model_dump(mode="json"),
@@ -468,15 +464,15 @@ async def root():
 
 # Import and include routers
 from app.api.v1 import (
+    admin_users,
     auth,
-    health,
     companies,
+    files,
+    health,
+    organizations,
+    project_data,
     projects,
     proposals,
-    files,
-    project_data,
-    admin_users,
-    organizations,
 )
 
 # Health checks (available at root and API prefix)
@@ -552,7 +548,7 @@ logger.info("✅ All API routes registered")
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

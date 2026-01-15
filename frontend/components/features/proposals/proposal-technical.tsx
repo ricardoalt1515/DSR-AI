@@ -88,10 +88,15 @@ function parseBusinessOption(optionText: string): {
 	return result;
 }
 
-type RecommendationType = "GO" | "NO-GO" | "INVESTIGATE FURTHER" | "INVESTIGATE";
+type RecommendationType =
+	| "GO"
+	| "NO-GO"
+	| "INVESTIGATE FURTHER"
+	| "INVESTIGATE";
 
 function toRecommendation(value: string | undefined): RecommendationType {
-	if (value === "GO" || value === "NO-GO" || value === "INVESTIGATE") return value;
+	if (value === "GO" || value === "NO-GO" || value === "INVESTIGATE")
+		return value;
 	return "INVESTIGATE FURTHER";
 }
 
@@ -151,8 +156,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 					>
 						<AlertCircle className="h-4 w-4" />
 						<AlertTitle className="font-bold">
-							{materialHandling.hazardLevel} Hazard
-							Material
+							{materialHandling.hazardLevel} Hazard Material
 						</AlertTitle>
 						<AlertDescription>
 							<span className="font-medium">PPE Required:</span>{" "}
@@ -382,85 +386,70 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 								<div className="flex items-center gap-2">
 									<Badge
 										variant={
-											hazardLevel ===
-												"High"
+											hazardLevel === "High"
 												? "destructive"
 												: hazardLevel === "Moderate"
 													? "secondary"
 													: "outline"
 										}
 									>
-										{hazardLevel} Hazard
-										Level
+										{hazardLevel} Hazard Level
 									</Badge>
 									<span className="text-xs text-muted-foreground">
-										{
-											ppeRequirements
-												.length
-										}{" "}
-										PPE items required
+										{ppeRequirements.length} PPE items required
 									</span>
 								</div>
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{specificHazards
-										?.length > 0 && (
-											<div>
-												<p className="text-sm font-medium mb-2">
-													Specific Hazards
-												</p>
-												<ul className="space-y-1">
-													{specificHazards.map(
-														(item: string, idx: number) => (
-															<li
-																key={idx}
-																className="text-sm text-muted-foreground"
-															>
-																• {item}
-															</li>
-														),
-													)}
-												</ul>
-											</div>
-										)}
-									{ppeRequirements
-										?.length > 0 && (
-											<div>
-												<p className="text-sm font-medium mb-2">
-													PPE Requirements
-												</p>
-												<ul className="space-y-1">
-													{ppeRequirements.map(
-														(item: string, idx: number) => (
-															<li
-																key={idx}
-																className="text-sm text-muted-foreground"
-															>
-																• {item}
-															</li>
-														),
-													)}
-												</ul>
-											</div>
-										)}
-								</div>
-								{regulatoryNotes
-									?.length > 0 && (
+									{specificHazards?.length > 0 && (
 										<div>
-											<p className="text-sm font-medium mb-2">Regulatory Notes</p>
+											<p className="text-sm font-medium mb-2">
+												Specific Hazards
+											</p>
 											<ul className="space-y-1">
-												{regulatoryNotes.map(
-													(item: string, idx: number) => (
-														<li
-															key={idx}
-															className="text-sm text-orange-600 dark:text-orange-400"
-														>
-															• {item}
-														</li>
-													),
-												)}
+												{specificHazards.map((item: string, idx: number) => (
+													<li
+														key={idx}
+														className="text-sm text-muted-foreground"
+													>
+														• {item}
+													</li>
+												))}
 											</ul>
 										</div>
 									)}
+									{ppeRequirements?.length > 0 && (
+										<div>
+											<p className="text-sm font-medium mb-2">
+												PPE Requirements
+											</p>
+											<ul className="space-y-1">
+												{ppeRequirements.map((item: string, idx: number) => (
+													<li
+														key={idx}
+														className="text-sm text-muted-foreground"
+													>
+														• {item}
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
+								</div>
+								{regulatoryNotes?.length > 0 && (
+									<div>
+										<p className="text-sm font-medium mb-2">Regulatory Notes</p>
+										<ul className="space-y-1">
+											{regulatoryNotes.map((item: string, idx: number) => (
+												<li
+													key={idx}
+													className="text-sm text-orange-600 dark:text-orange-400"
+												>
+													• {item}
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
 							</TabsContent>
 
 							{/* Storage & Handling Tab */}
@@ -470,43 +459,103 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 										Storage Requirements
 									</p>
 									<ul className="space-y-1">
-										{storageRequirements.map(
-											(item: string, idx: number) => (
+										{storageRequirements.map((item: string, idx: number) => (
+											<li key={idx} className="text-sm text-muted-foreground">
+												• {item}
+											</li>
+										))}
+									</ul>
+								</div>
+								{degradationRisks?.length > 0 && (
+									<div>
+										<p className="text-sm font-medium mb-2">
+											Degradation Risks
+										</p>
+										<ul className="space-y-1">
+											{degradationRisks.map((item: string, idx: number) => (
+												<li
+													key={idx}
+													className="text-sm text-orange-600 dark:text-orange-400"
+												>
+													• {item}
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
+								{qualityPriceImpact?.length > 0 && (
+									<div>
+										<p className="text-sm font-medium mb-2">
+											Quality vs Price Impact
+										</p>
+										<ul className="space-y-1">
+											{qualityPriceImpact.map((item: string, idx: number) => (
 												<li key={idx} className="text-sm text-muted-foreground">
 													• {item}
 												</li>
-											),
-										)}
-									</ul>
+											))}
+										</ul>
+									</div>
+								)}
+							</TabsContent>
+
+							{/* Market Intelligence Tab */}
+							<TabsContent value="market" className="space-y-4 mt-4">
+								<div>
+									<p className="text-sm font-medium mb-2">Buyer Types</p>
+									<div className="flex flex-wrap gap-2">
+										{buyerTypes.map((type: string, idx: number) => (
+											<HoverCard key={idx}>
+												<HoverCardTrigger asChild>
+													<Badge variant="secondary" className="cursor-help">
+														{type}
+													</Badge>
+												</HoverCardTrigger>
+												<HoverCardContent className="w-80">
+													<div className="space-y-2">
+														<h4 className="text-sm font-semibold">{type}</h4>
+														{typicalRequirements.length > 0 && (
+															<div>
+																<p className="text-xs font-medium text-muted-foreground mb-1">
+																	Typical Requirements:
+																</p>
+																<ul className="text-xs text-muted-foreground space-y-0.5">
+																	{typicalRequirements
+																		.slice(0, 3)
+																		.map((req: string, i: number) => (
+																			<li key={i}>• {req}</li>
+																		))}
+																</ul>
+															</div>
+														)}
+														{pricingFactors.length > 0 && (
+															<div>
+																<p className="text-xs font-medium text-muted-foreground mb-1">
+																	Pricing Factors:
+																</p>
+																<ul className="text-xs text-muted-foreground space-y-0.5">
+																	{pricingFactors
+																		.slice(0, 3)
+																		.map((factor: string, i: number) => (
+																			<li key={i}>• {factor}</li>
+																		))}
+																</ul>
+															</div>
+														)}
+													</div>
+												</HoverCardContent>
+											</HoverCard>
+										))}
+									</div>
 								</div>
-								{degradationRisks
-									?.length > 0 && (
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									{typicalRequirements?.length > 0 && (
 										<div>
 											<p className="text-sm font-medium mb-2">
-												Degradation Risks
+												Typical Requirements
 											</p>
 											<ul className="space-y-1">
-												{degradationRisks.map(
-													(item: string, idx: number) => (
-														<li
-															key={idx}
-															className="text-sm text-orange-600 dark:text-orange-400"
-														>
-															• {item}
-														</li>
-													),
-												)}
-											</ul>
-										</div>
-									)}
-								{qualityPriceImpact
-									?.length > 0 && (
-										<div>
-											<p className="text-sm font-medium mb-2">
-												Quality vs Price Impact
-											</p>
-											<ul className="space-y-1">
-												{qualityPriceImpact.map(
+												{typicalRequirements.map(
 													(item: string, idx: number) => (
 														<li
 															key={idx}
@@ -519,100 +568,23 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 											</ul>
 										</div>
 									)}
-							</TabsContent>
-
-							{/* Market Intelligence Tab */}
-							<TabsContent value="market" className="space-y-4 mt-4">
-								<div>
-									<p className="text-sm font-medium mb-2">Buyer Types</p>
-									<div className="flex flex-wrap gap-2">
-										{buyerTypes.map(
-											(type: string, idx: number) => (
-												<HoverCard key={idx}>
-													<HoverCardTrigger asChild>
-														<Badge variant="secondary" className="cursor-help">
-															{type}
-														</Badge>
-													</HoverCardTrigger>
-													<HoverCardContent className="w-80">
-														<div className="space-y-2">
-															<h4 className="text-sm font-semibold">{type}</h4>
-															{typicalRequirements.length > 0 && (
-																	<div>
-																		<p className="text-xs font-medium text-muted-foreground mb-1">
-																			Typical Requirements:
-																		</p>
-																		<ul className="text-xs text-muted-foreground space-y-0.5">
-																			{typicalRequirements
-																				.slice(0, 3)
-																				.map((req: string, i: number) => (
-																					<li key={i}>• {req}</li>
-																				))}
-																		</ul>
-																	</div>
-																)}
-															{pricingFactors.length > 0 && (
-																	<div>
-																		<p className="text-xs font-medium text-muted-foreground mb-1">
-																			Pricing Factors:
-																		</p>
-																		<ul className="text-xs text-muted-foreground space-y-0.5">
-																			{pricingFactors
-																				.slice(0, 3)
-																				.map((factor: string, i: number) => (
-																					<li key={i}>• {factor}</li>
-																				))}
-																		</ul>
-																	</div>
-																)}
-														</div>
-													</HoverCardContent>
-												</HoverCard>
-											),
-										)}
-									</div>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{typicalRequirements
-										?.length > 0 && (
-											<div>
-												<p className="text-sm font-medium mb-2">
-													Typical Requirements
-												</p>
-												<ul className="space-y-1">
-													{typicalRequirements.map(
-														(item: string, idx: number) => (
-															<li
-																key={idx}
-																className="text-sm text-muted-foreground"
-															>
-																• {item}
-															</li>
-														),
-													)}
-												</ul>
-											</div>
-										)}
-									{pricingFactors
-										?.length > 0 && (
-											<div>
-												<p className="text-sm font-medium mb-2">
-													Pricing Factors
-												</p>
-												<ul className="space-y-1">
-													{pricingFactors.map(
-														(item: string, idx: number) => (
-															<li
-																key={idx}
-																className="text-sm text-muted-foreground"
-															>
-																• {item}
-															</li>
-														),
-													)}
-												</ul>
-											</div>
-										)}
+									{pricingFactors?.length > 0 && (
+										<div>
+											<p className="text-sm font-medium mb-2">
+												Pricing Factors
+											</p>
+											<ul className="space-y-1">
+												{pricingFactors.map((item: string, idx: number) => (
+													<li
+														key={idx}
+														className="text-sm text-muted-foreground"
+													>
+														• {item}
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
 								</div>
 							</TabsContent>
 						</Tabs>

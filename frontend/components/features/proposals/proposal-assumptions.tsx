@@ -110,21 +110,23 @@ export function ProposalAssumptions({ proposal }: ProposalAssumptionsProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-4">
-							{alternatives.map((alt: { technology: string; reasonRejected: string }) => (
-								<Alert key={alt.technology}>
-									<AlertDescription>
-										<div className="space-y-1">
-											<div className="flex items-center gap-2">
-												<Badge variant="outline">{alt.technology}</Badge>
-												<span className="text-xs text-muted-foreground">
-													Not selected
-												</span>
+							{alternatives.map(
+								(alt: { technology: string; reasonRejected: string }) => (
+									<Alert key={alt.technology}>
+										<AlertDescription>
+											<div className="space-y-1">
+												<div className="flex items-center gap-2">
+													<Badge variant="outline">{alt.technology}</Badge>
+													<span className="text-xs text-muted-foreground">
+														Not selected
+													</span>
+												</div>
+												<p className="text-sm mt-2">{alt.reasonRejected}</p>
 											</div>
-											<p className="text-sm mt-2">{alt.reasonRejected}</p>
-										</div>
-									</AlertDescription>
-								</Alert>
-							))}
+										</AlertDescription>
+									</Alert>
+								),
+							)}
 						</div>
 					</CardContent>
 				</Card>

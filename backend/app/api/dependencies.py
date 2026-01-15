@@ -11,18 +11,18 @@ Best Practices:
 """
 
 from typing import Annotated
-from fastapi import Depends, Header, HTTPException
-
-from app.models.user import User
-from app.models.organization import Organization
-from app.core.fastapi_users_instance import (
-    current_active_user,
-    current_superuser,
-    current_verified_user,
-    current_active_user_optional,
-)
 
 import structlog
+from fastapi import Depends, Header, HTTPException
+
+from app.core.fastapi_users_instance import (
+    current_active_user,
+    current_active_user_optional,
+    current_superuser,
+    current_verified_user,
+)
+from app.models.organization import Organization
+from app.models.user import User
 
 logger = structlog.get_logger(__name__)
 
@@ -46,8 +46,8 @@ CurrentVerifiedUser = Annotated[User, Depends(current_verified_user)]
 
 # Type alias for optional authentication
 # Returns None if not authenticated, otherwise returns User
-from typing import Optional
-OptionalUser = Annotated[Optional[User], Depends(current_active_user_optional)]
+
+OptionalUser = Annotated[User | None, Depends(current_active_user_optional)]
 
 # ==============================================================================
 # Database Dependencies
@@ -56,6 +56,7 @@ OptionalUser = Annotated[Optional[User], Depends(current_active_user_optional)]
 # ==============================================================================
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_async_db
 
 # Type alias for async database session
@@ -67,18 +68,13 @@ AsyncDB = Annotated[AsyncSession, Depends(get_async_db)]
 # Standard pagination and search parameters with validation
 # ==============================================================================
 
-from fastapi import Query
 from uuid import UUID
+
+from fastapi import Query
 
 # Pagination
 PageNumber = Annotated[
-    int,
-    Query(
-        ge=1,
-        le=1000,
-        description="Page number (1-indexed)",
-        examples=[1]
-    )
+    int, Query(ge=1, le=1000, description="Page number (1-indexed)", examples=[1])
 ]
 
 PageSize = Annotated[
@@ -88,8 +84,8 @@ PageSize = Annotated[
         le=100,
         alias="size",  # Frontend expects 'size' parameter
         description="Items per page (max 100 for performance)",
-        examples=[10, 20, 50]
-    )
+        examples=[10, 20, 50],
+    ),
 ]
 
 # Search & Filters
@@ -98,24 +94,20 @@ SearchQuery = Annotated[
     Query(
         max_length=100,
         description="Search term for name or client (ILIKE search)",
-        examples=["Water Treatment", "Municipal"]
-    )
+        examples=["Water Treatment", "Municipal"],
+    ),
 ]
 
 StatusFilter = Annotated[
     str | None,
     Query(
-        description="Filter by project status",
-        examples=["Active", "In Preparation", "Completed"]
-    )
+        description="Filter by project status", examples=["Active", "In Preparation", "Completed"]
+    ),
 ]
 
 SectorFilter = Annotated[
     str | None,
-    Query(
-        description="Filter by sector",
-        examples=["Municipal", "Industrial", "Commercial"]
-    )
+    Query(description="Filter by sector", examples=["Municipal", "Industrial", "Commercial"]),
 ]
 
 # ==============================================================================
@@ -126,12 +118,13 @@ SectorFilter = Annotated[
 
 from fastapi import Path, status
 from sqlalchemy import select
-from app.models.project import Project
 
+from app.models.project import Project
 
 # ==============================================================================
 # Organization Context Dependency (Multi-tenant)
 # ==============================================================================
+
 
 async def get_organization_context(
     current_user: User = Depends(current_active_user),
@@ -185,7 +178,9 @@ async def get_super_admin_only(
     if not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Super admin only")
     if current_user.organization_id is not None:
-        raise HTTPException(status_code=500, detail="Invalid admin state: superuser has organization_id")
+        raise HTTPException(
+            status_code=500, detail="Invalid admin state: superuser has organization_id"
+        )
     return current_user
 
 
@@ -200,15 +195,15 @@ async def get_accessible_project(
 ) -> Project:
     """
     Load a project ensuring the user has access.
-    
+
     Access rules:
     - Superusers can access ANY project
     - Regular users can only access their OWN projects
-    
+
     Security:
     - Returns 404 for both "not found" AND "no access" (prevents info leakage)
     - Single query with WHERE clause (no separate existence check)
-    
+
     Usage:
         @router.get("/{project_id}/data")
         async def get_data(project: ProjectDep):
@@ -221,16 +216,13 @@ async def get_accessible_project(
     ]
     if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
-    
+
     result = await db.execute(select(Project).where(*conditions))
     project = result.scalar_one_or_none()
-    
+
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
     return project
 
 
@@ -241,7 +233,7 @@ ProjectDep = Annotated[Project, Depends(get_accessible_project)]
 # ==============================================================================
 # Usage Examples
 # ==============================================================================
-# 
+#
 # @router.get("/protected")
 # async def protected_route(user: CurrentUser):
 #     return {"user_id": user.id}
@@ -269,8 +261,9 @@ ProjectDep = Annotated[Project, Depends(get_accessible_project)]
 # Each authenticated user gets their own rate limit bucket
 # ==============================================================================
 
+from collections.abc import Callable
+
 from fastapi import Request
-from typing import Callable
 
 # Valid period suffixes and their TTL in seconds
 _PERIOD_SECONDS = {
@@ -282,10 +275,10 @@ _PERIOD_SECONDS = {
 def rate_limit_user(limit: str = "60/minute") -> Callable:
     """
     User-based rate limiting dependency using Redis.
-    
+
     Args:
         limit: Rate limit string like "60/minute" or "100/hour"
-        
+
     Usage:
         @router.get("/projects")
         async def list_projects(
@@ -293,9 +286,9 @@ def rate_limit_user(limit: str = "60/minute") -> Callable:
             _rate_check: None = Depends(rate_limit_user("60/minute"))
         ):
             ...
-            
+
     Key: rate_limit:<route>:user:<user_id>
-    
+
     Benefits over IP-based:
         - Each user gets their own quota
         - No shared pool behind load balancer
@@ -312,27 +305,27 @@ def rate_limit_user(limit: str = "60/minute") -> Callable:
             f"Expected format: '<count>/<period>' where period is 'minute' or 'hour'. "
             f"Example: '60/minute'"
         ) from e
-    
+
     async def _rate_limit_check(
         request: Request,
         current_user: User = Depends(current_active_user),
     ) -> None:
         from app.services.cache_service import cache_service
-        
+
         # Use route template (e.g., /projects/{project_id}) not actual URL path
         # This ensures /projects/abc and /projects/xyz share the same bucket
         route = request.scope.get("route")
         route_template = route.path if route else request.url.path
         cache_key = f"rate_limit:{route_template}:user:{current_user.id}"
-        
+
         if cache_service._redis:
             try:
                 current_count = await cache_service._redis.incr(cache_key)
-                
+
                 # Set TTL on first request
                 if current_count == 1:
                     await cache_service._redis.expire(cache_key, ttl_seconds)
-                
+
                 if current_count > max_requests:
                     logger.warning(
                         "User rate limit exceeded",
@@ -357,7 +350,7 @@ def rate_limit_user(limit: str = "60/minute") -> Callable:
         else:
             # No Redis: fail open (allow request)
             pass
-    
+
     return _rate_limit_check
 
 

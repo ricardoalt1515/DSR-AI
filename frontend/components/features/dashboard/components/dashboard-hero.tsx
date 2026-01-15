@@ -23,7 +23,10 @@ import {
 	QuickActionButton,
 } from "@/components/ui/engineering-button";
 import { Progress } from "@/components/ui/progress";
-import { DASHBOARD_STATUS_PRIORITY, getProjectStatusLabel } from "@/lib/project-status";
+import {
+	DASHBOARD_STATUS_PRIORITY,
+	getProjectStatusLabel,
+} from "@/lib/project-status";
 import { routes } from "@/lib/routes";
 import { useProjects, useTechnicalSections } from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";
@@ -79,8 +82,8 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 		const avgProgress =
 			projects.length > 0
 				? Math.round(
-					projects.reduce((sum, p) => sum + p.progress, 0) / projects.length,
-				)
+						projects.reduce((sum, p) => sum + p.progress, 0) / projects.length,
+					)
 				: 0;
 
 		return { inPreparation, readyProposals, avgProgress };
@@ -140,8 +143,8 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 													Updated{" "}
 													{priorityProject
 														? new Date(
-															priorityProject.updatedAt,
-														).toLocaleDateString("en-US")
+																priorityProject.updatedAt,
+															).toLocaleDateString("en-US")
 														: "–"}
 												</span>
 											</div>
@@ -201,8 +204,8 @@ export function DashboardHero({ onCreateProject }: DashboardHeroProps) {
 										</Badge>
 									</div>
 									<p className="mt-3 text-xs">
-										Prioritize completing waste streams in preparation to unlock new
-										proposals.
+										Prioritize completing waste streams in preparation to unlock
+										new proposals.
 									</p>
 								</div>
 							</div>
@@ -368,9 +371,9 @@ function FirstTimeHero({ onCreateProject }: FirstTimeHeroProps) {
 
 					<div className="pt-6 border-t border-border/40">
 						<p className="text-sm text-muted-foreground">
-							💡 <strong>Tip:</strong> Start by creating your first waste stream.
-							Complete the questionnaire to unlock AI-powered deal analysis and
-							profitability reports.
+							💡 <strong>Tip:</strong> Start by creating your first waste
+							stream. Complete the questionnaire to unlock AI-powered deal
+							analysis and profitability reports.
 						</p>
 					</div>
 				</div>

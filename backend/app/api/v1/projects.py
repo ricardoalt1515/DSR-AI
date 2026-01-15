@@ -3,38 +3,35 @@ Projects CRUD endpoints.
 """
 
 from uuid import UUID
-from typing import Optional
-from fastapi import APIRouter, HTTPException, status, Query, Request, Path
-import structlog
 
-from app.core.database import get_async_db
+import structlog
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
+from sqlalchemy import case, func, select
+from sqlalchemy.orm import raiseload, selectinload
+from sqlalchemy.orm.attributes import flag_modified
+
 from app.api.dependencies import (
-    CurrentUser,
     AsyncDB,
+    CurrentUser,
+    OrganizationContext,
     PageNumber,
     PageSize,
-    SearchQuery,
-    StatusFilter,
-    SectorFilter,
     ProjectDep,
-    OrganizationContext,
     RateLimitUser60,
+    SearchQuery,
+    SectorFilter,
+    StatusFilter,
 )
+from app.models.project import Project
+from app.schemas.common import ErrorResponse, PaginatedResponse
 from app.schemas.project import (
-    ProjectCreate,
-    ProjectUpdate,
-    ProjectDetail,
-    ProjectSummary,
     DashboardStatsResponse,
     PipelineStageStats,
+    ProjectCreate,
+    ProjectDetail,
+    ProjectSummary,
+    ProjectUpdate,
 )
-from app.schemas.common import PaginatedResponse, SuccessResponse, ErrorResponse
-from app.models.project import Project
-from app.models.proposal import Proposal
-from app.models.timeline import TimelineEvent
-from sqlalchemy import select, func, case
-from sqlalchemy.orm import raiseload, selectinload, load_only
-from sqlalchemy.orm.attributes import flag_modified
 
 logger = structlog.get_logger(__name__)
 
@@ -61,8 +58,8 @@ async def list_projects(
     search: SearchQuery = None,
     status: StatusFilter = None,
     sector: SectorFilter = None,
-    company_id: Optional[UUID] = Query(None, description="Filter by company ID"),
-    location_id: Optional[UUID] = Query(None, description="Filter by location ID"),
+    company_id: UUID | None = Query(None, description="Filter by company ID"),
+    location_id: UUID | None = Query(None, description="Filter by location ID"),
 ):
     """
     List user's projects with filtering and pagination.
@@ -75,17 +72,14 @@ async def list_projects(
     Returns lightweight ProjectSummary objects.
     """
     # Build query with selective loading
-    # Load only proposal IDs for count (proposals_count property needs it)
+    # proposals_count is a scalar subquery column_property (no relationship load needed)
     # Load location_rel and company for company_name/location_name computed fields
     from app.models.location import Location
-    query = (
-        select(Project)
-        .options(
-            selectinload(Project.proposals).load_only(Proposal.id),  # Only load IDs for count
-            selectinload(Project.location_rel).selectinload(Location.company),  # For computed fields
-            raiseload(Project.files),
-            raiseload(Project.timeline),
-        )
+
+    query = select(Project).options(
+        selectinload(Project.location_rel).selectinload(Location.company),  # For computed fields
+        raiseload(Project.files),
+        raiseload(Project.timeline),
     )
 
     # Organization + permission filter
@@ -111,11 +105,11 @@ async def list_projects(
     # Add sector filter
     if sector:
         query = query.where(Project.sector == sector)
-    
+
     # Add company filter (via location relationship)
     if company_id:
         query = query.join(Project.location_rel).where(Location.company_id == company_id)
-    
+
     # Add location filter
     if location_id:
         query = query.where(Project.location_id == location_id)
@@ -239,13 +233,12 @@ async def get_project(
 ):
     """
     Get full project details including proposals and recent timeline.
-    
+
     Returns last 10 timeline events (limited in serializer).
     Use dedicated endpoint for full timeline history.
     """
     from app.models.location import Location
-    from app.models.company import Company
-    
+
     # Permission: superusers can access any project; members only their own
     conditions = [
         Project.id == project_id,
@@ -253,7 +246,7 @@ async def get_project(
     ]
     if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
-        
+
     result = await db.execute(
         select(Project)
         .where(*conditions)
@@ -294,15 +287,15 @@ async def create_project(
 ):
     """
     Create a new project with assessment questionnaire applied.
-    
+
     Assessment questionnaire is the standard form for all waste assessments.
     Returns complete project with questionnaire ready to fill.
     """
-    from app.services.timeline_service import create_timeline_event
-    from app.templates.assessment_questionnaire import get_assessment_questionnaire
-    
     # Fetch location with company (fail-fast if not found)
     from app.models.location import Location
+    from app.services.timeline_service import create_timeline_event
+    from app.templates.assessment_questionnaire import get_assessment_questionnaire
+
     location_result = await db.execute(
         select(Location)
         .options(selectinload(Location.company))
@@ -312,32 +305,32 @@ async def create_project(
         )
     )
     location = location_result.scalar_one_or_none()
-    
+
     # Validation: location must exist
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Location {project_data.location_id} not found"
+            detail=f"Location {project_data.location_id} not found",
         )
-    
+
     # Validation: location must have company (fail-fast)
     if not location.company:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Location '{location.name}' has no associated company. Please assign a company first."
+            detail=f"Location '{location.name}' has no associated company. Please assign a company first.",
         )
-    
+
     # Inherit all data from company/location
     sector = location.company.sector
     subsector = location.company.subsector
     client_name = location.company.name
     location_name = f"{location.name}, {location.city}"
-    
+
     logger.info(
         f"📍 Assessment created: {location.company.name} "
         f"({sector}/{subsector or 'N/A'}) at {location.name}, {location.city}"
     )
-    
+
     new_project = Project(
         user_id=current_user.id,
         location_id=project_data.location_id,
@@ -358,12 +351,12 @@ async def create_project(
 
     db.add(new_project)
     await db.flush()  # Get ID before applying questionnaire
-    
+
     # Apply standard assessment questionnaire (same for all projects)
     questionnaire = get_assessment_questionnaire()
     new_project.project_data["technical_sections"] = questionnaire
     flag_modified(new_project, "project_data")  # Mark JSONB as modified for SQLAlchemy
-    
+
     # Create timeline event
     await create_timeline_event(
         db=db,
@@ -378,19 +371,19 @@ async def create_project(
             "subsector": new_project.subsector,
             "budget": new_project.budget,
             "questionnaire_sections": len(questionnaire),
-        }
+        },
     )
-    
+
     await db.commit()
-    
+
     # Reload project with relationships to avoid greenlet error
     from app.models.location import Location
-    from app.models.company import Company
+
     result = await db.execute(
         select(Project)
         .options(
             selectinload(Project.location_rel).selectinload(Location.company),
-            selectinload(Project.proposals)
+            selectinload(Project.proposals),
         )
         .where(Project.id == new_project.id)
     )
@@ -398,12 +391,12 @@ async def create_project(
 
     # Calculate total fields for logging
     total_fields = sum(len(section["fields"]) for section in questionnaire)
-    
+
     logger.info(
         f"Assessment created: {new_project.id} - {new_project.name}. "
         f"Questionnaire applied: {len(questionnaire)} sections, {total_fields} fields"
     )
-    
+
     return ProjectDetail.model_validate(new_project)
 
 
@@ -425,7 +418,7 @@ async def update_project(
 ):
     """Update project fields and log timeline event."""
     from app.services.timeline_service import create_timeline_event
-    
+
     # Permission: superusers can update any project; members only their own
     conditions = [
         Project.id == project_id,
@@ -433,10 +426,8 @@ async def update_project(
     ]
     if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
-    
-    result = await db.execute(
-        select(Project).where(*conditions)
-    )
+
+    result = await db.execute(select(Project).where(*conditions))
     project = result.scalar_one_or_none()
 
     if not project:
@@ -448,10 +439,10 @@ async def update_project(
     # Update fields
     update_data = project_data.model_dump(exclude_unset=True)
     changed_fields = list(update_data.keys())
-    
+
     for field, value in update_data.items():
         setattr(project, field, value)
-    
+
     # Create timeline event
     await create_timeline_event(
         db=db,
@@ -461,19 +452,19 @@ async def update_project(
         title="Project updated",
         description=f"Updated fields: {', '.join(changed_fields)}",
         actor=current_user.email,
-        metadata={"changed_fields": changed_fields}
+        metadata={"changed_fields": changed_fields},
     )
 
     await db.commit()
-    
+
     # Reload project with relationships to avoid greenlet error
     from app.models.location import Location
-    from app.models.company import Company
+
     result = await db.execute(
         select(Project)
         .options(
             selectinload(Project.location_rel).selectinload(Location.company),
-            selectinload(Project.proposals)
+            selectinload(Project.proposals),
         )
         .where(Project.id == project.id)
     )
@@ -521,7 +512,7 @@ async def get_project_timeline(
     """Get project activity timeline (most recent first)."""
     from app.models.timeline import TimelineEvent
     from app.schemas.timeline import TimelineEventResponse
-    
+
     result = await db.execute(
         select(TimelineEvent)
         .where(TimelineEvent.project_id == project.id)
@@ -529,8 +520,5 @@ async def get_project_timeline(
         .limit(limit)
     )
     events = result.scalars().all()
-    
-    return [
-        TimelineEventResponse.model_validate(e).model_dump(by_alias=True)
-        for e in events
-    ]
+
+    return [TimelineEventResponse.model_validate(e).model_dump(by_alias=True) for e in events]

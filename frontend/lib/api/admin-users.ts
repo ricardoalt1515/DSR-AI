@@ -56,14 +56,19 @@ export class AdminUsersAPI {
 		return transformUser(response);
 	}
 
-	static async update(userId: string, payload: AdminUpdateUserInput): Promise<User> {
+	static async update(
+		userId: string,
+		payload: AdminUpdateUserInput,
+	): Promise<User> {
 		const body = Object.fromEntries(
 			Object.entries({
 				is_superuser: payload.isSuperuser,
 				is_active: payload.isActive,
 				password: payload.password,
 				role: payload.role,
-			}).filter(([, value]) => value !== undefined && value !== null && value !== ""),
+			}).filter(
+				([, value]) => value !== undefined && value !== null && value !== "",
+			),
 		);
 		const response = await apiClient.patch<any>(`/admin/users/${userId}`, body);
 		return transformUser(response);

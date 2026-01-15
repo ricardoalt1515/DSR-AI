@@ -72,7 +72,10 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 		<header className="border-b bg-card">
 			<div className="container mx-auto px-4 py-6">
 				{/* Breadcrumb navigation */}
-				<nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
+				<nav
+					aria-label="Breadcrumb"
+					className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4"
+				>
 					<Link
 						href="/dashboard"
 						className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
@@ -91,10 +94,15 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 					{/* Left: Project info */}
 					<div className="flex-1 min-w-0">
 						<div className="flex items-center gap-3 mb-1 flex-wrap">
-							<h1 className="text-xl sm:text-2xl font-bold truncate">{project.name}</h1>
+							<h1 className="text-xl sm:text-2xl font-bold truncate">
+								{project.name}
+							</h1>
 							<Badge
 								variant="secondary"
-								className={STATUS_COLORS[project.status] ?? "bg-muted text-muted-foreground"}
+								className={
+									STATUS_COLORS[project.status] ??
+									"bg-muted text-muted-foreground"
+								}
 							>
 								{project.status}
 							</Badge>
@@ -106,15 +114,14 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 						{/* Prominent progress bar */}
 						<div className="progress-header max-w-md">
 							<div className="flex items-center justify-between mb-2">
-								<span className="text-sm font-medium">Questionnaire Progress</span>
+								<span className="text-sm font-medium">
+									Questionnaire Progress
+								</span>
 								<span className="text-sm font-semibold text-primary">
 									{completion.percentage}%
 								</span>
 							</div>
-							<Progress
-								value={completion.percentage}
-								className="h-2"
-							/>
+							<Progress value={completion.percentage} className="h-2" />
 							<p className="text-xs text-muted-foreground mt-1.5">
 								{completion.completed} of {completion.total} fields completed
 							</p>
@@ -136,7 +143,12 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 						{/* Secondary actions dropdown */}
 						<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
 							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="icon" className="h-9 w-9" aria-label="More actions">
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-9 w-9"
+									aria-label="More actions"
+								>
 									<MoreHorizontal className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</DropdownMenuTrigger>
@@ -144,7 +156,9 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 								{/* Mobile-only: Generate Proposal */}
 								<DropdownMenuItem
 									className="sm:hidden"
-									onSelect={() => router.push(routes.project.proposals(project.id))}
+									onSelect={() =>
+										router.push(routes.project.proposals(project.id))
+									}
 								>
 									<FileText className="mr-2 h-4 w-4" />
 									Generate Proposal
@@ -188,7 +202,9 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 				<div className="mt-4 flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-border/50">
 					<Lightbulb className="h-4 w-4 flex-shrink-0 text-amber-500" />
 					<span>
-						<span className="hidden sm:inline">The more complete your data, the more accurate your AI proposal.</span>
+						<span className="hidden sm:inline">
+							The more complete your data, the more accurate your AI proposal.
+						</span>
 						<span className="sm:hidden">Better data = Better proposals.</span>
 					</span>
 				</div>

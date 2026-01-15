@@ -3,11 +3,22 @@ Project model.
 Represents waste assessment projects at client locations.
 """
 
-from typing import Optional
-from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, select, func
+from sqlalchemy import (
+    Column,
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    select,
+)
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
-from sqlalchemy.orm import relationship, column_property
+from sqlalchemy.orm import column_property, relationship
 
 from app.models.base import BaseModel
 
@@ -15,10 +26,10 @@ from app.models.base import BaseModel
 class Project(BaseModel):
     """
     Project model representing a waste assessment at a specific location.
-    
+
     NEW: Projects now belong to Locations (which belong to Companies)
     LEGACY: client and location columns kept for backward compatibility
-    
+
     Attributes:
         location_id: NEW - FK to Location (company site)
         user_id: Owner of the project (sales agent)
@@ -35,11 +46,11 @@ class Project(BaseModel):
         progress: Project completion percentage (0-100)
         tags: Optional tags for categorization
     """
-    
+
     __tablename__ = "projects"
 
     __table_args__ = (
-        Index('ix_project_data_gin', 'project_data', postgresql_using='gin'),
+        Index("ix_project_data_gin", "project_data", postgresql_using="gin"),
         UniqueConstraint("id", "organization_id", name="uq_projects_id_org"),
         ForeignKeyConstraint(
             ["location_id", "organization_id"],
@@ -56,7 +67,7 @@ class Project(BaseModel):
         nullable=False,
         index=True,
     )
-    
+
     # ═══════════════════════════════════════════════════════════
     # NEW: LOCATION RELATIONSHIP
     # ═══════════════════════════════════════════════════════════
@@ -64,9 +75,9 @@ class Project(BaseModel):
         UUID(as_uuid=True),
         nullable=True,  # Nullable during migration, will be required later
         index=True,
-        comment="FK to Location - company site where waste is generated"
+        comment="FK to Location - company site where waste is generated",
     )
-    
+
     # Ownership
     user_id = Column(
         UUID(as_uuid=True),
@@ -74,14 +85,14 @@ class Project(BaseModel):
         nullable=False,
         index=True,
     )
-    
+
     # Basic Information
     name = Column(String(255), nullable=False, index=True)
-    
+
     # LEGACY: Keep for backward compatibility (will be deprecated)
     client = Column(String(255), nullable=True, comment="LEGACY - use location.company.name")
     location = Column(String(255), nullable=True, comment="LEGACY - use location.name")
-    
+
     sector = Column(
         String(100),
         nullable=False,
@@ -94,17 +105,17 @@ class Project(BaseModel):
         comment="Type of treatment system",
     )
     description = Column(Text, nullable=True)
-    
+
     # Financial
     budget = Column(Float, default=0.0, comment="Estimated budget in USD")
-    
+
     # Schedule
     schedule_summary = Column(
         String(255),
         default="To be defined",
         comment="High-level schedule summary",
     )
-    
+
     # Status and Progress
     status = Column(
         String(50),
@@ -119,14 +130,14 @@ class Project(BaseModel):
         nullable=False,
         comment="Completion percentage 0-100",
     )
-    
+
     # Metadata
     tags = Column(
         JSON,
         default=list,
         comment="Array of tags for categorization",
     )
-    
+
     # ═══════════════════════════════════════════════════════════
     # FLEXIBLE PROJECT DATA (JSONB)
     # ═══════════════════════════════════════════════════════════
@@ -134,14 +145,14 @@ class Project(BaseModel):
         JSONB,
         nullable=False,
         default=dict,
-        server_default='{}',
-        comment="Flexible JSONB storage for all project technical data (technical_sections, etc.)"
+        server_default="{}",
+        comment="Flexible JSONB storage for all project technical data (technical_sections, etc.)",
     )
-    
+
     # Relationships
     location_rel = relationship("Location", back_populates="projects")
     user = relationship("User", back_populates="projects")
-    
+
     proposals = relationship(
         "Proposal",
         back_populates="project",
@@ -149,7 +160,7 @@ class Project(BaseModel):
         order_by="desc(Proposal.created_at)",
         lazy="selectin",
     )
-    
+
     files = relationship(
         "ProjectFile",
         back_populates="project",
@@ -157,7 +168,7 @@ class Project(BaseModel):
         order_by="desc(ProjectFile.created_at)",
         lazy="dynamic",
     )
-    
+
     timeline = relationship(
         "TimelineEvent",
         back_populates="project",
@@ -165,22 +176,17 @@ class Project(BaseModel):
         order_by="desc(TimelineEvent.created_at)",
         lazy="selectin",
     )
-    
+
     def __repr__(self) -> str:
         state = sa_inspect(self)
         name = state.dict.get("name")
         project_id = state.identity[0] if state.identity else None
         return f"<Project id={project_id} name={name!r}>"
-    
-    @property
-    def proposals_count(self) -> int:
-        """Count of proposals for this project."""
-        return len(self.proposals) if self.proposals else 0
-    
+
     # NOTE: files_count is defined AFTER class body via column_property (see bottom of file)
-    
+
     @property
-    def company_name(self) -> Optional[str]:
+    def company_name(self) -> str | None:
         """Get company name from location relationship."""
         state = sa_inspect(self)
         if "location_rel" in state.unloaded:
@@ -195,9 +201,9 @@ class Project(BaseModel):
             return self.client
 
         return location.company.name if location.company else self.client
-    
+
     @property
-    def location_name(self) -> Optional[str]:
+    def location_name(self) -> str | None:
         """Get location name from relationship."""
         state = sa_inspect(self)
         if "location_rel" in state.unloaded:
@@ -212,6 +218,7 @@ class Project(BaseModel):
 
 # files_count: scalar subquery (avoids N+1 and raiseload conflicts)
 from app.models.file import ProjectFile
+from app.models.proposal import Proposal
 
 Project.files_count = column_property(
     select(func.count(ProjectFile.id))
@@ -221,5 +228,16 @@ Project.files_count = column_property(
     )
     .correlate_except(ProjectFile)
     .scalar_subquery(),
-    deferred=False
+    deferred=False,
+)
+
+Project.proposals_count = column_property(
+    select(func.count(Proposal.id))
+    .where(
+        Proposal.project_id == Project.id,
+        Proposal.organization_id == Project.organization_id,
+    )
+    .correlate_except(Proposal)
+    .scalar_subquery(),
+    deferred=False,
 )

@@ -32,7 +32,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PUBLIC_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
+const PUBLIC_ROUTES = [
+	"/",
+	"/login",
+	"/register",
+	"/forgot-password",
+	"/reset-password",
+];
 
 function isPublicRoute(pathname: string): boolean {
 	return PUBLIC_ROUTES.some(
@@ -55,7 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const resetProjectStore = useProjectStore((state) => state.resetStore);
-	const resetOrganizationStore = useOrganizationStore((state) => state.resetStore);
+	const resetOrganizationStore = useOrganizationStore(
+		(state) => state.resetStore,
+	);
 
 	useEffect(() => {
 		// Global 401 handler - uses hard refresh to ensure clean state
@@ -64,6 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			authAPI.logout();
 			setUser(null);
 			clearUserData();
+			resetProjectStore();
+			resetOrganizationStore();
 			if (window.location.pathname !== "/login") {
 				window.location.href = "/login";
 			}
@@ -104,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			setIsLoading(true);
 			clearUserData();
 			resetProjectStore();
+			resetOrganizationStore();
 			const response = await authAPI.login({ email, password });
 			setUser(response.user);
 			toast.success("Login successful");
@@ -126,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			setIsLoading(true);
 			clearUserData();
 			resetProjectStore();
+			resetOrganizationStore();
 			const response = await authAPI.register({
 				email,
 				password,
@@ -156,7 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		const backendData: Record<string, string | undefined> = {};
 		if (data.firstName !== undefined) backendData.first_name = data.firstName;
 		if (data.lastName !== undefined) backendData.last_name = data.lastName;
-		if (data.companyName !== undefined) backendData.company_name = data.companyName;
+		if (data.companyName !== undefined)
+			backendData.company_name = data.companyName;
 		if (data.location !== undefined) backendData.location = data.location;
 		if (data.sector !== undefined) backendData.sector = data.sector;
 		if (data.subsector !== undefined) backendData.subsector = data.subsector;

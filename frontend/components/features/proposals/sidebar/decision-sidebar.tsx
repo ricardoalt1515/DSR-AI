@@ -40,7 +40,13 @@ export function DecisionSidebar({
 			{/* Decision Recommendation Card - Always show if businessOpportunity exists */}
 			{businessOpp && (
 				<DecisionRecommendationCard
-					recommendation={(businessOpp.overallRecommendation === "GO" || businessOpp.overallRecommendation === "NO-GO" || businessOpp.overallRecommendation === "INVESTIGATE FURTHER") ? businessOpp.overallRecommendation : "INVESTIGATE FURTHER"}
+					recommendation={
+						businessOpp.overallRecommendation === "GO" ||
+						businessOpp.overallRecommendation === "NO-GO" ||
+						businessOpp.overallRecommendation === "INVESTIGATE FURTHER"
+							? businessOpp.overallRecommendation
+							: "INVESTIGATE FURTHER"
+					}
 					rationale={businessOpp.decisionSummary ?? "Analysis in progress"}
 					keyFinancials={
 						businessOpp.potentialRevenue?.annualPotential?.[0] ||

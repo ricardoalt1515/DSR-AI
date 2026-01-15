@@ -47,9 +47,9 @@ import { cn } from "@/lib/utils";
 const TENANT_ROLES: { value: Exclude<UserRole, "admin">; label: string }[] = [
 	{ value: "org_admin", label: "Org Admin" },
 	{ value: "field_agent", label: "Field Agent" },
-	{ value: "sales", label: "Sales Rep" },
-	{ value: "contractor", label: "Contractor" },
-	{ value: "compliance", label: "Compliance" },
+	// { value: "sales", label: "Sales Rep" },
+	// { value: "contractor", label: "Contractor" },
+	// { value: "compliance", label: "Compliance" },
 ];
 
 const STATUS_OPTIONS = [
@@ -97,14 +97,22 @@ function getAvatarColor(name: string): string {
 	return colors[index] ?? "bg-blue-500/20 text-blue-600 dark:text-blue-400";
 }
 
-function UserAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
+function UserAvatar({
+	firstName,
+	lastName,
+}: {
+	firstName: string;
+	lastName: string;
+}) {
 	const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
 	const colorClass = getAvatarColor(`${firstName}${lastName}`);
 	return (
-		<div className={cn(
-			"flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold",
-			colorClass
-		)}>
+		<div
+			className={cn(
+				"flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold",
+				colorClass,
+			)}
+		>
 			{initials}
 		</div>
 	);
@@ -116,8 +124,12 @@ interface UsersTableProps {
 	currentUserId?: string | undefined;
 	canEditRoles?: boolean | undefined;
 	canEditStatus?: boolean | undefined;
-	onRoleChange?: ((userId: string, newRole: Exclude<UserRole, "admin">) => Promise<void>) | undefined;
-	onStatusChange?: ((userId: string, isActive: boolean) => Promise<void>) | undefined;
+	onRoleChange?:
+		| ((userId: string, newRole: Exclude<UserRole, "admin">) => Promise<void>)
+		| undefined;
+	onStatusChange?:
+		| ((userId: string, isActive: boolean) => Promise<void>)
+		| undefined;
 }
 
 type PendingAction =
@@ -146,7 +158,9 @@ export function UsersTable({
 	const [searchQuery, setSearchQuery] = useState("");
 	const [roleFilter, setRoleFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
-	const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+	const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+		null,
+	);
 
 	const filteredUsers = useMemo(() => {
 		let result = users;
@@ -157,7 +171,7 @@ export function UsersTable({
 				(user) =>
 					user.firstName.toLowerCase().includes(query) ||
 					user.lastName.toLowerCase().includes(query) ||
-					user.email.toLowerCase().includes(query)
+					user.email.toLowerCase().includes(query),
 			);
 		}
 
@@ -167,14 +181,15 @@ export function UsersTable({
 
 		if (statusFilter !== "all") {
 			result = result.filter((user) =>
-				statusFilter === "active" ? user.isActive : !user.isActive
+				statusFilter === "active" ? user.isActive : !user.isActive,
 			);
 		}
 
 		return result;
 	}, [users, searchQuery, roleFilter, statusFilter]);
 
-	const hasFilters = searchQuery || roleFilter !== "all" || statusFilter !== "all";
+	const hasFilters =
+		searchQuery || roleFilter !== "all" || statusFilter !== "all";
 
 	const clearFilters = () => {
 		setSearchQuery("");
@@ -182,7 +197,10 @@ export function UsersTable({
 		setStatusFilter("all");
 	};
 
-	const handleRoleChange = async (userId: string, newRole: Exclude<UserRole, "admin">) => {
+	const handleRoleChange = async (
+		userId: string,
+		newRole: Exclude<UserRole, "admin">,
+	) => {
 		if (!onRoleChange) return;
 		setUpdatingUsers((prev) => new Set(prev).add(userId));
 		try {
@@ -210,7 +228,10 @@ export function UsersTable({
 		}
 	};
 
-	const requestRoleChange = (userId: string, newRole: Exclude<UserRole, "admin">) => {
+	const requestRoleChange = (
+		userId: string,
+		newRole: Exclude<UserRole, "admin">,
+	) => {
 		if (!onRoleChange) return;
 		const user = users.find((entry) => entry.id === userId);
 		if (!user) return;
@@ -240,7 +261,9 @@ export function UsersTable({
 	const pendingUserName = pendingUser
 		? `${pendingUser.firstName} ${pendingUser.lastName}`.trim()
 		: "this user";
-	const isDialogBusy = pendingAction ? updatingUsers.has(pendingAction.userId) : false;
+	const isDialogBusy = pendingAction
+		? updatingUsers.has(pendingAction.userId)
+		: false;
 
 	const columns: ColumnDef<User>[] = useMemo(
 		() => [
@@ -292,13 +315,16 @@ export function UsersTable({
 
 					if (canEditRoles && onRoleChange && !isSelf) {
 						return (
-								<Select
-									value={row.original.role}
-									onValueChange={(value) =>
-										requestRoleChange(row.original.id, value as Exclude<UserRole, "admin">)
-									}
-									disabled={isUpdating}
-								>
+							<Select
+								value={row.original.role}
+								onValueChange={(value) =>
+									requestRoleChange(
+										row.original.id,
+										value as Exclude<UserRole, "admin">,
+									)
+								}
+								disabled={isUpdating}
+							>
 								<SelectTrigger className="w-[140px]">
 									<SelectValue />
 								</SelectTrigger>
@@ -343,7 +369,7 @@ export function UsersTable({
 										"text-sm",
 										row.original.isActive
 											? "text-foreground"
-											: "text-muted-foreground"
+											: "text-muted-foreground",
 									)}
 								>
 									{row.original.isActive ? "Active" : "Inactive"}
@@ -360,7 +386,14 @@ export function UsersTable({
 				},
 			},
 		],
-		[currentUserId, canEditRoles, canEditStatus, onRoleChange, onStatusChange, updatingUsers]
+		[
+			currentUserId,
+			canEditRoles,
+			canEditStatus,
+			onRoleChange,
+			onStatusChange,
+			updatingUsers,
+		],
 	);
 
 	const table = useReactTable({
@@ -373,7 +406,8 @@ export function UsersTable({
 		state: { sorting },
 	});
 
-	const dialogTitle = pendingAction?.type === "role" ? "Change role?" : "Deactivate user?";
+	const dialogTitle =
+		pendingAction?.type === "role" ? "Change role?" : "Deactivate user?";
 	const dialogDescription = pendingAction
 		? pendingAction.type === "role"
 			? `This will change ${pendingUserName}'s role to ${formatRole(pendingAction.newRole)} and remove Org Admin access.`
@@ -497,8 +531,8 @@ export function UsersTable({
 												? null
 												: flexRender(
 														header.column.columnDef.header,
-														header.getContext()
-												  )}
+														header.getContext(),
+													)}
 										</TableHead>
 									))}
 								</TableRow>
@@ -511,14 +545,14 @@ export function UsersTable({
 									className={cn(
 										"transition-colors",
 										updatingUsers.has(row.original.id) && "opacity-50",
-										"hover:bg-muted/50"
+										"hover:bg-muted/50",
 									)}
 								>
 									{row.getVisibleCells().map((cell) => (
 										<TableCell key={cell.id}>
 											{flexRender(
 												cell.column.columnDef.cell,
-												cell.getContext()
+												cell.getContext(),
 											)}
 										</TableCell>
 									))}

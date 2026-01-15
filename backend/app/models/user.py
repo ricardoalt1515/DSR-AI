@@ -17,6 +17,7 @@ from app.models.base import BaseModel
 
 class UserRole(str, Enum):
     """User roles for access control."""
+
     ADMIN = "admin"
     ORG_ADMIN = "org_admin"
     FIELD_AGENT = "field_agent"
@@ -28,7 +29,7 @@ class UserRole(str, Enum):
 class User(SQLAlchemyBaseUserTableUUID, BaseModel):
     """
     User model for authentication and profile management.
-    
+
     Inherits from SQLAlchemyBaseUserTableUUID which provides:
         - id (UUID): Primary key, inherited from BaseModel
         - email (str): Unique email address for login
@@ -36,7 +37,7 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         - is_active (bool): Whether user account is active
         - is_superuser (bool): Whether user has admin privileges
         - is_verified (bool): Whether user email is verified
-    
+
     Custom fields:
         - role: User role for business logic (admin, org_admin, field_agent, contractor, compliance, sales)
         - first_name, last_name: User's name
@@ -53,7 +54,7 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         nullable=False,
         default=UserRole.FIELD_AGENT,
         index=True,
-        comment="User role: admin, org_admin, field_agent, contractor, compliance, sales"
+        comment="User role: admin, org_admin, field_agent, contractor, compliance, sales",
     )
 
     organization_id: Mapped[UUID | None] = mapped_column(
@@ -66,24 +67,14 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
 
     # Profile fields
     first_name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        comment="User's first name"
+        String(100), nullable=False, comment="User's first name"
     )
-    last_name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        comment="User's last name"
-    )
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False, comment="User's last name")
     company_name: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        comment="Company or organization name"
+        String(255), nullable=True, comment="Company or organization name"
     )
     location: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        comment="User location"
+        String(255), nullable=True, comment="User location"
     )
 
     # Industry Context
@@ -93,9 +84,7 @@ class User(SQLAlchemyBaseUserTableUUID, BaseModel):
         comment="Industry sector (Municipal, Industrial, Commercial, Residential)",
     )
     subsector: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="Industry subsector"
+        String(100), nullable=True, comment="Industry subsector"
     )
 
     # Relationships

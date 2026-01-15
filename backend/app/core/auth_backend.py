@@ -25,13 +25,13 @@ from app.core.config import settings
 def get_jwt_strategy() -> JWTStrategy:
     """
     Configure JWT strategy for access tokens.
-    
+
     Best Practices:
         - Uses same SECRET_KEY as application
         - Token lifetime matches existing system
         - Standard HS256 algorithm
         - Stateless (no database lookups needed)
-    
+
     Returns:
         JWTStrategy: Configured JWT strategy
     """
@@ -44,9 +44,7 @@ def get_jwt_strategy() -> JWTStrategy:
 
 # Bearer transport: tokens sent in Authorization: Bearer <token> header
 # This is the industry standard for JWT authentication
-bearer_transport = BearerTransport(
-    tokenUrl=f"{settings.API_V1_PREFIX}/auth/jwt/login"
-)
+bearer_transport = BearerTransport(tokenUrl=f"{settings.API_V1_PREFIX}/auth/jwt/login")
 
 
 # Authentication backend: combines transport + strategy

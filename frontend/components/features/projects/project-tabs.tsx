@@ -7,23 +7,42 @@ import {
 	LayoutDashboard,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import {
+	Suspense,
+	lazy,
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { FilesListSkeleton } from "@/components/ui/files-grid-skeleton";
 import { TechnicalFormSkeleton } from "@/components/ui/loading-states";
 import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
-import { useCurrentProject, useLoadProjectAction, useTechnicalSections } from "@/lib/stores";
+import {
+	useCurrentProject,
+	useLoadProjectAction,
+	useTechnicalSections,
+} from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";
 
 // Overview is NOT lazy-loaded because it's the default tab (avoids skeleton flash)
 import { ProjectOverview } from "./project-overview";
 
 // Lazy load non-default tab components for code splitting
-const TechnicalDataSheet = lazy(() => import("./technical-data-sheet").then(m => ({ default: m.TechnicalDataSheet })));
-const ProposalsTab = lazy(() => import("./proposals-tab").then(m => ({ default: m.ProposalsTab })));
-const FilesTabEnhanced = lazy(() => import("./files-tab-enhanced").then(m => ({ default: m.FilesTabEnhanced })));
+const TechnicalDataSheet = lazy(() =>
+	import("./technical-data-sheet").then((m) => ({
+		default: m.TechnicalDataSheet,
+	})),
+);
+const ProposalsTab = lazy(() =>
+	import("./proposals-tab").then((m) => ({ default: m.ProposalsTab })),
+);
+const FilesTabEnhanced = lazy(() =>
+	import("./files-tab-enhanced").then((m) => ({ default: m.FilesTabEnhanced })),
+);
 
 // Tab values at module level to avoid recreation on each render
 const TAB_VALUES = ["overview", "technical", "files", "proposals"] as const;
@@ -111,7 +130,9 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 
 	const fileCount = useMemo(() => {
 		// Use filesCount from backend (official source of truth)
-		const summary = (storeProject?.id === project.id ? storeProject : project) as ProjectSummary;
+		const summary = (
+			storeProject?.id === project.id ? storeProject : project
+		) as ProjectSummary;
 		return summary?.filesCount ?? 0;
 	}, [storeProject, project]);
 
@@ -173,7 +194,11 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 						<FolderOpen className="h-4 w-4" aria-hidden="true" />
 						<span className="hidden sm:inline">Files</span>
 						{fileCount > 0 ? (
-							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
+							<Badge
+								variant="secondary"
+								className="ml-1 h-5 px-1.5 text-xs hidden sm:flex"
+								aria-hidden="true"
+							>
 								{fileCount}
 							</Badge>
 						) : (
@@ -192,14 +217,21 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 						<FileText className="h-4 w-4" aria-hidden="true" />
 						<span className="hidden sm:inline">Proposals</span>
 						{proposalCount > 0 && (
-							<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs hidden sm:flex" aria-hidden="true">
+							<Badge
+								variant="secondary"
+								className="ml-1 h-5 px-1.5 text-xs hidden sm:flex"
+								aria-hidden="true"
+							>
 								{proposalCount}
 							</Badge>
 						)}
 					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value="overview" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+				<TabsContent
+					value="overview"
+					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+				>
 					{/* Overview is not lazy-loaded (default tab), no Suspense needed */}
 					<ProjectOverview
 						project={{ ...overviewProject, proposalCount }}
@@ -208,19 +240,28 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 					/>
 				</TabsContent>
 
-				<TabsContent value="technical" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+				<TabsContent
+					value="technical"
+					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+				>
 					<Suspense fallback={<TechnicalFormSkeleton />}>
 						<TechnicalDataSheet projectId={project.id} />
 					</Suspense>
 				</TabsContent>
 
-				<TabsContent value="files" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+				<TabsContent
+					value="files"
+					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+				>
 					<Suspense fallback={<FilesListSkeleton count={4} />}>
 						<FilesTabEnhanced projectId={project.id} />
 					</Suspense>
 				</TabsContent>
 
-				<TabsContent value="proposals" className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+				<TabsContent
+					value="proposals"
+					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+				>
 					<Suspense fallback={<ProposalSkeleton count={2} />}>
 						<ProposalsTab project={projectData} />
 					</Suspense>

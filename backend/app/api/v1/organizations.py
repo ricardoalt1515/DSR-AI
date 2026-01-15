@@ -2,7 +2,6 @@
 Organization (tenant) endpoints.
 """
 
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,14 +11,14 @@ from app.api.dependencies import AsyncDB, CurrentUser, OrganizationContext, Supe
 from app.core.user_manager import UserManager, get_user_manager
 from app.models.organization import Organization
 from app.models.user import User, UserRole
+from app.schemas.org_user import OrgUserCreate, OrgUserCreateRequest, OrgUserUpdate
 from app.schemas.organization import OrganizationCreate, OrganizationRead, OrganizationUpdate
-from app.schemas.org_user import OrgUserCreateRequest, OrgUserCreate, OrgUserUpdate
 from app.schemas.user_fastapi import UserRead
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[OrganizationRead])
+@router.get("", response_model=list[OrganizationRead])
 async def list_organizations(
     admin: SuperAdminOnly,
     db: AsyncDB,
@@ -48,7 +47,7 @@ async def get_current_organization(
     return org
 
 
-@router.get("/current/users", response_model=List[UserRead])
+@router.get("/current/users", response_model=list[UserRead])
 async def list_my_org_users(
     org: OrganizationContext,
     current_user: CurrentUser,
@@ -102,7 +101,7 @@ async def get_organization(
     return org
 
 
-@router.get("/{org_id}/users", response_model=List[UserRead])
+@router.get("/{org_id}/users", response_model=list[UserRead])
 async def list_org_users(
     org_id: UUID,
     admin: SuperAdminOnly,
@@ -180,7 +179,7 @@ async def delete_organization(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     # Check for active users
-    query = select(User).where(User.organization_id == org_id, User.is_active == True)
+    query = select(User).where(User.organization_id == org_id, User.is_active)
     result = await db.execute(query)
     active_users = result.scalars().all()
 
@@ -232,7 +231,7 @@ async def update_org_user(
     if is_demoting_org_admin or is_deactivating_org_admin:
         query = select(User.id).where(
             User.organization_id == org_id,
-            User.is_active == True,
+            User.is_active,
             User.role == UserRole.ORG_ADMIN,
             User.id != user.id,
         )
@@ -300,7 +299,7 @@ async def update_my_org_user(
     if is_demoting_org_admin or is_deactivating_org_admin:
         query = select(User.id).where(
             User.organization_id == org.id,
-            User.is_active == True,
+            User.is_active,
             User.role == UserRole.ORG_ADMIN,
             User.id != user.id,
         )

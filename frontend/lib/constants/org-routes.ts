@@ -33,7 +33,7 @@ export const ORG_EXEMPT_ROUTES = [
  */
 export function isOrgExemptRoute(pathname: string): boolean {
 	return ORG_EXEMPT_ROUTES.some(
-		(route) => pathname === route || pathname.startsWith(`${route}/`)
+		(route) => pathname === route || pathname.startsWith(`${route}/`),
 	);
 }
 

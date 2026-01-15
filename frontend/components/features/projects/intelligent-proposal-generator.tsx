@@ -402,46 +402,46 @@ function GenerationDashboard({
 
 						{/* Fixed Step Checklist */}
 						<div className="flex-1 space-y-3 mb-4">
-						{GENERATION_STEPS.map((step, index) => {
-							const state = getStepState(step.threshold, index);
-							let stepClassName = "text-sm text-muted-foreground/50";
+							{GENERATION_STEPS.map((step, index) => {
+								const state = getStepState(step.threshold, index);
+								let stepClassName = "text-sm text-muted-foreground/50";
 
-							if (state === "complete") {
-								stepClassName = "text-sm text-muted-foreground";
-							} else if (state === "active") {
-								stepClassName = "text-sm font-medium text-foreground";
-							}
+								if (state === "complete") {
+									stepClassName = "text-sm text-muted-foreground";
+								} else if (state === "active") {
+									stepClassName = "text-sm font-medium text-foreground";
+								}
 
-							return (
-								<motion.div
-									key={step.id}
-									initial={{ opacity: 0, x: -10 }}
-									animate={{ opacity: 1, x: 0 }}
-									transition={{ delay: index * 0.1 }}
-									className="flex items-center gap-3"
-								>
-									{/* Step Indicator */}
-									<div className="flex-shrink-0">
-										{state === "complete" ? (
-											<div className="h-6 w-6 rounded-full bg-success/20 flex items-center justify-center">
-												<CheckCircle2 className="h-4 w-4 text-success" />
-											</div>
-										) : state === "active" ? (
-											<div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
-												<Loader2 className="h-4 w-4 text-primary animate-spin" />
-											</div>
-										) : (
-											<div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center">
-												<div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-											</div>
-										)}
-									</div>
+								return (
+									<motion.div
+										key={step.id}
+										initial={{ opacity: 0, x: -10 }}
+										animate={{ opacity: 1, x: 0 }}
+										transition={{ delay: index * 0.1 }}
+										className="flex items-center gap-3"
+									>
+										{/* Step Indicator */}
+										<div className="flex-shrink-0">
+											{state === "complete" ? (
+												<div className="h-6 w-6 rounded-full bg-success/20 flex items-center justify-center">
+													<CheckCircle2 className="h-4 w-4 text-success" />
+												</div>
+											) : state === "active" ? (
+												<div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+													<Loader2 className="h-4 w-4 text-primary animate-spin" />
+												</div>
+											) : (
+												<div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center">
+													<div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+												</div>
+											)}
+										</div>
 
-									{/* Step Label */}
-									<span className={stepClassName}>{step.label}</span>
-								</motion.div>
-							);
-						})}
+										{/* Step Label */}
+										<span className={stepClassName}>{step.label}</span>
+									</motion.div>
+								);
+							})}
 						</div>
 
 						{/* Progress Bar & Actions */}

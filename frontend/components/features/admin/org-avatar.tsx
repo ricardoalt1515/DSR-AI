@@ -45,7 +45,12 @@ const sizeClasses = {
 	lg: "h-14 w-14 text-lg",
 };
 
-export function OrgAvatar({ name, slug, size = "md", className }: OrgAvatarProps) {
+export function OrgAvatar({
+	name,
+	slug,
+	size = "md",
+	className,
+}: OrgAvatarProps) {
 	const colorClass = getColorFromString(slug || name);
 	const initials = getInitials(name);
 
@@ -55,7 +60,7 @@ export function OrgAvatar({ name, slug, size = "md", className }: OrgAvatarProps
 				"flex items-center justify-center rounded-lg font-semibold text-white",
 				colorClass,
 				sizeClasses[size],
-				className
+				className,
 			)}
 		>
 			{initials}

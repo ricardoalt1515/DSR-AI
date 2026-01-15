@@ -66,7 +66,6 @@ export class CompaniesAPI {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class LocationsAPI {
-
 	private static buildListUrl(companyId?: string) {
 		const searchParams = new URLSearchParams();
 		if (companyId) {

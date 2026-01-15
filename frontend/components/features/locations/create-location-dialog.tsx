@@ -220,8 +220,8 @@ export function CreateLocationDialog({
 							selector={(state) => ({
 								canSubmit: Boolean(
 									state.values.name?.trim() &&
-									state.values.city?.trim() &&
-									state.values.state?.trim()
+										state.values.city?.trim() &&
+										state.values.state?.trim(),
 								),
 								isSubmitting: state.isSubmitting,
 							})}

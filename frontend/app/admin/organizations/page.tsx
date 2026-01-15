@@ -1,6 +1,14 @@
 "use client";
 
-import { Building2, CheckCircle, Loader2, Plus, RefreshCcw, Search, XCircle } from "lucide-react";
+import {
+	Building2,
+	CheckCircle,
+	Loader2,
+	Plus,
+	RefreshCcw,
+	Search,
+	XCircle,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -89,7 +97,7 @@ export default function AdminOrganizationsPage() {
 				(org) =>
 					org.name.toLowerCase().includes(query) ||
 					org.slug.toLowerCase().includes(query) ||
-					org.contactEmail?.toLowerCase().includes(query)
+					org.contactEmail?.toLowerCase().includes(query),
 			);
 		}
 
@@ -109,7 +117,10 @@ export default function AdminOrganizationsPage() {
 		setForm((prev) => ({ ...prev, slug: slugify(value) }));
 	};
 
-	const handleInputChange = (field: "contactEmail" | "contactPhone", value: string) => {
+	const handleInputChange = (
+		field: "contactEmail" | "contactPhone",
+		value: string,
+	) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
 	};
 
@@ -142,23 +153,32 @@ export default function AdminOrganizationsPage() {
 			setCreateModalOpen(false);
 			resetForm();
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to create organization";
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to create organization";
 			toast.error(message);
 		} finally {
 			setSubmitting(false);
 		}
 	};
 
-	const handleUpdateOrganization = async (orgId: string, data: OrganizationUpdateInput) => {
+	const handleUpdateOrganization = async (
+		orgId: string,
+		data: OrganizationUpdateInput,
+	) => {
 		try {
 			const updated = await organizationsAPI.update(orgId, data);
 			setOrganizations((prev) =>
-				prev.map((org) => (org.id === orgId ? updated : org))
+				prev.map((org) => (org.id === orgId ? updated : org)),
 			);
 			await loadOrganizations();
 			toast.success("Organization updated");
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to update organization";
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to update organization";
 			toast.error(message);
 			throw error;
 		}
@@ -168,7 +188,9 @@ export default function AdminOrganizationsPage() {
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h2 className="text-2xl font-semibold tracking-tight">Organizations</h2>
+					<h2 className="text-2xl font-semibold tracking-tight">
+						Organizations
+					</h2>
 					<p className="text-sm text-muted-foreground mt-1">
 						Manage tenant organizations and their users
 					</p>
@@ -181,7 +203,9 @@ export default function AdminOrganizationsPage() {
 						disabled={isLoading}
 						aria-label="Refresh organizations list"
 					>
-						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+						<RefreshCcw
+							className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+						/>
 					</Button>
 					<Button onClick={() => setCreateModalOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
@@ -261,8 +285,8 @@ export default function AdminOrganizationsPage() {
 						{searchQuery
 							? "No organizations found"
 							: selectedOrgId
-							? "No organization matches the filter"
-							: "No organizations yet"}
+								? "No organization matches the filter"
+								: "No organizations yet"}
 					</h3>
 					<p className="text-sm text-muted-foreground mb-4">
 						{searchQuery
@@ -326,7 +350,9 @@ export default function AdminOrganizationsPage() {
 								type="email"
 								placeholder="admin@acme.com"
 								value={form.contactEmail}
-								onChange={(e) => handleInputChange("contactEmail", e.target.value)}
+								onChange={(e) =>
+									handleInputChange("contactEmail", e.target.value)
+								}
 							/>
 						</div>
 						<div className="space-y-2">
@@ -335,7 +361,9 @@ export default function AdminOrganizationsPage() {
 								id="contactPhone"
 								placeholder="+1 555 123 4567"
 								value={form.contactPhone}
-								onChange={(e) => handleInputChange("contactPhone", e.target.value)}
+								onChange={(e) =>
+									handleInputChange("contactPhone", e.target.value)
+								}
 							/>
 						</div>
 					</div>

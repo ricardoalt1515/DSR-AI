@@ -24,7 +24,7 @@ export function useNotifications() {
 		const readyForProposal = projects.filter(
 			(p) =>
 				p.status === "In Preparation" &&
-				p.progress >= DASHBOARD_THRESHOLDS.readyForProposalProgress
+				p.progress >= DASHBOARD_THRESHOLDS.readyForProposalProgress,
 		);
 		if (readyForProposal.length > 0) {
 			alerts.push({
@@ -44,7 +44,7 @@ export function useNotifications() {
 		// HIGH: Recently completed proposals (status = "Proposal Ready", updated in last 7 days)
 		const recentlyCompleted = projects.filter((p) => {
 			const daysSinceUpdate = Math.floor(
-				(Date.now() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+				(Date.now() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
 			);
 			return p.status === "Proposal Ready" && daysSinceUpdate <= 7;
 		});
@@ -66,7 +66,7 @@ export function useNotifications() {
 		// MEDIUM: Stalled projects (no updates > 7 days)
 		const stalledProjects = projects.filter((p) => {
 			const daysSinceUpdate = Math.floor(
-				(Date.now() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+				(Date.now() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
 			);
 			return (
 				p.status === "In Preparation" &&
@@ -92,7 +92,10 @@ export function useNotifications() {
 	}, [projects]);
 
 	const actionCount = notifications.filter((n) => n.type === "action").length;
-	const totalCount = notifications.reduce((acc, n) => acc + n.projects.length, 0);
+	const totalCount = notifications.reduce(
+		(acc, n) => acc + n.projects.length,
+		0,
+	);
 
 	return {
 		notifications,

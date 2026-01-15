@@ -39,7 +39,9 @@ export function OrgRequiredScreen({
 	errorMessage,
 	onSelect,
 }: OrgRequiredScreenProps) {
-	const title = errorMessage ? "Organization Unavailable" : "Select Organization";
+	const title = errorMessage
+		? "Organization Unavailable"
+		: "Select Organization";
 	const description =
 		errorMessage ??
 		"Choose an organization to continue. All data will be scoped to your selection.";

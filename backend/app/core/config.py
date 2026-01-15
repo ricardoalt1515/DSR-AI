@@ -3,7 +3,6 @@ Application configuration using Pydantic Settings.
 Loads configuration from environment variables.
 """
 
-from typing import List, Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -30,7 +29,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
@@ -61,7 +60,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
-    REDIS_PASSWORD: Optional[str] = None
+    REDIS_PASSWORD: str | None = None
 
     @property
     def redis_url(self) -> str:
@@ -81,12 +80,11 @@ class Settings(BaseSettings):
     OPENAI_TEMPERATURE: float = Field(default=0.7, ge=0.0, le=2.0)
     OPENAI_MAX_TOKENS: int = Field(default=4000, ge=100, le=128000)
 
-
     # AWS S3
-    AWS_ACCESS_KEY_ID: Optional[str] = None
-    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
     AWS_REGION: str = Field(default="us-east-1", validation_alias="S3_REGION")
-    AWS_S3_BUCKET: Optional[str] = Field(default=None, validation_alias="S3_BUCKET")
+    AWS_S3_BUCKET: str | None = Field(default=None, validation_alias="S3_BUCKET")
 
     # Storage
     USE_LOCAL_STORAGE: bool = True
@@ -97,7 +95,7 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: str = ".pdf,.docx,.xlsx,.xls,.jpg,.jpeg,.png,.txt"
 
     @property
-    def allowed_extensions_list(self) -> List[str]:
+    def allowed_extensions_list(self) -> list[str]:
         """Parse allowed extensions from comma-separated string."""
         return [ext.strip() for ext in self.ALLOWED_EXTENSIONS.split(",")]
 
@@ -123,14 +121,14 @@ class Settings(BaseSettings):
         return v.upper()
 
     # Email (Optional)
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: Optional[int] = None
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM: Optional[str] = None
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM: str | None = None
 
     # Monitoring
-    SENTRY_DSN: Optional[str] = None
+    SENTRY_DSN: str | None = None
 
     # Auth Flow Toggles
     AUTH_ENABLE_REGISTRATION: bool = False
@@ -138,8 +136,8 @@ class Settings(BaseSettings):
     AUTH_ENABLE_EMAIL_VERIFICATION: bool = False
 
     # Foundational Superuser (for initial bootstrap only)
-    FIRST_SUPERUSER_EMAIL: Optional[str] = None
-    FIRST_SUPERUSER_PASSWORD: Optional[str] = None
+    FIRST_SUPERUSER_EMAIL: str | None = None
+    FIRST_SUPERUSER_PASSWORD: str | None = None
 
 
 # Create global settings instance

@@ -31,7 +31,7 @@ WASTE_TYPES = [
     "Solvents",
     "Oils / Fuels",
     "Water",
-    "Other (describe)"
+    "Other (describe)",
 ]
 
 # Volume units (common in waste management - from "kg/day, tons/month, etc.")
@@ -46,7 +46,7 @@ VOLUME_UNITS = [
     "cubic meters/month",
     "cubic yards/month",
     "liters/day",
-    "gallons/day"
+    "gallons/day",
 ]
 
 # Handling practices (exact from document)
@@ -56,7 +56,7 @@ HANDLING_PRACTICES = [
     "Waste to Energy (third-party recovery)",
     "Recycling",
     "Reuse (internal or external)",
-    "Third-party recovery"
+    "Third-party recovery",
 ]
 
 # Storage infrastructure (common options based on industry standards)
@@ -70,7 +70,7 @@ STORAGE_INFRASTRUCTURE = [
     "Hazmat storage facility",
     "Segregated bin system",
     "No infrastructure",
-    "Other"
+    "Other",
 ]
 
 # Operational constraints (exact from document)
@@ -80,15 +80,11 @@ OPERATIONAL_CONSTRAINTS = [
     "Permit / environmental limits",
     "Staff availability",
     "Energy availability",
-    "Safety concerns"
+    "Safety concerns",
 ]
 
 # Timeframe options (exact from document)
-TIMEFRAMES = [
-    "Immediate (0-3 months)",
-    "Mid-term (3-12 months)",
-    "Long-term (>1 year)"
-]
+TIMEFRAMES = ["Immediate (0-3 months)", "Mid-term (3-12 months)", "Long-term (>1 year)"]
 
 # Client objectives (from document - for multi-select)
 CLIENT_OBJECTIVES = [
@@ -97,18 +93,11 @@ CLIENT_OBJECTIVES = [
     "Achieve ESG / CSR sustainability targets",
     "Meet compliance / environmental regulations",
     "Reduce disposal costs",
-    "Improve circularity"
+    "Improve circularity",
 ]
 
 # CapEx budget ranges
-CAPEX_RANGES = [
-    "$0-$50k",
-    "$50k-$100k",
-    "$100k-$250k",
-    "$250k-$500k",
-    "$500k-$1M",
-    ">$1M"
-]
+CAPEX_RANGES = ["$0-$50k", "$50k-$100k", "$100k-$250k", "$250k-$500k", "$500k-$1M", ">$1M"]
 
 # Yes/No options (reused)
 YES_NO = ["yes", "no"]
@@ -117,10 +106,10 @@ YES_NO = ["yes", "no"]
 def get_assessment_questionnaire() -> list[dict]:
     """
     Returns the standard assessment questionnaire structure.
-    
+
     Based on DSR-AI-QUESTIONNAIRE.md - focused on critical waste management info.
     Company, Location, Sector already captured during project creation.
-    
+
     Each field contains:
     - id: unique identifier
     - label: display text
@@ -130,7 +119,7 @@ def get_assessment_questionnaire() -> list[dict]:
     - required: whether field must be filled
     - source: data source (always "manual" for questionnaire)
     - conditional: optional - show field only if condition met
-    
+
     Returns:
         List of sections, each containing fields
     """
@@ -153,7 +142,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "required": True,
                     "placeholder": "Select or type a waste type...",
                     "description": "Select a waste type from the list or type a custom one",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "waste-description",
@@ -163,7 +152,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "multiline": True,
                     "placeholder": "Example: Post-industrial HDPE scrap from injection molding, mostly clean with some oil residue. Also have cardboard packaging, baled and dry.",
                     "description": "Provide details: material condition, contamination, form (bales, loose, drums), origin, etc.",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "volume-per-category",
@@ -173,7 +162,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "multiline": True,
                     "placeholder": "Plastics: 500 kg/day\nMetals: 200 tons/month\nCardboard: 1.5 cubic meters/day",
                     "description": "Specify volume for each waste type selected above",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "seasonal-variations",
@@ -181,7 +170,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "value": "",
                     "type": "radio",
                     "options": YES_NO,
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "seasonal-description",
@@ -190,11 +179,8 @@ def get_assessment_questionnaire() -> list[dict]:
                     "type": "textarea",
                     "multiline": True,
                     "placeholder": "Explain how waste volumes change throughout the year...",
-                    "conditional": {
-                        "field": "seasonal-variations",
-                        "value": "yes"
-                    },
-                    "source": "manual"
+                    "conditional": {"field": "seasonal-variations", "value": "yes"},
+                    "source": "manual",
                 },
                 {
                     "id": "current-practices",
@@ -205,7 +191,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "required": True,
                     "placeholder": "Select practices or add custom...",
                     "description": "Select current handling methods or add custom practices",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "segregation",
@@ -213,7 +199,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "value": "",
                     "type": "radio",
                     "options": YES_NO,
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "segregation-how",
@@ -222,11 +208,8 @@ def get_assessment_questionnaire() -> list[dict]:
                     "type": "textarea",
                     "multiline": True,
                     "placeholder": "Describe your segregation process...",
-                    "conditional": {
-                        "field": "segregation",
-                        "value": "yes"
-                    },
-                    "source": "manual"
+                    "conditional": {"field": "segregation", "value": "yes"},
+                    "source": "manual",
                 },
                 {
                     "id": "storage-infrastructure",
@@ -236,7 +219,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "options": STORAGE_INFRASTRUCTURE,
                     "placeholder": "Select infrastructure or add custom...",
                     "description": "Select existing infrastructure or describe custom equipment",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "revenue-streams",
@@ -244,7 +227,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "value": "",
                     "type": "radio",
                     "options": YES_NO,
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "revenue-description",
@@ -253,11 +236,8 @@ def get_assessment_questionnaire() -> list[dict]:
                     "type": "textarea",
                     "multiline": True,
                     "placeholder": "Which waste types generate revenue and how much?",
-                    "conditional": {
-                        "field": "revenue-streams",
-                        "value": "yes"
-                    },
-                    "source": "manual"
+                    "conditional": {"field": "revenue-streams", "value": "yes"},
+                    "source": "manual",
                 },
                 {
                     "id": "waste-audit",
@@ -265,7 +245,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "value": "",
                     "type": "radio",
                     "options": YES_NO,
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "pain-points",
@@ -275,11 +255,10 @@ def get_assessment_questionnaire() -> list[dict]:
                     "multiline": True,
                     "placeholder": "What are your biggest challenges? (e.g., high disposal costs, compliance issues, sustainability goals)",
                     "description": "EHS, facility, or corporate priorities due to high cost or desire to recycle vs landfill",
-                    "source": "manual"
-                }
-            ]
+                    "source": "manual",
+                },
+            ],
         },
-
         # ================================================================
         # SECTION 2: Objectives & Constraints
         # ================================================================
@@ -298,7 +277,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "required": True,
                     "placeholder": "Select all important objectives...",
                     "description": "Select all objectives that are important to your organization",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "objectives-context",
@@ -308,7 +287,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "multiline": True,
                     "placeholder": "Example: Our #1 priority is reducing disposal costs because we currently spend $50,000/month. We also need to meet corporate ESG targets by 2025 to comply with our sustainability commitments.",
                     "description": "Explain which objectives are most important and why. Include specific targets, deadlines, or financial impacts if known.",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "constraints",
@@ -318,7 +297,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "options": OPERATIONAL_CONSTRAINTS,
                     "placeholder": "Select constraints or add custom...",
                     "description": "Select applicable constraints or describe custom limitations",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "regulatory-drivers",
@@ -327,7 +306,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "type": "textarea",
                     "multiline": True,
                     "placeholder": "Any specific regulations or mandates driving this initiative?",
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "capex-interest",
@@ -335,7 +314,7 @@ def get_assessment_questionnaire() -> list[dict]:
                     "value": "",
                     "type": "radio",
                     "options": YES_NO,
-                    "source": "manual"
+                    "source": "manual",
                 },
                 {
                     "id": "capex-budget",
@@ -344,11 +323,8 @@ def get_assessment_questionnaire() -> list[dict]:
                     "type": "select",
                     "options": CAPEX_RANGES,
                     "placeholder": "Select budget range",
-                    "conditional": {
-                        "field": "capex-interest",
-                        "value": "yes"
-                    },
-                    "source": "manual"
+                    "conditional": {"field": "capex-interest", "value": "yes"},
+                    "source": "manual",
                 },
                 {
                     "id": "timeframe",
@@ -357,8 +333,8 @@ def get_assessment_questionnaire() -> list[dict]:
                     "type": "select",
                     "options": TIMEFRAMES,
                     "required": True,
-                    "source": "manual"
-                }
-            ]
-        }
+                    "source": "manual",
+                },
+            ],
+        },
     ]

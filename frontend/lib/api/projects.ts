@@ -150,9 +150,11 @@ export class ProjectsAPI {
 
 	static async downloadFileBlob(fileId: string): Promise<Blob> {
 		// Backend always returns JSON with URL (works for both S3 and local)
-		const response = await apiClient.get<{ url: string; filename: string; mime_type: string }>(
-			`/projects/files/${fileId}/download`,
-		);
+		const response = await apiClient.get<{
+			url: string;
+			filename: string;
+			mime_type: string;
+		}>(`/projects/files/${fileId}/download`);
 
 		// Fetch the blob from the URL (no auth headers - presigned URL handles auth)
 		try {

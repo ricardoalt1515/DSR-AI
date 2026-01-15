@@ -1,10 +1,6 @@
 "use client";
 
-import {
-	ArrowRight,
-	Bell,
-	CheckCircle,
-} from "lucide-react";
+import { ArrowRight, Bell, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -58,11 +54,7 @@ export function NotificationDropdown() {
 					<span className="sr-only">Notifications</span>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent
-				align="end"
-				className="w-80 p-0"
-				sideOffset={8}
-			>
+			<DropdownMenuContent align="end" className="w-80 p-0" sideOffset={8}>
 				<div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
 					<span className="text-sm font-medium">Notifications</span>
 					{actionCount > 0 && (
@@ -77,12 +69,17 @@ export function NotificationDropdown() {
 						<div className="flex flex-col items-center justify-center py-8 text-center">
 							<CheckCircle className="h-8 w-8 text-success mb-2" />
 							<p className="text-sm font-medium">All caught up</p>
-							<p className="text-xs text-muted-foreground">No pending actions</p>
+							<p className="text-xs text-muted-foreground">
+								No pending actions
+							</p>
 						</div>
 					) : (
 						<div className="py-1">
 							{notifications.map((notification, index) => {
-								const config = SECTION_CONFIG[notification.id as keyof typeof SECTION_CONFIG];
+								const config =
+									SECTION_CONFIG[
+										notification.id as keyof typeof SECTION_CONFIG
+									];
 								const isLast = index === notifications.length - 1;
 
 								return (
@@ -98,7 +95,7 @@ export function NotificationDropdown() {
 										{notification.projects.map((project) => {
 											const daysSinceUpdate = Math.floor(
 												(Date.now() - new Date(project.updatedAt).getTime()) /
-													(1000 * 60 * 60 * 24)
+													(1000 * 60 * 60 * 24),
 											);
 											const showDays = notification.id === "stalled";
 
@@ -107,14 +104,16 @@ export function NotificationDropdown() {
 													key={project.id}
 													type="button"
 													onClick={() =>
-														handleProjectClick(notification.getRoute(project.id))
+														handleProjectClick(
+															notification.getRoute(project.id),
+														)
 													}
 													className="w-full flex items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50 group"
 												>
 													<span
 														className={cn(
 															"w-2 h-2 rounded-full flex-shrink-0",
-															config?.dotColor ?? "bg-muted-foreground"
+															config?.dotColor ?? "bg-muted-foreground",
 														)}
 													/>
 													<span className="flex-1 text-sm truncate">

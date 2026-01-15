@@ -25,20 +25,60 @@ import type { UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
 const PASSWORD_REQUIREMENTS = [
-	{ key: "length", label: "At least 8 characters", test: (p: string) => p.length >= 8 },
-	{ key: "uppercase", label: "Contains uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
-	{ key: "number", label: "Contains number", test: (p: string) => /[0-9]/.test(p) },
+	{
+		key: "length",
+		label: "At least 8 characters",
+		test: (p: string) => p.length >= 8,
+	},
+	{
+		key: "uppercase",
+		label: "Contains uppercase letter",
+		test: (p: string) => /[A-Z]/.test(p),
+	},
+	{
+		key: "number",
+		label: "Contains number",
+		test: (p: string) => /[0-9]/.test(p),
+	},
 ] as const;
 
-const TENANT_ROLES: { value: Exclude<UserRole, "admin">; label: string; description: string }[] = [
-	{ value: "org_admin", label: "Org Admin", description: "Full access to organization settings and user management" },
-	{ value: "field_agent", label: "Field Agent", description: "Create and manage field assessments" },
-	{ value: "sales", label: "Sales Rep", description: "View projects and manage proposals" },
-	{ value: "contractor", label: "Contractor", description: "Execute approved projects" },
-	{ value: "compliance", label: "Compliance", description: "Review and approve compliance requirements" },
+const TENANT_ROLES: {
+	value: Exclude<UserRole, "admin">;
+	label: string;
+	description: string;
+}[] = [
+	{
+		value: "org_admin",
+		label: "Org Admin",
+		description: "Full access to organization settings and user management",
+	},
+	{
+		value: "field_agent",
+		label: "Field Agent",
+		description: "Create and manage field assessments",
+	},
+	// {
+	// 	value: "sales",
+	// 	label: "Sales Rep",
+	// 	description: "View projects and manage proposals",
+	// },
+	// {
+	// 	value: "contractor",
+	// 	label: "Contractor",
+	// 	description: "Execute approved projects",
+	// },
+	// {
+	// 	value: "compliance",
+	// 	label: "Compliance",
+	// 	description: "Review and approve compliance requirements",
+	// },
 ];
 
-function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+function getPasswordStrength(password: string): {
+	score: number;
+	label: string;
+	color: string;
+} {
 	let score = 0;
 	if (password.length >= 8) score++;
 	if (password.length >= 12) score++;
@@ -90,7 +130,10 @@ export function AddUserModal({
 		});
 	};
 
-	const passwordStrength = useMemo(() => getPasswordStrength(form.password), [form.password]);
+	const passwordStrength = useMemo(
+		() => getPasswordStrength(form.password),
+		[form.password],
+	);
 
 	const canSubmitForm = useMemo(() => {
 		return (
@@ -188,16 +231,29 @@ export function AddUserModal({
 								onChange={(e) =>
 									handleInputChange("confirmPassword", e.target.value)
 								}
-								aria-invalid={form.confirmPassword.length > 0 && form.password !== form.confirmPassword}
-								aria-describedby={form.confirmPassword.length > 0 && form.password !== form.confirmPassword ? "password-mismatch" : undefined}
+								aria-invalid={
+									form.confirmPassword.length > 0 &&
+									form.password !== form.confirmPassword
+								}
+								aria-describedby={
+									form.confirmPassword.length > 0 &&
+									form.password !== form.confirmPassword
+										? "password-mismatch"
+										: undefined
+								}
 							/>
 						</div>
 					</div>
-					{form.confirmPassword.length > 0 && form.password !== form.confirmPassword && (
-						<p id="password-mismatch" className="text-xs text-destructive" role="alert">
-							Passwords do not match
-						</p>
-					)}
+					{form.confirmPassword.length > 0 &&
+						form.password !== form.confirmPassword && (
+							<p
+								id="password-mismatch"
+								className="text-xs text-destructive"
+								role="alert"
+							>
+								Passwords do not match
+							</p>
+						)}
 					{form.password && (
 						<div className="space-y-2">
 							<div className="flex items-center gap-2">
@@ -210,7 +266,10 @@ export function AddUserModal({
 									aria-label={`Password strength: ${passwordStrength.label}`}
 								>
 									<div
-										className={cn("h-full transition-all", passwordStrength.color)}
+										className={cn(
+											"h-full transition-all",
+											passwordStrength.color,
+										)}
 										style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
 									/>
 								</div>
@@ -220,9 +279,14 @@ export function AddUserModal({
 							</div>
 						</div>
 					)}
-					<ul id="password-requirements" className="space-y-1" aria-label="Password requirements">
+					<ul
+						id="password-requirements"
+						className="space-y-1"
+						aria-label="Password requirements"
+					>
 						{PASSWORD_REQUIREMENTS.map((req) => {
-							const passed = form.password.length > 0 && req.test(form.password);
+							const passed =
+								form.password.length > 0 && req.test(form.password);
 							return (
 								<li
 									key={req.key}
@@ -232,14 +296,16 @@ export function AddUserModal({
 											? "text-muted-foreground"
 											: passed
 												? "text-green-600 dark:text-green-400"
-												: "text-muted-foreground"
+												: "text-muted-foreground",
 									)}
 								>
 									<span className="w-3 text-center" aria-hidden="true">
 										{form.password.length === 0 ? "○" : passed ? "✓" : "○"}
 									</span>
 									<span>{req.label}</span>
-									<span className="sr-only">{passed ? "(met)" : "(not met)"}</span>
+									<span className="sr-only">
+										{passed ? "(met)" : "(not met)"}
+									</span>
 								</li>
 							);
 						})}
@@ -275,7 +341,10 @@ export function AddUserModal({
 					<Button variant="outline" onClick={handleClose}>
 						Cancel
 					</Button>
-					<Button onClick={handleSubmit} disabled={!canSubmitForm || submitting}>
+					<Button
+						onClick={handleSubmit}
+						disabled={!canSubmitForm || submitting}
+					>
 						{submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
 						{submitting ? "Creating..." : "Create User"}
 					</Button>

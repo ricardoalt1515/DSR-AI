@@ -1,23 +1,23 @@
 """Pydantic schemas for request/response validation."""
 
-from app.schemas.common import PaginatedResponse, APIError, SuccessResponse
+from app.schemas.common import APIError, PaginatedResponse, SuccessResponse
 from app.schemas.company import (
     CompanyCreate,
-    CompanyUpdate,
-    CompanySummary,
     CompanyDetail,
+    CompanySummary,
+    CompanyUpdate,
 )
 from app.schemas.location import (
     LocationCreate,
-    LocationUpdate,
-    LocationSummary,
     LocationDetail,
+    LocationSummary,
+    LocationUpdate,
 )
 from app.schemas.project import (
     ProjectCreate,
-    ProjectUpdate,
-    ProjectSummary,
     ProjectDetail,
+    ProjectSummary,
+    ProjectUpdate,
 )
 from app.schemas.proposal import (
     ProposalGenerationRequest,

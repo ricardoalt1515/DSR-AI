@@ -24,7 +24,8 @@ interface OrgContextBadgeProps {
  */
 export function OrgContextBadge({ className }: OrgContextBadgeProps) {
 	const { isSuperAdmin } = useAuth();
-	const { selectedOrgId, organizations, openOrgSwitchModal } = useOrganizationStore();
+	const { selectedOrgId, organizations, openOrgSwitchModal } =
+		useOrganizationStore();
 
 	if (!isSuperAdmin || !selectedOrgId) {
 		return null;
@@ -45,7 +46,7 @@ export function OrgContextBadge({ className }: OrgContextBadgeProps) {
 							"gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground",
 							"border border-dashed border-border/50 hover:border-border",
 							"h-8 px-2.5",
-							className
+							className,
 						)}
 					>
 						<Filter className="h-3 w-3" />

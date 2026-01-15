@@ -6,7 +6,6 @@ before they are used in the system. Catches errors at startup rather
 than runtime.
 """
 
-
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -18,14 +17,15 @@ class TemplateField(BaseModel):
     This schema validates format but doesn't check existence
     (that's handled by contract tests).
     """
+
     id: str = Field(
         ...,
         min_length=1,
         description="Parameter ID from frontend library (e.g., 'ph', 'water-source')",
-        examples=["ph", "water-source", "design-flow-rate"]
+        examples=["ph", "water-source", "design-flow-rate"],
     )
 
-    @field_validator('id')
+    @field_validator("id")
     @classmethod
     def validate_id_format(cls, v: str) -> str:
         """
@@ -41,25 +41,22 @@ class TemplateField(BaseModel):
         v = v.lower()
 
         # Check format
-        if not v.replace('-', '').replace('_', '').isalnum():
+        if not v.replace("-", "").replace("_", "").isalnum():
             raise ValueError(
                 f"Invalid field ID: '{v}'. "
                 "Must contain only lowercase letters, numbers, hyphens, and underscores."
             )
 
         # No leading/trailing hyphens or underscores
-        if v.startswith(('-', '_')) or v.endswith(('-', '_')):
+        if v.startswith(("-", "_")) or v.endswith(("-", "_")):
             raise ValueError(
-                f"Invalid field ID: '{v}'. "
-                "Cannot start or end with hyphen or underscore."
+                f"Invalid field ID: '{v}'. Cannot start or end with hyphen or underscore."
             )
 
         return v
 
     class Config:
-        json_schema_extra = {
-            "example": {"id": "ph"}
-        }
+        json_schema_extra = {"example": {"id": "ph"}}
 
 
 class TemplateSection(BaseModel):
@@ -69,35 +66,33 @@ class TemplateSection(BaseModel):
     Groups related fields together (e.g., "Water Quality", "Project Context").
     Each section must have at least one field.
     """
+
     id: str = Field(
         ...,
         min_length=1,
         description="Unique section identifier",
-        examples=["water-quality", "project-context", "economics-scale"]
+        examples=["water-quality", "project-context", "economics-scale"],
     )
     title: str = Field(
         ...,
         min_length=1,
         description="Human-readable section title",
-        examples=["Water Quality Parameters", "Project Context"]
+        examples=["Water Quality Parameters", "Project Context"],
     )
     description: str | None = Field(
-        None,
-        description="Optional description explaining the section's purpose"
+        None, description="Optional description explaining the section's purpose"
     )
     fields: list[TemplateField] = Field(
-        ...,
-        min_length=1,
-        description="List of fields in this section (minimum 1)"
+        ..., min_length=1, description="List of fields in this section (minimum 1)"
     )
 
-    @field_validator('id')
+    @field_validator("id")
     @classmethod
     def validate_section_id(cls, v: str) -> str:
         """Validate section ID follows naming convention."""
         v = v.lower()
 
-        if not v.replace('-', '').isalnum():
+        if not v.replace("-", "").isalnum():
             raise ValueError(
                 f"Invalid section ID: '{v}'. "
                 "Must contain only lowercase letters, numbers, and hyphens."
@@ -105,7 +100,7 @@ class TemplateSection(BaseModel):
 
         return v
 
-    @field_validator('fields')
+    @field_validator("fields")
     @classmethod
     def validate_unique_field_ids(cls, v: list[TemplateField]) -> list[TemplateField]:
         """Ensure no duplicate field IDs in a section."""
@@ -114,9 +109,7 @@ class TemplateSection(BaseModel):
 
         if duplicates:
             unique_dupes = list(set(duplicates))
-            raise ValueError(
-                f"Duplicate field IDs found in section: {', '.join(unique_dupes)}"
-            )
+            raise ValueError(f"Duplicate field IDs found in section: {', '.join(unique_dupes)}")
 
         return v
 
@@ -126,11 +119,7 @@ class TemplateSection(BaseModel):
                 "id": "water-quality",
                 "title": "Water Quality Parameters",
                 "description": "Basic water quality measurements",
-                "fields": [
-                    {"id": "ph"},
-                    {"id": "turbidity"},
-                    {"id": "tds"}
-                ]
+                "fields": [{"id": "ph"}, {"id": "turbidity"}, {"id": "tds"}],
             }
         }
 
@@ -145,24 +134,21 @@ class TemplateConfig(BaseModel):
     Templates are materialized (value/source added) before being
     sent to the frontend.
     """
+
     name: str = Field(
         ...,
         min_length=1,
         description="Human-readable template name",
-        examples=["Base Water Treatment Template", "Oil & Gas Water Treatment"]
+        examples=["Base Water Treatment Template", "Oil & Gas Water Treatment"],
     )
     description: str = Field(
-        ...,
-        min_length=1,
-        description="Description of when to use this template"
+        ..., min_length=1, description="Description of when to use this template"
     )
     sections: list[TemplateSection] = Field(
-        ...,
-        min_length=1,
-        description="List of sections in this template (minimum 1)"
+        ..., min_length=1, description="List of sections in this template (minimum 1)"
     )
 
-    @field_validator('sections')
+    @field_validator("sections")
     @classmethod
     def validate_unique_section_ids(cls, v: list[TemplateSection]) -> list[TemplateSection]:
         """Ensure no duplicate section IDs in template."""
@@ -171,19 +157,13 @@ class TemplateConfig(BaseModel):
 
         if duplicates:
             unique_dupes = list(set(duplicates))
-            raise ValueError(
-                f"Duplicate section IDs found in template: {', '.join(unique_dupes)}"
-            )
+            raise ValueError(f"Duplicate section IDs found in template: {', '.join(unique_dupes)}")
 
         return v
 
     def get_all_field_ids(self) -> list[str]:
         """Get all field IDs across all sections."""
-        return [
-            field.id
-            for section in self.sections
-            for field in section.fields
-        ]
+        return [field.id for section in self.sections for field in section.fields]
 
     def get_field_count(self) -> int:
         """Get total number of fields in template."""
@@ -199,13 +179,9 @@ class TemplateConfig(BaseModel):
                         "id": "water-quality",
                         "title": "Water Quality",
                         "description": "Basic water quality measurements",
-                        "fields": [
-                            {"id": "ph"},
-                            {"id": "turbidity"},
-                            {"id": "tds"}
-                        ]
+                        "fields": [{"id": "ph"}, {"id": "turbidity"}, {"id": "tds"}],
                     }
-                ]
+                ],
             }
         }
 
@@ -213,6 +189,7 @@ class TemplateConfig(BaseModel):
 # ============================================================================
 # VALIDATION HELPERS
 # ============================================================================
+
 
 def validate_template(template_dict: dict) -> TemplateConfig:
     """
@@ -250,11 +227,7 @@ def validate_all_templates(templates: dict) -> dict:
         >>> results = validate_all_templates(TEMPLATES)
         >>> print(results['valid_count'])
     """
-    results = {
-        "valid_count": 0,
-        "invalid_count": 0,
-        "errors": []
-    }
+    results = {"valid_count": 0, "invalid_count": 0, "errors": []}
 
     for (sector, subsector), template in templates.items():
         try:
@@ -262,10 +235,6 @@ def validate_all_templates(templates: dict) -> dict:
             results["valid_count"] += 1
         except Exception as e:
             results["invalid_count"] += 1
-            results["errors"].append({
-                "sector": sector,
-                "subsector": subsector,
-                "error": str(e)
-            })
+            results["errors"].append({"sector": sector, "subsector": subsector, "error": str(e)})
 
     return results

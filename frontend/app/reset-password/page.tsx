@@ -20,8 +20,9 @@ export default function ResetPasswordPage() {
 		>
 			<div className="space-y-4 text-sm text-muted-foreground">
 				<p>
-					To change your password, please contact your organization admin. They can set a new
-					password for your account in the admin panel and share it securely with you.
+					To change your password, please contact your organization admin. They
+					can set a new password for your account in the admin panel and share
+					it securely with you.
 				</p>
 				<Button asChild variant="outline" className="w-full mt-2">
 					<Link href="/login">Go to sign in</Link>

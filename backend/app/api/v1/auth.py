@@ -22,13 +22,12 @@ Best Practices:
     - Type-safe with Pydantic
 """
 
+import structlog
 from fastapi import APIRouter
 
-from app.core.fastapi_users_instance import fastapi_users, auth_backend
-from app.schemas.user_fastapi import UserRead, UserCreate, UserUpdate
 from app.core.config import settings
-
-import structlog
+from app.core.fastapi_users_instance import auth_backend, fastapi_users
+from app.schemas.user_fastapi import UserCreate, UserRead, UserUpdate
 
 logger = structlog.get_logger(__name__)
 

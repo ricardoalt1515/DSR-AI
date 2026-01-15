@@ -5,7 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -46,7 +52,7 @@ function NavItem({
 				"group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200",
 				isActive
 					? "bg-primary/10 text-primary"
-					: "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+					: "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
 			)}
 		>
 			<div
@@ -54,14 +60,18 @@ function NavItem({
 					"flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
 					isActive
 						? "bg-primary/20 text-primary shadow-sm"
-						: "bg-muted/50 text-muted-foreground group-hover:bg-muted group-hover:text-foreground"
+						: "bg-muted/50 text-muted-foreground group-hover:bg-muted group-hover:text-foreground",
 				)}
 			>
 				<Icon className="h-4 w-4" />
 			</div>
 			<div className="flex-1 min-w-0">
-				<div className={cn("font-medium", isActive && "text-primary")}>{label}</div>
-				<div className="text-xs text-muted-foreground truncate">{description}</div>
+				<div className={cn("font-medium", isActive && "text-primary")}>
+					{label}
+				</div>
+				<div className="text-xs text-muted-foreground truncate">
+					{description}
+				</div>
 			</div>
 			{isActive && (
 				<div className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
@@ -82,7 +92,9 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
 					</div>
 					<div>
 						<h2 className="font-semibold text-base">Admin Console</h2>
-						<p className="text-xs text-muted-foreground">Manage organizations and users</p>
+						<p className="text-xs text-muted-foreground">
+							Manage organizations and users
+						</p>
 					</div>
 				</div>
 			</div>
@@ -127,7 +139,12 @@ export function AdminMobileNav() {
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation menu">
+				<Button
+					variant="ghost"
+					size="icon"
+					className="md:hidden"
+					aria-label="Open navigation menu"
+				>
 					<Menu className="h-5 w-5" />
 				</Button>
 			</SheetTrigger>

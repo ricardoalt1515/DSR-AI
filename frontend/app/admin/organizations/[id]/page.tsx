@@ -1,6 +1,16 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, CheckCircle, Mail, Phone, Plus, RefreshCcw, Users, XCircle } from "lucide-react";
+import {
+	AlertTriangle,
+	ArrowLeft,
+	CheckCircle,
+	Mail,
+	Phone,
+	Plus,
+	RefreshCcw,
+	Users,
+	XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -15,7 +25,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Tooltip,
@@ -78,31 +94,44 @@ export default function OrganizationDetailPage() {
 			setUsers((prev) => [...prev, newUser]);
 			toast.success(`User "${newUser.email}" created`);
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to create user";
+			const message =
+				error instanceof Error ? error.message : "Failed to create user";
 			toast.error(message);
 			throw error;
 		}
 	};
 
-	const handleUpdateOrganization = async (id: string, data: OrganizationUpdateInput) => {
+	const handleUpdateOrganization = async (
+		id: string,
+		data: OrganizationUpdateInput,
+	) => {
 		try {
 			const updated = await organizationsAPI.update(id, data);
 			setOrganization(updated);
 			toast.success("Organization updated");
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to update organization";
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to update organization";
 			toast.error(message);
 			throw error;
 		}
 	};
 
-	const handleRoleChange = async (userId: string, newRole: Exclude<UserRole, "admin">) => {
+	const handleRoleChange = async (
+		userId: string,
+		newRole: Exclude<UserRole, "admin">,
+	) => {
 		try {
-			const updated = await organizationsAPI.updateOrgUser(orgId, userId, { role: newRole });
+			const updated = await organizationsAPI.updateOrgUser(orgId, userId, {
+				role: newRole,
+			});
 			setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
 			toast.success("Role updated");
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to update role";
+			const message =
+				error instanceof Error ? error.message : "Failed to update role";
 			toast.error(message);
 			throw error;
 		}
@@ -110,11 +139,14 @@ export default function OrganizationDetailPage() {
 
 	const handleStatusChange = async (userId: string, isActive: boolean) => {
 		try {
-			const updated = await organizationsAPI.updateOrgUser(orgId, userId, { isActive });
+			const updated = await organizationsAPI.updateOrgUser(orgId, userId, {
+				isActive,
+			});
 			setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
 			toast.success(isActive ? "User activated" : "User deactivated");
 		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : "Failed to update status";
+			const message =
+				error instanceof Error ? error.message : "Failed to update status";
 			toast.error(message);
 			throw error;
 		}
@@ -161,7 +193,11 @@ export default function OrganizationDetailPage() {
 					</Button>
 				</Link>
 				<div className="flex items-center gap-4 flex-1 min-w-0">
-					<OrgAvatar name={organization.name} slug={organization.slug} size="lg" />
+					<OrgAvatar
+						name={organization.name}
+						slug={organization.slug}
+						size="lg"
+					/>
 					<div className="flex-1 min-w-0">
 						<div className="flex items-center gap-3 flex-wrap">
 							<h2 className="text-2xl font-semibold tracking-tight truncate">
@@ -172,7 +208,7 @@ export default function OrganizationDetailPage() {
 								className={cn(
 									organization.isActive
 										? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
-										: "bg-muted text-muted-foreground"
+										: "bg-muted text-muted-foreground",
 								)}
 							>
 								{organization.isActive ? "Active" : "Inactive"}
@@ -191,7 +227,9 @@ export default function OrganizationDetailPage() {
 						disabled={isLoading}
 						aria-label="Refresh organization data"
 					>
-						<RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+						<RefreshCcw
+							className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+						/>
 					</Button>
 					<Button variant="outline" onClick={() => setEditOrgModalOpen(true)}>
 						Edit
@@ -251,9 +289,7 @@ export default function OrganizationDetailPage() {
 					<div className="flex items-center justify-between">
 						<div>
 							<CardTitle className="text-lg">Organization Members</CardTitle>
-							<CardDescription>
-								Members of {organization.name}
-							</CardDescription>
+							<CardDescription>Members of {organization.name}</CardDescription>
 						</div>
 						<TooltipProvider>
 							<Tooltip>

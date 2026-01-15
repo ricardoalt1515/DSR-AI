@@ -55,13 +55,23 @@ function formatDate(dateString: string): string {
 
 function getFileIcon(fileType: string) {
 	const type = fileType.toLowerCase();
-	if (type.includes("image") || type.includes("png") || type.includes("jpg") || type.includes("jpeg")) {
+	if (
+		type.includes("image") ||
+		type.includes("png") ||
+		type.includes("jpg") ||
+		type.includes("jpeg")
+	) {
 		return FileImage;
 	}
 	if (type.includes("pdf")) {
 		return FileText;
 	}
-	if (type.includes("spreadsheet") || type.includes("excel") || type.includes("csv") || type.includes("xlsx")) {
+	if (
+		type.includes("spreadsheet") ||
+		type.includes("excel") ||
+		type.includes("csv") ||
+		type.includes("xlsx")
+	) {
 		return FileSpreadsheet;
 	}
 	return File;
@@ -73,20 +83,26 @@ const FileCard = memo(function FileCard({ file }: { file: ProjectFile }) {
 	const isComplete = file.processing_status === "completed";
 
 	return (
-		<Card className={cn(
-			"group hover:shadow-md transition-all duration-200",
-			isProcessing && "border-primary/30 animate-pulse"
-		)}>
+		<Card
+			className={cn(
+				"group hover:shadow-md transition-all duration-200",
+				isProcessing && "border-primary/30 animate-pulse",
+			)}
+		>
 			<CardContent className="p-4">
 				<div className="flex items-start gap-3">
-					<div className={cn(
-						"p-2.5 rounded-lg shrink-0",
-						isComplete ? "bg-success/10" : "bg-muted"
-					)}>
-						<Icon className={cn(
-							"h-5 w-5",
-							isComplete ? "text-success" : "text-muted-foreground"
-						)} />
+					<div
+						className={cn(
+							"p-2.5 rounded-lg shrink-0",
+							isComplete ? "bg-success/10" : "bg-muted",
+						)}
+					>
+						<Icon
+							className={cn(
+								"h-5 w-5",
+								isComplete ? "text-success" : "text-muted-foreground",
+							)}
+						/>
 					</div>
 					<div className="flex-1 min-w-0 space-y-1">
 						<p className="font-medium text-sm truncate" title={file.filename}>
@@ -149,8 +165,8 @@ function EmptyFilesState() {
 			</div>
 			<h3 className="font-medium text-lg mb-1">No files uploaded yet</h3>
 			<p className="text-muted-foreground text-sm max-w-md">
-				Upload laboratory analyses, technical reports, or documents above.
-				Our AI will automatically extract relevant data.
+				Upload laboratory analyses, technical reports, or documents above. Our
+				AI will automatically extract relevant data.
 			</p>
 		</div>
 	);
@@ -214,7 +230,9 @@ export function FilesTabEnhanced({
 	return (
 		<div className="space-y-6">
 			<div className="space-y-2">
-				<h2 className="text-2xl font-semibold text-gradient">File Management</h2>
+				<h2 className="text-2xl font-semibold text-gradient">
+					File Management
+				</h2>
 				<p className="text-muted-foreground">
 					Upload laboratory analyses, technical reports or documents to
 					automatically extract data with AI.
@@ -277,7 +295,9 @@ export function FilesTabEnhanced({
 					<div className="flex items-center justify-between">
 						<h3 className="font-medium">
 							Uploaded Files
-							<span className="text-muted-foreground ml-2">({stats.total})</span>
+							<span className="text-muted-foreground ml-2">
+								({stats.total})
+							</span>
 						</h3>
 						{stats.withAI > 0 && (
 							<Badge variant="secondary" className="gap-1">

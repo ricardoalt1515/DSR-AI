@@ -9,9 +9,10 @@ Returns a dict with `text` (summary) and `analysis` (structured JSON)
 that can be stored on `ProjectFile`.
 """
 
-from typing import Any, BinaryIO
-import structlog
 import mimetypes
+from typing import Any, BinaryIO
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -78,7 +79,7 @@ class DocumentProcessor:
             - `analysis`: structured JSON-ready dict (ImageAnalysisOutput)
         """
         # Import here to avoid circular imports
-        from app.agents.image_analysis_agent import analyze_image, ImageAnalysisError
+        from app.agents.image_analysis_agent import ImageAnalysisError, analyze_image
 
         data = file_content.read()
         if not data:

@@ -209,7 +209,9 @@ export default function AdminUsersPage() {
 		setUpdatingUserId(userId);
 		try {
 			const updated = await adminUsersAPI.update(userId, updates);
-			setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
+			setUsers((prev) =>
+				prev.map((user) => (user.id === userId ? updated : user)),
+			);
 			toast.success(successMessage);
 		} catch (error) {
 			const message =
@@ -231,8 +233,11 @@ export default function AdminUsersPage() {
 		});
 	};
 
-	const activeAdmins = users.filter((user) => user.isSuperuser && user.isActive);
-	const lastActiveAdminId = activeAdmins.length === 1 ? activeAdmins[0]?.id ?? null : null;
+	const activeAdmins = users.filter(
+		(user) => user.isSuperuser && user.isActive,
+	);
+	const lastActiveAdminId =
+		activeAdmins.length === 1 ? (activeAdmins[0]?.id ?? null) : null;
 
 	// Column definitions
 	const columns: ColumnDef<User>[] = useMemo(
@@ -298,11 +303,17 @@ export default function AdminUsersPage() {
 					const user = row.original;
 					return (
 						<div className="flex flex-col space-y-0.5">
-							<span className={user.isActive ? "text-green-600" : "text-muted-foreground"}>
+							<span
+								className={
+									user.isActive ? "text-green-600" : "text-muted-foreground"
+								}
+							>
 								{user.isActive ? "Active" : "Disabled"}
 							</span>
 							{!user.isVerified && (
-								<span className="text-xs text-muted-foreground">Unverified</span>
+								<span className="text-xs text-muted-foreground">
+									Unverified
+								</span>
 							)}
 						</div>
 					);
@@ -318,10 +329,12 @@ export default function AdminUsersPage() {
 				cell: ({ row }) => {
 					const user = row.original;
 					const isSelf = currentUser?.id === user.id;
-					const isLastActiveAdmin = user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
+					const isLastActiveAdmin =
+						user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
 					const isTenantUser = user.organizationId !== null;
 					const disableRoleChange = isSelf || isLastActiveAdmin || isTenantUser;
-					const disableStatusChange = isSelf || isLastActiveAdmin || isTenantUser;
+					const disableStatusChange =
+						isSelf || isLastActiveAdmin || isTenantUser;
 
 					const roleTooltipMessage = isTenantUser
 						? "Manage tenant users via organizations"
@@ -410,7 +423,11 @@ export default function AdminUsersPage() {
 								variant="outline"
 								size="sm"
 								disabled={isTenantUser}
-								title={isTenantUser ? "Manage tenant users via organizations" : undefined}
+								title={
+									isTenantUser
+										? "Manage tenant users via organizations"
+										: undefined
+								}
 								onClick={() => handleOpenResetDialog(user.id)}
 							>
 								Reset
@@ -452,7 +469,9 @@ export default function AdminUsersPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>Access denied</CardTitle>
-						<CardDescription>You need admin permissions to view this page.</CardDescription>
+						<CardDescription>
+							You need admin permissions to view this page.
+						</CardDescription>
 					</CardHeader>
 				</Card>
 			</div>
@@ -465,9 +484,12 @@ export default function AdminUsersPage() {
 				<div className="flex items-center justify-between flex-wrap gap-4">
 					<div>
 						<h1 className="text-2xl font-bold flex items-center gap-2">
-							<ShieldCheck className="h-6 w-6 text-amber-500" /> Platform Administrators
+							<ShieldCheck className="h-6 w-6 text-amber-500" /> Platform
+							Administrators
 						</h1>
-						<p className="text-muted-foreground">Superuser accounts with full platform access.</p>
+						<p className="text-muted-foreground">
+							Superuser accounts with full platform access.
+						</p>
 					</div>
 					<Button onClick={() => setModalOpen(true)}>
 						<UserPlus className="mr-2 h-4 w-4" /> New Admin
@@ -517,9 +539,15 @@ export default function AdminUsersPage() {
 										)}
 									</div>
 									<Select
-										value={(table.getColumn("isActive")?.getFilterValue() as string) ?? "all"}
+										value={
+											(table
+												.getColumn("isActive")
+												?.getFilterValue() as string) ?? "all"
+										}
 										onValueChange={(value) =>
-											table.getColumn("isActive")?.setFilterValue(value === "all" ? undefined : value)
+											table
+												.getColumn("isActive")
+												?.setFilterValue(value === "all" ? undefined : value)
 										}
 									>
 										<SelectTrigger className="w-[130px]">
@@ -540,10 +568,16 @@ export default function AdminUsersPage() {
 											{table.getHeaderGroups().map((headerGroup) => (
 												<TableRow key={headerGroup.id}>
 													{headerGroup.headers.map((header) => (
-														<TableHead key={header.id} className="whitespace-nowrap">
+														<TableHead
+															key={header.id}
+															className="whitespace-nowrap"
+														>
 															{header.isPlaceholder
 																? null
-																: flexRender(header.column.columnDef.header, header.getContext())}
+																: flexRender(
+																		header.column.columnDef.header,
+																		header.getContext(),
+																	)}
 														</TableHead>
 													))}
 												</TableRow>
@@ -555,14 +589,20 @@ export default function AdminUsersPage() {
 													<TableRow key={row.id}>
 														{row.getVisibleCells().map((cell) => (
 															<TableCell key={cell.id}>
-																{flexRender(cell.column.columnDef.cell, cell.getContext())}
+																{flexRender(
+																	cell.column.columnDef.cell,
+																	cell.getContext(),
+																)}
 															</TableCell>
 														))}
 													</TableRow>
 												))
 											) : (
 												<TableRow>
-													<TableCell colSpan={columns.length} className="h-24 text-center">
+													<TableCell
+														colSpan={columns.length}
+														className="h-24 text-center"
+													>
 														No administrators match your search.
 													</TableCell>
 												</TableRow>
@@ -574,7 +614,8 @@ export default function AdminUsersPage() {
 								{/* Pagination */}
 								<div className="flex items-center justify-between">
 									<p className="text-sm text-muted-foreground">
-										Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} administrators
+										Showing {table.getRowModel().rows.length} of{" "}
+										{table.getFilteredRowModel().rows.length} administrators
 									</p>
 									<div className="flex items-center gap-2">
 										<Button
@@ -587,7 +628,8 @@ export default function AdminUsersPage() {
 											Previous
 										</Button>
 										<span className="text-sm text-muted-foreground">
-											Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+											Page {table.getState().pagination.pageIndex + 1} of{" "}
+											{table.getPageCount()}
 										</span>
 										<Button
 											variant="outline"
@@ -610,7 +652,9 @@ export default function AdminUsersPage() {
 					<DialogContent>
 						<DialogHeader>
 							<DialogTitle>Create Platform Admin</DialogTitle>
-							<DialogDescription>Create a new superuser with full platform access.</DialogDescription>
+							<DialogDescription>
+								Create a new superuser with full platform access.
+							</DialogDescription>
 						</DialogHeader>
 						<div className="grid gap-4">
 							<div className="grid gap-2">
@@ -629,7 +673,9 @@ export default function AdminUsersPage() {
 									<Input
 										id="firstName"
 										value={form.firstName}
-										onChange={(e) => handleInputChange("firstName", e.target.value)}
+										onChange={(e) =>
+											handleInputChange("firstName", e.target.value)
+										}
 										placeholder="Jane"
 									/>
 								</div>
@@ -638,7 +684,9 @@ export default function AdminUsersPage() {
 									<Input
 										id="lastName"
 										value={form.lastName}
-										onChange={(e) => handleInputChange("lastName", e.target.value)}
+										onChange={(e) =>
+											handleInputChange("lastName", e.target.value)
+										}
 										placeholder="Doe"
 									/>
 								</div>
@@ -649,7 +697,9 @@ export default function AdminUsersPage() {
 									id="password"
 									type="password"
 									value={form.password}
-									onChange={(e) => handleInputChange("password", e.target.value)}
+									onChange={(e) =>
+										handleInputChange("password", e.target.value)
+									}
 									placeholder="StrongPassword1"
 								/>
 								<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
@@ -660,12 +710,17 @@ export default function AdminUsersPage() {
 									id="confirmPassword"
 									type="password"
 									value={form.confirmPassword}
-									onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+									onChange={(e) =>
+										handleInputChange("confirmPassword", e.target.value)
+									}
 									placeholder="StrongPassword1"
 								/>
-								{form.confirmPassword && form.password !== form.confirmPassword && (
-									<p className="text-xs text-destructive">Passwords do not match</p>
-								)}
+								{form.confirmPassword &&
+									form.password !== form.confirmPassword && (
+										<p className="text-xs text-destructive">
+											Passwords do not match
+										</p>
+									)}
 							</div>
 							<div className="grid gap-2">
 								<Label>Role</Label>
@@ -676,8 +731,15 @@ export default function AdminUsersPage() {
 							<Button variant="outline" onClick={() => setModalOpen(false)}>
 								Cancel
 							</Button>
-							<Button onClick={handleCreateUser} disabled={!canSubmitForm || submitting}>
-								{submitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+							<Button
+								onClick={handleCreateUser}
+								disabled={!canSubmitForm || submitting}
+							>
+								{submitting ? (
+									<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+								) : (
+									<UserPlus className="mr-2 h-4 w-4" />
+								)}
 								Create Admin
 							</Button>
 						</DialogFooter>
@@ -723,9 +785,12 @@ export default function AdminUsersPage() {
 									onChange={(e) => setResetConfirmPassword(e.target.value)}
 									placeholder="StrongPassword1"
 								/>
-								{resetConfirmPassword && resetPassword !== resetConfirmPassword && (
-									<p className="text-xs text-destructive">Passwords do not match</p>
-								)}
+								{resetConfirmPassword &&
+									resetPassword !== resetConfirmPassword && (
+										<p className="text-xs text-destructive">
+											Passwords do not match
+										</p>
+									)}
 							</div>
 						</div>
 						<DialogFooter>
@@ -739,8 +804,13 @@ export default function AdminUsersPage() {
 							>
 								Cancel
 							</Button>
-							<Button onClick={handleResetPassword} disabled={!canSubmitReset || resetSubmitting}>
-								{resetSubmitting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : null}
+							<Button
+								onClick={handleResetPassword}
+								disabled={!canSubmitReset || resetSubmitting}
+							>
+								{resetSubmitting ? (
+									<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+								) : null}
 								{resetSubmitting ? "Updating..." : "Update password"}
 							</Button>
 						</DialogFooter>
