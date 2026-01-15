@@ -1,21 +1,26 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { OrgContextGuard } from "@/components/features/org-context";
 import { ProposalGenerationManager } from "@/components/providers/proposal-generation-manager";
 import { CommandPalette } from "@/components/shared/command-palette";
 import { NavBar } from "@/components/shared/layout/navbar";
+import { isPublicRoute } from "@/lib/constants";
 import { AuthProvider } from "@/lib/contexts";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname();
+	const showNavBar = !isPublicRoute(pathname);
+
 	return (
 		<AuthProvider>
 			<OrgContextGuard>
 				<Suspense fallback={null}>
 					<ProposalGenerationManager />
 					<div className="aqua-page min-h-screen">
-						<NavBar />
+						{showNavBar && <NavBar />}
 						<main
 							id="main-content"
 							className="mx-auto w-full max-w-[1600px] px-8 py-10 md:px-12 lg:px-16"
@@ -25,7 +30,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 							</div>
 						</main>
 					</div>
-					<CommandPalette />
+					{showNavBar && <CommandPalette />}
 					<Toaster
 						position="bottom-right"
 						theme="system"

@@ -5,6 +5,7 @@ import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiClient, authAPI, type User } from "@/lib/api";
+import { isPublicRoute } from "@/lib/constants";
 import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProjectStore } from "@/lib/stores/project-store";
@@ -31,20 +32,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const PUBLIC_ROUTES = [
-	"/",
-	"/login",
-	"/register",
-	"/forgot-password",
-	"/reset-password",
-];
-
-function isPublicRoute(pathname: string): boolean {
-	return PUBLIC_ROUTES.some(
-		(route) => pathname === route || pathname.startsWith(`${route}/`),
-	);
-}
 
 function clearUserData(): void {
 	localStorage.removeItem("h2o-project-store");
