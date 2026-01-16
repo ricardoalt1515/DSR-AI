@@ -95,26 +95,13 @@ const PRIMARY_NAV_LINKS = [
 	},
 ];
 
-const QUICK_ACTIONS = [
-	{
-		name: "New Waste Stream",
-		href: "/dashboard",
-		icon: Zap,
-		description: "Start new waste stream",
-	},
-	{
-		name: "Search Waste Streams",
-		href: "/dashboard",
-		icon: FolderOpen,
-		description: "Find waste streams",
-	},
-	{
-		name: "Settings",
-		href: "/dashboard",
-		icon: Settings,
-		description: "Configure app",
-	},
-];
+type QuickAction = {
+	name: string;
+	description?: string;
+	icon: typeof Home;
+	href?: string;
+	onSelect?: () => void;
+};
 
 export function NavBar() {
 	const [searchOpen, setSearchOpen] = useState(false);
@@ -134,12 +121,42 @@ export function NavBar() {
 		selectOrganization,
 	} = useOrganizationStore();
 	const [mounted, setMounted] = useState(false);
+	const quickActions: QuickAction[] = [
+		{
+			name: "New Waste Stream",
+			icon: Zap,
+			description: "Start new waste stream",
+			onSelect: () => setCreateModalOpen(true),
+		},
+		{
+			name: "Search Waste Streams",
+			icon: FolderOpen,
+			description: "Find waste streams",
+			href: routes.dashboard,
+		},
+		{
+			name: "Settings",
+			icon: Settings,
+			description: "Configure app",
+			href: "/settings",
+		},
+	];
 
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
 	const authedUser = mounted ? user : null;
+	const handleQuickAction = (action: QuickAction) => {
+		setSearchOpen(false);
+		if (action.onSelect) {
+			action.onSelect();
+			return;
+		}
+		if (action.href) {
+			router.push(action.href);
+		}
+	};
 
 	useEffect(() => {
 		if (!authedUser) return;
@@ -427,16 +444,13 @@ export function NavBar() {
 					<CommandEmpty>No results found.</CommandEmpty>
 
 					<CommandGroup heading="Quick Actions">
-						{QUICK_ACTIONS.map((action) => {
+						{quickActions.map((action) => {
 							const Icon = action.icon;
 							return (
 								<CommandItem
 									key={action.name}
 									value={action.name}
-									onSelect={() => {
-										setSearchOpen(false);
-										router.push(action.href);
-									}}
+									onSelect={() => handleQuickAction(action)}
 								>
 									<Icon className="mr-2 h-4 w-4" />
 									<div className="flex flex-col">

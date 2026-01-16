@@ -27,6 +27,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { FilesListSkeleton } from "@/components/ui/files-grid-skeleton";
+import { formatFileSize, formatShortDateTime } from "@/lib/format";
 import type { ProjectFile } from "@/lib/project-types";
 import { useCurrentProject, useProjectLoading } from "@/lib/stores";
 import { cn } from "@/lib/utils";
@@ -34,23 +35,6 @@ import { cn } from "@/lib/utils";
 interface FilesTabEnhancedProps {
 	projectId: string;
 	onDataImported?: () => void;
-}
-
-function formatFileSize(bytes: number): string {
-	if (bytes === 0) return "0 B";
-	const k = 1024;
-	const sizes = ["B", "KB", "MB", "GB"];
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
-}
-
-function formatDate(dateString: string): string {
-	return new Date(dateString).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
 }
 
 function getFileIcon(fileType: string) {
@@ -115,7 +99,7 @@ const FileCard = memo(function FileCard({ file }: { file: ProjectFile }) {
 							</span>
 							<span className="flex items-center gap-1">
 								<Clock className="h-3 w-3" />
-								{formatDate(file.uploaded_at)}
+								{formatShortDateTime(file.uploaded_at)}
 							</span>
 						</div>
 						<div className="flex items-center gap-1.5 pt-1">

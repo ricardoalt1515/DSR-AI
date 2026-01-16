@@ -7,7 +7,6 @@ import {
 	FileText,
 	History,
 	Layers,
-	Loader2,
 	RefreshCcw,
 	Sparkles,
 	Table,
@@ -22,13 +21,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { TechnicalFormSkeleton } from "@/components/ui/loading-states";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,17 +33,12 @@ import {
 	SheetTrigger,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-// Templates deprecated - will be re-implemented with modular system
-// import { TECHNICAL_TEMPLATES } from "@/lib/templates/technical-templates"
 import type { VersionSource } from "@/lib/project-types";
 import {
-	useEnsureProjectsLoaded,
 	useProjectStore,
-	useProjects,
 	useTechnicalDataActions,
 	useTechnicalDataStore,
 	useTechnicalSections,
-	useTechnicalVersions,
 } from "@/lib/stores";
 import {
 	overallCompletion,
@@ -84,7 +71,6 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const sections = useTechnicalSections(projectId);
-	const _versions = useTechnicalVersions(projectId);
 	const loading = useTechnicalDataStore((state) => state.loading);
 	const saving = useTechnicalDataStore((state) => state.saving);
 	const lastSaved = useTechnicalDataStore((state) => state.lastSaved);
@@ -105,19 +91,11 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 		removeSection,
 		addField,
 		removeField,
-		copyFromProject,
 		retrySync,
 	} = useTechnicalDataActions();
 
 	const [isTableView, setIsTableView] = useState(false);
 	const [focusSectionId, setFocusSectionId] = useState<string | null>(null);
-	const [templateOpen, setTemplateOpen] = useState(false);
-	const [copyOpen, setCopyOpen] = useState(false);
-	const [copyingFromId, setCopyingFromId] = useState<string | null>(null);
-
-	// Load projects for copy-from dialog
-	const projects = useProjects();
-	useEnsureProjectsLoaded();
 
 	useEffect(() => {
 		setActiveProject(projectId);
@@ -416,105 +394,6 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 					{/* More actions dropdown could go here if needed */}
 				</div>
 			</div>
-
-			{/* Templates Dialog - DISABLED: Templates being re-implemented with modular system */}
-			<Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Templates Coming Soon</DialogTitle>
-						<DialogDescription>
-							Templates are being re-implemented with a new modular system. This
-							feature will be available soon with sector-specific templates.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="space-y-3">
-						<p className="text-sm text-muted-foreground">
-							The new template system will provide:
-						</p>
-						<ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-							<li>
-								Sector-specific templates (Municipal, Industrial, Commercial,
-								Residential)
-							</li>
-							<li>
-								Subsector optimization (Food Processing, Hotels, Textile, etc.)
-							</li>
-							<li>Pre-filled default values based on industry standards</li>
-							<li>Intelligent field selection</li>
-						</ul>
-					</div>
-				</DialogContent>
-			</Dialog>
-
-			{/* Copy From Project Dialog */}
-			<Dialog open={copyOpen} onOpenChange={setCopyOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Copy from Another Project</DialogTitle>
-						<DialogDescription>
-							Select a project to copy its technical data sheet. You can merge
-							or replace your data.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="max-h-[320px] overflow-y-auto space-y-2">
-						{projects
-							.filter((p) => p.id !== projectId)
-							.map((p) => (
-								<div
-									key={p.id}
-									className="flex items-center justify-between rounded-md border p-3"
-								>
-									<div>
-										<p className="font-medium">{p.name}</p>
-										<p className="text-xs text-muted-foreground">
-											{p.client} · {p.sector}
-										</p>
-									</div>
-									<div className="flex items-center gap-2">
-										<Button
-											size="sm"
-											variant="outline"
-											disabled={copyingFromId !== null}
-											onClick={async () => {
-												setCopyingFromId(p.id);
-												await copyFromProject(projectId, p.id, "merge");
-												setCopyingFromId(null);
-												setCopyOpen(false);
-											}}
-										>
-											{copyingFromId === p.id ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												"Merge"
-											)}
-										</Button>
-										<Button
-											size="sm"
-											disabled={copyingFromId !== null}
-											onClick={async () => {
-												setCopyingFromId(p.id);
-												await copyFromProject(projectId, p.id, "replace");
-												setCopyingFromId(null);
-												setCopyOpen(false);
-											}}
-										>
-											{copyingFromId === p.id ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												"Replace"
-											)}
-										</Button>
-									</div>
-								</div>
-							))}
-						{projects.filter((p) => p.id !== projectId).length === 0 && (
-							<p className="text-sm text-muted-foreground">
-								No projects available to copy from.
-							</p>
-						)}
-					</div>
-				</DialogContent>
-			</Dialog>
 
 			{completion.percentage < PROPOSAL_READINESS_THRESHOLD && (
 				<Alert className="alert-warning-card">

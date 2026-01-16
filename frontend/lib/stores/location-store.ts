@@ -11,7 +11,7 @@ import type {
 	LocationSummary,
 	LocationUpdate,
 } from "@/lib/types/company";
-import { logger } from "@/lib/utils/logger";
+import { getErrorMessage, logger } from "@/lib/utils/logger";
 
 interface LocationState {
 	// State
@@ -62,8 +62,7 @@ export const useLocationStore = create<LocationState>()(
 						"LocationStore",
 					);
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to load locations";
+					const message = getErrorMessage(error, "Failed to load locations");
 					logger.error("Failed to load locations", error, "LocationStore");
 					set((state) => {
 						state.error = message;
@@ -101,8 +100,7 @@ export const useLocationStore = create<LocationState>()(
 						"LocationStore",
 					);
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to load locations";
+					const message = getErrorMessage(error, "Failed to load locations");
 
 					logger.error(
 						`Failed to load locations for company ${companyId}`,
@@ -133,8 +131,7 @@ export const useLocationStore = create<LocationState>()(
 						state.loading = false;
 					});
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to load location";
+					const message = getErrorMessage(error, "Failed to load location");
 					logger.error(`Failed to load location ${id}`, error, "LocationStore");
 					set((state) => {
 						state.error = message;
@@ -161,10 +158,7 @@ export const useLocationStore = create<LocationState>()(
 					logger.info(`Location created: ${location.name}`, "LocationStore");
 					return location;
 				} catch (error) {
-					const message =
-						error instanceof Error
-							? error.message
-							: "Failed to create location";
+					const message = getErrorMessage(error, "Failed to create location");
 					logger.error("Failed to create location", error, "LocationStore");
 					set((state) => {
 						state.error = message;
@@ -196,10 +190,7 @@ export const useLocationStore = create<LocationState>()(
 					logger.info(`Location updated: ${location.name}`, "LocationStore");
 					return location;
 				} catch (error) {
-					const message =
-						error instanceof Error
-							? error.message
-							: "Failed to update location";
+					const message = getErrorMessage(error, "Failed to update location");
 					logger.error(
 						`Failed to update location ${id}`,
 						error,
@@ -231,10 +222,7 @@ export const useLocationStore = create<LocationState>()(
 					});
 					logger.info(`Location deleted: ${id}`, "LocationStore");
 				} catch (error) {
-					const message =
-						error instanceof Error
-							? error.message
-							: "Failed to delete location";
+					const message = getErrorMessage(error, "Failed to delete location");
 					logger.error(
 						`Failed to delete location ${id}`,
 						error,

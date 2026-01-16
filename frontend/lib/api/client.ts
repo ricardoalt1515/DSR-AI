@@ -52,6 +52,42 @@ interface RequestConfig {
 	timeout?: number;
 }
 
+interface RetryOptions {
+	endpoint: string;
+	logContext: string;
+	isRetryable: (error: unknown) => boolean;
+}
+
+const withRetry = async <T>(
+	operation: () => Promise<T>,
+	options: RetryOptions,
+): Promise<T> => {
+	let lastError: Error | undefined;
+	let delay: number = RETRY.INITIAL_DELAY;
+
+	for (let attempt = 0; attempt <= RETRY.MAX_ATTEMPTS; attempt++) {
+		try {
+			return await operation();
+		} catch (error: unknown) {
+			lastError = error instanceof Error ? error : new Error(String(error));
+
+			if (attempt === RETRY.MAX_ATTEMPTS) break;
+
+			if (!options.isRetryable(error)) throw lastError;
+
+			logger.warn(
+				`Retrying ${options.logContext} (attempt ${attempt + 1}): ${options.endpoint}`,
+				"APIClient",
+			);
+
+			await new Promise((resolve) => setTimeout(resolve, delay));
+			delay = Math.min(delay * RETRY.BACKOFF_FACTOR, RETRY.MAX_DELAY);
+		}
+	}
+
+	throw lastError || new Error(`${options.logContext} failed`);
+};
+
 class APIClient {
 	private baseURL: string;
 	private defaultHeaders: Record<string, string>;
@@ -95,12 +131,8 @@ class APIClient {
 			timeout = API_TIMEOUT.DEFAULT,
 		} = config;
 
-		// Simple retry logic with exponential backoff
-		let lastError: Error | undefined;
-		let delay: number = RETRY.INITIAL_DELAY;
-
-		for (let attempt = 0; attempt <= RETRY.MAX_ATTEMPTS; attempt++) {
-			try {
+		return withRetry(
+			async () => {
 				const url = `${this.baseURL}${endpoint}`;
 
 				const isFormData = body instanceof FormData;
@@ -115,7 +147,7 @@ class APIClient {
 						mergedHeaders["X-Organization-Id"] = selectedOrgId;
 					}
 				}
-				// Para uploads multipart, dejar que el navegador establezca Content-Type
+				// For multipart uploads, let browser set Content-Type
 				if (isFormData && "Content-Type" in mergedHeaders) {
 					delete mergedHeaders["Content-Type"];
 				}
@@ -180,36 +212,14 @@ class APIClient {
 					return null as T;
 				}
 
-				const data = await response.json();
-				return data;
-			} catch (error: unknown) {
-				lastError = error instanceof Error ? error : new Error(String(error));
-
-				// Don't retry if this is the last attempt
-				if (attempt === RETRY.MAX_ATTEMPTS) {
-					break;
-				}
-
-				// Check if we should retry this error
-				const shouldRetry = this.isRetryableError(error);
-				if (!shouldRetry) {
-					throw lastError;
-				}
-
-				// Log retry attempt
-				logger.warn(
-					`Retrying request (attempt ${attempt + 1}): ${endpoint}`,
-					"APIClient",
-				);
-
-				// Wait before retrying with exponential backoff
-				await new Promise((resolve) => setTimeout(resolve, delay));
-				delay = Math.min(delay * RETRY.BACKOFF_FACTOR, RETRY.MAX_DELAY);
-			}
-		}
-
-		// All retries failed
-		throw lastError || new Error("Request failed");
+				return await response.json();
+			},
+			{
+				endpoint,
+				logContext: "request",
+				isRetryable: (error) => this.isRetryableError(error),
+			},
+		);
 	}
 
 	// Helper to determine if an error is retryable
@@ -312,11 +322,8 @@ class APIClient {
 			timeout = API_TIMEOUT.DEFAULT,
 		} = config;
 
-		let lastError: Error | undefined;
-		let delay: number = RETRY.INITIAL_DELAY;
-
-		for (let attempt = 0; attempt <= RETRY.MAX_ATTEMPTS; attempt++) {
-			try {
+		return withRetry(
+			async () => {
 				const url = `${this.baseURL}${endpoint}`;
 				const mergedHeaders: Record<string, string> = {
 					...this.defaultHeaders,
@@ -357,29 +364,13 @@ class APIClient {
 				}
 
 				return await response.blob();
-			} catch (error: unknown) {
-				lastError = error instanceof Error ? error : new Error(String(error));
-
-				if (attempt === RETRY.MAX_ATTEMPTS) {
-					break;
-				}
-
-				const shouldRetry = this.isRetryableError(error);
-				if (!shouldRetry) {
-					throw lastError;
-				}
-
-				logger.warn(
-					`Retrying download (attempt ${attempt + 1}): ${endpoint}`,
-					"APIClient",
-				);
-
-				await new Promise((resolve) => setTimeout(resolve, delay));
-				delay = Math.min(delay * RETRY.BACKOFF_FACTOR, RETRY.MAX_DELAY);
-			}
-		}
-
-		throw lastError || new Error("Download failed");
+			},
+			{
+				endpoint,
+				logContext: "download",
+				isRetryable: (error) => this.isRetryableError(error),
+			},
+		);
 	}
 
 	// File upload helper

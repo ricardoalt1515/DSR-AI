@@ -204,6 +204,11 @@ lib/templates/
 - ✅ Referencias a nuevo sistema
 - ✅ Estado de migración
 
+**UI cleanup adicional (Enero 2026):**
+- Eliminados dialogs ocultos de "Templates Coming Soon" y "Copy from Another Project" en
+  `components/features/projects/technical-data-sheet.tsx`.
+- Los dialogs no estaban expuestos en la UI y generaban deuda/confusión.
+
 **Próximos pasos:**
 - ⏳ Eliminar archivos deprecated (próximo sprint)
 - ⏳ Update imports restantes

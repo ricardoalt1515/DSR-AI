@@ -1,6 +1,24 @@
 import { apiClient } from "./client";
 import type { User, UserRole } from "@/lib/types/user";
 
+/** Backend response shape for user data (snake_case) */
+interface AdminUserResponse {
+	id: string;
+	email: string;
+	first_name: string;
+	last_name: string;
+	company_name?: string | null;
+	location?: string | null;
+	sector?: string | null;
+	subsector?: string | null;
+	is_verified?: boolean;
+	is_active?: boolean;
+	created_at?: string;
+	is_superuser?: boolean;
+	role?: UserRole;
+	organization_id?: string | null;
+}
+
 export interface AdminCreateUserInput {
 	email: string;
 	password: string;
@@ -17,7 +35,7 @@ export interface AdminUpdateUserInput {
 	role?: UserRole;
 }
 
-function transformUser(response: any): User {
+function transformUser(response: AdminUserResponse): User {
 	return {
 		id: response.id,
 		email: response.email,
@@ -38,7 +56,7 @@ function transformUser(response: any): User {
 
 export class AdminUsersAPI {
 	static async list(): Promise<User[]> {
-		const data = await apiClient.get<any[]>("/admin/users");
+		const data = await apiClient.get<AdminUserResponse[]>("/admin/users");
 		return data.map(transformUser);
 	}
 
@@ -52,7 +70,10 @@ export class AdminUsersAPI {
 			is_active: true,
 			role: payload.role ?? "field_agent",
 		};
-		const response = await apiClient.post<any>("/admin/users", body);
+		const response = await apiClient.post<AdminUserResponse>(
+			"/admin/users",
+			body,
+		);
 		return transformUser(response);
 	}
 
@@ -70,7 +91,10 @@ export class AdminUsersAPI {
 				([, value]) => value !== undefined && value !== null && value !== "",
 			),
 		);
-		const response = await apiClient.patch<any>(`/admin/users/${userId}`, body);
+		const response = await apiClient.patch<AdminUserResponse>(
+			`/admin/users/${userId}`,
+			body,
+		);
 		return transformUser(response);
 	}
 }

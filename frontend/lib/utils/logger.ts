@@ -5,6 +5,16 @@
 
 const isDev = process.env.NODE_ENV === "development";
 
+/**
+ * Extract error message from unknown error type
+ * Replaces repeated `error instanceof Error ? error.message : "fallback"` pattern
+ */
+export function getErrorMessage(error: unknown, fallback = "Unknown error"): string {
+	if (error instanceof Error) return error.message;
+	if (typeof error === "string") return error;
+	return fallback;
+}
+
 export const logger = {
 	/**
 	 * Error level - critical issues

@@ -449,7 +449,7 @@ body {
 
 /* Motion Utilities */
 .transition-base {
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), opacity var(--transition-base), box-shadow var(--transition-base);
 }
 
 .focus-ring {
@@ -498,7 +498,7 @@ body {
   --button-shadow: var(--shadow-sm-eng);
   --button-hover-shadow: var(--shadow-md-eng);
   box-shadow: var(--button-shadow);
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
 .button-eng:hover {
@@ -517,7 +517,7 @@ body {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm-eng);
   border-radius: var(--radius-lg);
-  transition: all var(--transition-base);
+  transition: box-shadow var(--transition-base);
 }
 
 .surface-engineering:hover {
@@ -587,12 +587,12 @@ body {
 
 /* Consistent Transitions */
 .transition-eng {
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), opacity var(--transition-base), box-shadow var(--transition-base);
 }
 
 /* Enhanced Hover Effects for Cards */
 .card-hover {
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
   will-change: transform;
 }
 
@@ -863,7 +863,7 @@ body {
 
 /* Interactive effects */
 .hover-lift {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hover-lift:hover {
@@ -874,7 +874,7 @@ body {
 }
 
 .hover-glow {
-  transition: all 0.3s ease;
+  transition: box-shadow 0.3s ease;
   position: relative;
 }
 
@@ -968,7 +968,9 @@ body {
     inset 0 1px 0 color-mix(in srgb, white 20%, transparent);
 
   /* Smooth transitions */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              backdrop-filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Performance optimization */
   will-change: backdrop-filter, transform;
@@ -1055,7 +1057,8 @@ body {
   box-shadow:
     0 8px 32px color-mix(in srgb, var(--primary) 10%, transparent),
     inset 0 2px 0 color-mix(in srgb, white 20%, transparent);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark .glass-bubble {
@@ -1213,7 +1216,7 @@ body {
     border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(18px);
-    transition: all var(--transition-base);
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
   }
 
   .aqua-panel::before {
@@ -1260,7 +1263,8 @@ body {
   }
 
   .aqua-toolbar {
-    @apply flex flex-wrap items-center justify-between gap-4 rounded-full border border-border/40 bg-card/60 p-4 shadow-lg backdrop-blur-xl transition-all duration-300;
+    @apply flex flex-wrap items-center justify-between gap-4 rounded-full border border-border/40 bg-card/60 p-4 shadow-lg backdrop-blur-xl;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
 
   .aqua-toolbar:hover {
@@ -1523,7 +1527,7 @@ body {
 /* Section Card States */
 .section-card {
   @apply rounded-xl border;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .section-card--incomplete {
@@ -1568,7 +1572,8 @@ body {
 
 /* Field Input States */
 .field-input {
-  @apply transition-all duration-150;
+  @apply duration-150;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field-input--empty {

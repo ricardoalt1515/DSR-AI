@@ -11,7 +11,7 @@ import type {
 	CompanySummary,
 	CompanyUpdate,
 } from "@/lib/types/company";
-import { logger } from "@/lib/utils/logger";
+import { getErrorMessage, logger } from "@/lib/utils/logger";
 
 interface CompanyState {
 	// State
@@ -54,8 +54,7 @@ export const useCompanyStore = create<CompanyState>()(
 						state.loading = false;
 					});
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to load companies";
+					const message = getErrorMessage(error, "Failed to load companies");
 					logger.error("Failed to load companies", error, "CompanyStore");
 					set((state) => {
 						state.error = message;
@@ -79,8 +78,7 @@ export const useCompanyStore = create<CompanyState>()(
 						state.loading = false;
 					});
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to load company";
+					const message = getErrorMessage(error, "Failed to load company");
 					logger.error(`Failed to load company ${id}`, error, "CompanyStore");
 					set((state) => {
 						state.error = message;
@@ -107,8 +105,7 @@ export const useCompanyStore = create<CompanyState>()(
 					logger.info(`Company created: ${company.name}`, "CompanyStore");
 					return company;
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to create company";
+					const message = getErrorMessage(error, "Failed to create company");
 					logger.error("Failed to create company", error, "CompanyStore");
 					set((state) => {
 						state.error = message;
@@ -140,8 +137,7 @@ export const useCompanyStore = create<CompanyState>()(
 					logger.info(`Company updated: ${company.name}`, "CompanyStore");
 					return company;
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to update company";
+					const message = getErrorMessage(error, "Failed to update company");
 					logger.error(`Failed to update company ${id}`, error, "CompanyStore");
 					set((state) => {
 						state.error = message;
@@ -169,8 +165,7 @@ export const useCompanyStore = create<CompanyState>()(
 					});
 					logger.info(`Company deleted: ${id}`, "CompanyStore");
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to delete company";
+					const message = getErrorMessage(error, "Failed to delete company");
 					logger.error(`Failed to delete company ${id}`, error, "CompanyStore");
 					set((state) => {
 						state.error = message;

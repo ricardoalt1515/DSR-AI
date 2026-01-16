@@ -4,6 +4,7 @@ import type {
 	ProjectFileDetail,
 	ProjectSummary,
 } from "../project-types";
+import { getErrorMessage } from "../utils/logger";
 import { apiClient } from "./client";
 import type { PaginatedResponse } from "./index";
 
@@ -164,9 +165,7 @@ export class ProjectsAPI {
 			}
 			return await blobResponse.blob();
 		} catch (error) {
-			throw new Error(
-				`Download failed: ${error instanceof Error ? error.message : "Network error"}`,
-			);
+			throw new Error(`Download failed: ${getErrorMessage(error, "Network error")}`);
 		}
 	}
 

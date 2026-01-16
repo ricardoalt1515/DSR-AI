@@ -10,7 +10,7 @@ import {
 	Save,
 	X,
 } from "lucide-react";
-import React, { useRef, useMemo } from "react";
+import { type KeyboardEvent, type RefObject, useMemo, useRef } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -21,7 +21,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -38,7 +37,7 @@ import { TagInput } from "@/components/ui/tag-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useClickOutside } from "@/lib/hooks/use-click-outside";
 import { useFieldEditor } from "@/lib/hooks/use-field-editor";
-import type { DataSource, TableField } from "@/lib/types/technical-data";
+import type { TableField } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 
 /**
@@ -66,31 +65,6 @@ interface FieldEditorProps {
 	className?: string;
 }
 
-const sourceConfig: Record<
-	DataSource,
-	{
-		label: string;
-		variant: "default" | "secondary" | "destructive" | "outline";
-		icon: React.ComponentType<{ className?: string }>;
-	}
-> = {
-	manual: {
-		label: "Manual",
-		variant: "outline",
-		icon: Edit3,
-	},
-	imported: {
-		label: "Importado",
-		variant: "secondary",
-		icon: ({ className }) => <span className={className}>📁</span>,
-	},
-	ai: {
-		label: "IA",
-		variant: "default",
-		icon: ({ className }) => <span className={className}>🤖</span>,
-	},
-};
-
 export function FieldEditor({
 	field,
 	sectionId,
@@ -110,15 +84,12 @@ export function FieldEditor({
 			onSave(sectionId, field.id, value, unit, notes),
 	});
 
-	// ✅ Defensive: fallback to "manual" if source is undefined (legacy data)
-	const sourceInfo = sourceConfig[field.source ?? "manual"];
-
 	// ✅ Click outside to save and close editing mode
 	// Note: useClickOutside ignores Radix Portals (Select dropdowns, Combobox, etc.)
 	// so clicking on dropdown options won't trigger premature save
 	const editorRef = useRef<HTMLDivElement>(null);
 	useClickOutside(
-		editorRef as React.RefObject<HTMLElement>,
+		editorRef as RefObject<HTMLElement>,
 		() => {
 			if (state.mode === "editing" && autoSave) {
 				actions.save();
@@ -128,7 +99,7 @@ export function FieldEditor({
 	);
 
 	// ✅ Keyboard shortcuts
-	const handleKeyDown = (e: React.KeyboardEvent) => {
+	const handleKeyDown = (e: KeyboardEvent) => {
 		if (e.key === "Enter" && !e.shiftKey && !field.multiline) {
 			e.preventDefault();
 			actions.save();
@@ -258,7 +229,7 @@ export function FieldEditor({
 	};
 
 	// ✅ Display value para modo viewing
-	const displayValue = React.useMemo(() => {
+	const displayValue = useMemo(() => {
 		if (field.type === "unit" && field.unit) {
 			return field.value ? `${field.value} ${field.unit}` : "";
 		}

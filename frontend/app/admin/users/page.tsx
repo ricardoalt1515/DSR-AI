@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	type ColumnDef,
 	type ColumnFiltersState,
 	flexRender,
 	getCoreRowModel,
@@ -12,19 +11,15 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import {
-	ArrowUpDown,
-	Ban,
 	ChevronLeft,
 	ChevronRight,
-	RefreshCcw,
 	Search,
 	ShieldCheck,
 	UserPlus,
 	X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -33,16 +28,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -59,42 +45,22 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-	adminUsersAPI,
-	type AdminCreateUserInput,
-	type AdminUpdateUserInput,
-	type User,
-	type UserRole,
-} from "@/lib/api";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { type AdminUpdateUserInput, adminUsersAPI, type User } from "@/lib/api";
 import { useAuth } from "@/lib/contexts";
-
-const PASSWORD_HINT = "Min 8 chars, 1 uppercase, 1 number";
+import {
+	CreateAdminDialog,
+	getColumns,
+	ResetPasswordDialog,
+} from "./components";
 
 export default function AdminUsersPage() {
-	const { isSuperAdmin, user: currentUser } = useAuth();
+	const { isSuperAdmin, isLoading: authLoading, user: currentUser } = useAuth();
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [modalOpen, setModalOpen] = useState(false);
-	const [form, setForm] = useState({
-		email: "",
-		password: "",
-		confirmPassword: "",
-		firstName: "",
-		lastName: "",
-		role: "admin" as UserRole,
-	});
-	const [submitting, setSubmitting] = useState(false);
 	const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 	const [resetUserId, setResetUserId] = useState<string | null>(null);
-	const [resetPassword, setResetPassword] = useState("");
-	const [resetConfirmPassword, setResetConfirmPassword] = useState("");
-	const [resetSubmitting, setResetSubmitting] = useState(false);
 
 	// TanStack Table state
 	const [sorting, setSorting] = useState<SortingState>([]);
@@ -116,122 +82,41 @@ export default function AdminUsersPage() {
 		fetchUsers();
 	}, [isSuperAdmin]);
 
-	const handleInputChange = (field: keyof typeof form, value: string) => {
-		setForm((prev) => ({ ...prev, [field]: value }));
-	};
-
-	const resetForm = () => {
-		setForm({
-			email: "",
-			password: "",
-			confirmPassword: "",
-			firstName: "",
-			lastName: "",
-			role: "admin",
-		});
-	};
-
-	const canSubmitForm = useMemo(() => {
-		return (
-			form.email.trim() !== "" &&
-			form.password.length >= 8 &&
-			/[A-Z]/.test(form.password) &&
-			/[0-9]/.test(form.password) &&
-			form.password === form.confirmPassword &&
-			form.firstName.trim() !== "" &&
-			form.lastName.trim() !== ""
-		);
-	}, [form]);
-
-	const canSubmitReset = useMemo(
-		() =>
-			resetPassword.length >= 8 &&
-			/[A-Z]/.test(resetPassword) &&
-			/[0-9]/.test(resetPassword) &&
-			resetPassword === resetConfirmPassword,
-		[resetPassword, resetConfirmPassword],
+	const handleUpdateUser = useCallback(
+		async (
+			userId: string,
+			updates: AdminUpdateUserInput,
+			successMessage: string,
+		): Promise<{ ok: boolean }> => {
+			setUpdatingUserId(userId);
+			try {
+				const updated = await adminUsersAPI.update(userId, updates);
+				setUsers((prev) =>
+					prev.map((user) => (user.id === userId ? updated : user)),
+				);
+				toast.success(successMessage);
+				return { ok: true };
+			} catch (error) {
+				const message =
+					error instanceof Error && error.message
+						? error.message
+						: "Failed to update user";
+				toast.error(message);
+				return { ok: false };
+			} finally {
+				setUpdatingUserId(null);
+			}
+		},
+		[],
 	);
 
-	const handleCreateUser = async () => {
-		if (!canSubmitForm) return;
-		setSubmitting(true);
-		const payload: AdminCreateUserInput = {
-			email: form.email.trim(),
-			password: form.password,
-			firstName: form.firstName.trim(),
-			lastName: form.lastName.trim(),
-			isSuperuser: true,
-			role: "admin",
-		};
-		try {
-			const newUser = await adminUsersAPI.create(payload);
-			setUsers((prev) => [newUser, ...prev]);
-			toast.success("User created");
-			setModalOpen(false);
-			resetForm();
-		} catch {
-			toast.error("Failed to create user");
-		} finally {
-			setSubmitting(false);
-		}
-	};
-
-	const handleOpenResetDialog = (userId: string) => {
+	const handleOpenResetDialog = useCallback((userId: string) => {
 		setResetUserId(userId);
-		setResetPassword("");
-		setResetConfirmPassword("");
-	};
+	}, []);
 
-	const handleResetPassword = async () => {
-		if (!resetUserId || !canSubmitReset) return;
-		setResetSubmitting(true);
-		const targetUser = users.find((user) => user.id === resetUserId);
-		const name = targetUser ? targetUser.firstName : "User";
-		try {
-			await handleUpdateUser(
-				resetUserId,
-				{ password: resetPassword },
-				`Password for ${name} updated`,
-			);
-			setResetUserId(null);
-			setResetPassword("");
-			setResetConfirmPassword("");
-		} finally {
-			setResetSubmitting(false);
-		}
-	};
-
-	const handleUpdateUser = async (
-		userId: string,
-		updates: AdminUpdateUserInput,
-		successMessage: string,
-	) => {
-		setUpdatingUserId(userId);
-		try {
-			const updated = await adminUsersAPI.update(userId, updates);
-			setUsers((prev) =>
-				prev.map((user) => (user.id === userId ? updated : user)),
-			);
-			toast.success(successMessage);
-		} catch (error) {
-			const message =
-				error instanceof Error && error.message
-					? error.message
-					: "Failed to update user";
-			toast.error(message);
-		} finally {
-			setUpdatingUserId(null);
-		}
-	};
-
-	const formatMemberSince = (dateString: string) => {
-		const date = new Date(dateString);
-		if (Number.isNaN(date.getTime())) return "--";
-		return date.toLocaleDateString(undefined, {
-			month: "short",
-			year: "numeric",
-		});
-	};
+	const handleUserCreated = useCallback((newUser: User) => {
+		setUsers((prev) => [newUser, ...prev]);
+	}, []);
 
 	const activeAdmins = users.filter(
 		(user) => user.isSuperuser && user.isActive,
@@ -239,205 +124,28 @@ export default function AdminUsersPage() {
 	const lastActiveAdminId =
 		activeAdmins.length === 1 ? (activeAdmins[0]?.id ?? null) : null;
 
-	// Column definitions
-	const columns: ColumnDef<User>[] = useMemo(
-		() => [
-			{
-				accessorKey: "firstName",
-				header: ({ column }) => (
-					<Button
-						variant="ghost"
-						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-						className="h-8 px-2 -ml-2"
-					>
-						Name
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				),
-				cell: ({ row }) => {
-					const user = row.original;
-					return (
-						<div>
-							<div className="flex items-center gap-2 flex-wrap">
-								<span className="font-medium">
-									{user.firstName} {user.lastName}
-								</span>
-								{currentUser?.id === user.id && (
-									<Badge variant="outline" className="text-xs">
-										You
-									</Badge>
-								)}
-								{user.isSuperuser && (
-									<Badge className="text-xs bg-amber-500/15 text-amber-600 border-amber-500/40">
-										Admin
-									</Badge>
-								)}
-							</div>
-							<div className="text-xs text-muted-foreground">
-								Member since {formatMemberSince(user.createdAt)}
-							</div>
-						</div>
-					);
-				},
-			},
-			{
-				accessorKey: "email",
-				header: ({ column }) => (
-					<Button
-						variant="ghost"
-						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-						className="h-8 px-2 -ml-2"
-					>
-						Email
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				),
-				cell: ({ row }) => (
-					<span className="font-mono text-sm">{row.getValue("email")}</span>
-				),
-			},
-			{
-				accessorKey: "isActive",
-				header: "Status",
-				cell: ({ row }) => {
-					const user = row.original;
-					return (
-						<div className="flex flex-col space-y-0.5">
-							<span
-								className={
-									user.isActive ? "text-green-600" : "text-muted-foreground"
-								}
-							>
-								{user.isActive ? "Active" : "Disabled"}
-							</span>
-							{!user.isVerified && (
-								<span className="text-xs text-muted-foreground">
-									Unverified
-								</span>
-							)}
-						</div>
-					);
-				},
-				filterFn: (row, id, value) => {
-					if (value === "all") return true;
-					return row.getValue(id) === (value === "active");
-				},
-			},
-			{
-				id: "actions",
-				header: () => <span className="sr-only">Actions</span>,
-				cell: ({ row }) => {
-					const user = row.original;
-					const isSelf = currentUser?.id === user.id;
-					const isLastActiveAdmin =
-						user.isSuperuser && user.isActive && lastActiveAdminId === user.id;
-					const isTenantUser = user.organizationId !== null;
-					const disableRoleChange = isSelf || isLastActiveAdmin || isTenantUser;
-					const disableStatusChange =
-						isSelf || isLastActiveAdmin || isTenantUser;
+	const resetUserName = useMemo(() => {
+		if (!resetUserId) return "";
+		const user = users.find((u) => u.id === resetUserId);
+		return user?.firstName ?? "User";
+	}, [resetUserId, users]);
 
-					const roleTooltipMessage = isTenantUser
-						? "Manage tenant users via organizations"
-						: isSelf
-							? "You can't change your own role"
-							: isLastActiveAdmin
-								? "Keep at least one active admin"
-								: "";
-
-					const statusTooltipMessage = isTenantUser
-						? "Manage tenant users via organizations"
-						: isSelf
-							? "You can't deactivate your own account"
-							: isLastActiveAdmin
-								? "Keep at least one active admin"
-								: "";
-
-					const roleButton = (
-						<Button
-							variant={user.isSuperuser ? "outline" : "secondary"}
-							size="sm"
-							disabled={disableRoleChange || updatingUserId === user.id}
-							onClick={() => {
-								if (user.isSuperuser) return;
-								handleUpdateUser(
-									user.id,
-									{ isSuperuser: true, role: "admin" },
-									`${user.firstName} promoted to Admin`,
-								);
-							}}
-						>
-							{updatingUserId === user.id ? (
-								<RefreshCcw className="h-4 w-4 animate-spin" />
-							) : user.isSuperuser ? (
-								"Admin"
-							) : (
-								"Make Admin"
-							)}
-						</Button>
-					);
-
-					const statusButton = (
-						<Button
-							variant={user.isActive ? "destructive" : "secondary"}
-							size="sm"
-							disabled={disableStatusChange || updatingUserId === user.id}
-							onClick={() =>
-								handleUpdateUser(
-									user.id,
-									{ isActive: !user.isActive },
-									user.isActive
-										? `${user.firstName} deactivated`
-										: `${user.firstName} reactivated`,
-								)
-							}
-						>
-							{updatingUserId === user.id ? (
-								<RefreshCcw className="h-4 w-4 animate-spin" />
-							) : user.isActive ? (
-								<Ban className="h-4 w-4" />
-							) : (
-								"Activate"
-							)}
-						</Button>
-					);
-
-					return (
-						<div className="flex items-center justify-end gap-2">
-							{roleTooltipMessage ? (
-								<Tooltip>
-									<TooltipTrigger asChild>{roleButton}</TooltipTrigger>
-									<TooltipContent>{roleTooltipMessage}</TooltipContent>
-								</Tooltip>
-							) : (
-								roleButton
-							)}
-							{statusTooltipMessage ? (
-								<Tooltip>
-									<TooltipTrigger asChild>{statusButton}</TooltipTrigger>
-									<TooltipContent>{statusTooltipMessage}</TooltipContent>
-								</Tooltip>
-							) : (
-								statusButton
-							)}
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={isTenantUser}
-								title={
-									isTenantUser
-										? "Manage tenant users via organizations"
-										: undefined
-								}
-								onClick={() => handleOpenResetDialog(user.id)}
-							>
-								Reset
-							</Button>
-						</div>
-					);
-				},
-			},
+	const columns = useMemo(
+		() =>
+			getColumns({
+				currentUserId: currentUser?.id,
+				lastActiveAdminId,
+				updatingUserId,
+				onUpdateUser: handleUpdateUser,
+				onOpenResetDialog: handleOpenResetDialog,
+			}),
+		[
+			currentUser?.id,
+			lastActiveAdminId,
+			updatingUserId,
+			handleUpdateUser,
+			handleOpenResetDialog,
 		],
-		[currentUser?.id, lastActiveAdminId, updatingUserId, handleUpdateUser],
 	);
 
 	const table = useReactTable({
@@ -463,6 +171,17 @@ export default function AdminUsersPage() {
 		},
 	});
 
+	if (authLoading) {
+		return (
+			<div className="container mx-auto py-8">
+				<div className="space-y-3">
+					<Skeleton className="h-10 w-64" />
+					<Skeleton className="h-64 w-full" />
+				</div>
+			</div>
+		);
+	}
+
 	if (!isSuperAdmin) {
 		return (
 			<div className="container mx-auto py-8">
@@ -484,15 +203,19 @@ export default function AdminUsersPage() {
 				<div className="flex items-center justify-between flex-wrap gap-4">
 					<div>
 						<h1 className="text-2xl font-bold flex items-center gap-2">
-							<ShieldCheck className="h-6 w-6 text-amber-500" /> Platform
-							Administrators
+							<ShieldCheck
+								className="h-6 w-6 text-amber-500"
+								aria-hidden="true"
+							/>
+							Platform Administrators
 						</h1>
 						<p className="text-muted-foreground">
 							Superuser accounts with full platform access.
 						</p>
 					</div>
 					<Button onClick={() => setModalOpen(true)}>
-						<UserPlus className="mr-2 h-4 w-4" /> New Admin
+						<UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
+						New Admin
 					</Button>
 				</div>
 
@@ -508,7 +231,8 @@ export default function AdminUsersPage() {
 							<div className="space-y-3">
 								<Skeleton className="h-10 w-64" />
 								{Array.from({ length: 4 }).map((_, idx) => (
-									<Skeleton key={idx} className="h-16 w-full" />
+									// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton placeholders never reorder
+									<Skeleton key={`skeleton-${idx}`} className="h-16 w-full" />
 								))}
 							</div>
 						) : users.length === 0 ? (
@@ -520,9 +244,15 @@ export default function AdminUsersPage() {
 								{/* Search and Filters */}
 								<div className="flex flex-col sm:flex-row gap-3">
 									<div className="relative flex-1">
-										<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+										<Search
+											className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+											aria-hidden="true"
+										/>
 										<Input
-											placeholder="Search administrators..."
+											type="search"
+											name="search"
+											placeholder="Search administrators\u2026"
+											aria-label="Search administrators"
 											value={globalFilter}
 											onChange={(e) => setGlobalFilter(e.target.value)}
 											className="pl-9 pr-9 max-w-sm"
@@ -531,10 +261,10 @@ export default function AdminUsersPage() {
 											<button
 												type="button"
 												onClick={() => setGlobalFilter("")}
-												className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+												className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
 												aria-label="Clear search"
 											>
-												<X className="h-4 w-4" />
+												<X className="h-4 w-4" aria-hidden="true" />
 											</button>
 										)}
 									</div>
@@ -550,7 +280,10 @@ export default function AdminUsersPage() {
 												?.setFilterValue(value === "all" ? undefined : value)
 										}
 									>
-										<SelectTrigger className="w-[130px]">
+										<SelectTrigger
+											className="w-[130px]"
+											aria-label="Filter by status"
+										>
 											<SelectValue placeholder="All Status" />
 										</SelectTrigger>
 										<SelectContent>
@@ -613,7 +346,7 @@ export default function AdminUsersPage() {
 
 								{/* Pagination */}
 								<div className="flex items-center justify-between">
-									<p className="text-sm text-muted-foreground">
+									<p className="text-sm text-muted-foreground tabular-nums">
 										Showing {table.getRowModel().rows.length} of{" "}
 										{table.getFilteredRowModel().rows.length} administrators
 									</p>
@@ -624,10 +357,10 @@ export default function AdminUsersPage() {
 											onClick={() => table.previousPage()}
 											disabled={!table.getCanPreviousPage()}
 										>
-											<ChevronLeft className="h-4 w-4" />
+											<ChevronLeft className="h-4 w-4" aria-hidden="true" />
 											Previous
 										</Button>
-										<span className="text-sm text-muted-foreground">
+										<span className="text-sm text-muted-foreground tabular-nums">
 											Page {table.getState().pagination.pageIndex + 1} of{" "}
 											{table.getPageCount()}
 										</span>
@@ -638,7 +371,7 @@ export default function AdminUsersPage() {
 											disabled={!table.getCanNextPage()}
 										>
 											Next
-											<ChevronRight className="h-4 w-4" />
+											<ChevronRight className="h-4 w-4" aria-hidden="true" />
 										</Button>
 									</div>
 								</div>
@@ -647,175 +380,18 @@ export default function AdminUsersPage() {
 					</CardContent>
 				</Card>
 
-				{/* Create Platform Admin Dialog */}
-				<Dialog open={modalOpen} onOpenChange={setModalOpen}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>Create Platform Admin</DialogTitle>
-							<DialogDescription>
-								Create a new superuser with full platform access.
-							</DialogDescription>
-						</DialogHeader>
-						<div className="grid gap-4">
-							<div className="grid gap-2">
-								<Label htmlFor="email">Email</Label>
-								<Input
-									id="email"
-									type="email"
-									value={form.email}
-									onChange={(e) => handleInputChange("email", e.target.value)}
-									placeholder="user@example.com"
-								/>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div className="grid gap-2">
-									<Label htmlFor="firstName">First Name</Label>
-									<Input
-										id="firstName"
-										value={form.firstName}
-										onChange={(e) =>
-											handleInputChange("firstName", e.target.value)
-										}
-										placeholder="Jane"
-									/>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="lastName">Last Name</Label>
-									<Input
-										id="lastName"
-										value={form.lastName}
-										onChange={(e) =>
-											handleInputChange("lastName", e.target.value)
-										}
-										placeholder="Doe"
-									/>
-								</div>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="password">Password</Label>
-								<Input
-									id="password"
-									type="password"
-									value={form.password}
-									onChange={(e) =>
-										handleInputChange("password", e.target.value)
-									}
-									placeholder="StrongPassword1"
-								/>
-								<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="confirmPassword">Confirm Password</Label>
-								<Input
-									id="confirmPassword"
-									type="password"
-									value={form.confirmPassword}
-									onChange={(e) =>
-										handleInputChange("confirmPassword", e.target.value)
-									}
-									placeholder="StrongPassword1"
-								/>
-								{form.confirmPassword &&
-									form.password !== form.confirmPassword && (
-										<p className="text-xs text-destructive">
-											Passwords do not match
-										</p>
-									)}
-							</div>
-							<div className="grid gap-2">
-								<Label>Role</Label>
-								<Input value="Platform Admin" disabled />
-							</div>
-						</div>
-						<DialogFooter>
-							<Button variant="outline" onClick={() => setModalOpen(false)}>
-								Cancel
-							</Button>
-							<Button
-								onClick={handleCreateUser}
-								disabled={!canSubmitForm || submitting}
-							>
-								{submitting ? (
-									<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-								) : (
-									<UserPlus className="mr-2 h-4 w-4" />
-								)}
-								Create Admin
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+				<CreateAdminDialog
+					open={modalOpen}
+					onOpenChange={setModalOpen}
+					onUserCreated={handleUserCreated}
+				/>
 
-				{/* Reset Password Dialog */}
-				<Dialog
-					open={resetUserId !== null}
-					onOpenChange={(open) => {
-						if (!open) {
-							setResetUserId(null);
-							setResetPassword("");
-							setResetConfirmPassword("");
-						}
-					}}
-				>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>Reset password</DialogTitle>
-							<DialogDescription>
-								Set a new password for this user. Share it securely with them.
-							</DialogDescription>
-						</DialogHeader>
-						<div className="grid gap-4">
-							<div className="grid gap-2">
-								<Label htmlFor="resetPassword">New password</Label>
-								<Input
-									id="resetPassword"
-									type="password"
-									value={resetPassword}
-									onChange={(e) => setResetPassword(e.target.value)}
-									placeholder="StrongPassword1"
-								/>
-								<p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="resetConfirmPassword">Confirm password</Label>
-								<Input
-									id="resetConfirmPassword"
-									type="password"
-									value={resetConfirmPassword}
-									onChange={(e) => setResetConfirmPassword(e.target.value)}
-									placeholder="StrongPassword1"
-								/>
-								{resetConfirmPassword &&
-									resetPassword !== resetConfirmPassword && (
-										<p className="text-xs text-destructive">
-											Passwords do not match
-										</p>
-									)}
-							</div>
-						</div>
-						<DialogFooter>
-							<Button
-								variant="outline"
-								onClick={() => {
-									setResetUserId(null);
-									setResetPassword("");
-									setResetConfirmPassword("");
-								}}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={handleResetPassword}
-								disabled={!canSubmitReset || resetSubmitting}
-							>
-								{resetSubmitting ? (
-									<RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-								) : null}
-								{resetSubmitting ? "Updating..." : "Update password"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+				<ResetPasswordDialog
+					userId={resetUserId}
+					userName={resetUserName}
+					onClose={() => setResetUserId(null)}
+					onUpdateUser={handleUpdateUser}
+				/>
 			</div>
 		</TooltipProvider>
 	);

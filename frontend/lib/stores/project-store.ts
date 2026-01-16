@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { useShallow } from "zustand/react/shallow";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
-import { logger } from "@/lib/utils/logger";
+import { getErrorMessage, logger } from "@/lib/utils/logger";
 import { type DashboardStats, projectsAPI } from "../api/projects";
 import { PROJECT_STATUS_GROUPS } from "../project-status";
 
@@ -174,8 +174,7 @@ export const useProjectStore = create<ProjectState>()(
 						state.dashboardStats = stats;
 					});
 				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Failed to load stats";
+					const message = getErrorMessage(error, "Failed to load stats");
 					logger.error("Failed to load dashboard stats", error, "ProjectStore");
 					set((state) => {
 						state.error = message;
@@ -245,8 +244,7 @@ export const useProjectStore = create<ProjectState>()(
 						projects: append ? get().projects : [],
 						loading: false,
 						dataSource: "api",
-						error:
-							error instanceof Error ? error.message : "Error loading projects",
+						error: getErrorMessage(error, "Error loading projects"),
 					});
 				}
 			},
@@ -302,8 +300,7 @@ export const useProjectStore = create<ProjectState>()(
 					set((state) => {
 						state.currentProject = null;
 						state.loading = false;
-						state.error =
-							error instanceof Error ? error.message : "Failed to load project";
+						state.error = getErrorMessage(error, "Failed to load project");
 					});
 				}
 			},

@@ -6,6 +6,12 @@ const nextConfig = {
 	// Production optimizations
 	compress: true,
 
+	// Optimize barrel imports for faster builds and cold starts
+	// These libraries have many exports - this transforms barrel imports to direct imports
+	experimental: {
+		optimizePackageImports: ["lucide-react", "@tanstack/react-table", "zod"],
+	},
+
 	// ✅ Enable ESLint checks during builds for better code quality
 	// Changed to true temporarily to allow deployment with minor warnings
 	// TODO: Fix ESLint warnings and change back to false

@@ -10,7 +10,7 @@
 import type { AIMetadata } from "@/lib/types/proposal";
 import type { ProposalDTO } from "@/lib/types/proposal-dto";
 import { API_TIMEOUT } from "@/lib/constants/timings";
-import { logger } from "@/lib/utils/logger";
+import { getErrorMessage, logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
 
 // Re-export types for convenience

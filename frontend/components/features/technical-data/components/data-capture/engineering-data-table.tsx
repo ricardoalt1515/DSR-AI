@@ -73,12 +73,14 @@ interface FieldRow extends TableField {
 	lastModified?: string;
 }
 
+type FieldValue = TableField["value"];
+
 interface EngineeringDataTableProps {
 	sections: TableSection[];
 	onFieldChange: (
 		sectionId: string,
 		fieldId: string,
-		value: any,
+		value: FieldValue,
 		unit?: string,
 		source?: DataSource,
 	) => void;
@@ -86,7 +88,7 @@ interface EngineeringDataTableProps {
 		changes: Array<{
 			sectionId: string;
 			fieldId: string;
-			value: any;
+			value: FieldValue;
 			unit?: string;
 		}>,
 	) => void;
@@ -233,7 +235,7 @@ export function EngineeringDataTable({
 				const handleSave = (
 					sectionId: string,
 					fieldId: string,
-					value: string | number | string[],
+					value: FieldValue,
 					unit?: string,
 					_notes?: string,
 				) => {

@@ -18,7 +18,7 @@ export interface CustomSection {
 	fields: Array<{
 		id: string;
 		label: string;
-		value: any;
+		value: unknown;
 		type?: "text" | "number" | "select" | "textarea";
 	}>;
 }
@@ -28,7 +28,7 @@ export interface ProjectData {
 	basic_info?: {
 		company_name?: string;
 		location?: string;
-		[key: string]: any;
+		[key: string]: unknown;
 	};
 
 	// Water quality parameters
@@ -40,7 +40,7 @@ export interface ProjectData {
 	sections?: CustomSection[];
 
 	// Allow any additional fields
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export interface ProjectDataResponse {
@@ -196,17 +196,18 @@ export class ProjectDataAPI {
 	static async updateField(
 		projectId: string,
 		path: string,
-		value: any,
+		value: unknown,
 	): Promise<ProjectDataSyncResult> {
 		const keys = path.split(".");
-		const updates: any = {};
+		const updates: Record<string, unknown> = {};
 
-		let current = updates;
+		let current: Record<string, unknown> = updates;
 		for (let i = 0; i < keys.length - 1; i++) {
 			const key = keys[i];
 			if (key) {
-				current[key] = {};
-				current = current[key];
+				const next: Record<string, unknown> = {};
+				current[key] = next;
+				current = next;
 			}
 		}
 		const lastKey = keys[keys.length - 1];
