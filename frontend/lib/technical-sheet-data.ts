@@ -1,5 +1,5 @@
-import { getParameterById } from "@/lib/parameters";
 import type { ProjectDataSyncResult } from "@/lib/api/project-data";
+import { getParameterById } from "@/lib/parameters";
 import type {
 	DataSource,
 	TableField,

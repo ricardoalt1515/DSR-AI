@@ -52,7 +52,10 @@ function ListSection({
 			<p className="text-sm font-medium mb-2">{title}</p>
 			<ul className="space-y-1">
 				{items.map((item, idx) => (
-					<li key={idx} className={className ?? "text-sm text-muted-foreground"}>
+					<li
+						key={idx}
+						className={className ?? "text-sm text-muted-foreground"}
+					>
 						* {item}
 					</li>
 				))}
@@ -114,7 +117,9 @@ export function ResourceConsiderationsCard({
 									</p>
 								</div>
 								<div>
-									<p className="text-sm font-medium mb-2">Benefit If Diverted</p>
+									<p className="text-sm font-medium mb-2">
+										Benefit If Diverted
+									</p>
 									<p className="text-sm text-green-600 dark:text-green-400">
 										{envImpact?.benefitIfDiverted}
 									</p>
@@ -131,10 +136,10 @@ export function ResourceConsiderationsCard({
 
 					{/* Material Safety Tab */}
 					<TabsContent value="safety" className="space-y-4 mt-4">
-					<div className="flex items-center gap-2">
-						<Badge variant={getHazardVariant(hazardLevel)}>
-							{hazardLevel} Hazard Level
-						</Badge>
+						<div className="flex items-center gap-2">
+							<Badge variant={getHazardVariant(hazardLevel)}>
+								{hazardLevel} Hazard Level
+							</Badge>
 							<span className="text-xs text-muted-foreground">
 								{ppeRequirements.length} PPE items required
 							</span>

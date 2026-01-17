@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-	Suspense,
 	lazy,
+	Suspense,
 	useCallback,
 	useEffect,
 	useMemo,

@@ -14,12 +14,14 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
  */
 import { useEffect, useState } from "react";
 import { PremiumProjectWizard } from "@/components/features/dashboard/components/premium-project-wizard";
+import { LocationContactsCard } from "@/components/features/locations/location-contacts-card";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { useLocationStore } from "@/lib/stores/location-store";
 
 export default function LocationDetailPage() {
@@ -29,6 +31,7 @@ export default function LocationDetailPage() {
 	const companyId = params.id as string;
 	const locationId = params.locationId as string;
 	const [wizardOpen, setWizardOpen] = useState(false);
+	const { canWriteLocationContacts } = useAuth();
 
 	const { currentLocation, loading, loadLocation, error, clearError } =
 		useLocationStore();
@@ -179,6 +182,13 @@ export default function LocationDetailPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			<LocationContactsCard
+				contacts={currentLocation.contacts ?? []}
+				locationId={locationId}
+				canWriteContacts={canWriteLocationContacts}
+				onContactsUpdated={() => loadLocation(locationId)}
+			/>
 
 			{/* Projects Section */}
 			<div className="space-y-4">

@@ -74,6 +74,13 @@ class Location(BaseModel):
         order_by="desc(Project.created_at)",
         lazy="selectin",  # Eager load projects
     )
+    contacts = relationship(
+        "LocationContact",
+        back_populates="location",
+        cascade="all, delete-orphan",
+        order_by="LocationContact.name",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         """Safe repr that doesn't trigger lazy loads or attribute refresh."""

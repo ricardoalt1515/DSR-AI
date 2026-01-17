@@ -33,6 +33,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { useCompanyStore } from "@/lib/stores/company-store";
 import { useLocationStore } from "@/lib/stores/location-store";
 import type { LocationSummary } from "@/lib/types/company";
@@ -41,6 +42,7 @@ export default function CompanyDetailPage() {
 	const params = useParams();
 	const router = useRouter();
 	const companyId = params.id as string;
+	const { canWriteClientData } = useAuth();
 
 	const {
 		currentCompany,
@@ -168,10 +170,12 @@ export default function CompanyDetailPage() {
 					{currentCompany.locationCount ?? 0}{" "}
 					{(currentCompany.locationCount ?? 0) === 1 ? "location" : "locations"}
 				</Badge>
-				<Button onClick={() => setEditCompanyDialogOpen(true)}>
-					<Edit className="mr-2 h-4 w-4" />
-					Edit Company
-				</Button>
+				{canWriteClientData && (
+					<Button onClick={() => setEditCompanyDialogOpen(true)}>
+						<Edit className="mr-2 h-4 w-4" />
+						Edit Company
+					</Button>
+				)}
 			</div>
 
 			{/* Company Info */}
@@ -271,13 +275,15 @@ export default function CompanyDetailPage() {
 						<MapPin className="h-6 w-6" />
 						Locations
 					</h2>
-					<CreateLocationDialog
-						companyId={companyId}
-						onSuccess={() => {
-							void loadCompany(companyId).catch(() => {});
-							void loadLocationsByCompany(companyId).catch(() => {});
-						}}
-					/>
+					{canWriteClientData && (
+						<CreateLocationDialog
+							companyId={companyId}
+							onSuccess={() => {
+								void loadCompany(companyId).catch(() => {});
+								void loadLocationsByCompany(companyId).catch(() => {});
+							}}
+						/>
+					)}
 				</div>
 
 				{locations.length === 0 ? (
@@ -286,21 +292,25 @@ export default function CompanyDetailPage() {
 							<MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
 							<h3 className="text-lg font-semibold mb-2">No locations yet</h3>
 							<p className="text-muted-foreground mb-4">
-								Add the first location for this company
+								{canWriteClientData
+									? "Add the first location for this company"
+									: "No locations have been added to this company yet"}
 							</p>
-							<CreateLocationDialog
-								companyId={companyId}
-								trigger={
-									<Button>
-										<Plus className="mr-2 h-4 w-4" />
-										Add First Location
-									</Button>
-								}
-								onSuccess={() => {
-									void loadCompany(companyId).catch(() => {});
-									void loadLocationsByCompany(companyId).catch(() => {});
-								}}
-							/>
+							{canWriteClientData && (
+								<CreateLocationDialog
+									companyId={companyId}
+									trigger={
+										<Button>
+											<Plus className="mr-2 h-4 w-4" />
+											Add First Location
+										</Button>
+									}
+									onSuccess={() => {
+										void loadCompany(companyId).catch(() => {});
+										void loadLocationsByCompany(companyId).catch(() => {});
+									}}
+								/>
+							)}
 						</CardContent>
 					</Card>
 				) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, ListChecks, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -20,11 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
-import { ProposalOverview } from "./proposal-overview";
 import { ExternalReportView } from "./external-report-view";
+import { ProposalOverview } from "./proposal-overview";
 import {
-	ReportAudienceToggle,
 	type ReportAudience,
+	ReportAudienceToggle,
 } from "./report-audience-toggle";
 import { QuickActionsCard } from "./sidebar";
 import type { Project, Proposal } from "./types";

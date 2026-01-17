@@ -8,8 +8,8 @@
  * "prebuild": "bun scripts/validate-env.ts"
  */
 
-import { resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 // Load environment variables from .env.local (Next.js does this automatically, but tsx doesn't)
 import { config } from "dotenv";
 

@@ -9,15 +9,15 @@
  */
 
 import {
+	Building2,
 	Check,
 	ChevronsUpDown,
-	Building2,
 	Factory,
 	Home,
 	Store,
 	Target,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -26,6 +26,7 @@ import {
 	CommandItem,
 	CommandList,
 } from "@/components/ui/command";
+import { Label } from "@/components/ui/label";
 import {
 	Popover,
 	PopoverContent,
@@ -38,9 +39,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import type { Sector, Subsector } from "@/lib/sectors-config";
-import { sectorsConfig, getSubsectors } from "@/lib/sectors-config";
+import { getSubsectors, sectorsConfig } from "@/lib/sectors-config";
 import { cn } from "@/lib/utils";
 
 // Icon mapping for sectors

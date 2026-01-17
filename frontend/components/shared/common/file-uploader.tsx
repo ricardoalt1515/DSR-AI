@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import type { UploadingFile } from "@/components/shared/common/file-uploader-sections";
 import {
 	FileDetailPanel,
-	UploadedFilesCard,
 	UploadDropZone,
+	UploadedFilesCard,
 	UploadingFilesCard,
 } from "@/components/shared/common/file-uploader-sections";
-import type { UploadingFile } from "@/components/shared/common/file-uploader-sections";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { projectsAPI } from "@/lib/api/projects";
 import { UI_DELAYS } from "@/lib/constants";
 import { formatFileSize } from "@/lib/format";

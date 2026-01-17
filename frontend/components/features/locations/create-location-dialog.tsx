@@ -1,11 +1,9 @@
 "use client";
 
+import { useForm } from "@tanstack/react-form";
 import { MapPin } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "@tanstack/react-form";
 import { Button } from "@/components/ui/button";
-import { LoadingButton } from "@/components/ui/loading-button";
-
 import {
 	Dialog,
 	DialogContent,
@@ -17,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 import { locationSchema } from "@/lib/forms/schemas";
 import { useToast } from "@/lib/hooks/use-toast";

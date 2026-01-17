@@ -5,6 +5,8 @@
  * No business logic, just presentation.
  */
 
+// Dual report components
+export { ExternalReportView } from "./external-report-view";
 // Modular section components
 export { ProposalAISection } from "./proposal-ai-section";
 export { ProposalAssumptions } from "./proposal-assumptions";
@@ -13,12 +15,9 @@ export { ProposalOverview } from "./proposal-overview";
 // Main proposal page component
 export { ProposalPage, ProposalPage as ProposalDetail } from "./proposal-page";
 export { ProposalTechnical } from "./proposal-technical";
-
-// Dual report components
-export { ExternalReportView } from "./external-report-view";
 export {
-	ReportAudienceToggle,
 	type ReportAudience,
+	ReportAudienceToggle,
 } from "./report-audience-toggle";
 
 // Types

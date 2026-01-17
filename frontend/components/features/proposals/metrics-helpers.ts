@@ -4,8 +4,8 @@
  */
 
 import type {
-	WasteUpcyclingReport,
 	BusinessPathway,
+	WasteUpcyclingReport,
 } from "@/lib/types/proposal";
 
 /**

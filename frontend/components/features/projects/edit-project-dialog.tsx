@@ -31,8 +31,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { ProjectStatus, ProjectSummary } from "@/lib/project-types";
 import { PROJECT_STATUS_FLOW } from "@/lib/project-status";
+import type { ProjectStatus, ProjectSummary } from "@/lib/project-types";
 import { useProjectActions } from "@/lib/stores";
 
 const PROJECT_STATUS_OPTIONS = PROJECT_STATUS_FLOW as [

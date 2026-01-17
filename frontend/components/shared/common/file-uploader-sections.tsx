@@ -1,4 +1,3 @@
-import type { HTMLAttributes, InputHTMLAttributes } from "react";
 import {
 	AlertCircle,
 	CheckCircle,
@@ -12,6 +11,7 @@ import {
 	X,
 	XCircle,
 } from "lucide-react";
+import type { HTMLAttributes, InputHTMLAttributes } from "react";
 import {
 	Accordion,
 	AccordionContent,
@@ -169,7 +169,7 @@ export function UploadDropZone({
 								Drag files or click to select
 							</p>
 							<p className="text-xs text-muted-foreground">
-								Supports PDF, Excel, CSV, JSON, TXT, Images (max {" "}
+								Supports PDF, Excel, CSV, JSON, TXT, Images (max{" "}
 								{formatFileSize(maxSize)})
 							</p>
 						</div>
@@ -318,9 +318,7 @@ function ImageAnalysisDetails({
 							<TableBody>
 								{data.estimated_composition.map((item) => (
 									<TableRow key={`${item.component}-${item.proportion}`}>
-										<TableCell className="text-xs">
-											{item.component}
-										</TableCell>
+										<TableCell className="text-xs">{item.component}</TableCell>
 										<TableCell className="text-xs text-muted-foreground">
 											{item.proportion}
 										</TableCell>
@@ -420,7 +418,7 @@ export function FileDetailPanel({
 		? asImageAnalysisOutput(file.ai_analysis)
 		: null;
 	const qualityStyle = analysis
-		? QUALITY_BADGE_STYLES[analysis.quality_grade] ?? ""
+		? (QUALITY_BADGE_STYLES[analysis.quality_grade] ?? "")
 		: "";
 
 	return (
@@ -432,8 +430,7 @@ export function FileDetailPanel({
 							{file.filename}
 						</h4>
 						<p className="text-xs text-muted-foreground">
-							{formatFileSize(file.file_size)} • {" "}
-							{file.file_type.toUpperCase()}
+							{formatFileSize(file.file_size)} • {file.file_type.toUpperCase()}
 						</p>
 					</div>
 					{isLoading && (

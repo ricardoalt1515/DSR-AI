@@ -4,18 +4,18 @@ import { useRouter } from "next/navigation";
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	BasicInfoStep,
 	ConfirmationStep,
+	WasteStreamDetailsStep,
 	WizardFooter,
 	WizardHeader,
 	type WizardProjectData,
 	type WizardStep,
 	type WizardTouched,
-	WasteStreamDetailsStep,
 } from "@/components/features/dashboard/components/premium-project-wizard-sections";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { routes } from "@/lib/routes";
 import { useProjectActions } from "@/lib/stores";
 import { useCompanyStore } from "@/lib/stores/company-store";
@@ -60,135 +60,156 @@ export function PremiumProjectWizard({
 	const { locations } = useLocationStore();
 
 	// Load companies when wizard opens (if not already loaded)
-	useEffect(function loadCompaniesOnOpen() {
-		if (open && companies.length === 0) {
-			loadCompanies();
-		}
-	}, [open, companies.length, loadCompanies]);
+	useEffect(
+		function loadCompaniesOnOpen() {
+			if (open && companies.length === 0) {
+				loadCompanies();
+			}
+		},
+		[open, companies.length, loadCompanies],
+	);
 
 	// Initialize with defaults when provided (contextual creation)
-	useEffect(function syncDefaults() {
-		if (open && defaultCompanyId) {
-			const company = companies.find((c) => c.id === defaultCompanyId);
-			if (company) {
-				setProjectData((prev) => ({
-					...prev,
-					companyId: defaultCompanyId,
-					client: company.name,
-				}));
+	useEffect(
+		function syncDefaults() {
+			if (open && defaultCompanyId) {
+				const company = companies.find((c) => c.id === defaultCompanyId);
+				if (company) {
+					setProjectData((prev) => ({
+						...prev,
+						companyId: defaultCompanyId,
+						client: company.name,
+					}));
 
-				if (defaultLocationId) {
-					const location = locations.find((l) => l.id === defaultLocationId);
-					if (location) {
-						setProjectData((prev) => ({
-							...prev,
-							locationId: defaultLocationId,
-							location: location.city,
-						}));
+					if (defaultLocationId) {
+						const location = locations.find((l) => l.id === defaultLocationId);
+						if (location) {
+							setProjectData((prev) => ({
+								...prev,
+								locationId: defaultLocationId,
+								location: location.city,
+							}));
+						}
 					}
 				}
 			}
-		}
-	}, [open, defaultCompanyId, defaultLocationId, companies, locations]);
+		},
+		[open, defaultCompanyId, defaultLocationId, companies, locations],
+	);
 
 	const progress = (currentStep / STEPS.length) * 100;
 
 	// Get contextual names for breadcrumb
-	const contextCompany = companies.find((company) => company.id === defaultCompanyId);
+	const contextCompany = companies.find(
+		(company) => company.id === defaultCompanyId,
+	);
 	const contextLocation = locations.find(
 		(location) => location.id === defaultLocationId,
 	);
 	const hasContext = Boolean(defaultCompanyId && defaultLocationId);
 
-	const canContinue = useMemo(function canContinue() {
-		switch (currentStep) {
-			case 1:
-				// Step 1: Require company, location, and name
-				return (
-					projectData.name.trim() !== "" &&
-					projectData.companyId !== "" &&
-					projectData.locationId !== ""
-				);
-			case 2:
-				// Step 2: Assessment details (description is optional)
-				return true;
-			case 3:
-				// Step 3: Confirmation
-				return true;
-			default:
-				return false;
-		}
-	}, [currentStep, projectData]);
+	const canContinue = useMemo(
+		function canContinue() {
+			switch (currentStep) {
+				case 1:
+					// Step 1: Require company, location, and name
+					return (
+						projectData.name.trim() !== "" &&
+						projectData.companyId !== "" &&
+						projectData.locationId !== ""
+					);
+				case 2:
+					// Step 2: Assessment details (description is optional)
+					return true;
+				case 3:
+					// Step 3: Confirmation
+					return true;
+				default:
+					return false;
+			}
+		},
+		[currentStep, projectData],
+	);
 
 	const updateProjectData = useCallback(function updateProjectData(
 		updates: Partial<WizardProjectData>,
 	) {
-			setProjectData((prev) => ({ ...prev, ...updates }));
+		setProjectData((prev) => ({ ...prev, ...updates }));
 	}, []);
 
-	const nextStep = useCallback(function nextStep() {
-		if (canContinue && currentStep < STEPS.length) {
-			setCurrentStep((prev) => prev + 1);
-		}
-	}, [canContinue, currentStep]);
+	const nextStep = useCallback(
+		function nextStep() {
+			if (canContinue && currentStep < STEPS.length) {
+				setCurrentStep((prev) => prev + 1);
+			}
+		},
+		[canContinue, currentStep],
+	);
 
-	const prevStep = useCallback(function prevStep() {
-		if (currentStep > 1) {
-			setCurrentStep((prev) => prev - 1);
-		}
-	}, [currentStep]);
+	const prevStep = useCallback(
+		function prevStep() {
+			if (currentStep > 1) {
+				setCurrentStep((prev) => prev - 1);
+			}
+		},
+		[currentStep],
+	);
 
-	const handleCreateProject = useCallback(async function handleCreateProject() {
-		if (!canContinue) return;
+	const handleCreateProject = useCallback(
+		async function handleCreateProject() {
+			if (!canContinue) return;
 
-		setIsCreating(true);
-		try {
-			// Only send locationId and name - everything else inherited from Location → Company
-			const newProject = await createProject({
-				locationId: projectData.locationId,
-				name: projectData.name,
-				description:
-					projectData.description ||
-					`Waste assessment for ${projectData.client}`,
-			});
+			setIsCreating(true);
+			try {
+				// Only send locationId and name - everything else inherited from Location → Company
+				const newProject = await createProject({
+					locationId: projectData.locationId,
+					name: projectData.name,
+					description:
+						projectData.description ||
+						`Waste assessment for ${projectData.client}`,
+				});
 
-			toast.success("Waste stream created successfully!", {
-				description: `${projectData.name} is ready to fill out`,
-			});
+				toast.success("Waste stream created successfully!", {
+					description: `${projectData.name} is ready to fill out`,
+				});
 
-			onProjectCreated?.(newProject.id);
-			onOpenChange(false);
+				onProjectCreated?.(newProject.id);
+				onOpenChange(false);
 
-			router.push(
-				routes.project.technical(newProject.id, { quickstart: true }),
-			);
+				router.push(
+					routes.project.technical(newProject.id, { quickstart: true }),
+				);
 
-			// Reset form
-			setCurrentStep(1);
-			setProjectData({
-				name: "",
-				client: "",
-				companyId: "",
-				location: "",
-				locationId: "",
-				description: "",
-			});
-			setTouched({});
-		} catch (_error) {
-			toast.error("Error creating waste stream", {
-				description: "Please check that the location has an associated company",
-			});
-		} finally {
-			setIsCreating(false);
-		}
-	}, [
-		canContinue,
-		projectData,
-		createProject,
-		onProjectCreated,
-		onOpenChange,
-		router,
-	]);
+				// Reset form
+				setCurrentStep(1);
+				setProjectData({
+					name: "",
+					client: "",
+					companyId: "",
+					location: "",
+					locationId: "",
+					description: "",
+				});
+				setTouched({});
+			} catch (_error) {
+				toast.error("Error creating waste stream", {
+					description:
+						"Please check that the location has an associated company",
+				});
+			} finally {
+				setIsCreating(false);
+			}
+		},
+		[
+			canContinue,
+			projectData,
+			createProject,
+			onProjectCreated,
+			onOpenChange,
+			router,
+		],
+	);
 
 	function renderStepContent(): ReactElement | null {
 		switch (currentStep) {

@@ -29,10 +29,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	organizationsAPI,
 	type Organization,
 	type OrganizationCreateInput,
 	type OrganizationUpdateInput,
+	organizationsAPI,
 } from "@/lib/api";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 

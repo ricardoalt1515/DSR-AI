@@ -15,14 +15,8 @@ import {
 	AdminStatsCard,
 	UsersTable,
 } from "@/components/features/admin";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -31,7 +25,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { organizationsAPI, type OrgUserCreateInput } from "@/lib/api";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { type OrgUserCreateInput, organizationsAPI } from "@/lib/api";
 import { useAuth } from "@/lib/contexts";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import type { User, UserRole } from "@/lib/types/user";

@@ -22,7 +22,7 @@ from app.core.fastapi_users_instance import (
     current_verified_user,
 )
 from app.models.organization import Organization
-from app.models.user import User
+from app.models.user import User, UserRole
 
 logger = structlog.get_logger(__name__)
 
@@ -185,6 +185,48 @@ async def get_super_admin_only(
 
 
 SuperAdminOnly = Annotated[User, Depends(get_super_admin_only)]
+
+
+async def get_current_client_data_writer(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    """
+    Require user to be an organization admin or superuser.
+    Use for write operations on org-scoped resources (companies, locations).
+    """
+    if not (current_user.is_superuser or current_user.is_org_admin()):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organization admins can perform this action",
+        )
+    return current_user
+
+
+CurrentClientDataWriter = Annotated[User, Depends(get_current_client_data_writer)]
+
+
+async def get_current_location_contacts_writer(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    """
+    Require user to write location contacts.
+    Field agents, org admins, or superusers are allowed.
+    """
+    if not (
+        current_user.is_superuser
+        or current_user.is_org_admin()
+        or current_user.role == UserRole.FIELD_AGENT
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to manage location contacts",
+        )
+    return current_user
+
+
+CurrentLocationContactsWriter = Annotated[
+    User, Depends(get_current_location_contacts_writer)
+]
 
 
 async def get_accessible_project(

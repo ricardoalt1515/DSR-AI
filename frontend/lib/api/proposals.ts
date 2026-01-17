@@ -7,9 +7,10 @@
  * - Automatic retry logic for resilience
  * - Proper error handling and logging
  */
+
+import { API_TIMEOUT } from "@/lib/constants/timings";
 import type { AIMetadata } from "@/lib/types/proposal";
 import type { ProposalDTO } from "@/lib/types/proposal-dto";
-import { API_TIMEOUT } from "@/lib/constants/timings";
 import { getErrorMessage, logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
 

@@ -11,14 +11,15 @@ from sqlalchemy.orm import load_only, selectinload
 
 from app.api.dependencies import (
     AsyncDB,
-    CurrentSuperUser,
+    CurrentClientDataWriter,
+    CurrentLocationContactsWriter,
     CurrentUser,
     OrganizationContext,
     RateLimitUser10,
     RateLimitUser30,
     RateLimitUser60,
 )
-from app.models import Company, Location, Project
+from app.models import Company, Location, LocationContact, Project
 from app.schemas.common import SuccessResponse
 from app.schemas.company import (
     CompanyCreate,
@@ -32,6 +33,11 @@ from app.schemas.location import (
     LocationProjectSummary,
     LocationSummary,
     LocationUpdate,
+)
+from app.schemas.location_contact import (
+    LocationContactCreate,
+    LocationContactRead,
+    LocationContactUpdate,
 )
 
 router = APIRouter()
@@ -88,7 +94,7 @@ async def list_companies(
 async def create_company(
     company_data: CompanyCreate,
     db: AsyncDB,
-    current_user: CurrentUser,
+    current_user: CurrentClientDataWriter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -188,7 +194,7 @@ async def update_company(
     company_id: UUID,
     company_data: CompanyUpdate,
     db: AsyncDB,
-    current_user: CurrentSuperUser,
+    current_user: CurrentClientDataWriter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -241,7 +247,7 @@ async def update_company(
 async def delete_company(
     company_id: UUID,
     db: AsyncDB,
-    current_user: CurrentSuperUser,
+    current_user: CurrentClientDataWriter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
@@ -266,6 +272,121 @@ async def delete_company(
     await db.commit()
 
     return SuccessResponse(message=f"Company {company.name} deleted successfully")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# LOCATION CONTACTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.post(
+    "/locations/{location_id}/contacts",
+    response_model=LocationContactRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_location_contact(
+    location_id: UUID,
+    contact_data: LocationContactCreate,
+    db: AsyncDB,
+    current_user: CurrentLocationContactsWriter,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser30,
+):
+    """Create a contact for a location."""
+    result = await db.execute(
+        select(Location).where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
+    )
+    location = result.scalar_one_or_none()
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location {location_id} not found",
+        )
+
+    contact = LocationContact(
+        **contact_data.model_dump(),
+        organization_id=org.id,
+        location_id=location_id,
+    )
+    db.add(contact)
+    await db.commit()
+    await db.refresh(contact)
+    return LocationContactRead.model_validate(contact, from_attributes=True)
+
+
+@router.put(
+    "/locations/{location_id}/contacts/{contact_id}",
+    response_model=LocationContactRead,
+)
+async def update_location_contact(
+    location_id: UUID,
+    contact_id: UUID,
+    contact_data: LocationContactUpdate,
+    db: AsyncDB,
+    current_user: CurrentLocationContactsWriter,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser30,
+):
+    """Update a contact for a location."""
+    result = await db.execute(
+        select(LocationContact).where(
+            LocationContact.id == contact_id,
+            LocationContact.location_id == location_id,
+            LocationContact.organization_id == org.id,
+        )
+    )
+    contact = result.scalar_one_or_none()
+
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location contact {contact_id} not found",
+        )
+
+    update_data = contact_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(contact, field, value)
+
+    await db.commit()
+    await db.refresh(contact)
+    return LocationContactRead.model_validate(contact, from_attributes=True)
+
+
+@router.delete(
+    "/locations/{location_id}/contacts/{contact_id}",
+    response_model=SuccessResponse,
+)
+async def delete_location_contact(
+    location_id: UUID,
+    contact_id: UUID,
+    db: AsyncDB,
+    current_user: CurrentLocationContactsWriter,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser10,
+):
+    """Delete a contact from a location."""
+    result = await db.execute(
+        select(LocationContact).where(
+            LocationContact.id == contact_id,
+            LocationContact.location_id == location_id,
+            LocationContact.organization_id == org.id,
+        )
+    )
+    contact = result.scalar_one_or_none()
+
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location contact {contact_id} not found",
+        )
+
+    await db.delete(contact)
+    await db.commit()
+
+    return SuccessResponse(message=f"Contact {contact.name} deleted successfully")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -307,7 +428,7 @@ async def create_location(
     company_id: UUID,
     location_data: LocationCreate,
     db: AsyncDB,
-    current_user: CurrentUser,
+    current_user: CurrentClientDataWriter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -349,7 +470,10 @@ async def get_location(
     """Get location details with company and projects."""
     result = await db.execute(
         select(Location)
-        .options(selectinload(Location.company))
+        .options(
+            selectinload(Location.company),
+            selectinload(Location.contacts),
+        )
         .where(
             Location.id == location_id,
             Location.organization_id == org.id,
@@ -387,10 +511,15 @@ async def get_location(
     location_summary = LocationSummary.model_validate(location, from_attributes=True).model_copy(
         update={"project_count": len(projects)}
     )
+    contacts_summary = [
+        LocationContactRead.model_validate(contact, from_attributes=True)
+        for contact in (location.contacts or [])
+    ]
     return LocationDetail(
         **location_summary.model_dump(),
         company=company_summary,
         projects=[LocationProjectSummary.model_validate(p, from_attributes=True) for p in projects],
+        contacts=contacts_summary,
     )
 
 
@@ -399,7 +528,7 @@ async def update_location(
     location_id: UUID,
     location_data: LocationUpdate,
     db: AsyncDB,
-    current_user: CurrentSuperUser,
+    current_user: CurrentClientDataWriter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -478,7 +607,7 @@ async def update_location(
 async def delete_location(
     location_id: UUID,
     db: AsyncDB,
-    current_user: CurrentSuperUser,
+    current_user: CurrentClientDataWriter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):

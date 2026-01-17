@@ -9,25 +9,25 @@
  */
 
 import {
-	Leaf,
+	ArrowRight,
+	CheckCircle,
+	Coins,
 	Droplets,
+	Info,
+	Leaf,
+	Package,
 	Recycle,
 	TrendingUp,
-	ArrowRight,
-	Info,
-	CheckCircle,
-	Package,
 	Wrench,
-	Coins,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
 	Card,
 	CardContent,
+	CardDescription,
 	CardHeader,
 	CardTitle,
-	CardDescription,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
 	Tooltip,
@@ -35,8 +35,8 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import type { SustainabilityMetric } from "@/lib/types/external-opportunity-report";
+import { cn } from "@/lib/utils";
 import type { Proposal } from "./types";
 
 interface ExternalReportViewProps {

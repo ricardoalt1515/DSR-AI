@@ -15,8 +15,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -25,9 +25,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-
-import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { STATUS_COLORS } from "@/lib/project-status";
+import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
 import { useProjectActions, useTechnicalSections } from "@/lib/stores";
 import { overallCompletion } from "@/lib/technical-sheet-data";

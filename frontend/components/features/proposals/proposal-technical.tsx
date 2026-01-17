@@ -64,8 +64,7 @@ export function ProposalTechnical({ proposal }: ProposalTechnicalProps) {
 	const landfillDiversion = extractLandfillDiversion(report);
 	const co2Avoided = extractCO2Avoided(report);
 
-	const showSafetyAlert =
-		hazardLevel === "Moderate" || hazardLevel === "High";
+	const showSafetyAlert = hazardLevel === "Moderate" || hazardLevel === "High";
 
 	return (
 		<div className="space-y-6">

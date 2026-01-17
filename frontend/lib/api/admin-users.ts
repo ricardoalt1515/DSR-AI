@@ -1,5 +1,5 @@
-import { apiClient } from "./client";
 import type { User, UserRole } from "@/lib/types/user";
+import { apiClient } from "./client";
 
 /** Backend response shape for user data (snake_case) */
 interface AdminUserResponse {

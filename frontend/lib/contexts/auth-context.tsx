@@ -18,6 +18,8 @@ interface AuthContextType {
 	isAdmin: boolean;
 	isSuperAdmin: boolean;
 	isOrgAdmin: boolean;
+	canWriteClientData: boolean;
+	canWriteLocationContacts: boolean;
 	login: (email: string, password: string) => Promise<void>;
 	register: (
 		email: string,
@@ -182,6 +184,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		}
 	};
 
+	const canWriteClientData = Boolean(
+		user && (user.isSuperuser || user.role === "org_admin"),
+	);
+	const canWriteLocationContacts = Boolean(
+		user &&
+			(user.isSuperuser ||
+				user.role === "org_admin" ||
+				user.role === "field_agent"),
+	);
+
 	return (
 		<AuthContext.Provider
 			value={{
@@ -191,6 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				isAdmin: !!user?.isSuperuser,
 				isSuperAdmin: !!user?.isSuperuser,
 				isOrgAdmin: user?.role === "org_admin",
+				canWriteClientData,
+				canWriteLocationContacts,
 				login,
 				register,
 				logout,

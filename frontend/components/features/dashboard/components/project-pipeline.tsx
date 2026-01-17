@@ -11,9 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import type { ProjectStatus } from "@/lib/project-status";
 import { useProjectStatsData } from "@/lib/stores";
 import { cn } from "@/lib/utils";
-import type { ProjectStatus } from "@/lib/project-status";
 
 type StageDefinition = {
 	id: string;

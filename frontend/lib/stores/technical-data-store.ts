@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { useShallow } from "zustand/react/shallow";
 import { useIsHydrated } from "@/lib/hooks/use-is-hydrated";
 import type {
 	TechnicalDataVersion,
@@ -26,8 +26,8 @@ import {
 	formatValidationErrors,
 	validateTechnicalSections,
 } from "@/lib/validation/template-schema";
-import { useProjectStore } from "./project-store";
 import { projectDataAPI } from "../api/project-data";
+import { useProjectStore } from "./project-store";
 
 type FieldValue = TableField["value"];
 
@@ -257,9 +257,7 @@ interface SyncActionOptions {
 }
 
 type StoreGet = () => TechnicalDataState;
-type StoreSet = (
-	fn: (state: TechnicalDataState) => void,
-) => void;
+type StoreSet = (fn: (state: TechnicalDataState) => void) => void;
 
 const executeSyncAction = async (
 	get: StoreGet,
@@ -391,7 +389,10 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					});
 				} catch (error) {
 					// Proper error handling: Log and set error state
-					const errorMessage = getErrorMessage(error, "Unknown error loading data");
+					const errorMessage = getErrorMessage(
+						error,
+						"Unknown error loading data",
+					);
 
 					logger.error(
 						"Failed to load technical data",
@@ -592,9 +593,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				};
 
 				const next = sections.map((s) =>
-					s.id === sectionId
-						? { ...s, fields: [...s.fields, duplicated] }
-						: s,
+					s.id === sectionId ? { ...s, fields: [...s.fields, duplicated] } : s,
 				);
 
 				set((state) => {

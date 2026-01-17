@@ -22,9 +22,9 @@ import {
 	OrgAvatar,
 	UsersTable,
 } from "@/components/features/admin";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
 	Card,
 	CardContent,
@@ -40,10 +40,10 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-	organizationsAPI,
-	type OrgUserCreateInput,
 	type Organization,
 	type OrganizationUpdateInput,
+	type OrgUserCreateInput,
+	organizationsAPI,
 } from "@/lib/api";
 import type { User, UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";

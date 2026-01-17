@@ -1,7 +1,7 @@
 // Base API client configuration for FastAPI backend integration
 
-import { API_TIMEOUT, RETRY } from "@/lib/constants/timings";
 import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
+import { API_TIMEOUT, RETRY } from "@/lib/constants/timings";
 import { logger } from "@/lib/utils/logger";
 
 // Read API_DISABLED from environment variable

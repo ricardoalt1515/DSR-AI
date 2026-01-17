@@ -72,6 +72,19 @@ export interface LocationDetail extends LocationSummary {
 		status: string;
 		createdAt: string;
 	}>;
+	contacts?: LocationContact[];
+}
+
+export interface LocationContact {
+	id: string;
+	locationId: string;
+	name: string;
+	email?: string;
+	phone?: string;
+	title?: string;
+	notes?: string;
+	createdAt: string;
+	updatedAt: string;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -33,14 +33,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
 import { ProposalsAPI } from "@/lib/api/proposals";
-import type { ProjectDetail } from "@/lib/project-types";
-import type {
-	ProposalStatus,
-	ProposalType,
-	ProposalUI,
-} from "@/lib/types/proposal-ui";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
+import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
 import {
 	useCurrentProject,
@@ -50,18 +46,21 @@ import {
 	useTechnicalSections,
 } from "@/lib/stores";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
-import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
 import {
 	overallCompletion,
 	PROPOSAL_READINESS_THRESHOLD,
 	sectionCompletion,
 } from "@/lib/technical-sheet-data";
+import type {
+	ProposalStatus,
+	ProposalType,
+	ProposalUI,
+} from "@/lib/types/proposal-ui";
 import { logger } from "@/lib/utils/logger";
 import {
 	IntelligentProposalGeneratorComponent,
 	type ProposalGeneratorHandle,
 } from "./intelligent-proposal-generator";
-import type { ProjectSummary } from "@/lib/project-types";
 
 type Project = Pick<ProjectSummary, "id" | "name" | "type">;
 

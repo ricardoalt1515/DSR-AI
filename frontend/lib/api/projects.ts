@@ -165,7 +165,9 @@ export class ProjectsAPI {
 			}
 			return await blobResponse.blob();
 		} catch (error) {
-			throw new Error(`Download failed: ${getErrorMessage(error, "Network error")}`);
+			throw new Error(
+				`Download failed: ${getErrorMessage(error, "Network error")}`,
+			);
 		}
 	}
 

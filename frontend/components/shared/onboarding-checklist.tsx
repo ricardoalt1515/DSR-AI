@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Circle, ChevronRight, X, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

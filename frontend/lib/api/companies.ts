@@ -7,11 +7,13 @@ import type {
 	CompanyDetail,
 	CompanySummary,
 	CompanyUpdate,
+	LocationContact,
 	LocationCreate,
 	LocationDetail,
 	LocationSummary,
 	LocationUpdate,
 } from "@/lib/types/company";
+import type { SuccessResponse } from "@/lib/types/shared";
 import { apiClient } from "./client";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -80,7 +82,7 @@ export class LocationsAPI {
 	 * List all locations (optionally filtered by company)
 	 */
 	static async listAll(companyId?: string): Promise<LocationSummary[]> {
-		const url = this.buildListUrl(companyId);
+		const url = LocationsAPI.buildListUrl(companyId);
 		return apiClient.get<LocationSummary[]>(url);
 	}
 
@@ -88,7 +90,7 @@ export class LocationsAPI {
 	 * List all locations for a company
 	 */
 	static async listByCompany(companyId: string): Promise<LocationSummary[]> {
-		return this.listAll(companyId);
+		return LocationsAPI.listAll(companyId);
 	}
 
 	/**
@@ -134,5 +136,40 @@ export class LocationsAPI {
 	 */
 	static async delete(id: string): Promise<{ message: string }> {
 		return apiClient.delete(`/companies/locations/${id}`);
+	}
+
+	static async createContact(
+		locationId: string,
+		data: Omit<
+			LocationContact,
+			"id" | "locationId" | "createdAt" | "updatedAt"
+		>,
+	): Promise<LocationContact> {
+		return apiClient.post<LocationContact>(
+			`/companies/locations/${locationId}/contacts`,
+			data as unknown as Record<string, unknown>,
+		);
+	}
+
+	static async updateContact(
+		locationId: string,
+		contactId: string,
+		data: Partial<
+			Omit<LocationContact, "id" | "locationId" | "createdAt" | "updatedAt">
+		>,
+	): Promise<LocationContact> {
+		return apiClient.put<LocationContact>(
+			`/companies/locations/${locationId}/contacts/${contactId}`,
+			data as unknown as Record<string, unknown>,
+		);
+	}
+
+	static async deleteContact(
+		locationId: string,
+		contactId: string,
+	): Promise<SuccessResponse> {
+		return apiClient.delete(
+			`/companies/locations/${locationId}/contacts/${contactId}`,
+		);
 	}
 }

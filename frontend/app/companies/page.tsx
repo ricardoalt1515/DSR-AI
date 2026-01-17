@@ -10,12 +10,14 @@ import { CompanyCard } from "@/components/features/companies/company-card";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCompanyStore } from "@/lib/stores/company-store";
+import { useAuth } from "@/lib/contexts/auth-context";
 import { useDebouncedValue } from "@/lib/hooks/use-debounce";
+import { useCompanyStore } from "@/lib/stores/company-store";
 
 export default function CompaniesPage() {
 	const router = useRouter();
 	const { companies, loading, loadCompanies } = useCompanyStore();
+	const { canWriteClientData } = useAuth();
 	const [searchTerm, setSearchTerm] = useState("");
 	const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
@@ -56,7 +58,9 @@ export default function CompaniesPage() {
 						Manage client companies and their locations
 					</p>
 				</div>
-				<CreateCompanyDialog onSuccess={() => loadCompanies()} />
+				{canWriteClientData && (
+					<CreateCompanyDialog onSuccess={() => loadCompanies()} />
+				)}
 			</div>
 
 			{/* Search Bar */}
@@ -94,12 +98,16 @@ export default function CompaniesPage() {
 					<Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
 					<h3 className="text-lg font-semibold mb-2">No companies yet</h3>
 					<p className="text-muted-foreground mb-4">
-						Create your first company to get started
+						{canWriteClientData
+							? "Create your first company to get started"
+							: "No companies have been added yet"}
 					</p>
-					<CreateCompanyDialog
-						trigger={<Button>Create First Company</Button>}
-						onSuccess={() => loadCompanies()}
-					/>
+					{canWriteClientData && (
+						<CreateCompanyDialog
+							trigger={<Button>Create First Company</Button>}
+							onSuccess={() => loadCompanies()}
+						/>
+					)}
 				</div>
 			) : filteredCompanies.length === 0 ? (
 				<div className="text-center py-12">

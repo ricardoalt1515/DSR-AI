@@ -13,16 +13,16 @@ import { notFound } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ProposalDetail } from "@/components/features/proposals";
-import type { Proposal } from "@/components/features/proposals/types";
 import type { ReportAudience } from "@/components/features/proposals/report-audience-toggle";
-import { ProposalsAPI } from "@/lib/api/proposals";
-import { APIClientError, API_ERROR_CODES } from "@/lib/api/client";
-import { projectsAPI } from "@/lib/api/projects";
-import { useCurrentProject } from "@/lib/stores";
+import type { Proposal } from "@/components/features/proposals/types";
 import { Button } from "@/components/ui/button";
-import type { ProjectDetail } from "@/lib/project-types";
+import { API_ERROR_CODES, APIClientError } from "@/lib/api/client";
+import { projectsAPI } from "@/lib/api/projects";
+import { ProposalsAPI } from "@/lib/api/proposals";
 import { useLatestRequest } from "@/lib/hooks/use-latest-request";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
+import type { ProjectDetail } from "@/lib/project-types";
+import { useCurrentProject } from "@/lib/stores";
 
 interface PageProps {
 	params: Promise<{ id: string; proposalId: string }>;

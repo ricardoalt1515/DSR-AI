@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import type { ProposalGenerationRequest } from "@/lib/api/proposals";
 import { ProposalsAPI, pollProposalStatus } from "@/lib/api/proposals";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
+import { logger } from "@/lib/utils/logger";
 import {
 	clearGenerationState,
 	loadGenerationState,
@@ -17,7 +18,6 @@ import {
 	showProposalProgressToast,
 	showProposalSuccessToast,
 } from "@/lib/utils/proposal-progress-toast";
-import { logger } from "@/lib/utils/logger";
 
 const MIN_PROGRESS_FOR_ESTIMATE = 10;
 const MS_IN_MINUTE = 60000;

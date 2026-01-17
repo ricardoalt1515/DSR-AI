@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { AuthLayout } from "@/components/features/auth";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 export default function ResetPasswordPage() {
 	return (

@@ -1,8 +1,8 @@
 "use client";
 
-import * as React from "react";
-import { Spinner } from "@/components/ui/spinner";
+import type * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 // Reuse Button component's props pattern

@@ -21,6 +21,7 @@ from app.models import (
     User,
     Company,
     Location,
+    LocationContact,
     Project,
     Proposal,
     ProjectFile,

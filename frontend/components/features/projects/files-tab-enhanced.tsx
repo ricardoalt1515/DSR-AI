@@ -18,6 +18,7 @@ import { FileUploader } from "@/components/shared/common/file-uploader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FilesListSkeleton } from "@/components/ui/files-grid-skeleton";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -26,7 +27,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { FilesListSkeleton } from "@/components/ui/files-grid-skeleton";
 import { formatFileSize, formatShortDateTime } from "@/lib/format";
 import type { ProjectFile } from "@/lib/project-types";
 import { useCurrentProject, useProjectLoading } from "@/lib/stores";

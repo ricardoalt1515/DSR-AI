@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { organizationsAPI, type Organization } from "@/lib/api";
+import { type Organization, organizationsAPI } from "@/lib/api";
 import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { logger } from "@/lib/utils/logger";
 import { useCompanyStore } from "./company-store";

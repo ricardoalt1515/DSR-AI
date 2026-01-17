@@ -1,9 +1,9 @@
 "use client";
 
-import React, { Component, type ReactNode } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import React, { Component, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface SectionErrorBoundaryProps {
 	children: ReactNode;

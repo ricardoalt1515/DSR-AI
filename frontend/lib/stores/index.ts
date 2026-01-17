@@ -8,7 +8,7 @@ export type {
 	ProjectSummary,
 	TimelineEvent,
 } from "../project-types";
+export * from "./organization-store";
 export * from "./project-store";
 export * from "./proposal-generation-store";
 export * from "./technical-data-store";
-export * from "./organization-store";

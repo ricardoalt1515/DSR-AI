@@ -19,8 +19,8 @@ import {
 import { organizationsAPI } from "@/lib/api";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { cn } from "@/lib/utils";
-import { OrgAvatar } from "./org-avatar";
 import { OrgSelectorContent } from "../org-context/org-selector-content";
+import { OrgAvatar } from "./org-avatar";
 
 interface OrgSwitcherProps {
 	onCreateNew?: () => void;

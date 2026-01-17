@@ -18,7 +18,6 @@ import {
 	formatSubsector,
 } from "@/components/shared/forms/compact-sector-select";
 import { Button } from "@/components/ui/button";
-import { LoadingButton } from "@/components/ui/loading-button";
 import {
 	Dialog,
 	DialogContent,
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
 import type { Sector, Subsector } from "@/lib/sectors-config";

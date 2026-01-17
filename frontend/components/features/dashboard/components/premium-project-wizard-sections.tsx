@@ -239,9 +239,7 @@ export function BasicInfoStep({
 						onChange={(event) =>
 							updateProjectData({ name: event.target.value })
 						}
-						onBlur={() =>
-							setTouched((prev) => ({ ...prev, name: true }))
-						}
+						onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
 						className="h-12 text-base"
 						autoFocus
 					/>
@@ -413,9 +411,7 @@ export function ConfirmationStep({
 							<h4 className="font-semibold text-lg text-foreground">
 								{projectData.name}
 							</h4>
-							<p className="text-muted-foreground">
-								{projectData.client}
-							</p>
+							<p className="text-muted-foreground">{projectData.client}</p>
 						</div>
 					</div>
 
@@ -436,9 +432,7 @@ export function ConfirmationStep({
 						</div>
 						{projectData.description && (
 							<div className="col-span-2">
-								<span className="text-muted-foreground">
-									Description:
-								</span>
+								<span className="text-muted-foreground">Description:</span>
 								<p className="font-medium text-foreground">
 									{projectData.description}
 								</p>

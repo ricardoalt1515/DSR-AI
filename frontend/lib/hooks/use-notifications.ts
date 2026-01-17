@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import type { ProjectSummary } from "@/lib/project-types";
 import { DASHBOARD_THRESHOLDS } from "@/lib/project-status";
+import type { ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
 import { useProjects } from "@/lib/stores";
 

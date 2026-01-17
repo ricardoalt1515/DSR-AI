@@ -1,14 +1,29 @@
 // Main API exports
 
+export type { User, UserRole } from "@/lib/types/user";
+export {
+	type AdminCreateUserInput,
+	type AdminUpdateUserInput,
+	AdminUsersAPI,
+	adminUsersAPI,
+} from "./admin-users";
 export type {
 	LoginRequest,
 	LoginResponse,
 	RegisterRequest,
 } from "./auth";
-export type { User, UserRole } from "@/lib/types/user";
 export { AuthAPI, authAPI } from "./auth";
 export type { APIError, RequestConfig } from "./client";
 export { APIClient, APIClientError, apiClient } from "./client";
+export {
+	type Organization,
+	type OrganizationCreateInput,
+	OrganizationsAPI,
+	type OrganizationUpdateInput,
+	type OrgUserCreateInput,
+	type OrgUserUpdateInput,
+	organizationsAPI,
+} from "./organizations";
 export type {
 	CustomSection,
 	ProjectData,
@@ -26,21 +41,6 @@ export {
 	pollProposalStatus,
 	proposalsAPI,
 } from "./proposals";
-export {
-	type AdminCreateUserInput,
-	type AdminUpdateUserInput,
-	AdminUsersAPI,
-	adminUsersAPI,
-} from "./admin-users";
-export {
-	type Organization,
-	type OrganizationCreateInput,
-	type OrganizationUpdateInput,
-	type OrgUserCreateInput,
-	type OrgUserUpdateInput,
-	OrganizationsAPI,
-	organizationsAPI,
-} from "./organizations";
 
 // Response type helpers
 export interface PaginatedResponse<T> {
