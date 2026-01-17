@@ -63,9 +63,9 @@ interface BackendUserResponse {
 }
 
 // Auth API service
-export class AuthAPI {
+export const authAPI = {
 	// Authentication
-	static async login(credentials: LoginRequest): Promise<LoginResponse> {
+	async login(credentials: LoginRequest): Promise<LoginResponse> {
 		// FastAPI Users requires form-urlencoded with 'username' field
 		const formData = new URLSearchParams();
 		formData.append("username", credentials.email); // FastAPI Users uses 'username' instead of 'email'
@@ -91,7 +91,7 @@ export class AuthAPI {
 		}
 
 		// Fetch user data from /auth/me
-		const user = await AuthAPI.getCurrentUser();
+		const user = await authAPI.getCurrentUser();
 
 		const transformedResponse: LoginResponse = {
 			user,
@@ -100,9 +100,9 @@ export class AuthAPI {
 		};
 
 		return transformedResponse;
-	}
+	},
 
-	static async register(userData: RegisterRequest): Promise<LoginResponse> {
+	async register(userData: RegisterRequest): Promise<LoginResponse> {
 		// FastAPI Users expects snake_case fields
 		const backendData = {
 			email: userData.email,
@@ -121,13 +121,13 @@ export class AuthAPI {
 		await apiClient.post<BackendUserResponse>("/auth/register", backendData);
 
 		// After successful registration, automatically login
-		return AuthAPI.login({
+		return authAPI.login({
 			email: userData.email,
 			password: userData.password,
 		});
-	}
+	},
 
-	static async logout(): Promise<void> {
+	async logout(): Promise<void> {
 		const token = localStorage.getItem("access_token");
 		apiClient.clearAuthToken();
 		localStorage.removeItem("access_token");
@@ -141,19 +141,17 @@ export class AuthAPI {
 		} catch (_error) {
 			return;
 		}
-	}
+	},
 
 	// Password management
-	static async requestPasswordReset(
-		request: PasswordResetRequest,
-	): Promise<void> {
+	async requestPasswordReset(request: PasswordResetRequest): Promise<void> {
 		// FastAPI Users endpoint for password reset
 		return apiClient.post<void>("/auth/forgot-password", {
 			email: request.email,
 		});
-	}
+	},
 
-	static async confirmPasswordReset(
+	async confirmPasswordReset(
 		request: PasswordResetConfirmRequest,
 	): Promise<void> {
 		// FastAPI Users endpoint for resetting password with token
@@ -161,10 +159,10 @@ export class AuthAPI {
 			token: request.token,
 			password: request.newPassword,
 		});
-	}
+	},
 
 	// User management
-	static async getCurrentUser(): Promise<User> {
+	async getCurrentUser(): Promise<User> {
 		const response = await apiClient.get<BackendUserResponse>("/auth/me");
 
 		// Transform backend snake_case to frontend camelCase
@@ -184,64 +182,62 @@ export class AuthAPI {
 			role: response.role ?? "field_agent",
 			organizationId: response.organization_id ?? null,
 		};
-	}
+	},
 
-	static async updateProfile(data: UpdateProfileRequest): Promise<User> {
+	async updateProfile(data: UpdateProfileRequest): Promise<User> {
 		// Send only non-undefined fields to backend
 		const payload = Object.fromEntries(
 			Object.entries(data).filter(([_, v]) => v !== undefined),
 		);
 		await apiClient.patch("/auth/me", payload);
-		return AuthAPI.getCurrentUser();
-	}
+		return authAPI.getCurrentUser();
+	},
 
-	static async changePassword(
-		currentPassword: string,
+	async changePassword(
+		_currentPassword: string,
 		newPassword: string,
 	): Promise<void> {
 		// FastAPI Users allows password change via PATCH /auth/me
 		await apiClient.patch("/auth/me", { password: newPassword });
-	}
+	},
 
-	static async deleteAccount(): Promise<void> {
+	async deleteAccount(): Promise<void> {
 		await apiClient.delete<void>("/auth/me");
-		AuthAPI.logout(); // Clear tokens after deletion
-	}
+		authAPI.logout(); // Clear tokens after deletion
+	},
 
 	// Account verification
-	static async verifyEmail(token: string): Promise<void> {
+	async verifyEmail(token: string): Promise<void> {
 		// FastAPI Users endpoint for email verification
 		return apiClient.post<void>("/auth/verify", { token });
-	}
+	},
 
-	static async resendVerificationEmail(): Promise<void> {
+	async resendVerificationEmail(): Promise<void> {
 		// FastAPI Users endpoint for requesting new verification token
 		return apiClient.post<void>("/auth/request-verify-token");
-	}
+	},
 
 	// Session management
-	static async validateSession(): Promise<{ valid: boolean; user?: User }> {
+	async validateSession(): Promise<{ valid: boolean; user?: User }> {
 		try {
-			const user = await AuthAPI.getCurrentUser();
+			const user = await authAPI.getCurrentUser();
+
 			return { valid: true, user };
 		} catch (_error) {
 			return { valid: false };
 		}
-	}
+	},
 
 	// Initialize auth from stored tokens
-	static initializeAuth(): boolean {
+	initializeAuth(): boolean {
 		const token = localStorage.getItem("access_token");
 		if (token) {
 			apiClient.setAuthToken(token);
 			return true;
 		}
 		return false;
-	}
-}
-
-// Export for easy usage
-export const authAPI = AuthAPI;
+	},
+};
 
 // Export types
 export type {

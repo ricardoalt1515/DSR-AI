@@ -8,7 +8,6 @@ import {
 	Leaf,
 	TreeDeciduous,
 	TrendingDown,
-	TrendingUp,
 	Zap,
 } from "lucide-react";
 import {
@@ -195,8 +194,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							{/* Per-unit pricing */}
 							{perKg.length > 0 && (
 								<div className="flex flex-wrap gap-2">
-									{perKg.map((price: string, idx: number) => (
-										<Badge key={idx} variant="outline" className="text-sm">
+									{perKg.map((price: string) => (
+										<Badge key={price} variant="outline" className="text-sm">
 											{price}
 										</Badge>
 									))}
@@ -206,8 +205,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 					) : (
 						/* Fallback if no low/high case */
 						<div className="space-y-2">
-							{annualPotentialItems.map((item: string, idx: number) => (
-								<div key={idx} className="text-2xl font-bold text-primary">
+							{annualPotentialItems.map((item: string) => (
+								<div key={item} className="text-2xl font-bold text-primary">
 									{item}
 								</div>
 							))}
@@ -223,9 +222,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{marketRate.map((rate: string, idx: number) => (
+										{marketRate.map((rate: string) => (
 											<p
-												key={idx}
+												key={rate}
 												className="text-sm text-muted-foreground leading-relaxed"
 											>
 												{rate}
@@ -243,8 +242,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<ul className="space-y-1 pt-2">
-										{revenueNotes.map((note: string, idx: number) => (
-											<li key={idx} className="text-sm text-muted-foreground">
+										{revenueNotes.map((note: string) => (
+											<li key={note} className="text-sm text-muted-foreground">
 												• {note}
 											</li>
 										))}
@@ -280,8 +279,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Baseline
 							</p>
-							{landfillBefore.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold">
+							{landfillBefore.map((item: string) => (
+								<p key={item} className="text-lg font-semibold">
 									{item}
 								</p>
 							))}
@@ -291,8 +290,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-green-600 font-medium">
 								After DSR Acquisition
 							</p>
-							{landfillAfter.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold text-green-600">
+							{landfillAfter.map((item: string) => (
+								<p key={item} className="text-lg font-semibold text-green-600">
 									{item}
 								</p>
 							))}
@@ -302,8 +301,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{landfillSavings.map((item: string, idx: number) => (
-								<Badge key={idx} variant="default" className="mb-1 text-sm">
+							{landfillSavings.map((item: string) => (
+								<Badge key={item} variant="default" className="mb-1 text-sm">
 									{item}
 								</Badge>
 							))}
@@ -334,8 +333,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Current Costs
 							</p>
-							{wasteBefore.map((item: string, idx: number) => (
-								<p key={idx} className="text-lg font-semibold">
+							{wasteBefore.map((item: string) => (
+								<p key={item} className="text-lg font-semibold">
 									{item}
 								</p>
 							))}
@@ -345,9 +344,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-blue-600 font-medium">
 								After DSR
 							</p>
-							{wasteAfter.map((item: string, idx: number) => (
+							{wasteAfter.map((item: string) => (
 								<p
-									key={idx}
+									key={item}
 									className="text-lg font-semibold text-blue-600 dark:text-blue-400"
 								>
 									{item}
@@ -359,8 +358,8 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
 								Annual Savings
 							</p>
-							{wasteSavings.map((item: string, idx: number) => (
-								<Badge key={idx} variant="secondary" className="mb-1 text-sm">
+							{wasteSavings.map((item: string) => (
+								<Badge key={item} variant="secondary" className="mb-1 text-sm">
 									{item}
 								</Badge>
 							))}
@@ -394,9 +393,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							<div className="text-sm uppercase tracking-wide text-green-700 dark:text-green-300 mb-2">
 								Annual CO₂ Avoided
 							</div>
-							{co2Tons.map((item: string, idx: number) => (
+							{co2Tons.map((item: string) => (
 								<div
-									key={idx}
+									key={item}
 									className="text-5xl font-bold text-green-600 dark:text-green-400"
 								>
 									{item}
@@ -404,9 +403,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							))}
 							{co2Percent.length > 0 && (
 								<div className="mt-4 flex justify-center gap-2">
-									{co2Percent.map((pct: string, idx: number) => (
+									{co2Percent.map((pct: string) => (
 										<Badge
-											key={idx}
+											key={pct}
 											className="bg-green-600 text-base px-4 py-1"
 										>
 											{pct}
@@ -493,9 +492,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</AccordionTrigger>
 								<AccordionContent>
 									<div className="space-y-2 pt-2">
-										{co2Method.map((method: string, idx: number) => (
+										{co2Method.map((method: string) => (
 											<p
-												key={idx}
+												key={method}
 												className="text-sm text-muted-foreground leading-relaxed"
 											>
 												{method}
@@ -545,9 +544,9 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-3">
-							{businessOpp.risks.map((risk: string, index: number) => (
+							{businessOpp.risks.map((risk: string) => (
 								<div
-									key={index}
+									key={risk}
 									className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-white p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
 								>
 									<div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">

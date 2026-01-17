@@ -11,7 +11,7 @@
 import { API_TIMEOUT } from "@/lib/constants/timings";
 import type { AIMetadata } from "@/lib/types/proposal";
 import type { ProposalDTO } from "@/lib/types/proposal-dto";
-import { getErrorMessage, logger } from "@/lib/utils/logger";
+import { logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
 
 // Re-export types for convenience
@@ -52,19 +52,19 @@ export type ProposalResponse = ProposalDTO;
 // API Methods
 // ============================================================================
 
-export class ProposalsAPI {
+export const proposalsAPI = {
 	/**
 	 * Start AI proposal generation (async operation)
 	 * Returns immediately with a job ID for polling
 	 *
 	 * @example
-	 * const status = await ProposalsAPI.generateProposal({
+	 * const status = await proposalsAPI.generateProposal({
 	 *   projectId: '123',
 	 *   proposalType: 'Technical'
 	 * })
-	 * // Poll with: await ProposalsAPI.getJobStatus(status.jobId)
+	 * // Poll with: await proposalsAPI.getJobStatus(status.jobId)
 	 */
-	static async generateProposal(
+	async generateProposal(
 		request: ProposalGenerationRequest,
 	): Promise<ProposalJobStatus> {
 		return apiClient.post<ProposalJobStatus>("/ai/proposals/generate", {
@@ -73,7 +73,7 @@ export class ProposalsAPI {
 			parameters: request.parameters,
 			preferences: request.preferences,
 		});
-	}
+	},
 
 	/**
 	 * Get proposal generation job status (for polling)
@@ -84,36 +84,36 @@ export class ProposalsAPI {
 	 * - Max polling duration: 10 minutes (AI generation can take 5-7 minutes)
 	 *
 	 * @example
-	 * const status = await ProposalsAPI.getJobStatus(jobId)
+	 * const status = await proposalsAPI.getJobStatus(jobId)
 	 * if (status.status === 'completed') {
 	 *   const proposalId = status.result.proposalId
 	 *   // Navigate to proposal
 	 * }
 	 */
-	static async getJobStatus(jobId: string): Promise<ProposalJobStatus> {
+	async getJobStatus(jobId: string): Promise<ProposalJobStatus> {
 		return apiClient.get<ProposalJobStatus>(`/ai/proposals/jobs/${jobId}`);
-	}
+	},
 
 	/**
 	 * List all proposals for a project
 	 */
-	static async listProposals(projectId: string): Promise<ProposalResponse[]> {
+	async listProposals(projectId: string): Promise<ProposalResponse[]> {
 		return apiClient.get<ProposalResponse[]>(
 			`/ai/proposals/${projectId}/proposals`,
 		);
-	}
+	},
 
 	/**
 	 * Get detailed proposal information
 	 */
-	static async getProposal(
+	async getProposal(
 		projectId: string,
 		proposalId: string,
 	): Promise<ProposalResponse> {
 		return apiClient.get<ProposalResponse>(
 			`/ai/proposals/${projectId}/proposals/${proposalId}`,
 		);
-	}
+	},
 
 	/**
 	 * Get proposal PDF download URL
@@ -127,10 +127,10 @@ export class ProposalsAPI {
 	 * @returns Presigned URL for the PDF file
 	 *
 	 * @example
-	 * const url = await ProposalsAPI.getProposalPDFUrl(projectId, proposalId)
+	 * const url = await proposalsAPI.getProposalPDFUrl(projectId, proposalId)
 	 * window.open(url, '_blank')
 	 */
-	static async getProposalPDFUrl(
+	async getProposalPDFUrl(
 		projectId: string,
 		proposalId: string,
 		regenerate = false,
@@ -154,7 +154,7 @@ export class ProposalsAPI {
 			timeout: API_TIMEOUT.EXTENDED,
 		});
 		return response.url;
-	}
+	},
 
 	/**
 	 * Delete a proposal permanently
@@ -165,16 +165,13 @@ export class ProposalsAPI {
 	 * @throws Error if deletion fails
 	 *
 	 * @example
-	 * await ProposalsAPI.deleteProposal(projectId, proposalId)
+	 * await proposalsAPI.deleteProposal(projectId, proposalId)
 	 */
-	static async deleteProposal(
-		projectId: string,
-		proposalId: string,
-	): Promise<void> {
+	async deleteProposal(projectId: string, proposalId: string): Promise<void> {
 		await apiClient.delete(
 			`/ai/proposals/${projectId}/proposals/${proposalId}`,
 		);
-	}
+	},
 
 	/**
 	 * Get AI metadata (transparency data)
@@ -189,19 +186,19 @@ export class ProposalsAPI {
 	 * This enables engineers to validate and trust the AI's decisions.
 	 *
 	 * @example
-	 * const metadata = await ProposalsAPI.getAIMetadata(projectId, proposalId)
+	 * const metadata = await proposalsAPI.getAIMetadata(projectId, proposalId)
 	 * console.log(`AI consulted ${metadata.proven_cases.length} similar cases`)
 	 * console.log(`Confidence: ${metadata.confidence_level}`)
 	 */
-	static async getAIMetadata(
+	async getAIMetadata(
 		projectId: string,
 		proposalId: string,
 	): Promise<AIMetadata> {
 		return apiClient.get<AIMetadata>(
 			`/ai/proposals/${projectId}/proposals/${proposalId}/ai-metadata`,
 		);
-	}
-}
+	},
+};
 
 // ============================================================================
 // Polling Utilities
@@ -304,7 +301,7 @@ export async function pollProposalStatus(
 
 			// Poll for status
 			logger.debug("Polling proposal status", { jobId });
-			const status = await ProposalsAPI.getJobStatus(jobId);
+			const status = await proposalsAPI.getJobStatus(jobId);
 			if (signal?.aborted) {
 				throw buildAbortError();
 			}
@@ -374,5 +371,3 @@ export async function pollProposalStatus(
 		}
 	}
 }
-
-export const proposalsAPI = ProposalsAPI;

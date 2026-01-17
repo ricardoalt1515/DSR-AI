@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { SustainabilityMetric } from "@/lib/types/external-opportunity-report";
 import { cn } from "@/lib/utils";
+import { createStableKeys } from "@/lib/utils/stable-keys";
 import type { Proposal } from "./types";
 
 interface ExternalReportViewProps {
@@ -66,6 +67,7 @@ function MetricCard({
 	const isComputed = metric?.status === "computed";
 	const value = metric?.value;
 	const dataNeeded = metric?.dataNeeded || [];
+	const dataNeededKeys = createStableKeys(dataNeeded);
 
 	return (
 		<Card
@@ -107,7 +109,10 @@ function MetricCard({
 								</p>
 								<ul className="text-xs text-muted-foreground space-y-0.5">
 									{dataNeeded.map((item, i) => (
-										<li key={i} className="flex items-center gap-1.5">
+										<li
+											key={dataNeededKeys[i]}
+											className="flex items-center gap-1.5"
+										>
 											<ArrowRight className="h-3 w-3 text-primary/60" />
 											{item}
 										</li>
@@ -159,6 +164,16 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 	const profitabilityStatement = external.profitabilityStatement?.trim() ?? "";
 	const isHighlyProfitable =
 		profitabilityStatement.toLowerCase() === "highly profitable";
+
+	const actionKeys = external.recommendedActions?.length
+		? createStableKeys(external.recommendedActions)
+		: [];
+	const guidanceKeys = external.handlingGuidance?.length
+		? createStableKeys(external.handlingGuidance)
+		: [];
+	const impactNotesKeys = annualImpactNotes.length
+		? createStableKeys(annualImpactNotes)
+		: [];
 
 	return (
 		<div className="space-y-8 animate-in fade-in duration-500">
@@ -237,7 +252,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 							<CardContent>
 								<ul className="space-y-2">
 									{external.recommendedActions.map((action, i) => (
-										<li key={i} className="flex items-start gap-2">
+										<li key={actionKeys[i]} className="flex items-start gap-2">
 											<CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
 											<span className="text-sm">{action}</span>
 										</li>
@@ -266,7 +281,10 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 							<CardContent>
 								<ul className="space-y-2">
 									{external.handlingGuidance.map((guidance, i) => (
-										<li key={i} className="flex items-start gap-2">
+										<li
+											key={guidanceKeys[i]}
+											className="flex items-start gap-2"
+										>
 											<ArrowRight className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
 											<span className="text-sm">{guidance}</span>
 										</li>
@@ -314,9 +332,9 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-4">
-							{sustainability.circularity.map((indicator, i) => (
+							{sustainability.circularity.map((indicator) => (
 								<div
-									key={i}
+									key={indicator.name}
 									className="flex items-start justify-between p-3 rounded-lg bg-muted/50"
 								>
 									<div>
@@ -404,8 +422,11 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 								)}
 								{annualImpactNotes.length > 0 && (
 									<ul className="text-sm text-muted-foreground space-y-1">
-										{annualImpactNotes.map((note) => (
-											<li key={note} className="flex items-start gap-2">
+										{annualImpactNotes.map((note, i) => (
+											<li
+												key={impactNotesKeys[i]}
+												className="flex items-start gap-2"
+											>
 												<ArrowRight className="h-4 w-4 text-primary/60 mt-0.5" />
 												{note}
 											</li>

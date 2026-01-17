@@ -20,55 +20,55 @@ import { apiClient } from "./client";
 // COMPANIES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export class CompaniesAPI {
+export const companiesAPI = {
 	/**
 	 * List all companies
 	 */
-	static async list(): Promise<CompanySummary[]> {
+	async list(): Promise<CompanySummary[]> {
 		return apiClient.get<CompanySummary[]>("/companies");
-	}
+	},
 
 	/**
 	 * Get company details with locations
 	 */
-	static async get(id: string): Promise<CompanyDetail> {
+	async get(id: string): Promise<CompanyDetail> {
 		return apiClient.get<CompanyDetail>(`/companies/${id}`);
-	}
+	},
 
 	/**
 	 * Create a new company
 	 */
-	static async create(data: CompanyCreate): Promise<CompanyDetail> {
+	async create(data: CompanyCreate): Promise<CompanyDetail> {
 		return apiClient.post<CompanyDetail>(
 			"/companies",
 			data as unknown as Record<string, unknown>,
 		);
-	}
+	},
 
 	/**
 	 * Update company
 	 */
-	static async update(id: string, data: CompanyUpdate): Promise<CompanyDetail> {
+	async update(id: string, data: CompanyUpdate): Promise<CompanyDetail> {
 		return apiClient.put<CompanyDetail>(
 			`/companies/${id}`,
 			data as unknown as Record<string, unknown>,
 		);
-	}
+	},
 
 	/**
 	 * Delete company (cascade deletes locations and projects)
 	 */
-	static async delete(id: string): Promise<{ message: string }> {
+	async delete(id: string): Promise<{ message: string }> {
 		return apiClient.delete(`/companies/${id}`);
-	}
-}
+	},
+};
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // LOCATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export class LocationsAPI {
-	private static buildListUrl(companyId?: string) {
+export const locationsAPI = {
+	buildListUrl(companyId?: string) {
 		const searchParams = new URLSearchParams();
 		if (companyId) {
 			searchParams.append("company_id", companyId);
@@ -76,34 +76,34 @@ export class LocationsAPI {
 
 		const query = searchParams.toString();
 		return query ? `/companies/locations?${query}` : "/companies/locations";
-	}
+	},
 
 	/**
 	 * List all locations (optionally filtered by company)
 	 */
-	static async listAll(companyId?: string): Promise<LocationSummary[]> {
-		const url = LocationsAPI.buildListUrl(companyId);
+	async listAll(companyId?: string): Promise<LocationSummary[]> {
+		const url = locationsAPI.buildListUrl(companyId);
 		return apiClient.get<LocationSummary[]>(url);
-	}
+	},
 
 	/**
 	 * List all locations for a company
 	 */
-	static async listByCompany(companyId: string): Promise<LocationSummary[]> {
-		return LocationsAPI.listAll(companyId);
-	}
+	async listByCompany(companyId: string): Promise<LocationSummary[]> {
+		return locationsAPI.listAll(companyId);
+	},
 
 	/**
 	 * Get location details
 	 */
-	static async get(id: string): Promise<LocationDetail> {
+	async get(id: string): Promise<LocationDetail> {
 		return apiClient.get<LocationDetail>(`/companies/locations/${id}`);
-	}
+	},
 
 	/**
 	 * Create a new location for a company
 	 */
-	static async create(
+	async create(
 		companyId: string,
 		data: LocationCreate,
 	): Promise<LocationSummary> {
@@ -116,29 +116,26 @@ export class LocationsAPI {
 
 		// Backend already returns camelCase - no transformation needed
 		return response;
-	}
+	},
 
 	/**
 	 * Update location
 	 */
-	static async update(
-		id: string,
-		data: LocationUpdate,
-	): Promise<LocationDetail> {
+	async update(id: string, data: LocationUpdate): Promise<LocationDetail> {
 		return apiClient.put<LocationDetail>(
 			`/companies/locations/${id}`,
 			data as unknown as Record<string, unknown>,
 		);
-	}
+	},
 
 	/**
 	 * Delete location (cascade deletes projects)
 	 */
-	static async delete(id: string): Promise<{ message: string }> {
+	async delete(id: string): Promise<{ message: string }> {
 		return apiClient.delete(`/companies/locations/${id}`);
-	}
+	},
 
-	static async createContact(
+	async createContact(
 		locationId: string,
 		data: Omit<
 			LocationContact,
@@ -149,9 +146,9 @@ export class LocationsAPI {
 			`/companies/locations/${locationId}/contacts`,
 			data as unknown as Record<string, unknown>,
 		);
-	}
+	},
 
-	static async updateContact(
+	async updateContact(
 		locationId: string,
 		contactId: string,
 		data: Partial<
@@ -162,14 +159,14 @@ export class LocationsAPI {
 			`/companies/locations/${locationId}/contacts/${contactId}`,
 			data as unknown as Record<string, unknown>,
 		);
-	}
+	},
 
-	static async deleteContact(
+	async deleteContact(
 		locationId: string,
 		contactId: string,
 	): Promise<SuccessResponse> {
 		return apiClient.delete(
 			`/companies/locations/${locationId}/contacts/${contactId}`,
 		);
-	}
-}
+	},
+};

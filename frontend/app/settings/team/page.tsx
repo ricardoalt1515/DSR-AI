@@ -8,7 +8,7 @@ import {
 	Users,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	AddUserModal,
@@ -47,13 +47,7 @@ export default function SettingsTeamPage() {
 	const [modalOpen, setModalOpen] = useState(false);
 	const isOrgActive = currentOrganization?.isActive ?? true;
 
-	useEffect(() => {
-		if (!canManageUsers) return;
-		void fetchUsers();
-		void loadCurrentOrganization();
-	}, [canManageUsers, loadCurrentOrganization]);
-
-	const fetchUsers = async () => {
+	const fetchUsers = useCallback(async () => {
 		try {
 			setIsLoading(true);
 			const data = await organizationsAPI.listMyOrgUsers();
@@ -63,7 +57,13 @@ export default function SettingsTeamPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, []);
+
+	useEffect(() => {
+		if (!canManageUsers) return;
+		void fetchUsers();
+		void loadCurrentOrganization();
+	}, [canManageUsers, loadCurrentOrganization, fetchUsers]);
 
 	const stats = useMemo(() => {
 		const total = users.length;

@@ -45,13 +45,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import {
 	Sheet,
 	SheetContent,
 	SheetDescription,
@@ -114,11 +107,9 @@ export function NavBar() {
 	const { user, logout, isSuperAdmin, isOrgAdmin } = useAuth();
 	const {
 		currentOrganization,
-		organizations,
 		selectedOrgId,
 		loadCurrentOrganization,
 		loadOrganizations,
-		selectOrganization,
 	} = useOrganizationStore();
 	const [mounted, setMounted] = useState(false);
 	const quickActions: QuickAction[] = [
@@ -469,15 +460,18 @@ export function NavBar() {
 					<CommandGroup heading="Recent Waste Streams">
 						{loadingProjects ? (
 							<div className="space-y-2 p-2">
-								{Array.from({ length: 3 }).map((_, index) => (
-									<div key={index} className="flex items-center gap-3">
-										<Skeleton className="h-8 w-8 rounded-full" />
-										<div className="flex-1 space-y-1">
-											<Skeleton className="h-3 w-32" />
-											<Skeleton className="h-3 w-24" />
+								{Array.from({ length: 3 }).map((_, index) => {
+									const key = `loading-${index}`;
+									return (
+										<div key={key} className="flex items-center gap-3">
+											<Skeleton className="h-8 w-8 rounded-full" />
+											<div className="flex-1 space-y-1">
+												<Skeleton className="h-3 w-32" />
+												<Skeleton className="h-3 w-24" />
+											</div>
 										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						) : projects.length === 0 ? (
 							<CommandItem disabled>

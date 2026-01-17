@@ -51,9 +51,9 @@ function ListSection({
 		<div>
 			<p className="text-sm font-medium mb-2">{title}</p>
 			<ul className="space-y-1">
-				{items.map((item, idx) => (
+				{items.map((item) => (
 					<li
-						key={idx}
+						key={item}
 						className={className ?? "text-sm text-muted-foreground"}
 					>
 						* {item}
@@ -177,8 +177,8 @@ export function ResourceConsiderationsCard({
 						<div>
 							<p className="text-sm font-medium mb-2">Buyer Types</p>
 							<div className="flex flex-wrap gap-2">
-								{buyerTypes.map((type, idx) => (
-									<HoverCard key={idx}>
+								{buyerTypes.map((type) => (
+									<HoverCard key={type}>
 										<HoverCardTrigger asChild>
 											<Badge variant="secondary" className="cursor-help">
 												{type}
@@ -193,8 +193,8 @@ export function ResourceConsiderationsCard({
 															Typical Requirements:
 														</p>
 														<ul className="text-xs text-muted-foreground space-y-0.5">
-															{typicalRequirements.slice(0, 3).map((req, i) => (
-																<li key={i}>* {req}</li>
+															{typicalRequirements.slice(0, 3).map((req) => (
+																<li key={req}>* {req}</li>
 															))}
 														</ul>
 													</div>
@@ -205,8 +205,8 @@ export function ResourceConsiderationsCard({
 															Pricing Factors:
 														</p>
 														<ul className="text-xs text-muted-foreground space-y-0.5">
-															{pricingFactors.slice(0, 3).map((factor, i) => (
-																<li key={i}>* {factor}</li>
+															{pricingFactors.slice(0, 3).map((factor) => (
+																<li key={factor}>* {factor}</li>
 															))}
 														</ul>
 													</div>

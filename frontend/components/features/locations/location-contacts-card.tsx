@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
-import { LocationsAPI } from "@/lib/api/companies";
+import { locationsAPI } from "@/lib/api/companies";
 import { useToast } from "@/lib/hooks/use-toast";
 import type { LocationContact } from "@/lib/types/company";
 
@@ -39,7 +39,7 @@ export function LocationContactsCard({
 	}) => {
 		setLoading(true);
 		try {
-			await LocationsAPI.createContact(locationId, data);
+			await locationsAPI.createContact(locationId, data);
 			toast({
 				title: "Contact added",
 				description: "Location contact saved successfully.",
@@ -69,7 +69,7 @@ export function LocationContactsCard({
 	) => {
 		setLoading(true);
 		try {
-			await LocationsAPI.updateContact(locationId, contactId, data);
+			await locationsAPI.updateContact(locationId, contactId, data);
 			toast({
 				title: "Contact updated",
 				description: "Location contact updated successfully.",
@@ -91,7 +91,7 @@ export function LocationContactsCard({
 		if (!contactToDelete) return;
 		setLoading(true);
 		try {
-			await LocationsAPI.deleteContact(locationId, contactToDelete.id);
+			await locationsAPI.deleteContact(locationId, contactToDelete.id);
 			toast({
 				title: "Contact deleted",
 				description: "Location contact removed successfully.",

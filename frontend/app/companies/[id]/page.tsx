@@ -322,8 +322,9 @@ export default function CompanyDetailPage() {
 							>
 								<CardHeader className="pb-3">
 									<div className="flex items-start justify-between">
-										<div
-											className="flex-1 cursor-pointer"
+										<button
+											type="button"
+											className="flex-1 cursor-pointer text-left"
 											onClick={() =>
 												router.push(
 													`/companies/${companyId}/locations/${location.id}`,
@@ -336,7 +337,7 @@ export default function CompanyDetailPage() {
 											<p className="text-sm text-muted-foreground mt-1">
 												{location.city}, {location.state}
 											</p>
-										</div>
+										</button>
 										<div className="flex items-center gap-2">
 											<Badge
 												variant={

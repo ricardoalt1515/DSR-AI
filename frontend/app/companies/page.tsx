@@ -1,10 +1,9 @@
 "use client";
 
-import { Building2, Loader2, Search, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 /**
  * Companies page - List all client companies
  */
+import { Building2, Loader2, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CompanyCard } from "@/components/features/companies/company-card";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
@@ -15,7 +14,6 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounce";
 import { useCompanyStore } from "@/lib/stores/company-store";
 
 export default function CompaniesPage() {
-	const router = useRouter();
 	const { companies, loading, loadCompanies } = useCompanyStore();
 	const { canWriteClientData } = useAuth();
 	const [searchTerm, setSearchTerm] = useState("");
@@ -125,11 +123,7 @@ export default function CompaniesPage() {
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{filteredCompanies.map((company) => (
-						<CompanyCard
-							key={company.id}
-							company={company}
-							onClick={() => router.push(`/companies/${company.id}`)}
-						/>
+						<CompanyCard key={company.id} company={company} />
 					))}
 				</div>
 			)}

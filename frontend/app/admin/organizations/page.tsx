@@ -9,7 +9,7 @@ import {
 	Search,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	AdminStatsCard,
@@ -61,11 +61,7 @@ export default function AdminOrganizationsPage() {
 	const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 
-	useEffect(() => {
-		fetchOrganizations();
-	}, []);
-
-	const fetchOrganizations = async () => {
+	const fetchOrganizations = useCallback(async () => {
 		try {
 			setIsLoading(true);
 			const data = await organizationsAPI.list();
@@ -75,7 +71,11 @@ export default function AdminOrganizationsPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, []);
+
+	useEffect(() => {
+		fetchOrganizations();
+	}, [fetchOrganizations]);
 
 	const stats = useMemo(() => {
 		const total = organizations.length;

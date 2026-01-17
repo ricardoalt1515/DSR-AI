@@ -102,14 +102,14 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 	if (loadState === "loading" || loadState === "retrying") {
 		return (
 			<div
-				className="flex items-center gap-2"
 				role="status"
 				aria-live="polite"
 				aria-busy="true"
+				className="flex items-center gap-2"
 			>
 				<Skeleton className={`h-10 ${SWITCHER_WIDTH_CLASS} rounded-lg`} />
 				<span className="text-xs text-muted-foreground animate-pulse">
-					{loadState === "retrying" ? "Verifying context..." : "Loading..."}
+					{loadState === "retrying" ? "Verifying context…" : "Loading…"}
 				</span>
 			</div>
 		);

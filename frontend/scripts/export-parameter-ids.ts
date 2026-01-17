@@ -75,7 +75,9 @@ async function exportParameterIds() {
 		console.log(`✅ Exported ${parameterIds.length} parameter IDs`);
 		console.log(`📄 Output: ${OUTPUT_FILE}`);
 		console.log("\n📋 Sample IDs:");
-		parameterIds.slice(0, 10).forEach((id) => console.log(`   - ${id}`));
+		for (const id of parameterIds.slice(0, 10)) {
+			console.log(`   - ${id}`);
+		}
 
 		if (parameterIds.length > 10) {
 			console.log(`   ... and ${parameterIds.length - 10} more`);

@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { LocationsAPI } from "@/lib/api/companies";
+import { locationsAPI } from "@/lib/api/companies";
 import type {
 	LocationCreate,
 	LocationDetail,
@@ -37,7 +37,7 @@ interface LocationState {
 
 export const useLocationStore = create<LocationState>()(
 	persist(
-		immer((set, get) => ({
+		immer((set, _get) => ({
 			// Initial state
 			locations: [],
 			currentLocation: null,
@@ -52,7 +52,7 @@ export const useLocationStore = create<LocationState>()(
 				});
 
 				try {
-					const locations = await LocationsAPI.listAll();
+					const locations = await locationsAPI.listAll();
 					set((state) => {
 						state.locations = locations;
 						state.loading = false;
@@ -80,7 +80,7 @@ export const useLocationStore = create<LocationState>()(
 				});
 
 				try {
-					const locations = await LocationsAPI.listByCompany(companyId);
+					const locations = await locationsAPI.listByCompany(companyId);
 
 					set((state) => {
 						const otherCompanies = state.locations.filter(
@@ -125,7 +125,7 @@ export const useLocationStore = create<LocationState>()(
 				});
 
 				try {
-					const location = await LocationsAPI.get(id);
+					const location = await locationsAPI.get(id);
 					set((state) => {
 						state.currentLocation = location;
 						state.loading = false;
@@ -149,7 +149,7 @@ export const useLocationStore = create<LocationState>()(
 				});
 
 				try {
-					const location = await LocationsAPI.create(companyId, data);
+					const location = await locationsAPI.create(companyId, data);
 					set((state) => {
 						state.locations.push(location);
 						// Don't set currentLocation since it's only a summary
@@ -176,7 +176,7 @@ export const useLocationStore = create<LocationState>()(
 				});
 
 				try {
-					const location = await LocationsAPI.update(id, data);
+					const location = await locationsAPI.update(id, data);
 					set((state) => {
 						const index = state.locations.findIndex((l) => l.id === id);
 						if (index !== -1) {
@@ -212,7 +212,7 @@ export const useLocationStore = create<LocationState>()(
 				});
 
 				try {
-					await LocationsAPI.delete(id);
+					await locationsAPI.delete(id);
 					set((state) => {
 						state.locations = state.locations.filter((l) => l.id !== id);
 						if (state.currentLocation?.id === id) {

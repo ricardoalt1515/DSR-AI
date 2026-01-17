@@ -50,76 +50,74 @@ export function LocationCombobox({
 	const selectedLocation = filteredLocations.find((l) => l.id === value);
 
 	return (
-		<>
-			<Popover open={open} onOpenChange={setOpen}>
-				<PopoverTrigger asChild>
-					<Button
-						variant="outline"
-						role="combobox"
-						aria-expanded={open}
-						className={cn("w-full justify-between h-12", className)}
-						disabled={!companyId}
-					>
-						{selectedLocation
-							? `${selectedLocation.name} - ${selectedLocation.city}`
-							: placeholder}
-						<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-					</Button>
-				</PopoverTrigger>
-				<PopoverContent className="w-full p-0" align="start">
-					<Command>
-						<CommandInput placeholder="Search location..." />
-						<CommandList>
-							<CommandEmpty>No location found.</CommandEmpty>
-							<CommandGroup>
-								{filteredLocations.map((location) => (
-									<CommandItem
-										key={location.id}
-										value={`${location.name} ${location.city}`}
-										onSelect={() => {
-											onValueChange?.(location.id);
-											setOpen(false);
-										}}
-									>
-										<Check
-											className={cn(
-												"mr-2 h-4 w-4",
-												value === location.id ? "opacity-100" : "opacity-0",
-											)}
-										/>
-										<div className="flex flex-col">
-											<span className="font-medium">{location.name}</span>
-											<span className="text-xs text-muted-foreground">
-												{location.city}
-											</span>
-										</div>
-									</CommandItem>
-								))}
-							</CommandGroup>
-							<CommandSeparator />
-							<CommandGroup>
-								<CreateLocationDialog
-									companyId={companyId}
-									onSuccess={(location) => {
-										loadLocationsByCompany(companyId);
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant="outline"
+					role="combobox"
+					aria-expanded={open}
+					className={cn("w-full justify-between h-12", className)}
+					disabled={!companyId}
+				>
+					{selectedLocation
+						? `${selectedLocation.name} - ${selectedLocation.city}`
+						: placeholder}
+					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-full p-0" align="start">
+				<Command>
+					<CommandInput placeholder="Search location..." />
+					<CommandList>
+						<CommandEmpty>No location found.</CommandEmpty>
+						<CommandGroup>
+							{filteredLocations.map((location) => (
+								<CommandItem
+									key={location.id}
+									value={`${location.name} ${location.city}`}
+									onSelect={() => {
 										onValueChange?.(location.id);
 										setOpen(false);
 									}}
-									trigger={
-										<button
-											type="button"
-											className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary"
-										>
-											<Plus className="mr-2 h-4 w-4" />
-											Create new location
-										</button>
-									}
-								/>
-							</CommandGroup>
-						</CommandList>
-					</Command>
-				</PopoverContent>
-			</Popover>
-		</>
+								>
+									<Check
+										className={cn(
+											"mr-2 h-4 w-4",
+											value === location.id ? "opacity-100" : "opacity-0",
+										)}
+									/>
+									<div className="flex flex-col">
+										<span className="font-medium">{location.name}</span>
+										<span className="text-xs text-muted-foreground">
+											{location.city}
+										</span>
+									</div>
+								</CommandItem>
+							))}
+						</CommandGroup>
+						<CommandSeparator />
+						<CommandGroup>
+							<CreateLocationDialog
+								companyId={companyId}
+								onSuccess={(location) => {
+									loadLocationsByCompany(companyId);
+									onValueChange?.(location.id);
+									setOpen(false);
+								}}
+								trigger={
+									<button
+										type="button"
+										className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary"
+									>
+										<Plus className="mr-2 h-4 w-4" />
+										Create new location
+									</button>
+								}
+							/>
+						</CommandGroup>
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
 	);
 }

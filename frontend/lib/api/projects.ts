@@ -10,7 +10,7 @@ import type { PaginatedResponse } from "./index";
 
 type JsonObject = Record<string, unknown>;
 
-type ProjectListParams = {
+export type ProjectListParams = {
 	page?: number;
 	size?: number;
 	search?: string;
@@ -20,7 +20,7 @@ type ProjectListParams = {
 	locationId?: string; // Filter by location
 };
 
-type CreateProjectPayload = JsonObject & {
+export type CreateProjectPayload = JsonObject & {
 	locationId: string; // Required - FK to location (source of truth)
 	name: string;
 	projectType?: string; // Default: "Assessment"
@@ -30,7 +30,7 @@ type CreateProjectPayload = JsonObject & {
 	// No need to send them - backend populates automatically
 };
 
-type UpdateProjectPayload = JsonObject &
+export type UpdateProjectPayload = JsonObject &
 	Partial<CreateProjectPayload> & {
 		status?: ProjectSummary["status"];
 		progress?: number;
@@ -47,13 +47,13 @@ export type DashboardStats = {
 	avg_progress: number;
 };
 
-type ProjectFilesListResponse = {
+export type ProjectFilesListResponse = {
 	project_id: string;
 	files: ProjectFile[];
 	total: number;
 };
 
-type ProjectFileUploadResponse = {
+export type ProjectFileUploadResponse = {
 	id: string;
 	filename: string;
 	file_size: number;
@@ -64,8 +64,8 @@ type ProjectFileUploadResponse = {
 	message: string;
 };
 
-export class ProjectsAPI {
-	static async getProjects(
+export const projectsAPI = {
+	async getProjects(
 		params?: ProjectListParams,
 	): Promise<PaginatedResponse<ProjectSummary>> {
 		const searchParams = new URLSearchParams();
@@ -83,45 +83,43 @@ export class ProjectsAPI {
 		const url = query ? `/projects?${query}` : "/projects";
 
 		return apiClient.get<PaginatedResponse<ProjectSummary>>(url);
-	}
+	},
 
-	static async getProject(id: string): Promise<ProjectDetail> {
+	async getProject(id: string): Promise<ProjectDetail> {
 		return apiClient.get<ProjectDetail>(`/projects/${id}`);
-	}
+	},
 
-	static async getStats(): Promise<DashboardStats> {
+	async getStats(): Promise<DashboardStats> {
 		return apiClient.get<DashboardStats>("/projects/stats");
-	}
+	},
 
-	static async createProject(
-		data: CreateProjectPayload,
-	): Promise<ProjectDetail> {
+	async createProject(data: CreateProjectPayload): Promise<ProjectDetail> {
 		return apiClient.post<ProjectDetail>("/projects", data);
-	}
+	},
 
-	static async updateProject(
+	async updateProject(
 		id: string,
 		data: UpdateProjectPayload,
 	): Promise<ProjectDetail> {
 		return apiClient.patch<ProjectDetail>(`/projects/${id}`, data);
-	}
+	},
 
-	static async deleteProject(id: string): Promise<void> {
+	async deleteProject(id: string): Promise<void> {
 		await apiClient.delete<void>(`/projects/${id}`);
-	}
+	},
 
 	// ❌ REMOVED: Proposal methods (getProposals, createProposal, updateProposal, deleteProposal)
-	// ✅ USE INSTEAD: ProposalsAPI from '@/lib/api/proposals'
-	// ProposalsAPI provides complete proposal management with PDF generation, AI metadata, and polling utilities
+	// ✅ USE INSTEAD: proposalsAPI from '@/lib/api/proposals'
+	// proposalsAPI provides complete proposal management with PDF generation, AI metadata, and polling utilities
 
-	static async getFiles(projectId: string): Promise<ProjectFile[]> {
+	async getFiles(projectId: string): Promise<ProjectFile[]> {
 		const response = await apiClient.get<ProjectFilesListResponse>(
 			`/projects/${projectId}/files`,
 		);
 		return response.files ?? [];
-	}
+	},
 
-	static async uploadFile(
+	async uploadFile(
 		projectId: string,
 		file: File,
 		metadata?: {
@@ -134,22 +132,22 @@ export class ProjectsAPI {
 			file,
 			metadata,
 		);
-	}
+	},
 
-	static async deleteFile(projectId: string, fileId: string): Promise<void> {
+	async deleteFile(projectId: string, fileId: string): Promise<void> {
 		await apiClient.delete<void>(`/projects/${projectId}/files/${fileId}`);
-	}
+	},
 
-	static async getFileDetail(
+	async getFileDetail(
 		projectId: string,
 		fileId: string,
 	): Promise<ProjectFileDetail> {
 		return apiClient.get<ProjectFileDetail>(
 			`/projects/${projectId}/files/${fileId}`,
 		);
-	}
+	},
 
-	static async downloadFileBlob(fileId: string): Promise<Blob> {
+	async downloadFileBlob(fileId: string): Promise<Blob> {
 		// Backend always returns JSON with URL (works for both S3 and local)
 		const response = await apiClient.get<{
 			url: string;
@@ -169,16 +167,14 @@ export class ProjectsAPI {
 				`Download failed: ${getErrorMessage(error, "Network error")}`,
 			);
 		}
-	}
+	},
 
-	static async getTimeline(
+	async getTimeline(
 		projectId: string,
 		limit: number = 50,
 	): Promise<JsonObject[]> {
 		return apiClient.get<JsonObject[]>(
 			`/projects/${projectId}/timeline?limit=${limit}`,
 		);
-	}
-}
-
-export const projectsAPI = ProjectsAPI;
+	},
+};

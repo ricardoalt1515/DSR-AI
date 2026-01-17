@@ -67,11 +67,11 @@ export interface ProjectDataSyncResult {
 /**
  * API class for project data operations
  */
-export class ProjectDataAPI {
+export const projectDataAPI = {
 	/**
 	 * Get all project data
 	 */
-	static async getData(projectId: string): Promise<ProjectData> {
+	async getData(projectId: string): Promise<ProjectData> {
 		const response = await apiClient.get<ProjectDataResponse>(
 			`/projects/${projectId}/data`,
 		);
@@ -79,12 +79,12 @@ export class ProjectDataAPI {
 			return response.data ?? {};
 		}
 		return response as unknown as ProjectData;
-	}
+	},
 
 	/**
 	 * Update project data (merge by default)
 	 */
-	static async updateData(
+	async updateData(
 		projectId: string,
 		updates: Partial<ProjectData>,
 		merge: boolean = true,
@@ -104,12 +104,12 @@ export class ProjectDataAPI {
 			result.progress = response.progress;
 
 		return result;
-	}
+	},
 
 	/**
 	 * Add a water quality parameter
 	 */
-	static async addQualityParameter(
+	async addQualityParameter(
 		projectId: string,
 		name: string,
 		value: number,
@@ -120,18 +120,18 @@ export class ProjectDataAPI {
 				[name]: { value, unit },
 			},
 		};
-		return ProjectDataAPI.updateData(projectId, updates, true);
-	}
+		return projectDataAPI.updateData(projectId, updates, true);
+	},
 
 	/**
 	 * Delete a water quality parameter
 	 */
-	static async deleteQualityParameter(
+	async deleteQualityParameter(
 		projectId: string,
 		paramName: string,
 	): Promise<ProjectDataSyncResult> {
 		// Get current data
-		const currentData = await ProjectDataAPI.getData(projectId);
+		const currentData = await projectDataAPI.getData(projectId);
 
 		// Remove parameter
 		if (currentData.quality) {
@@ -139,17 +139,17 @@ export class ProjectDataAPI {
 		}
 
 		// Update with modified data
-		return ProjectDataAPI.updateData(projectId, currentData, false);
-	}
+		return projectDataAPI.updateData(projectId, currentData, false);
+	},
 
 	/**
 	 * Add a custom section
 	 */
-	static async addSection(
+	async addSection(
 		projectId: string,
 		section: Omit<CustomSection, "order">,
 	): Promise<ProjectDataSyncResult> {
-		const currentData = await ProjectDataAPI.getData(projectId);
+		const currentData = await projectDataAPI.getData(projectId);
 		const sections = currentData.sections || [];
 
 		const newSection: CustomSection = {
@@ -161,17 +161,17 @@ export class ProjectDataAPI {
 			sections: [...sections, newSection],
 		};
 
-		return ProjectDataAPI.updateData(projectId, updates, true);
-	}
+		return projectDataAPI.updateData(projectId, updates, true);
+	},
 
 	/**
 	 * Delete a custom section
 	 */
-	static async deleteSection(
+	async deleteSection(
 		projectId: string,
 		sectionId: string,
 	): Promise<ProjectDataSyncResult> {
-		const currentData = await ProjectDataAPI.getData(projectId);
+		const currentData = await projectDataAPI.getData(projectId);
 
 		if (currentData.sections) {
 			// Filter out the section
@@ -183,17 +183,17 @@ export class ProjectDataAPI {
 			});
 
 			// Update
-			return ProjectDataAPI.updateData(projectId, { sections }, true);
+			return projectDataAPI.updateData(projectId, { sections }, true);
 		}
 		return {
 			projectId,
 		};
-	}
+	},
 
 	/**
 	 * Update a specific field by path (e.g., "basic_info.company_name")
 	 */
-	static async updateField(
+	async updateField(
 		projectId: string,
 		path: string,
 		value: unknown,
@@ -215,9 +215,6 @@ export class ProjectDataAPI {
 			current[lastKey] = value;
 		}
 
-		return ProjectDataAPI.updateData(projectId, updates, true);
-	}
-}
-
-// Export singleton instance for convenience
-export const projectDataAPI = ProjectDataAPI;
+		return projectDataAPI.updateData(projectId, updates, true);
+	},
+};

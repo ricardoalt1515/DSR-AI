@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		};
 
 		initAuth();
-	}, []);
+	}, [resetProjectStore, resetOrganizationStore]);
 
 	useEffect(() => {
 		if (isLoading) return;

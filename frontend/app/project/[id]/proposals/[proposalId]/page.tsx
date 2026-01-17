@@ -18,7 +18,7 @@ import type { Proposal } from "@/components/features/proposals/types";
 import { Button } from "@/components/ui/button";
 import { API_ERROR_CODES, APIClientError } from "@/lib/api/client";
 import { projectsAPI } from "@/lib/api/projects";
-import { ProposalsAPI } from "@/lib/api/proposals";
+import { proposalsAPI } from "@/lib/api/proposals";
 import { useLatestRequest } from "@/lib/hooks/use-latest-request";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
 import type { ProjectDetail } from "@/lib/project-types";
@@ -134,7 +134,7 @@ export default function ProposalDetailPage({ params }: PageProps) {
 		setProposalNotFound(false);
 
 		try {
-			const apiProposal = await ProposalsAPI.getProposal(projectId, proposalId);
+			const apiProposal = await proposalsAPI.getProposal(projectId, proposalId);
 			if (isLatestProposalRequest(requestId)) {
 				setProposal(mapProposalDtoToUi(apiProposal));
 			}
@@ -164,7 +164,7 @@ export default function ProposalDetailPage({ params }: PageProps) {
 			// Invalidate any in-flight request to avoid setState after unmount
 			invalidateProjectRequest();
 		};
-	}, [loadProjectData]);
+	}, [invalidateProjectRequest, loadProjectData]);
 
 	useEffect(() => {
 		void loadProposalData();
@@ -172,7 +172,7 @@ export default function ProposalDetailPage({ params }: PageProps) {
 			// Invalidate any in-flight request to avoid setState after unmount
 			invalidateProposalRequest();
 		};
-	}, [loadProposalData]);
+	}, [invalidateProposalRequest, loadProposalData]);
 
 	// --- Render states ---
 
@@ -240,7 +240,7 @@ export default function ProposalDetailPage({ params }: PageProps) {
 				id: "pdf-download",
 			});
 
-			const url = await ProposalsAPI.getProposalPDFUrl(
+			const url = await proposalsAPI.getProposalPDFUrl(
 				projectId,
 				proposalId,
 				false,

@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { CompaniesAPI } from "@/lib/api/companies";
+import { companiesAPI } from "@/lib/api/companies";
 import type {
 	CompanyCreate,
 	CompanyDetail,
@@ -33,7 +33,7 @@ interface CompanyState {
 
 export const useCompanyStore = create<CompanyState>()(
 	persist(
-		immer((set, get) => ({
+		immer((set, _get) => ({
 			// Initial state
 			companies: [],
 			currentCompany: null,
@@ -48,7 +48,7 @@ export const useCompanyStore = create<CompanyState>()(
 				});
 
 				try {
-					const companies = await CompaniesAPI.list();
+					const companies = await companiesAPI.list();
 					set((state) => {
 						state.companies = companies;
 						state.loading = false;
@@ -72,7 +72,7 @@ export const useCompanyStore = create<CompanyState>()(
 				});
 
 				try {
-					const company = await CompaniesAPI.get(id);
+					const company = await companiesAPI.get(id);
 					set((state) => {
 						state.currentCompany = company;
 						state.loading = false;
@@ -96,7 +96,7 @@ export const useCompanyStore = create<CompanyState>()(
 				});
 
 				try {
-					const company = await CompaniesAPI.create(data);
+					const company = await companiesAPI.create(data);
 					set((state) => {
 						state.companies.push(company);
 						state.currentCompany = company;
@@ -123,7 +123,7 @@ export const useCompanyStore = create<CompanyState>()(
 				});
 
 				try {
-					const company = await CompaniesAPI.update(id, data);
+					const company = await companiesAPI.update(id, data);
 					set((state) => {
 						const index = state.companies.findIndex((c) => c.id === id);
 						if (index !== -1) {
@@ -155,7 +155,7 @@ export const useCompanyStore = create<CompanyState>()(
 				});
 
 				try {
-					await CompaniesAPI.delete(id);
+					await companiesAPI.delete(id);
 					set((state) => {
 						state.companies = state.companies.filter((c) => c.id !== id);
 						if (state.currentCompany?.id === id) {

@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import type { ProposalGenerationRequest } from "@/lib/api/proposals";
-import { ProposalsAPI, pollProposalStatus } from "@/lib/api/proposals";
+import { pollProposalStatus, proposalsAPI } from "@/lib/api/proposals";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -99,7 +99,7 @@ export function ProposalGenerationManager() {
 
 	const startNewGeneration = useCallback(
 		async (request: ProposalGenerationRequest) => {
-			const initialStatus = await ProposalsAPI.generateProposal(request);
+			const initialStatus = await proposalsAPI.generateProposal(request);
 			const newStartedAt = Date.now();
 
 			startGeneration(request.projectId, initialStatus.jobId, newStartedAt);

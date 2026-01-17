@@ -10,7 +10,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, Search, User as UserIcon, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -197,63 +197,69 @@ export function UsersTable({
 		setStatusFilter("all");
 	};
 
-	const handleRoleChange = async (
-		userId: string,
-		newRole: Exclude<UserRole, "admin">,
-	) => {
-		if (!onRoleChange) return;
-		setUpdatingUsers((prev) => new Set(prev).add(userId));
-		try {
-			await onRoleChange(userId, newRole);
-		} finally {
-			setUpdatingUsers((prev) => {
-				const next = new Set(prev);
-				next.delete(userId);
-				return next;
-			});
-		}
-	};
+	const handleRoleChange = useCallback(
+		async (userId: string, newRole: Exclude<UserRole, "admin">) => {
+			if (!onRoleChange) return;
+			setUpdatingUsers((prev) => new Set(prev).add(userId));
+			try {
+				await onRoleChange(userId, newRole);
+			} finally {
+				setUpdatingUsers((prev) => {
+					const next = new Set(prev);
+					next.delete(userId);
+					return next;
+				});
+			}
+		},
+		[onRoleChange],
+	);
 
-	const handleStatusChange = async (userId: string, isActive: boolean) => {
-		if (!onStatusChange) return;
-		setUpdatingUsers((prev) => new Set(prev).add(userId));
-		try {
-			await onStatusChange(userId, isActive);
-		} finally {
-			setUpdatingUsers((prev) => {
-				const next = new Set(prev);
-				next.delete(userId);
-				return next;
-			});
-		}
-	};
+	const handleStatusChange = useCallback(
+		async (userId: string, isActive: boolean) => {
+			if (!onStatusChange) return;
+			setUpdatingUsers((prev) => new Set(prev).add(userId));
+			try {
+				await onStatusChange(userId, isActive);
+			} finally {
+				setUpdatingUsers((prev) => {
+					const next = new Set(prev);
+					next.delete(userId);
+					return next;
+				});
+			}
+		},
+		[onStatusChange],
+	);
 
-	const requestRoleChange = (
-		userId: string,
-		newRole: Exclude<UserRole, "admin">,
-	) => {
-		if (!onRoleChange) return;
-		const user = users.find((entry) => entry.id === userId);
-		if (!user) return;
-		if (user.role === newRole) return;
-		if (user.role === "org_admin" && newRole !== "org_admin") {
-			setPendingAction({ type: "role", userId, newRole });
-			return;
-		}
-		void handleRoleChange(userId, newRole);
-	};
+	const requestRoleChange = useCallback(
+		(userId: string, newRole: Exclude<UserRole, "admin">) => {
+			if (!onRoleChange) return;
+			const user = users.find((entry) => entry.id === userId);
+			if (!user) return;
+			if (user.role === newRole) return;
+			if (user.role === "org_admin" && newRole !== "org_admin") {
+				setPendingAction({ type: "role", userId, newRole });
+				return;
+			}
+			void handleRoleChange(userId, newRole);
+		},
+		[onRoleChange, users, handleRoleChange],
+	);
 
-	const requestStatusChange = (userId: string, isActive: boolean) => {
-		if (!onStatusChange) return;
-		const user = users.find((entry) => entry.id === userId);
-		if (!user) return;
-		if (user.isActive === isActive) return;
-		if (!isActive) {
-			setPendingAction({ type: "status", userId, isActive });
-			return;
-		}
-		void handleStatusChange(userId, isActive);
-	};
+	const requestStatusChange = useCallback(
+		(userId: string, isActive: boolean) => {
+			if (!onStatusChange) return;
+			const user = users.find((entry) => entry.id === userId);
+			if (!user) return;
+			if (user.isActive === isActive) return;
+			if (!isActive) {
+				setPendingAction({ type: "status", userId, isActive });
+				return;
+			}
+			void handleStatusChange(userId, isActive);
+		},
+		[onStatusChange, users, handleStatusChange],
+	);
 
 	const pendingUser = pendingAction
 		? users.find((entry) => entry.id === pendingAction.userId)
@@ -393,6 +399,8 @@ export function UsersTable({
 			onRoleChange,
 			onStatusChange,
 			updatingUsers,
+			requestRoleChange,
+			requestStatusChange,
 		],
 	);
 

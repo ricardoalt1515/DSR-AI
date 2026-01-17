@@ -52,8 +52,8 @@ export function TagInput({
 		setInput("");
 	};
 
-	const removeTag = (index: number) => {
-		onChange(tags.filter((_, i) => i !== index));
+	const removeTag = (tagToRemove: string) => {
+		onChange(tags.filter((t) => t !== tagToRemove));
 	};
 
 	const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -61,7 +61,7 @@ export function TagInput({
 			e.preventDefault();
 			addTag(input);
 		} else if (e.key === "Backspace" && !input && tags.length > 0) {
-			removeTag(tags.length - 1);
+			removeTag(tags[tags.length - 1]);
 		} else if (e.key === "Escape") {
 			setShowSuggestions(false);
 		}
@@ -77,16 +77,12 @@ export function TagInput({
 					className,
 				)}
 			>
-				{tags.map((tag, index) => (
-					<Badge
-						key={`${tag}-${index}`}
-						variant="secondary"
-						className="gap-1 pl-2 pr-1 py-1"
-					>
+				{tags.map((tag) => (
+					<Badge key={tag} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
 						<span className="text-sm">{tag}</span>
 						<button
 							type="button"
-							onClick={() => removeTag(index)}
+							onClick={() => removeTag(tag)}
 							className="ml-1 hover:bg-muted rounded-sm p-0.5 transition-colors"
 							aria-label={`Remove ${tag}`}
 						>

@@ -58,7 +58,6 @@ const nextConfig = {
 	// Environment variables validation (these must be set in Amplify Console)
 	env: {
 		NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
-		// biome-ignore lint/style/useNamingConvention: NEXT_PUBLIC_API_URL is Next.js standard for public env vars
 		NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
 		BASE_URL: process.env.BASE_URL,
 	},

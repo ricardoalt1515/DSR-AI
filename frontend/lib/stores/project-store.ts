@@ -314,8 +314,12 @@ export const useProjectStore = create<ProjectState>()(
 				try {
 					// Simplified payload: only locationId and name required
 					// sector, subsector, client, location inherited from Location → Company
+					const locationId = projectData.locationId;
+					if (!locationId) {
+						throw new Error("locationId is required to create a project");
+					}
 					const payload = {
-						locationId: projectData.locationId!, // Required
+						locationId,
 						name: projectData.name ?? "New Assessment",
 						projectType: "Assessment",
 						description: projectData.description ?? "",
@@ -439,7 +443,7 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// ❌ REMOVED: Proposal actions (addProposal, updateProposal, deleteProposal, etc.)
-			// ✅ USE INSTEAD: ProposalsAPI from '@/lib/api/proposals'
+			// ✅ USE INSTEAD: proposalsAPI from '@/lib/api/proposals'
 			// After proposal operations, call loadProject(id) to refresh data
 
 			clearError: () => {

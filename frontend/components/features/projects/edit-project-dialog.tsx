@@ -137,7 +137,7 @@ export function EditProjectDialog({
 				description: project.description ?? "",
 			});
 		}
-	}, [open, project.id, form, onOpenChange]);
+	}, [open, project, form, onOpenChange]);
 
 	// Handle form submission - returns result, doesn't print
 	const handleSubmit = async (values: EditProjectFormValues) => {

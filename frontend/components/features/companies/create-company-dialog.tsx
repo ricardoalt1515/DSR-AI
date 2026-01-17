@@ -110,7 +110,7 @@ export function CreateCompanyDialog({
 				industry,
 			};
 
-			let company;
+			let company: CompanyDetail;
 			if (isEditMode) {
 				company = await updateCompany(companyToEdit.id, dataToSubmit);
 				toast({

@@ -78,8 +78,8 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 					</CardHeader>
 					<CardContent>
 						<ul className="space-y-3">
-							{report.aiInsights.map((insight: string, idx: number) => (
-								<li key={idx} className="flex items-start gap-3">
+							{report.aiInsights.map((insight: string) => (
+								<li key={insight} className="flex items-start gap-3">
 									<div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
 										<Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 									</div>

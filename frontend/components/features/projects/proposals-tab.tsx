@@ -34,7 +34,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
-import { ProposalsAPI } from "@/lib/api/proposals";
+import { proposalsAPI } from "@/lib/api/proposals";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
@@ -182,7 +182,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 		setShowDeleteDialog(false);
 
 		try {
-			await ProposalsAPI.deleteProposal(project.id, proposalToDelete.id);
+			await proposalsAPI.deleteProposal(project.id, proposalToDelete.id);
 
 			toast.success("Proposal deleted", {
 				description: `"${proposalToDelete.title}" has been successfully deleted.`,
@@ -424,7 +424,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 											size="sm"
 											className="flex-1 bg-transparent"
 											onClick={async () => {
-												const url = await ProposalsAPI.getProposalPDFUrl(
+												const url = await proposalsAPI.getProposalPDFUrl(
 													project.id,
 													proposal.id,
 													false,

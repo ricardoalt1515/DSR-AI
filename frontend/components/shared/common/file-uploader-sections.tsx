@@ -687,9 +687,9 @@ export function UploadedFilesCard({
 								tabIndex={0}
 								className="group flex items-start gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer w-full text-left"
 								onClick={() => onSelectFile(file.id)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										event.preventDefault();
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
 										onSelectFile(file.id);
 									}
 								}}

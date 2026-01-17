@@ -262,7 +262,7 @@ interface SuccessIndicatorProps {
 export function SuccessIndicator({
 	message = "Saved successfully",
 	show = false,
-	onComplete,
+	onComplete: _onComplete,
 }: SuccessIndicatorProps) {
 	return (
 		<div

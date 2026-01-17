@@ -42,7 +42,7 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 		try {
 			const org = await organizationsAPI.getCurrent();
 			set({ currentOrganization: org });
-		} catch (error) {
+		} catch (_error) {
 			logger.warn("Failed to load current organization", "OrganizationStore");
 			set({ currentOrganization: null });
 		}
@@ -52,7 +52,7 @@ export const useOrganizationStore = create<OrganizationState>((set) => ({
 		try {
 			const orgs = await organizationsAPI.list();
 			set({ organizations: orgs });
-		} catch (error) {
+		} catch (_error) {
 			logger.warn("Failed to load organizations", "OrganizationStore");
 			set({ organizations: [] });
 		}

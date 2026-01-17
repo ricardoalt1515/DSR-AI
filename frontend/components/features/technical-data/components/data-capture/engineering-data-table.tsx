@@ -84,14 +84,6 @@ interface EngineeringDataTableProps {
 		unit?: string,
 		source?: DataSource,
 	) => void;
-	onBulkEdit?: (
-		changes: Array<{
-			sectionId: string;
-			fieldId: string;
-			value: FieldValue;
-			unit?: string;
-		}>,
-	) => void;
 	className?: string;
 }
 
@@ -130,7 +122,6 @@ const importanceConfig = {
 export function EngineeringDataTable({
 	sections,
 	onFieldChange,
-	onBulkEdit,
 	className,
 }: EngineeringDataTableProps) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);

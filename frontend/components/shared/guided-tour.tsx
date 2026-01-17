@@ -177,10 +177,12 @@ export function GuidedTour({
 	return createPortal(
 		<div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true">
 			{/* Overlay with spotlight cutout */}
-			<div
-				className="absolute inset-0 bg-black/70 transition-all duration-300"
+			<button
+				type="button"
+				className="absolute inset-0 bg-black/70 transition-all duration-300 cursor-default"
 				style={getSpotlightStyle()}
 				onClick={handleSkip}
+				aria-label="Click to skip tour"
 			/>
 
 			{/* Highlight ring around target */}
@@ -216,9 +218,9 @@ export function GuidedTour({
 
 				{/* Step indicator */}
 				<div className="flex items-center gap-1 mb-3">
-					{steps.map((_, index) => (
+					{steps.map((step, index) => (
 						<div
-							key={index}
+							key={step.id}
 							className={cn(
 								"h-1.5 rounded-full transition-all",
 								index === currentStep

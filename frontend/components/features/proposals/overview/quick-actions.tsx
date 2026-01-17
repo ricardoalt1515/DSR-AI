@@ -22,7 +22,7 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({
-	proposalId,
+	proposalId: _proposalId,
 	proposalTitle,
 	onApprove,
 	isApproved = false,

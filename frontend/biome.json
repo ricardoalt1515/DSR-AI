@@ -5,5 +5,65 @@
 		"enabled": true,
 		"clientKind": "git",
 		"useIgnoreFile": true
-	}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"scripts/**",
+				"lib/utils/logger.ts",
+				"app/global-error.tsx",
+				"components/features/proposals/overview/section-error-boundary.tsx",
+				"lib/utils/proposal-generation-persistence.ts"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["components/ui/*-skeleton.tsx"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noArrayIndexKey": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"components/features/proposals/overview/top-resources.tsx",
+				"components/shared/common/file-uploader-sections.tsx"
+			],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noImgElement": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"components/ui/circular-gauge.tsx",
+				"components/features/admin/org-switcher.tsx",
+				"components/shared/common/file-uploader-sections.tsx"
+			],
+			"linter": {
+				"rules": {
+					"a11y": {
+						"useSemanticElements": "off"
+					}
+				}
+			}
+		}
+	]
 }

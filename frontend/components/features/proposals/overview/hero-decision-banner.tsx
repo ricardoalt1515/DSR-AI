@@ -53,7 +53,8 @@ function ConfidenceRing({
 
 	return (
 		<div className="relative w-16 h-16 flex items-center justify-center">
-			<svg className="w-16 h-16 -rotate-90" viewBox="0 0 48 48">
+			<svg className="w-16 h-16 -rotate-90" viewBox="0 0 48 48" role="img">
+				<title>{`Confidence: ${config.percent}%`}</title>
 				<circle
 					cx="24"
 					cy="24"

@@ -54,13 +54,12 @@ function transformUser(response: AdminUserResponse): User {
 	};
 }
 
-export class AdminUsersAPI {
-	static async list(): Promise<User[]> {
+export const adminUsersAPI = {
+	async list(): Promise<User[]> {
 		const data = await apiClient.get<AdminUserResponse[]>("/admin/users");
 		return data.map(transformUser);
-	}
-
-	static async create(payload: AdminCreateUserInput): Promise<User> {
+	},
+	async create(payload: AdminCreateUserInput): Promise<User> {
 		const body = {
 			email: payload.email,
 			password: payload.password,
@@ -75,12 +74,8 @@ export class AdminUsersAPI {
 			body,
 		);
 		return transformUser(response);
-	}
-
-	static async update(
-		userId: string,
-		payload: AdminUpdateUserInput,
-	): Promise<User> {
+	},
+	async update(userId: string, payload: AdminUpdateUserInput): Promise<User> {
 		const body = Object.fromEntries(
 			Object.entries({
 				is_superuser: payload.isSuperuser,
@@ -96,7 +91,5 @@ export class AdminUsersAPI {
 			body,
 		);
 		return transformUser(response);
-	}
-}
-
-export const adminUsersAPI = AdminUsersAPI;
+	},
+};

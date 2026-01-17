@@ -234,7 +234,7 @@ export function PathwayCards({ pathways, onRefresh }: PathwayCardsProps) {
 			<div className="grid grid-cols-1 gap-4">
 				{pathways.map((pathway, index) => (
 					<PathwayCard
-						key={index}
+						key={`${pathway.action}|${pathway.priceRange}|${pathway.buyerTypes}|${pathway.annualValue ?? ""}`}
 						pathway={pathway}
 						index={index}
 						isBest={index === bestIndex}

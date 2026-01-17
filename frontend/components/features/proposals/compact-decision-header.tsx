@@ -40,7 +40,6 @@ export function CompactDecisionHeader({
 				};
 			case "INVESTIGATE FURTHER":
 			case "INVESTIGATE":
-			default:
 				return {
 					variant: "secondary" as const,
 					bg: "bg-yellow-50 dark:bg-yellow-950",

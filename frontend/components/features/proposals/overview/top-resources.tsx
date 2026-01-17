@@ -281,12 +281,14 @@ function ResourceCard({
 			>
 				<CardContent className="p-0">
 					{/* Photo Area - increased height */}
-					<div
+					<button
+						type="button"
 						className={cn(
-							"h-40 bg-muted/30 relative flex items-center justify-center transition-colors overflow-hidden",
+							"h-40 bg-muted/30 relative flex items-center justify-center transition-colors overflow-hidden w-full",
 							canExpand && "cursor-pointer",
 						)}
 						onClick={() => canExpand && onImageClick?.(imageUrl, item.material)}
+						disabled={!canExpand}
 					>
 						{/* Gradient overlay */}
 						<div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent z-10" />
@@ -359,7 +361,7 @@ function ResourceCard({
 								</TooltipProvider>
 							)}
 						</div>
-					</div>
+					</button>
 
 					<div className="p-4 space-y-3">
 						{/* Quality & Price Row */}

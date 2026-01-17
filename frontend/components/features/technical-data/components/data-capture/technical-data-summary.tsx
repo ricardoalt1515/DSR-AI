@@ -28,7 +28,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
 	Table,
 	TableBody,
@@ -38,7 +37,6 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import {
-	calculateDerivedValues,
 	mapSectionsToSummaryRows,
 	overallCompletion,
 	sectionCompletion,
@@ -175,7 +173,6 @@ export function TechnicalDataSummary({
 	);
 
 	const sourceStats = useMemo(() => sourceBreakdown(sections), [sections]);
-	const derived = useMemo(() => calculateDerivedValues(sections), [sections]);
 	const summaryRows = useMemo(
 		() => mapSectionsToSummaryRows(sections),
 		[sections],

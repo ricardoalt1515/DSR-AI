@@ -41,7 +41,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
 				const Icon = item.icon;
 
 				return (
-					<Fragment key={index}>
+					<Fragment key={item.label}>
 						<ChevronRight className="h-4 w-4 text-muted-foreground/50" />
 						{item.href && !isLast ? (
 							<Link

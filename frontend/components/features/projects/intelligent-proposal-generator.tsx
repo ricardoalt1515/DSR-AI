@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ProposalsAPI } from "@/lib/api/proposals";
+import { proposalsAPI } from "@/lib/api/proposals";
 import type { ProjectDetail } from "@/lib/project-types";
 import { useCurrentProject } from "@/lib/stores";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
@@ -141,7 +141,7 @@ export function IntelligentProposalGeneratorComponent({
 				completeness: completeness.percentage,
 			});
 
-			const initialStatus = await ProposalsAPI.generateProposal({
+			const initialStatus = await proposalsAPI.generateProposal({
 				projectId,
 				proposalType,
 				preferences: {

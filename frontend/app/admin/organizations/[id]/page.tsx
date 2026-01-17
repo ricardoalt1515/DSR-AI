@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	AddUserModal,
@@ -59,13 +59,7 @@ export default function OrganizationDetailPage() {
 	const [editOrgModalOpen, setEditOrgModalOpen] = useState(false);
 	const isOrgActive = organization?.isActive ?? true;
 
-	useEffect(() => {
-		if (orgId) {
-			fetchData();
-		}
-	}, [orgId]);
-
-	const fetchData = async () => {
+	const fetchData = useCallback(async () => {
 		try {
 			setIsLoading(true);
 			const [orgData, usersData] = await Promise.all([
@@ -79,7 +73,13 @@ export default function OrganizationDetailPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [orgId]);
+
+	useEffect(() => {
+		if (orgId) {
+			fetchData();
+		}
+	}, [fetchData, orgId]);
 
 	const stats = useMemo(() => {
 		const total = users.length;

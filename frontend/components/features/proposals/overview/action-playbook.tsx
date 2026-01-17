@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-	AlertCircle,
 	ArrowUpRight,
 	CheckCircle,
 	ClipboardList,
@@ -81,8 +80,8 @@ export function ActionPlaybook({
 						</CardHeader>
 						<CardContent>
 							<ul className="space-y-3">
-								{recommendations.map((item, idx) => (
-									<li key={idx} className="flex items-start gap-3">
+								{recommendations.map((item) => (
+									<li key={item} className="flex items-start gap-3">
 										<span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center mt-0.5">
 											<CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
 										</span>
@@ -114,12 +113,12 @@ export function ActionPlaybook({
 						</CardHeader>
 						<CardContent>
 							<ul className="space-y-3">
-								{risks.map((item, idx) => {
+								{risks.map((item) => {
 									const severity = getRiskSeverity(item);
 									const config = SEVERITY_CONFIG[severity];
 
 									return (
-										<li key={idx} className="flex items-start gap-3">
+										<li key={item} className="flex items-start gap-3">
 											<span className="flex-shrink-0 flex items-center justify-center w-6 h-6 mt-0.5">
 												<span
 													className={cn(

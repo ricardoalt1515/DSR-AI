@@ -103,40 +103,40 @@ function transformUser(response: RawUserResponse): User {
 	};
 }
 
-export class OrganizationsAPI {
+export const organizationsAPI = {
 	/**
 	 * List all organizations (Platform Admin only)
 	 */
-	static async list(): Promise<Organization[]> {
+	async list(): Promise<Organization[]> {
 		const data =
 			await apiClient.get<RawOrganizationResponse[]>("/organizations");
 		return data.map(transformOrganization);
-	}
+	},
 
 	/**
 	 * Get organization by ID (Platform Admin only)
 	 */
-	static async get(orgId: string): Promise<Organization> {
+	async get(orgId: string): Promise<Organization> {
 		const data = await apiClient.get<RawOrganizationResponse>(
 			`/organizations/${orgId}`,
 		);
 		return transformOrganization(data);
-	}
+	},
 
 	/**
 	 * Get current organization (any authenticated user)
 	 */
-	static async getCurrent(): Promise<Organization> {
+	async getCurrent(): Promise<Organization> {
 		const data = await apiClient.get<RawOrganizationResponse>(
 			"/organizations/current",
 		);
 		return transformOrganization(data);
-	}
+	},
 
 	/**
 	 * Create a new organization (Platform Admin only)
 	 */
-	static async create(payload: OrganizationCreateInput): Promise<Organization> {
+	async create(payload: OrganizationCreateInput): Promise<Organization> {
 		const body = {
 			name: payload.name,
 			slug: payload.slug,
@@ -148,22 +148,22 @@ export class OrganizationsAPI {
 			body,
 		);
 		return transformOrganization(data);
-	}
+	},
 
 	/**
 	 * List users of a specific organization (Platform Admin only)
 	 */
-	static async listOrgUsers(orgId: string): Promise<User[]> {
+	async listOrgUsers(orgId: string): Promise<User[]> {
 		const data = await apiClient.get<RawUserResponse[]>(
 			`/organizations/${orgId}/users`,
 		);
 		return data.map(transformUser);
-	}
+	},
 
 	/**
 	 * Create user in a specific organization (Platform Admin only)
 	 */
-	static async createOrgUser(
+	async createOrgUser(
 		orgId: string,
 		payload: OrgUserCreateInput,
 	): Promise<User> {
@@ -179,22 +179,22 @@ export class OrganizationsAPI {
 			body,
 		);
 		return transformUser(data);
-	}
+	},
 
 	/**
 	 * List users of current organization (Org Admin or Platform Admin)
 	 */
-	static async listMyOrgUsers(): Promise<User[]> {
+	async listMyOrgUsers(): Promise<User[]> {
 		const data = await apiClient.get<RawUserResponse[]>(
 			"/organizations/current/users",
 		);
 		return data.map(transformUser);
-	}
+	},
 
 	/**
 	 * Create user in current organization (Org Admin or Platform Admin)
 	 */
-	static async createMyOrgUser(payload: OrgUserCreateInput): Promise<User> {
+	async createMyOrgUser(payload: OrgUserCreateInput): Promise<User> {
 		const body = {
 			email: payload.email,
 			password: payload.password,
@@ -207,12 +207,12 @@ export class OrganizationsAPI {
 			body,
 		);
 		return transformUser(data);
-	}
+	},
 
 	/**
 	 * Update an organization (Platform Admin only)
 	 */
-	static async update(
+	async update(
 		orgId: string,
 		payload: OrganizationUpdateInput,
 	): Promise<Organization> {
@@ -229,19 +229,19 @@ export class OrganizationsAPI {
 			body,
 		);
 		return transformOrganization(data);
-	}
+	},
 
 	/**
 	 * Delete (soft-delete) an organization (Platform Admin only)
 	 */
-	static async delete(orgId: string): Promise<void> {
+	async delete(orgId: string): Promise<void> {
 		await apiClient.delete(`/organizations/${orgId}`);
-	}
+	},
 
 	/**
 	 * Update user in a specific organization (Platform Admin only)
 	 */
-	static async updateOrgUser(
+	async updateOrgUser(
 		orgId: string,
 		userId: string,
 		payload: OrgUserUpdateInput,
@@ -255,12 +255,12 @@ export class OrganizationsAPI {
 			body,
 		);
 		return transformUser(data);
-	}
+	},
 
 	/**
 	 * Update user in current organization (Org Admin or Platform Admin)
 	 */
-	static async updateMyOrgUser(
+	async updateMyOrgUser(
 		userId: string,
 		payload: OrgUserUpdateInput,
 	): Promise<User> {
@@ -273,7 +273,5 @@ export class OrganizationsAPI {
 			body,
 		);
 		return transformUser(data);
-	}
-}
-
-export const organizationsAPI = OrganizationsAPI;
+	},
+};
