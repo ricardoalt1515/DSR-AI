@@ -34,12 +34,12 @@ import {
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import type { VersionSource } from "@/lib/project-types";
+import { useProjectStore } from "@/lib/stores/project-store";
 import {
-	useProjectStore,
 	useTechnicalDataActions,
 	useTechnicalDataStore,
 	useTechnicalSections,
-} from "@/lib/stores";
+} from "@/lib/stores/technical-data-store";
 import {
 	overallCompletion,
 	PROPOSAL_READINESS_THRESHOLD,
@@ -205,7 +205,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 							className="text-xs bg-warning/10 border-warning/40 text-warning"
 						>
 							<RefreshCcw className="mr-1 h-3 w-3 animate-spin" />
-							Saving...
+							Saving…
 						</Badge>
 					) : syncError ? (
 						<div className="flex items-center gap-2">

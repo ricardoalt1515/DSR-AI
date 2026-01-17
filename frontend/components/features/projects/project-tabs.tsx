@@ -24,8 +24,8 @@ import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import {
 	useCurrentProject,
 	useLoadProjectAction,
-	useTechnicalSections,
-} from "@/lib/stores";
+} from "@/lib/stores/project-store";
+import { useTechnicalSections } from "@/lib/stores/technical-data-store";
 import { overallCompletion } from "@/lib/technical-sheet-data";
 
 // Overview is NOT lazy-loaded because it's the default tab (avoids skeleton flash)

@@ -28,7 +28,8 @@ import {
 	getProjectStatusLabel,
 } from "@/lib/project-status";
 import { routes } from "@/lib/routes";
-import { useProjects, useTechnicalSections } from "@/lib/stores";
+import { useProjects } from "@/lib/stores/project-store";
+import { useTechnicalSections } from "@/lib/stores/technical-data-store";
 import { overallCompletion } from "@/lib/technical-sheet-data";
 
 interface DashboardHeroProps {

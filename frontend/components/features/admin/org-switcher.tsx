@@ -16,7 +16,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { organizationsAPI } from "@/lib/api";
+import { organizationsAPI } from "@/lib/api/organizations";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { cn } from "@/lib/utils";
 import { OrgSelectorContent } from "../org-context/org-selector-content";
@@ -175,7 +175,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 									role="combobox"
 									aria-expanded={open}
 									className={cn(
-										`${SWITCHER_WIDTH_CLASS} justify-between transition-all duration-200`,
+										`${SWITCHER_WIDTH_CLASS} justify-between transition-[box-shadow,border-color,background-color] duration-200`,
 										"backdrop-blur-sm",
 										open && "shadow-md ring-1 ring-primary/20",
 										hasContext

@@ -142,7 +142,7 @@ export function UploadDropZone({
 				<div
 					{...restRootProps}
 					className={cn(
-						"relative cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-all duration-200",
+						"relative cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-[border-color,background-color,transform,box-shadow] duration-200",
 						isDragActive
 							? "border-primary bg-primary/10 scale-[1.02] shadow-lg shadow-primary/20"
 							: "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/25",
@@ -685,7 +685,7 @@ export function UploadedFilesCard({
 								key={file.id}
 								role="button"
 								tabIndex={0}
-								className="group flex items-start gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer w-full text-left"
+								className="group flex items-start gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors cursor-pointer w-full text-left"
 								onClick={() => onSelectFile(file.id)}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" || e.key === " ") {

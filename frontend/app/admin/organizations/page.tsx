@@ -9,13 +9,19 @@ import {
 	Search,
 	XCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-	AdminStatsCard,
-	EditOrgModal,
-	OrgCard,
-} from "@/components/features/admin";
+import { AdminStatsCard, OrgCard } from "@/components/features/admin";
+
+const EditOrgModal = dynamic(
+	() =>
+		import("@/components/features/admin/edit-org-modal").then(
+			(mod) => mod.EditOrgModal,
+		),
+	{ ssr: false, loading: () => null },
+);
+
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -33,7 +39,7 @@ import {
 	type OrganizationCreateInput,
 	type OrganizationUpdateInput,
 	organizationsAPI,
-} from "@/lib/api";
+} from "@/lib/api/organizations";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 function slugify(text: string): string {

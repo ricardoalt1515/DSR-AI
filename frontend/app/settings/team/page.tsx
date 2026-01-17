@@ -8,13 +8,37 @@ import {
 	Users,
 	XCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-	AddUserModal,
-	AdminStatsCard,
-	UsersTable,
-} from "@/components/features/admin";
+import { AdminStatsCard } from "@/components/features/admin";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const AddUserModal = dynamic(
+	() =>
+		import("@/components/features/admin/add-user-modal").then(
+			(mod) => mod.AddUserModal,
+		),
+	{ ssr: false, loading: () => null },
+);
+
+const UsersTable = dynamic(
+	() =>
+		import("@/components/features/admin/users-table").then(
+			(mod) => mod.UsersTable,
+		),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="space-y-3">
+				<Skeleton className="h-10 w-full" />
+				<Skeleton className="h-10 w-full" />
+				<Skeleton className="h-10 w-full" />
+			</div>
+		),
+	},
+);
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,14 +48,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { type OrgUserCreateInput, organizationsAPI } from "@/lib/api";
+import {
+	type OrgUserCreateInput,
+	organizationsAPI,
+} from "@/lib/api/organizations";
 import { useAuth } from "@/lib/contexts";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import type { User, UserRole } from "@/lib/types/user";

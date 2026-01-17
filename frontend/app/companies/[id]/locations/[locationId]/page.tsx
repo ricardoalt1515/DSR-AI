@@ -8,12 +8,21 @@ import {
 	MapPin,
 	Plus,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 /**
  * Location detail page - Shows location info and projects
  */
 import { useEffect, useState } from "react";
-import { PremiumProjectWizard } from "@/components/features/dashboard/components/premium-project-wizard";
+
+const PremiumProjectWizard = dynamic(
+	() =>
+		import(
+			"@/components/features/dashboard/components/premium-project-wizard"
+		).then((mod) => mod.PremiumProjectWizard),
+	{ ssr: false, loading: () => null },
+);
+
 import { LocationContactsCard } from "@/components/features/locations/location-contacts-card";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -124,7 +133,12 @@ export default function LocationDetailPage() {
 
 			{/* Header */}
 			<div className="flex items-center gap-4">
-				<Button variant="ghost" size="icon" onClick={() => router.back()}>
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label="Go back"
+					onClick={() => router.back()}
+				>
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex-1">
@@ -224,7 +238,7 @@ export default function LocationDetailPage() {
 						{currentLocation.projects.map((project) => (
 							<Card
 								key={project.id}
-								className="cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+								className="cursor-pointer hover:shadow-md hover:border-primary/50 transition-[box-shadow,border-color]"
 								onClick={() => router.push(`/project/${project.id}`)}
 							>
 								<CardHeader>

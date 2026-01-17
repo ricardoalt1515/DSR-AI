@@ -179,7 +179,7 @@ export function GuidedTour({
 			{/* Overlay with spotlight cutout */}
 			<button
 				type="button"
-				className="absolute inset-0 bg-black/70 transition-all duration-300 cursor-default"
+				className="absolute inset-0 bg-black/70 transition-opacity duration-300 cursor-default"
 				style={getSpotlightStyle()}
 				onClick={handleSkip}
 				aria-label="Click to skip tour"
@@ -222,7 +222,7 @@ export function GuidedTour({
 						<div
 							key={step.id}
 							className={cn(
-								"h-1.5 rounded-full transition-all",
+								"h-1.5 rounded-full transition-[width,background-color]",
 								index === currentStep
 									? "w-6 bg-primary"
 									: index < currentStep

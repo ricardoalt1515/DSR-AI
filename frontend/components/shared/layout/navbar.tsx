@@ -15,10 +15,19 @@ import {
 	Users,
 	Zap,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PremiumProjectWizard } from "@/components/features/dashboard";
+
+const PremiumProjectWizard = dynamic(
+	() =>
+		import(
+			"@/components/features/dashboard/components/premium-project-wizard"
+		).then((mod) => mod.PremiumProjectWizard),
+	{ ssr: false, loading: () => null },
+);
+
 import {
 	OrgContextBadge,
 	OrgSelectionModal,
@@ -55,12 +64,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/contexts";
 import { routes } from "@/lib/routes";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import {
 	useEnsureProjectsLoaded,
 	useProjectLoading,
 	useProjects,
-} from "@/lib/stores";
-import { useOrganizationStore } from "@/lib/stores/organization-store";
+} from "@/lib/stores/project-store";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { cn } from "@/lib/utils";
 import { NotificationDropdown } from "./notification-dropdown";
@@ -218,7 +227,7 @@ export function NavBar() {
 										href={link.href}
 										suppressHydrationWarning
 										className={cn(
-											"inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-300 hover:bg-primary/15 hover:text-primary",
+											"inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:bg-primary/15 hover:text-primary",
 											isActive && "aqua-floating-chip",
 										)}
 									>
@@ -273,7 +282,7 @@ export function NavBar() {
 						<Button
 							variant="ghost"
 							size="icon"
-							className="inline-flex h-9 w-9 rounded-full border border-border/40 bg-card/60 text-foreground transition-all duration-300 hover:bg-card/80 md:hidden"
+							className="inline-flex h-9 w-9 rounded-full border border-border/40 bg-card/60 text-foreground transition-colors duration-300 hover:bg-card/80 md:hidden"
 							onClick={() => setSearchOpen(true)}
 						>
 							<Search className="h-4 w-4" />
@@ -283,7 +292,7 @@ export function NavBar() {
 						<button
 							className={cn(
 								buttonVariants({ size: "sm" }),
-								"hidden rounded-full px-4 lg:inline-flex bg-gradient-to-r from-primary/85 via-primary to-primary text-primary-foreground shadow-water hover:shadow-water-lg transition-all duration-300",
+								"hidden rounded-full px-4 lg:inline-flex bg-gradient-to-r from-primary/85 via-primary to-primary text-primary-foreground shadow-water hover:shadow-water-lg transition-shadow duration-300",
 							)}
 							onClick={() => setCreateModalOpen(true)}
 							type="button"
@@ -300,7 +309,7 @@ export function NavBar() {
 										aria-label="Open user menu"
 										className={cn(
 											buttonVariants({ variant: "ghost", size: "icon" }),
-											"relative h-9 w-9 rounded-full p-0 bg-card/50 text-foreground transition-all duration-300 hover:bg-card/70",
+											"relative h-9 w-9 rounded-full p-0 bg-card/50 text-foreground transition-colors duration-300 hover:bg-card/70",
 										)}
 									>
 										<Avatar className="h-9 w-9 border border-border/40 bg-card/60 backdrop-blur">
@@ -374,7 +383,7 @@ export function NavBar() {
 									aria-label="Open menu"
 									className={cn(
 										buttonVariants({ variant: "ghost", size: "icon" }),
-										"ml-1 px-0 text-base bg-card/60 text-foreground transition-all duration-300 hover:bg-card/80 focus:bg-card/70 md:hidden",
+										"ml-1 px-0 text-base bg-card/60 text-foreground transition-colors duration-300 hover:bg-card/80 focus:bg-card/70 md:hidden",
 									)}
 								>
 									<Menu className="h-6 w-6" />

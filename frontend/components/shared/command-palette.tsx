@@ -30,7 +30,7 @@ import {
 	useRecentProjects,
 } from "@/lib/hooks/use-command-palette";
 import { routes } from "@/lib/routes";
-import { useProjects } from "@/lib/stores";
+import { useProjects } from "@/lib/stores/project-store";
 
 export function CommandPalette() {
 	const router = useRouter();

@@ -43,7 +43,7 @@ export const MetricCard = memo(function MetricCard({
 	return (
 		<Card
 			className={cn(
-				"hover:shadow-lg transition-all duration-300 hover:scale-[1.03] backdrop-blur-sm bg-gradient-to-br from-card to-card/80",
+				"hover:shadow-lg transition-[box-shadow,transform] duration-300 hover:scale-[1.03] backdrop-blur-sm bg-gradient-to-br from-card to-card/80",
 				variant === "primary" && "hover:border-primary/40",
 				variant === "success" && "hover:border-success/40",
 				variant === "warning" && "hover:border-warning/40",

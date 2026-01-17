@@ -87,7 +87,7 @@ export function CircularGauge({
 					strokeLinecap="round"
 					strokeDasharray={circumference}
 					strokeDashoffset={offset}
-					className="transition-all duration-500 ease-out"
+					className="transition-[stroke-dashoffset] duration-500 ease-out"
 				/>
 			</svg>
 

@@ -46,8 +46,12 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { type AdminUpdateUserInput, adminUsersAPI, type User } from "@/lib/api";
+import {
+	type AdminUpdateUserInput,
+	adminUsersAPI,
+} from "@/lib/api/admin-users";
 import { useAuth } from "@/lib/contexts";
+import type { User } from "@/lib/types/user";
 import {
 	CreateAdminDialog,
 	getColumns,

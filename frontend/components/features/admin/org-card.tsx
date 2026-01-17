@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import type { Organization } from "@/lib/api";
+import type { Organization } from "@/lib/api/organizations";
 import { cn } from "@/lib/utils";
 import { OrgAvatar } from "./org-avatar";
 
@@ -27,7 +27,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 	return (
 		<Card
 			className={cn(
-				"group relative h-full transition-all duration-200",
+				"group relative h-full transition-[box-shadow,border-color,transform] duration-200",
 				"hover:shadow-lg hover:border-primary/40 hover:-translate-y-1",
 				!organization.isActive && "opacity-70",
 			)}

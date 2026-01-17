@@ -14,7 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type AdminCreateUserInput, adminUsersAPI, type User } from "@/lib/api";
+import {
+	type AdminCreateUserInput,
+	adminUsersAPI,
+} from "@/lib/api/admin-users";
+import type { User } from "@/lib/types/user";
 import { isValidPassword, PASSWORD_HINT, passwordsMatch } from "../utils";
 
 interface CreateAdminDialogProps {

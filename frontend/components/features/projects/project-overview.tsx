@@ -116,7 +116,7 @@ export function ProjectOverview({
 									<div className="flex items-center gap-3 mt-2">
 										<div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
 											<div
-												className="h-full bg-primary transition-all duration-500"
+												className="h-full bg-primary transition-[width] duration-500"
 												style={{
 													width: `${(project.progress / PROPOSAL_READINESS_THRESHOLD) * 100}%`,
 												}}

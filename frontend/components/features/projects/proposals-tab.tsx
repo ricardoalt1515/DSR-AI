@@ -10,6 +10,7 @@ import {
 	Sparkles,
 	Trash2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { ProposalSkeleton } from "@/components/ui/proposal-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { proposalsAPI } from "@/lib/api/proposals";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
@@ -42,10 +44,12 @@ import {
 	useCurrentProject,
 	useLoadProjectAction,
 	useProjectLoading,
+} from "@/lib/stores/project-store";
+import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
+import {
 	useTechnicalDataActions,
 	useTechnicalSections,
-} from "@/lib/stores";
-import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
+} from "@/lib/stores/technical-data-store";
 import {
 	overallCompletion,
 	PROPOSAL_READINESS_THRESHOLD,
@@ -57,10 +61,24 @@ import type {
 	ProposalUI,
 } from "@/lib/types/proposal-ui";
 import { logger } from "@/lib/utils/logger";
-import {
-	IntelligentProposalGeneratorComponent,
-	type ProposalGeneratorHandle,
-} from "./intelligent-proposal-generator";
+import type { ProposalGeneratorHandle } from "./intelligent-proposal-generator";
+
+const IntelligentProposalGeneratorComponent = dynamic(
+	() =>
+		import("./intelligent-proposal-generator").then(
+			(mod) => mod.IntelligentProposalGeneratorComponent,
+		),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="space-y-4 p-6 border rounded-lg bg-muted/20">
+				<Skeleton className="h-6 w-48" />
+				<Skeleton className="h-4 w-full" />
+				<Skeleton className="h-10 w-32" />
+			</div>
+		),
+	},
+);
 
 type Project = Pick<ProjectSummary, "id" | "name" | "type">;
 
@@ -316,7 +334,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 									</div>
 									<div className="h-2 bg-muted rounded-full overflow-hidden">
 										<div
-											className="h-full bg-primary transition-all duration-500 rounded-full"
+											className="h-full bg-primary transition-[width] duration-500 rounded-full"
 											style={{
 												width: `${Math.min((completion.percentage / PROPOSAL_READINESS_THRESHOLD) * 100, 100)}%`,
 											}}

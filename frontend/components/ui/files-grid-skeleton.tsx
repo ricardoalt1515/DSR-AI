@@ -38,7 +38,7 @@ function FileCardSkeleton({ index }: { index: number }) {
 			className={cn(
 				"group relative rounded-lg border border-border/40 overflow-hidden",
 				"bg-card/60 backdrop-blur-sm",
-				"transition-all duration-300",
+				"transition-opacity duration-300",
 			)}
 			style={{ animationDelay: `${index * 50}ms` }}
 		>

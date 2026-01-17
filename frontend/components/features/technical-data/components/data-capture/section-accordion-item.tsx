@@ -67,7 +67,7 @@ function MiniProgressRing({
 				strokeLinecap="round"
 				strokeDasharray={circumference}
 				strokeDashoffset={offset}
-				className="transition-all duration-300 ease-out"
+				className="transition-[stroke-dashoffset] duration-300 ease-out"
 			/>
 		</svg>
 	);

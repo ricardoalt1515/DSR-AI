@@ -227,7 +227,7 @@ export function ProposalGenerationLoader() {
 					</div>
 					<div className="h-2 bg-muted/30 backdrop-blur-sm rounded-full overflow-hidden">
 						<div
-							className="h-full bg-gradient-to-r from-primary/80 to-primary transition-all duration-1000"
+							className="h-full bg-gradient-to-r from-primary/80 to-primary transition-[width] duration-1000"
 							style={{ width: "45%" }}
 						/>
 					</div>
@@ -267,7 +267,7 @@ export function SuccessIndicator({
 	return (
 		<div
 			className={cn(
-				"fixed top-4 right-4 z-50 transition-all duration-300",
+				"fixed top-4 right-4 z-50 transition-[opacity,transform] duration-300",
 				show
 					? "opacity-100 translate-y-0"
 					: "opacity-0 -translate-y-2 pointer-events-none",
@@ -336,7 +336,7 @@ export function TechnicalDataLoader({
 						</p>
 						<div className="w-full bg-muted/30 rounded-full h-2 overflow-hidden">
 							<div
-								className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-1000 ease-out"
+								className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-[width] duration-1000 ease-out"
 								style={{ width: `${Math.min(progress, 100)}%` }}
 							/>
 						</div>

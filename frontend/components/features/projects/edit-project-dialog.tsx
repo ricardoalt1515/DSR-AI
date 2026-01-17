@@ -33,7 +33,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { PROJECT_STATUS_FLOW } from "@/lib/project-status";
 import type { ProjectStatus, ProjectSummary } from "@/lib/project-types";
-import { useProjectActions } from "@/lib/stores";
+import { useProjectActions } from "@/lib/stores/project-store";
 
 const PROJECT_STATUS_OPTIONS = PROJECT_STATUS_FLOW as [
 	ProjectStatus,
@@ -302,7 +302,7 @@ export function EditProjectDialog({
 								Cancel
 							</Button>
 							<Button type="submit" disabled={form.formState.isSubmitting}>
-								{form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+								{form.formState.isSubmitting ? "Saving…" : "Save Changes"}
 							</Button>
 						</DialogFooter>
 					</form>

@@ -1,3 +1,4 @@
+import type { PaginatedResponse } from "@/lib/types/api";
 import type {
 	ProjectDetail,
 	ProjectFile,
@@ -6,7 +7,6 @@ import type {
 } from "../project-types";
 import { getErrorMessage } from "../utils/logger";
 import { apiClient } from "./client";
-import type { PaginatedResponse } from "./index";
 
 type JsonObject = Record<string, unknown>;
 

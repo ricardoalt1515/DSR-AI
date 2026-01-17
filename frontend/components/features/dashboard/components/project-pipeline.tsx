@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import type { ProjectStatus } from "@/lib/project-status";
-import { useProjectStatsData } from "@/lib/stores";
+import { useProjectStatsData } from "@/lib/stores/project-store";
 import { cn } from "@/lib/utils";
 
 type StageDefinition = {
@@ -177,7 +177,7 @@ export function ProjectPipeline() {
 									<Card
 										className={cn(
 											colors.card,
-											"transition-all duration-200 hover:shadow-md",
+											"transition-shadow duration-200 hover:shadow-md",
 										)}
 									>
 										<CardContent className="p-4">

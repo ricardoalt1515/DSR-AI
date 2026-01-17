@@ -8,13 +8,22 @@ import {
 	Search,
 	X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
 import {
 	DashboardHero,
-	PremiumProjectWizard,
 	ProjectPipeline,
 	SimplifiedStats,
 } from "@/components/features/dashboard";
+
+const PremiumProjectWizard = dynamic(
+	() =>
+		import(
+			"@/components/features/dashboard/components/premium-project-wizard"
+		).then((mod) => mod.PremiumProjectWizard),
+	{ ssr: false, loading: () => null },
+);
+
 import { ProjectCard } from "@/components/features/dashboard/components/project-card";
 import ClientOnly from "@/components/shared/common/client-only";
 import { OnboardingChecklist } from "@/components/shared/onboarding-checklist";
@@ -38,13 +47,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import type { ProjectSummary } from "@/lib/project-types";
+import { useCompanyStore } from "@/lib/stores/company-store";
 import {
 	usePagination,
 	useProjectActions,
 	useProjectLoading,
 	useProjects,
-} from "@/lib/stores";
-import { useCompanyStore } from "@/lib/stores/company-store";
+} from "@/lib/stores/project-store";
 
 /**
  * Memoized Waste Stream List Component
@@ -410,7 +419,7 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 						{loading ? (
 							<>
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Loading...
+								Loading…
 							</>
 						) : (
 							`Load More (${Math.min(pageSize, remainingProjects)})`

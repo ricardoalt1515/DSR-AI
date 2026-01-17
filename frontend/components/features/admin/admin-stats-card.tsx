@@ -49,7 +49,7 @@ export function AdminStatsCard({
 	return (
 		<div
 			className={cn(
-				"flex items-center gap-4 rounded-xl border p-4 transition-all duration-200",
+				"flex items-center gap-4 rounded-xl border p-4 transition-[box-shadow,transform] duration-200",
 				"hover:shadow-md hover:-translate-y-0.5",
 				styles.container,
 			)}

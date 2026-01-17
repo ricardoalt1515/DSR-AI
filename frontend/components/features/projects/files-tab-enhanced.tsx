@@ -29,7 +29,10 @@ import {
 } from "@/components/ui/select";
 import { formatFileSize, formatShortDateTime } from "@/lib/format";
 import type { ProjectFile } from "@/lib/project-types";
-import { useCurrentProject, useProjectLoading } from "@/lib/stores";
+import {
+	useCurrentProject,
+	useProjectLoading,
+} from "@/lib/stores/project-store";
 import { cn } from "@/lib/utils";
 
 interface FilesTabEnhancedProps {
@@ -69,7 +72,7 @@ const FileCard = memo(function FileCard({ file }: { file: ProjectFile }) {
 	return (
 		<Card
 			className={cn(
-				"group hover:shadow-md transition-all duration-200",
+				"group hover:shadow-md transition-shadow duration-200",
 				isProcessing && "border-primary/30 animate-pulse",
 			)}
 		>

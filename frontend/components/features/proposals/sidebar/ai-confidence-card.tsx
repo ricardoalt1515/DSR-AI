@@ -42,7 +42,7 @@ export function AIConfidenceCard({
 				<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
 					<div
 						className={cn(
-							"h-full rounded-full transition-all",
+							"h-full rounded-full transition-[width]",
 							confidenceLevel === "High" && "bg-success",
 							confidenceLevel === "Medium" && "bg-warning",
 							confidenceLevel === "Low" && "bg-destructive",

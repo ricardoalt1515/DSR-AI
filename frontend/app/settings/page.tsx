@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authAPI } from "@/lib/api";
+import { authAPI } from "@/lib/api/auth";
 import { useAuth } from "@/lib/contexts";
 
 // Password requirements

@@ -40,7 +40,7 @@ export const templatesAPI = {
 
 **Uso:**
 ```typescript
-import { templatesAPI } from "@/lib/api";
+import { projectDataAPI } from "@/lib/api/project-data";
 
 // List all templates
 const { items } = await templatesAPI.list({ sector: "industrial" });
@@ -348,7 +348,7 @@ console.log(invalid.success); // ❌ false
 ### Test 3: API Client
 ```typescript
 // En browser console (authenticated)
-import { templatesAPI } from "@/lib/api";
+import { projectDataAPI } from "@/lib/api/project-data";
 
 // List templates
 const { items } = await templatesAPI.list();

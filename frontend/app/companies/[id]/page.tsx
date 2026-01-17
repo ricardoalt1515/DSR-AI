@@ -152,7 +152,12 @@ export default function CompanyDetailPage() {
 
 			{/* Header */}
 			<div className="flex items-center gap-4">
-				<Button variant="ghost" size="icon" onClick={() => router.back()}>
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label="Go back"
+					onClick={() => router.back()}
+				>
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex-1">
@@ -318,7 +323,7 @@ export default function CompanyDetailPage() {
 						{locations.map((location) => (
 							<Card
 								key={location.id}
-								className="group hover:shadow-lg hover:border-primary/50 transition-all"
+								className="group hover:shadow-lg hover:border-primary/50 transition-[box-shadow,border-color]"
 							>
 								<CardHeader className="pb-3">
 									<div className="flex items-start justify-between">
@@ -361,6 +366,7 @@ export default function CompanyDetailPage() {
 														variant="ghost"
 														size="icon"
 														className="h-8 w-8"
+														aria-label="Location options"
 														onClick={(e) => e.stopPropagation()}
 													>
 														<MoreVertical className="h-4 w-4" />

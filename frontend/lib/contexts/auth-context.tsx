@@ -4,11 +4,13 @@ import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { apiClient, authAPI, type User } from "@/lib/api";
+import { authAPI } from "@/lib/api/auth";
+import { apiClient } from "@/lib/api/client";
 import { isPublicRoute } from "@/lib/constants";
 import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProjectStore } from "@/lib/stores/project-store";
+import type { User } from "@/lib/types/user";
 import { logger } from "@/lib/utils/logger";
 
 interface AuthContextType {

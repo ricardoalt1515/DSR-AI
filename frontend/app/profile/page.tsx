@@ -86,7 +86,7 @@ export default function ProfilePage() {
 		<div className="container max-w-xl mx-auto py-8 space-y-6">
 			{/* Header */}
 			<div className="flex items-center gap-3">
-				<Button variant="ghost" size="icon" asChild>
+				<Button variant="ghost" size="icon" aria-label="Go back" asChild>
 					<Link href="/dashboard">
 						<ArrowLeft className="h-4 w-4" />
 					</Link>

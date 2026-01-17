@@ -10,6 +10,7 @@ import {
 	MoreHorizontal,
 	Trash2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -28,9 +29,14 @@ import { Progress } from "@/components/ui/progress";
 import { STATUS_COLORS } from "@/lib/project-status";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
-import { useProjectActions, useTechnicalSections } from "@/lib/stores";
+import { useProjectActions } from "@/lib/stores/project-store";
+import { useTechnicalSections } from "@/lib/stores/technical-data-store";
 import { overallCompletion } from "@/lib/technical-sheet-data";
-import { EditProjectDialog } from "./edit-project-dialog";
+
+const EditProjectDialog = dynamic(
+	() => import("./edit-project-dialog").then((mod) => mod.EditProjectDialog),
+	{ ssr: false, loading: () => null },
+);
 
 interface ProjectHeaderProps {
 	project: ProjectSummary | ProjectDetail;

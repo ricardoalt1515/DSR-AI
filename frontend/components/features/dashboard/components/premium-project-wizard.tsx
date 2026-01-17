@@ -17,9 +17,9 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { routes } from "@/lib/routes";
-import { useProjectActions } from "@/lib/stores";
 import { useCompanyStore } from "@/lib/stores/company-store";
 import { useLocationStore } from "@/lib/stores/location-store";
+import { useProjectActions } from "@/lib/stores/project-store";
 
 interface PremiumProjectWizardProps {
 	open: boolean;

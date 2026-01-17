@@ -7,8 +7,9 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { AdminUpdateUserInput, User } from "@/lib/api";
+import type { AdminUpdateUserInput } from "@/lib/api/admin-users";
 import { formatMemberSince } from "@/lib/format";
+import type { User } from "@/lib/types/user";
 import { getTooltipMessage } from "../utils";
 
 export interface ColumnDeps {

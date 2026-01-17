@@ -49,7 +49,7 @@ function NavItem({
 			href={href}
 			{...(onClick ? { onClick } : {})}
 			className={cn(
-				"group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200",
+				"group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200",
 				isActive
 					? "bg-primary/10 text-primary"
 					: "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
@@ -57,7 +57,7 @@ function NavItem({
 		>
 			<div
 				className={cn(
-					"flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+					"flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
 					isActive
 						? "bg-primary/20 text-primary shadow-sm"
 						: "bg-muted/50 text-muted-foreground group-hover:bg-muted group-hover:text-foreground",

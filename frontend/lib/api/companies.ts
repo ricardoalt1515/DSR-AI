@@ -2,6 +2,7 @@
  * Companies API client
  */
 
+import type { SuccessResponse } from "@/lib/types/api";
 import type {
 	CompanyCreate,
 	CompanyDetail,
@@ -13,7 +14,6 @@ import type {
 	LocationSummary,
 	LocationUpdate,
 } from "@/lib/types/company";
-import type { SuccessResponse } from "@/lib/types/shared";
 import { apiClient } from "./client";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

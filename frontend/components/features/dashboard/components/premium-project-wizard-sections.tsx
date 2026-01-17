@@ -178,7 +178,7 @@ export function WizardFooter({
 						size="lg"
 					>
 						{isCreating ? (
-							<>Creating...</>
+							<>Creating…</>
 						) : (
 							<>
 								<Sparkles className="h-4 w-4" />

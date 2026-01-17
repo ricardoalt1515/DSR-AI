@@ -104,7 +104,7 @@ export function EnhancedEmptyState({
 						<Button
 							size="lg"
 							onClick={onCreateProject}
-							className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200"
+							className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-[box-shadow,transform] duration-200"
 						>
 							<Sparkles className="h-5 w-5 mr-2" />
 							Create First Project
@@ -158,7 +158,7 @@ export function EnhancedEmptyState({
 							<Card
 								className={cn(
 									colorScheme.bg,
-									"transition-all duration-300 hover:shadow-lg cursor-pointer",
+									"transition-[box-shadow,transform] duration-300 hover:shadow-lg cursor-pointer",
 									isActive && "ring-2 ring-primary/50 scale-105",
 								)}
 								onMouseEnter={() => setActiveStep(step.id)}

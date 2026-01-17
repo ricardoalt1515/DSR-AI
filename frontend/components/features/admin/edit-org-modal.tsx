@@ -24,7 +24,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type { Organization, OrganizationUpdateInput } from "@/lib/api";
+import type {
+	Organization,
+	OrganizationUpdateInput,
+} from "@/lib/api/organizations";
 
 interface EditOrgModalProps {
 	open: boolean;
@@ -197,7 +200,7 @@ export function EditOrgModal({
 						</Button>
 						<Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
 							{submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-							{submitting ? "Saving..." : "Save Changes"}
+							{submitting ? "Saving…" : "Save Changes"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

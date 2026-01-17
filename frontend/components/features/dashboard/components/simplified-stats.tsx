@@ -4,7 +4,7 @@ import { Building, CheckCircle2, Clock, TrendingUp, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProjectStatsData } from "@/lib/stores";
+import { useProjectStatsData } from "@/lib/stores/project-store";
 import { cn } from "@/lib/utils";
 
 export function SimplifiedStats() {
@@ -141,7 +141,7 @@ export function SimplifiedStats() {
 						key={stat.id}
 						className={cn(
 							colors.card,
-							"transition-all duration-200 hover:shadow-md",
+							"transition-shadow duration-200 hover:shadow-md",
 							stat.priority === "high" &&
 								"ring-2 ring-primary/20 animate-pulse",
 						)}

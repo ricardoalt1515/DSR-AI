@@ -544,7 +544,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-3">
-							{businessOpp.risks.map((risk: string) => (
+							{businessOpp.risks.map((risk: string, index: number) => (
 								<div
 									key={risk}
 									className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-white p-4 dark:border-yellow-800 dark:bg-yellow-900/20"

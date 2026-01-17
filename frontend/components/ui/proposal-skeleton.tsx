@@ -34,7 +34,7 @@ function SingleProposalSkeleton({ index }: { index: number }) {
 			className={cn(
 				"group relative rounded-xl border border-border/50 p-5",
 				"bg-card/50 backdrop-blur-sm",
-				"transition-all duration-300",
+				"transition-opacity duration-300",
 			)}
 			style={{ animationDelay: `${index * 75}ms` }}
 		>

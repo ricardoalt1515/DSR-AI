@@ -61,13 +61,19 @@ export function LocationContactDialog({
 			}
 
 			try {
-				await onSubmit({
+				const payload: Parameters<typeof onSubmit>[0] = {
 					name: value.name.trim(),
-					email: value.email?.trim() || undefined,
-					phone: value.phone?.trim() || undefined,
-					title: value.title?.trim() || undefined,
-					notes: value.notes?.trim() || undefined,
-				});
+				};
+				const email = value.email?.trim();
+				if (email) payload.email = email;
+				const phone = value.phone?.trim();
+				if (phone) payload.phone = phone;
+				const title = value.title?.trim();
+				if (title) payload.title = title;
+				const notes = value.notes?.trim();
+				if (notes) payload.notes = notes;
+
+				await onSubmit(payload);
 				setOpen(false);
 			} catch (error) {
 				toast({

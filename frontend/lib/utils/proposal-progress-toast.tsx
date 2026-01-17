@@ -144,7 +144,7 @@ function ProgressToastContent({
 						</div>
 						<Progress
 							value={progress}
-							className="h-2 transition-all duration-500 ease-out"
+							className="h-2 transition-[width] duration-500 ease-out"
 						/>
 					</div>
 

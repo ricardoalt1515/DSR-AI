@@ -67,7 +67,7 @@ export function ConfirmDeleteDialog({
 						disabled={loading}
 						className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 					>
-						{loading ? "Deleting..." : "Delete"}
+						{loading ? "Deleting…" : "Delete"}
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>

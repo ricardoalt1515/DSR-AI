@@ -25,7 +25,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ProjectSummary } from "@/lib/project-types";
-import { useProjects } from "@/lib/stores";
+import { useProjects } from "@/lib/stores/project-store";
 import type { CompanySummary } from "@/lib/types/company";
 import { CreateCompanyDialog } from "./create-company-dialog";
 

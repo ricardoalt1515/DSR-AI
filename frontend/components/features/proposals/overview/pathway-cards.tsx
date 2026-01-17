@@ -86,7 +86,7 @@ function PathwayCard({
 		>
 			<Card
 				className={cn(
-					"overflow-hidden transition-all duration-200",
+					"overflow-hidden transition-[box-shadow,border-color] duration-200",
 					isHero && "border-2 border-primary/50 shadow-lg",
 					!isHero && "hover:shadow-md hover:border-border/80",
 				)}

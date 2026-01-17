@@ -25,7 +25,7 @@ const engineeringButtonVariants = cva(
 
 				// Engineering-specific variants
 				calculate:
-					"bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md transition-all",
+					"bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md transition-[box-shadow,background-color]",
 				generate:
 					"bg-gradient-to-r from-treatment-primary via-treatment-secondary to-primary text-primary-foreground hover:from-treatment-primary/90 hover:to-primary/90 shadow-sm hover:shadow-md",
 				technical:
@@ -34,7 +34,7 @@ const engineeringButtonVariants = cva(
 				critical:
 					"bg-warning text-warning-foreground hover:bg-warning/90 animate-pulse",
 				quick:
-					"bg-gradient-to-r from-success/80 via-success to-treatment-secondary text-success-foreground hover:from-success/90 hover:to-treatment-secondary/90 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all",
+					"bg-gradient-to-r from-success/80 via-success to-treatment-secondary text-success-foreground hover:from-success/90 hover:to-treatment-secondary/90 shadow-lg hover:shadow-xl transform hover:scale-105 transition-[box-shadow,transform]",
 			},
 			size: {
 				default: "h-10 px-4 py-2",

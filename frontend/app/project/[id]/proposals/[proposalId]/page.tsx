@@ -22,7 +22,7 @@ import { proposalsAPI } from "@/lib/api/proposals";
 import { useLatestRequest } from "@/lib/hooks/use-latest-request";
 import { mapProposalDtoToUi } from "@/lib/mappers/proposal-mapper";
 import type { ProjectDetail } from "@/lib/project-types";
-import { useCurrentProject } from "@/lib/stores";
+import { useCurrentProject } from "@/lib/stores/project-store";
 
 interface PageProps {
 	params: Promise<{ id: string; proposalId: string }>;

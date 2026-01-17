@@ -11,17 +11,47 @@ import {
 	Users,
 	XCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-	AddUserModal,
-	AdminStatsCard,
-	EditOrgModal,
-	OrgAvatar,
-	UsersTable,
-} from "@/components/features/admin";
+import { AdminStatsCard, OrgAvatar } from "@/components/features/admin";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const AddUserModal = dynamic(
+	() =>
+		import("@/components/features/admin/add-user-modal").then(
+			(mod) => mod.AddUserModal,
+		),
+	{ ssr: false, loading: () => null },
+);
+
+const EditOrgModal = dynamic(
+	() =>
+		import("@/components/features/admin/edit-org-modal").then(
+			(mod) => mod.EditOrgModal,
+		),
+	{ ssr: false, loading: () => null },
+);
+
+const UsersTable = dynamic(
+	() =>
+		import("@/components/features/admin/users-table").then(
+			(mod) => mod.UsersTable,
+		),
+	{
+		ssr: false,
+		loading: () => (
+			<div className="space-y-3">
+				<Skeleton className="h-10 w-full" />
+				<Skeleton className="h-10 w-full" />
+				<Skeleton className="h-10 w-full" />
+			</div>
+		),
+	},
+);
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +62,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Tooltip,
 	TooltipContent,
@@ -44,7 +73,7 @@ import {
 	type OrganizationUpdateInput,
 	type OrgUserCreateInput,
 	organizationsAPI,
-} from "@/lib/api";
+} from "@/lib/api/organizations";
 import type { User, UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 

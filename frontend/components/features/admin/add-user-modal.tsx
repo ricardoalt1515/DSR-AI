@@ -20,7 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import type { OrgUserCreateInput } from "@/lib/api";
+import type { OrgUserCreateInput } from "@/lib/api/organizations";
 import type { UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
@@ -267,7 +267,7 @@ export function AddUserModal({
 								>
 									<div
 										className={cn(
-											"h-full transition-all",
+											"h-full transition-[width]",
 											passwordStrength.color,
 										)}
 										style={{ width: `${(passwordStrength.score / 5) * 100}%` }}

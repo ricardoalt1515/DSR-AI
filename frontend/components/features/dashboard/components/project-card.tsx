@@ -35,7 +35,8 @@ import {
 	getProjectStatusLabel,
 } from "@/lib/project-status";
 import type { ProjectSector, ProjectStatus } from "@/lib/project-types";
-import { useProjectActions, useTechnicalSections } from "@/lib/stores";
+import { useProjectActions } from "@/lib/stores/project-store";
+import { useTechnicalSections } from "@/lib/stores/technical-data-store";
 import { overallCompletion } from "@/lib/technical-sheet-data";
 import { cn } from "@/lib/utils";
 
@@ -158,7 +159,7 @@ const ProjectCard = memo(function ProjectCard({
 	return (
 		<Card
 			className={cn(
-				"group relative flex h-full flex-col bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 overflow-hidden",
+				"group relative flex h-full flex-col bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-[box-shadow,transform] duration-300 overflow-hidden",
 				className,
 			)}
 		>
@@ -166,7 +167,7 @@ const ProjectCard = memo(function ProjectCard({
 			<CardHeader className="relative flex flex-col gap-4 border-b border-border/30 bg-gradient-to-br from-card/50 to-card/30 py-4 backdrop-blur-sm">
 				<div className="flex items-start justify-between gap-4">
 					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 shadow-lg group-hover:shadow-xl transition-all duration-300 hover:animate-pulse">
+						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 shadow-lg group-hover:shadow-xl transition-shadow duration-300 hover:animate-pulse">
 							<SectorIcon className="h-5 w-5 text-primary group-hover:scale-110 transition-transform duration-300" />
 						</div>
 						<div className="space-y-1">
@@ -312,7 +313,7 @@ const ProjectCard = memo(function ProjectCard({
 								size: "sm",
 								variant: primaryAction.variant ?? "default",
 							}),
-							"bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300",
+							"bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-[box-shadow,transform] duration-300",
 						)}
 					>
 						{primaryAction.label}
@@ -321,7 +322,7 @@ const ProjectCard = memo(function ProjectCard({
 						href={`/project/${id}`}
 						className={cn(
 							buttonVariants({ size: "sm", variant: "ghost" }),
-							"hover:bg-primary/10 hover:text-primary transition-all duration-300",
+							"hover:bg-primary/10 hover:text-primary transition-colors duration-300",
 						)}
 					>
 						View Details

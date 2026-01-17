@@ -35,7 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { proposalsAPI } from "@/lib/api/proposals";
 import type { ProjectDetail } from "@/lib/project-types";
-import { useCurrentProject } from "@/lib/stores";
+import { useCurrentProject } from "@/lib/stores/project-store";
 import { useProposalGenerationStore } from "@/lib/stores/proposal-generation-store";
 import { useTechnicalSummaryData } from "@/lib/stores/technical-data-store";
 import { PROPOSAL_READINESS_THRESHOLD } from "@/lib/technical-sheet-data";
@@ -262,7 +262,7 @@ export function IntelligentProposalGeneratorComponent({
 					size="lg"
 					className={
 						canGenerate
-							? "w-full bg-gradient-to-r from-success/85 via-success to-success text-success-foreground shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 text-base font-semibold"
+							? "w-full bg-gradient-to-r from-success/85 via-success to-success text-success-foreground shadow-lg hover:shadow-xl hover:scale-[1.01] transition-[box-shadow,transform] duration-300 text-base font-semibold"
 							: "w-full bg-muted text-muted-foreground cursor-not-allowed"
 					}
 				>

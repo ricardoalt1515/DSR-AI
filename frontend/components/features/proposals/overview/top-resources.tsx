@@ -274,7 +274,7 @@ function ResourceCard({
 		>
 			<Card
 				className={cn(
-					"group overflow-hidden hover:shadow-md transition-all duration-300",
+					"group overflow-hidden hover:shadow-md transition-shadow duration-300",
 					"border-l-4",
 					qualityConfig.border,
 				)}
@@ -301,7 +301,7 @@ function ResourceCard({
 									src={imageUrl}
 									alt={item.material}
 									className={cn(
-										"absolute inset-0 w-full h-full object-cover transition-all duration-300",
+										"absolute inset-0 w-full h-full object-cover transition-[opacity,transform] duration-300",
 										imageLoaded ? "opacity-100" : "opacity-0",
 										canExpand && "group-hover:scale-105",
 									)}

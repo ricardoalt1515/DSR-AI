@@ -9,7 +9,7 @@ import {
 	useCurrentProject,
 	useProjectActions,
 	useProjectLoading,
-} from "@/lib/stores";
+} from "@/lib/stores/project-store";
 
 export default function ProjectPage() {
 	const params = useParams();

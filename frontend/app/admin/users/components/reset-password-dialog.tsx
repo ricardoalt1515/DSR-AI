@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AdminUpdateUserInput } from "@/lib/api";
+import type { AdminUpdateUserInput } from "@/lib/api/admin-users";
 import { isValidPassword, PASSWORD_HINT, passwordsMatch } from "../utils";
 
 interface ResetPasswordDialogProps {
