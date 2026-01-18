@@ -67,7 +67,6 @@ function MetricCard({
 	const isComputed = metric?.status === "computed";
 	const value = metric?.value;
 	const dataNeeded = metric?.dataNeeded || [];
-	const dataNeededKeys = createStableKeys(dataNeeded);
 
 	return (
 		<Card
@@ -108,15 +107,15 @@ function MetricCard({
 									Data needed:
 								</p>
 								<ul className="text-xs text-muted-foreground space-y-0.5">
-									{dataNeeded.map((item, i) => (
-										<li
-											key={dataNeededKeys[i]}
-											className="flex items-center gap-1.5"
-										>
-											<ArrowRight className="h-3 w-3 text-primary/60" />
-											{item}
-										</li>
-									))}
+									{(() => {
+										const keys = createStableKeys(dataNeeded);
+										return dataNeeded.map((item, i) => (
+											<li key={keys[i]} className="flex items-center gap-1.5">
+												<ArrowRight className="h-3 w-3 text-primary/60" />
+												{item}
+											</li>
+										));
+									})()}
 								</ul>
 							</div>
 						)}
@@ -164,16 +163,6 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 	const profitabilityStatement = external.profitabilityStatement?.trim() ?? "";
 	const isHighlyProfitable =
 		profitabilityStatement.toLowerCase() === "highly profitable";
-
-	const actionKeys = external.recommendedActions?.length
-		? createStableKeys(external.recommendedActions)
-		: [];
-	const guidanceKeys = external.handlingGuidance?.length
-		? createStableKeys(external.handlingGuidance)
-		: [];
-	const impactNotesKeys = annualImpactNotes.length
-		? createStableKeys(annualImpactNotes)
-		: [];
 
 	return (
 		<div className="space-y-8 animate-in fade-in duration-500">
@@ -251,12 +240,15 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 							</CardHeader>
 							<CardContent>
 								<ul className="space-y-2">
-									{external.recommendedActions.map((action, i) => (
-										<li key={actionKeys[i]} className="flex items-start gap-2">
-											<CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-											<span className="text-sm">{action}</span>
-										</li>
-									))}
+									{(() => {
+										const keys = createStableKeys(external.recommendedActions);
+										return external.recommendedActions.map((action, i) => (
+											<li key={keys[i]} className="flex items-start gap-2">
+												<CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+												<span className="text-sm">{action}</span>
+											</li>
+										));
+									})()}
 								</ul>
 							</CardContent>
 						</Card>
@@ -280,15 +272,15 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 							</CardHeader>
 							<CardContent>
 								<ul className="space-y-2">
-									{external.handlingGuidance.map((guidance, i) => (
-										<li
-											key={guidanceKeys[i]}
-											className="flex items-start gap-2"
-										>
-											<ArrowRight className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-											<span className="text-sm">{guidance}</span>
-										</li>
-									))}
+									{(() => {
+										const keys = createStableKeys(external.handlingGuidance);
+										return external.handlingGuidance.map((guidance, i) => (
+											<li key={keys[i]} className="flex items-start gap-2">
+												<ArrowRight className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+												<span className="text-sm">{guidance}</span>
+											</li>
+										));
+									})()}
 								</ul>
 							</CardContent>
 						</Card>
@@ -422,9 +414,9 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 								)}
 								{annualImpactNotes.length > 0 && (
 									<ul className="text-sm text-muted-foreground space-y-1">
-										{annualImpactNotes.map((note, i) => (
+										{annualImpactNotes.map((note, index) => (
 											<li
-												key={impactNotesKeys[i]}
+												key={`${note}-${index}`}
 												className="flex items-start gap-2"
 											>
 												<ArrowRight className="h-4 w-4 text-primary/60 mt-0.5" />
