@@ -7,9 +7,8 @@
 - Redis: `cd backend && docker-compose exec redis redis-cli`
 
 ### Frontend
-- Build errors: `cd frontend && npm run build`
-- Lint: `cd frontend && npm run check:ci`
-- Type checks: `cd frontend && npx tsc --noEmit`
+- Build errors: `cd frontend && bun run build`
+- Lint + types: `cd frontend && bun run check:ci`
 
 ### Common issues
 - Module not found (backend): check `pyproject.toml`, rebuild image.
