@@ -416,7 +416,7 @@ class FlexibleWaterProjectData(BaseSchema):
 
         # === TECHNICAL SECTIONS ===
         # These are all keys that aren't basic info or special fields
-        exclude_keys = set(basic_fields + ["notes", "regulations", "field_observations"])
+        exclude_keys = {*basic_fields, "notes", "regulations", "field_observations"}
 
         for section_title, section_data in context.items():
             # Skip if this is a basic info field or special field
@@ -431,7 +431,7 @@ class FlexibleWaterProjectData(BaseSchema):
                 lines.append("")  # Empty line after each section
 
         # === OPTIONAL FIELDS AT END ===
-        if "regulations" in context and context["regulations"]:
+        if context.get("regulations"):
             lines.append("APPLICABLE REGULATIONS:")
             for reg in context["regulations"]:
                 lines.append(f"- {reg}")

@@ -2,24 +2,24 @@ import asyncio
 import uuid
 
 import pytest
+from fastapi_users.password import PasswordHelper
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-from fastapi_users.password import PasswordHelper
 
-from app.main import app
 from app.core.config import settings
 from app.core.database import get_async_db
 from app.core.fastapi_users_instance import current_active_user
-from app.models.organization import Organization
-from app.models.user import User, UserRole
+from app.main import app
 from app.models.company import Company
+from app.models.file import ProjectFile
 from app.models.location import Location
+from app.models.organization import Organization
 from app.models.project import Project
 from app.models.proposal import Proposal
-from app.models.file import ProjectFile
 from app.models.timeline import TimelineEvent
+from app.models.user import User, UserRole
 from app.services.cache_service import cache_service
 
 
@@ -173,7 +173,9 @@ async def create_company(session, *, org_id: uuid.UUID, name: str) -> Company:
     return company
 
 
-async def create_location(session, *, org_id: uuid.UUID, company_id: uuid.UUID, name: str) -> Location:
+async def create_location(
+    session, *, org_id: uuid.UUID, company_id: uuid.UUID, name: str
+) -> Location:
     location = Location(
         organization_id=org_id,
         company_id=company_id,
@@ -260,7 +262,9 @@ async def test_user_org_a_cannot_see_companies_org_b(client, db_session, set_cur
 
 
 @pytest.mark.asyncio
-async def test_field_agent_location_detail_only_shows_own_projects_same_org(client, db_session, set_current_user):
+async def test_field_agent_location_detail_only_shows_own_projects_same_org(
+    client, db_session, set_current_user
+):
     org = await create_org(db_session, "Org A8", "org-a8")
     user_a = await create_user(
         db_session,
@@ -277,7 +281,9 @@ async def test_field_agent_location_detail_only_shows_own_projects_same_org(clie
         is_superuser=False,
     )
     company = await create_company(db_session, org_id=org.id, name="Company A8")
-    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Location A8")
+    location = await create_location(
+        db_session, org_id=org.id, company_id=company.id, name="Location A8"
+    )
     project_a = await create_project(
         db_session,
         org_id=org.id,
@@ -305,7 +311,9 @@ async def test_field_agent_location_detail_only_shows_own_projects_same_org(clie
 
 
 @pytest.mark.asyncio
-async def test_field_agent_locations_list_scopes_project_count_same_org(client, db_session, set_current_user):
+async def test_field_agent_locations_list_scopes_project_count_same_org(
+    client, db_session, set_current_user
+):
     org = await create_org(db_session, "Org A9", "org-a9")
     user_a = await create_user(
         db_session,
@@ -322,7 +330,9 @@ async def test_field_agent_locations_list_scopes_project_count_same_org(client, 
         is_superuser=False,
     )
     company = await create_company(db_session, org_id=org.id, name="Company A9")
-    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Location A9")
+    location = await create_location(
+        db_session, org_id=org.id, company_id=company.id, name="Location A9"
+    )
     await create_project(
         db_session,
         org_id=org.id,
@@ -350,7 +360,9 @@ async def test_field_agent_locations_list_scopes_project_count_same_org(client, 
 
 
 @pytest.mark.asyncio
-async def test_org_admin_location_detail_shows_all_projects_same_org(client, db_session, set_current_user):
+async def test_org_admin_location_detail_shows_all_projects_same_org(
+    client, db_session, set_current_user
+):
     org = await create_org(db_session, "Org A10", "org-a10")
     org_admin = await create_user(
         db_session,
@@ -374,7 +386,9 @@ async def test_org_admin_location_detail_shows_all_projects_same_org(client, db_
         is_superuser=False,
     )
     company = await create_company(db_session, org_id=org.id, name="Company A10")
-    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Location A10")
+    location = await create_location(
+        db_session, org_id=org.id, company_id=company.id, name="Location A10"
+    )
     await create_project(
         db_session,
         org_id=org.id,
@@ -447,10 +461,18 @@ async def test_user_org_a_cannot_see_projects_org_b(client, db_session, set_curr
     )
     company_a = await create_company(db_session, org_id=org_a.id, name="Company A3")
     company_b = await create_company(db_session, org_id=org_b.id, name="Company B3")
-    location_a = await create_location(db_session, org_id=org_a.id, company_id=company_a.id, name="Location A3")
-    location_b = await create_location(db_session, org_id=org_b.id, company_id=company_b.id, name="Location B3")
-    await create_project(db_session, org_id=org_a.id, user_id=user_a.id, location_id=location_a.id, name="Project A")
-    await create_project(db_session, org_id=org_b.id, user_id=user_b.id, location_id=location_b.id, name="Project B")
+    location_a = await create_location(
+        db_session, org_id=org_a.id, company_id=company_a.id, name="Location A3"
+    )
+    location_b = await create_location(
+        db_session, org_id=org_b.id, company_id=company_b.id, name="Location B3"
+    )
+    await create_project(
+        db_session, org_id=org_a.id, user_id=user_a.id, location_id=location_a.id, name="Project A"
+    )
+    await create_project(
+        db_session, org_id=org_b.id, user_id=user_b.id, location_id=location_b.id, name="Project B"
+    )
 
     set_current_user(user_a)
     response = await client.get("/api/v1/projects")
@@ -481,8 +503,12 @@ async def test_org_admin_sees_all_projects_in_org(client, db_session, set_curren
         is_superuser=False,
     )
     company_a = await create_company(db_session, org_id=org_a.id, name="Company A4")
-    location_a = await create_location(db_session, org_id=org_a.id, company_id=company_a.id, name="Location A4")
-    await create_project(db_session, org_id=org_a.id, user_id=user_a.id, location_id=location_a.id, name="Project A4")
+    location_a = await create_location(
+        db_session, org_id=org_a.id, company_id=company_a.id, name="Location A4"
+    )
+    await create_project(
+        db_session, org_id=org_a.id, user_id=user_a.id, location_id=location_a.id, name="Project A4"
+    )
 
     set_current_user(org_admin)
     response = await client.get("/api/v1/projects")
@@ -566,7 +592,9 @@ async def test_create_project_with_location_from_other_org(client, db_session, s
         is_superuser=False,
     )
     company_b = await create_company(db_session, org_id=org_b.id, name="Company B6")
-    location_b = await create_location(db_session, org_id=org_b.id, company_id=company_b.id, name="Location B6")
+    location_b = await create_location(
+        db_session, org_id=org_b.id, company_id=company_b.id, name="Location B6"
+    )
 
     set_current_user(user_a)
     response = await client.post(

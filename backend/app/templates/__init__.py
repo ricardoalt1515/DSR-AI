@@ -15,8 +15,8 @@ from .helpers import get_template, list_available_templates
 from .registry import BASE_TEMPLATE, TEMPLATES
 
 __all__ = [
-    "get_template",
-    "list_available_templates",
     "BASE_TEMPLATE",
     "TEMPLATES",
+    "get_template",
+    "list_available_templates",
 ]

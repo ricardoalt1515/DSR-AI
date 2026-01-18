@@ -193,7 +193,7 @@ def get_template_stats() -> dict:
         "total": len(templates),
         "base": 1,
         "registered": len(templates) - 1,
-        "sectors": len(set(t["sector"] for t in templates if t["sector"])),
+        "sectors": len({t["sector"] for t in templates if t["sector"]}),
         "subsectors": len([t for t in templates if t["subsector"]]),
         "total_sections": sum(t["sections_count"] for t in templates),
         "total_fields": sum(t["total_fields"] for t in templates),

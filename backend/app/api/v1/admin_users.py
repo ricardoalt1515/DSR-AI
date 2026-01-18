@@ -13,6 +13,8 @@ from app.schemas.user_fastapi import UserCreate, UserRead, UserUpdate
 router = APIRouter()
 
 # Import rate limiter
+from typing import Annotated
+
 from app.main import limiter
 
 
@@ -46,7 +48,7 @@ async def create_user(
     request: Request,
     payload: AdminCreateUserRequest,
     current_admin: CurrentSuperUser,
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ):
     """Create a user with the provided credentials (admin only)."""
     if payload.is_superuser is not True or payload.role != "admin":
@@ -74,7 +76,7 @@ async def update_user(
     updates: AdminUpdateUserRequest,
     current_admin: CurrentSuperUser,
     db: AsyncDB,
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ):
     """Update user fields (role, status, password)."""
     user = await user_manager.get(user_id)

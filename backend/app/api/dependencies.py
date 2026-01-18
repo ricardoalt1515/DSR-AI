@@ -224,9 +224,7 @@ async def get_current_location_contacts_writer(
     return current_user
 
 
-CurrentLocationContactsWriter = Annotated[
-    User, Depends(get_current_location_contacts_writer)
-]
+CurrentLocationContactsWriter = Annotated[User, Depends(get_current_location_contacts_writer)]
 
 
 async def get_accessible_project(

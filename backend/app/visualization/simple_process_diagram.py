@@ -261,10 +261,7 @@ class SimpleProcessDiagram:
 
         # Calculate positions
         total_width = canvas_width * 100 - 200  # 100 px margin on each side
-        if len(sorted_equipment) > 1:
-            spacing = total_width / (len(sorted_equipment) - 1)
-        else:
-            spacing = 0
+        spacing = total_width / (len(sorted_equipment) - 1) if len(sorted_equipment) > 1 else 0
 
         y_center = self.line_height + 200  # Main process line
 
@@ -286,7 +283,7 @@ class SimpleProcessDiagram:
         """Draws individual equipment using professional premium geometric shapes"""
         x, y = position
         eq_type = equipment.get("type", "Equipo").upper()
-        stage = equipment.get("stage", "secondary")
+        equipment.get("stage", "secondary")
         criticality = equipment.get("criticality", "medium")
         complexity = equipment.get("complexity", "moderate")
 
@@ -413,7 +410,12 @@ class SimpleProcessDiagram:
                 "",
                 xy=(x, y),
                 xytext=(arrow_x, arrow_y),
-                arrowprops=dict(arrowstyle="->", color=self.colors["water_blue"], lw=1, alpha=0.6),
+                arrowprops={
+                    "arrowstyle": "->",
+                    "color": self.colors["water_blue"],
+                    "lw": 1,
+                    "alpha": 0.6,
+                },
             )
 
         # Label with premium typography
@@ -503,7 +505,12 @@ class SimpleProcessDiagram:
                 "",
                 xy=(flow_x, y - 20),
                 xytext=(flow_x, y + 10),
-                arrowprops=dict(arrowstyle="->", color=self.colors["water_blue"], lw=1, alpha=0.6),
+                arrowprops={
+                    "arrowstyle": "->",
+                    "color": self.colors["water_blue"],
+                    "lw": 1,
+                    "alpha": 0.6,
+                },
             )
 
         # Premium label

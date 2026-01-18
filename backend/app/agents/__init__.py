@@ -10,8 +10,8 @@ from app.agents.proposal_agent import (
 )
 
 __all__ = [
-    "generate_enhanced_proposal",
+    "ImageAnalysisError",
     "ProposalGenerationError",
     "analyze_image",
-    "ImageAnalysisError",
+    "generate_enhanced_proposal",
 ]

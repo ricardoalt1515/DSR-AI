@@ -5,7 +5,7 @@ Includes PDF generation and AI transparency features (Oct 2025).
 """
 
 import os
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import structlog
@@ -61,7 +61,7 @@ async def generate_proposal(
     background_tasks: BackgroundTasks,
     current_user: CurrentUser,
     org: OrganizationContext,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Start AI-powered proposal generation for a project.
@@ -258,7 +258,7 @@ async def get_proposal(
     project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Get detailed proposal information.
@@ -335,7 +335,7 @@ async def get_proposal_pdf(
     project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,  # CurrentUser already has Depends in type
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
     regenerate: bool = False,
     audience: Literal["internal", "external"] = "internal",
 ):
@@ -548,7 +548,7 @@ async def get_proposal_pdf(
         logger.error("PDF generation failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate PDF: {str(e)}",
+            detail=f"Failed to generate PDF: {e!s}",
         )
 
 
@@ -570,7 +570,7 @@ async def delete_proposal(
     project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Delete a proposal permanently.
@@ -649,7 +649,7 @@ async def get_proposal_ai_metadata(
     project: ProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Get AI reasoning and transparency metadata for a proposal.
@@ -751,5 +751,5 @@ async def get_proposal_ai_metadata(
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"AI metadata validation failed: {str(e)}",
+            detail=f"AI metadata validation failed: {e!s}",
         )

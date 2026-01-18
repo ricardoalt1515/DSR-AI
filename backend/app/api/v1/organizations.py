@@ -2,6 +2,7 @@
 Organization (tenant) endpoints.
 """
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -68,7 +69,7 @@ async def create_user_in_my_org(
     org: OrganizationContext,
     current_user: CurrentUser,
     db: AsyncDB,
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ):
     """Create user in my organization. Org Admin or Platform Admin only."""
     if not current_user.can_manage_org_users():
@@ -123,7 +124,7 @@ async def create_org_user(
     data: OrgUserCreateRequest,
     admin: SuperAdminOnly,
     db: AsyncDB,
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ):
     """Create user in a specific organization. Platform Admin only."""
     org = await db.get(Organization, org_id)

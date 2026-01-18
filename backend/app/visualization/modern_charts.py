@@ -98,7 +98,7 @@ class PremiumPlotlyConfig:
 
     # Layout premium
     LAYOUT = {
-        "margin": dict(l=80, r=80, t=100, b=80),
+        "margin": {"l": 80, "r": 80, "t": 100, "b": 80},
         "spacing": 0.15,  # Espaciado entre subplots basado en golden ratio
         "background_color": COLORS["clean_white"],
         "grid_color": COLORS["premium_gray_light"],
@@ -224,8 +224,8 @@ class PremiumChartGenerator:
         Intenta inferir propiedades técnicas del contexto
         """
         eq_type = equipment.get("type", "").lower()
-        capacity = equipment.get("capacity_m3_day") or 0
-        power = equipment.get("power_consumption_kw") or 0
+        equipment.get("capacity_m3_day") or 0
+        equipment.get("power_consumption_kw") or 0
 
         # Inferir criticality basado en tipo y capacidad
         if any(word in eq_type for word in ["reactor", "principal", "main"]):
@@ -594,22 +594,14 @@ class PremiumChartGenerator:
         power = system_metrics.get("total_power", 0)
         equipment_count = system_metrics.get("equipment_count", 0)
         complexity = system_metrics.get("process_complexity", "moderate")
-        energy_per_m3 = system_metrics.get("energy_per_m3", 0)
+        system_metrics.get("energy_per_m3", 0)
 
         # Indicadores de performance premium
-        complexity_indicator = {
+        {
             "simple": "🟢 SIMPLE",
             "moderate": "🟡 MODERADO",
             "complex": "🔴 COMPLEJO",
         }.get(complexity, "🟡 MODERADO")
-
-        efficiency_indicator = (
-            "🟢 EXCELENTE"
-            if avg_efficiency >= 95
-            else "🟡 BUENA"
-            if avg_efficiency >= 85
-            else "🟠 ACEPTABLE"
-        )
 
         header_content = f"PLANTA DE TRATAMIENTO | CAP: {capacity:,.0f} m3/dia | POT: {power:.1f} kW | EF: {avg_efficiency:.1f}% | {equipment_count} EQUIPOS"
         header_content = self._sanitize_mermaid_string(header_content)
@@ -643,16 +635,6 @@ class PremiumChartGenerator:
         ]
 
         # Nodo de salida premium
-        quality_indicator = (
-            "🟢 EXCELENTE"
-            if avg_efficiency >= 95
-            else "🟡 BUENA"
-            if avg_efficiency >= 85
-            else "🟠 ACEPTABLE"
-        )
-        discharge_compliance = (
-            "✅ CUMPLE NORMATIVA" if avg_efficiency >= 90 else "⚠️ VERIFICAR CUMPLIMIENTO"
-        )
 
         outlet_content = (
             f"AGUA TRATADA | CALIDAD: EXCELENTE ({avg_efficiency:.1f}%) | {capacity:,.0f} m3/dia"
@@ -934,8 +916,8 @@ class PremiumChartGenerator:
                 # Usar análisis semántico directo del agente
                 criticality = eq.get("criticality", "medium").lower()
                 stage = eq.get("stage", "secondary").lower()
-                risk_factor = eq.get("risk_factor", "medium").lower()
-                complexity = eq.get("complexity", "moderate").lower()
+                eq.get("risk_factor", "medium").lower()
+                eq.get("complexity", "moderate").lower()
 
                 # Mapear análisis a propiedades visuales premium
                 visual_props = self._get_premium_visual_properties(eq, premium_colors)
@@ -994,7 +976,7 @@ class PremiumChartGenerator:
                 ha="center",
                 va="center",
                 color=premium_colors["primary_blue"],
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
+                bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "alpha": 0.8},
             )
 
             ax.text(
@@ -1150,7 +1132,7 @@ class PremiumChartGenerator:
                 # Obtener propiedades del análisis semántico
                 eq_color = equipment.get("color", premium_colors["neutral_gray"])
                 eq_shape = equipment.get("shape", "rect")
-                eq_symbol = equipment.get("industrial_symbol", "■")
+                equipment.get("industrial_symbol", "■")
 
                 # DISEÑO DE EQUIPO BASADO EN ANÁLISIS SEMÁNTICO
                 self._draw_premium_equipment_node(
@@ -1374,7 +1356,7 @@ class PremiumChartGenerator:
 
         except Exception as e:
             logger.error(f"❌ Error en matplotlib fallback: {e}")
-            return self._create_fallback_diagram(f"Error en fallback premium: {str(e)}")
+            return self._create_fallback_diagram(f"Error en fallback premium: {e!s}")
 
     # ════════════════════════════════════════════════════════════════════════════════════════════
     # MÉTODOS AUXILIARES PARA MATPLOTLIB PREMIUM FALLBACK
@@ -1384,7 +1366,7 @@ class PremiumChartGenerator:
         """Obtiene propiedades visuales premium basadas en análisis semántico"""
         criticality = equipment.get("criticality", "medium").lower()
         stage = equipment.get("stage", "secondary").lower()
-        risk_factor = equipment.get("risk_factor", "medium").lower()
+        equipment.get("risk_factor", "medium").lower()
         complexity = equipment.get("complexity", "moderate").lower()
 
         # Mapear análisis semántico a propiedades visuales
@@ -1674,7 +1656,7 @@ class PremiumChartGenerator:
 
         # Determinar propiedades de conexión
         criticality = equipment.get("criticality", "medium")
-        stage = equipment.get("stage", "secondary")
+        equipment.get("stage", "secondary")
 
         # ════════════════════════════════════════════════════════════════
         # SISTEMA DE CONEXIONES PREMIUM 4K - TUBERÍAS P&ID PROFESIONALES
@@ -1686,19 +1668,16 @@ class PremiumChartGenerator:
             linewidth = 5  # Línea muy gruesa para 4K
             linestyle = "-"
             alpha = 0.95
-            pipe_pattern = "solid"
         elif criticality == "medium":
             line_color = "#059669"  # Verde proceso
             linewidth = 4
             linestyle = "-"
             alpha = 0.9
-            pipe_pattern = "solid"
         else:
             line_color = "#6b7280"  # Gris auxiliar
             linewidth = 3
             linestyle = "--"  # Punteado para auxiliares
             alpha = 0.8
-            pipe_pattern = "dashed"
 
         # Calcular geometría de conexión 4K inteligente
         dx = x2 - x1
@@ -1739,14 +1718,13 @@ class PremiumChartGenerator:
             )
 
             # FLECHA P&ID PROFESIONAL 4K
-            arrow_size = 0.4  # Flecha más grande para 4K
-            arrow_props = dict(
-                arrowstyle="->",
-                color=line_color,
-                lw=linewidth,
-                alpha=alpha,
-                mutation_scale=25,  # Tamaño de flecha 4K
-            )
+            arrow_props = {
+                "arrowstyle": "->",
+                "color": line_color,
+                "lw": linewidth,
+                "alpha": alpha,
+                "mutation_scale": 25,  # Tamaño de flecha 4K
+            }
             ax.annotate("", xy=(x2_adj, y2_adj), xytext=(x1_adj, y1_adj), arrowprops=arrow_props)
 
             # ETIQUETA DE FLUJO 4K (opcional para líneas principales)
@@ -1765,7 +1743,7 @@ class PremiumChartGenerator:
                     va="bottom",
                     color=line_color,
                     fontweight="bold",
-                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8),
+                    bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "alpha": 0.8},
                 )
 
     def _draw_premium_efficiency_panel(self, ax, efficiencies: dict, colors: dict):
@@ -1828,7 +1806,7 @@ class PremiumChartGenerator:
         y_offset = 0.7  # Mayor espaciado 4K
         params_shown = 0
 
-        for i, (param, value) in enumerate(efficiencies.items()):
+        for _i, (param, value) in enumerate(efficiencies.items()):
             if params_shown >= 5:  # Máximo 5 parámetros en 4K
                 break
 
@@ -2043,22 +2021,22 @@ class PremiumChartGenerator:
                     labels=["💰 CAPEX<br>Inversión Inicial", "🔄 OPEX<br>5 años operación"],
                     values=[capex, annual_opex * 5],
                     hole=0.45,
-                    marker=dict(
-                        colors=self.plotly_config.COLOR_SCHEMES["capex_opex"],
-                        line=dict(color=self.plotly_config.COLORS["clean_white"], width=3),
-                    ),
-                    textfont=dict(
-                        size=self.plotly_config.TYPOGRAPHY["label_size"],
-                        family=self.plotly_config.TYPOGRAPHY["font_family"],
-                        color=self.plotly_config.COLORS["clean_white"],
-                    ),
+                    marker={
+                        "colors": self.plotly_config.COLOR_SCHEMES["capex_opex"],
+                        "line": {"color": self.plotly_config.COLORS["clean_white"], "width": 3},
+                    },
+                    textfont={
+                        "size": self.plotly_config.TYPOGRAPHY["label_size"],
+                        "family": self.plotly_config.TYPOGRAPHY["font_family"],
+                        "color": self.plotly_config.COLORS["clean_white"],
+                    },
                     textinfo="label+percent",
                     hovertemplate='<b>%{label}</b><br><span style="font-size:14px;">$%{value:,.0f}</span><br>%{percent}<extra></extra>',
-                    hoverlabel=dict(
-                        bgcolor=self.plotly_config.COLORS["text_dark"],
-                        bordercolor=self.plotly_config.COLORS["clean_white"],
-                        font_size=12,
-                    ),
+                    hoverlabel={
+                        "bgcolor": self.plotly_config.COLORS["text_dark"],
+                        "bordercolor": self.plotly_config.COLORS["clean_white"],
+                        "font_size": 12,
+                    },
                 ),
                 row=1,
                 col=1,
@@ -2078,26 +2056,29 @@ class PremiumChartGenerator:
                         go.Bar(
                             x=capex_labels,
                             y=capex_values,
-                            marker=dict(
-                                color=self.plotly_config.COLOR_SCHEMES["capex_breakdown"][
+                            marker={
+                                "color": self.plotly_config.COLOR_SCHEMES["capex_breakdown"][
                                     : len(capex_labels)
                                 ],
-                                opacity=self.plotly_config.EFFECTS["gradient_opacity"],
-                                line=dict(color=self.plotly_config.COLORS["text_dark"], width=1),
-                            ),
+                                "opacity": self.plotly_config.EFFECTS["gradient_opacity"],
+                                "line": {
+                                    "color": self.plotly_config.COLORS["text_dark"],
+                                    "width": 1,
+                                },
+                            },
                             text=[f"${v:,.0f}" for v in capex_values],
                             textposition="auto",
-                            textfont=dict(
-                                size=self.plotly_config.TYPOGRAPHY["value_size"],
-                                family=self.plotly_config.TYPOGRAPHY["font_family"],
-                                color=self.plotly_config.COLORS["clean_white"],
-                            ),
+                            textfont={
+                                "size": self.plotly_config.TYPOGRAPHY["value_size"],
+                                "family": self.plotly_config.TYPOGRAPHY["font_family"],
+                                "color": self.plotly_config.COLORS["clean_white"],
+                            },
                             hovertemplate='<b>%{x}</b><br><span style="font-size:14px;">$%{y:,.0f}</span><extra></extra>',
-                            hoverlabel=dict(
-                                bgcolor=self.plotly_config.COLORS["text_dark"],
-                                bordercolor=self.plotly_config.COLORS["clean_white"],
-                                font_size=12,
-                            ),
+                            hoverlabel={
+                                "bgcolor": self.plotly_config.COLORS["text_dark"],
+                                "bordercolor": self.plotly_config.COLORS["clean_white"],
+                                "font_size": 12,
+                            },
                         ),
                         row=1,
                         col=2,
@@ -2121,26 +2102,29 @@ class PremiumChartGenerator:
                         go.Bar(
                             x=opex_labels,
                             y=opex_values,
-                            marker=dict(
-                                color=self.plotly_config.COLOR_SCHEMES["opex_breakdown"][
+                            marker={
+                                "color": self.plotly_config.COLOR_SCHEMES["opex_breakdown"][
                                     : len(opex_labels)
                                 ],
-                                opacity=self.plotly_config.EFFECTS["gradient_opacity"],
-                                line=dict(color=self.plotly_config.COLORS["text_dark"], width=1),
-                            ),
+                                "opacity": self.plotly_config.EFFECTS["gradient_opacity"],
+                                "line": {
+                                    "color": self.plotly_config.COLORS["text_dark"],
+                                    "width": 1,
+                                },
+                            },
                             text=[f"${v:,.0f}" for v in opex_values],
                             textposition="auto",
-                            textfont=dict(
-                                size=self.plotly_config.TYPOGRAPHY["value_size"],
-                                family=self.plotly_config.TYPOGRAPHY["font_family"],
-                                color=self.plotly_config.COLORS["clean_white"],
-                            ),
+                            textfont={
+                                "size": self.plotly_config.TYPOGRAPHY["value_size"],
+                                "family": self.plotly_config.TYPOGRAPHY["font_family"],
+                                "color": self.plotly_config.COLORS["clean_white"],
+                            },
                             hovertemplate='<b>%{x}</b><br><span style="font-size:14px;">$%{y:,.0f}/año</span><extra></extra>',
-                            hoverlabel=dict(
-                                bgcolor=self.plotly_config.COLORS["text_dark"],
-                                bordercolor=self.plotly_config.COLORS["clean_white"],
-                                font_size=12,
-                            ),
+                            hoverlabel={
+                                "bgcolor": self.plotly_config.COLORS["text_dark"],
+                                "bordercolor": self.plotly_config.COLORS["clean_white"],
+                                "font_size": 12,
+                            },
                         ),
                         row=2,
                         col=1,
@@ -2177,23 +2161,23 @@ class PremiumChartGenerator:
                         y=cumulative_cash_flow,
                         mode="lines+markers",
                         name="💰 Cash Flow Acumulativo",
-                        line=dict(
-                            color=self.plotly_config.COLOR_SCHEMES["cash_flow"]["positive"],
-                            width=self.plotly_config.EFFECTS["line_width"],
-                        ),
-                        marker=dict(
-                            size=self.plotly_config.EFFECTS["marker_size"],
-                            color=colors_cash_flow,
-                            line=dict(color=self.plotly_config.COLORS["clean_white"], width=2),
-                        ),
+                        line={
+                            "color": self.plotly_config.COLOR_SCHEMES["cash_flow"]["positive"],
+                            "width": self.plotly_config.EFFECTS["line_width"],
+                        },
+                        marker={
+                            "size": self.plotly_config.EFFECTS["marker_size"],
+                            "color": colors_cash_flow,
+                            "line": {"color": self.plotly_config.COLORS["clean_white"], "width": 2},
+                        },
                         fill="tonexty",
                         fillcolor=f"rgba({int(self.plotly_config.COLORS['process_green'][1:3], 16)}, {int(self.plotly_config.COLORS['process_green'][3:5], 16)}, {int(self.plotly_config.COLORS['process_green'][5:7], 16)}, 0.1)",
                         hovertemplate='<b>Año %{x}</b><br><span style="font-size:14px;">Cash Flow: $%{y:,.0f}</span><extra></extra>',
-                        hoverlabel=dict(
-                            bgcolor=self.plotly_config.COLORS["text_dark"],
-                            bordercolor=self.plotly_config.COLORS["clean_white"],
-                            font_size=12,
-                        ),
+                        hoverlabel={
+                            "bgcolor": self.plotly_config.COLORS["text_dark"],
+                            "bordercolor": self.plotly_config.COLORS["clean_white"],
+                            "font_size": 12,
+                        },
                     ),
                     row=2,
                     col=2,
@@ -2206,11 +2190,11 @@ class PremiumChartGenerator:
                         y=[0, 0],
                         mode="lines",
                         name="📊 Breakeven",
-                        line=dict(
-                            color=self.plotly_config.COLOR_SCHEMES["cash_flow"]["breakeven"],
-                            width=2,
-                            dash="dash",
-                        ),
+                        line={
+                            "color": self.plotly_config.COLOR_SCHEMES["cash_flow"]["breakeven"],
+                            "width": 2,
+                            "dash": "dash",
+                        },
                         showlegend=False,
                         hovertemplate="<b>Punto de Equilibrio</b><extra></extra>",
                     ),
@@ -2227,19 +2211,22 @@ class PremiumChartGenerator:
                             y=[payback_cash_flow],
                             mode="markers+text",
                             name=f"⭐ Recuperación: {payback_years:.1f} años",
-                            marker=dict(
-                                size=20,
-                                color=self.plotly_config.COLOR_SCHEMES["cash_flow"]["breakeven"],
-                                symbol="star",
-                                line=dict(color=self.plotly_config.COLORS["clean_white"], width=3),
-                            ),
+                            marker={
+                                "size": 20,
+                                "color": self.plotly_config.COLOR_SCHEMES["cash_flow"]["breakeven"],
+                                "symbol": "star",
+                                "line": {
+                                    "color": self.plotly_config.COLORS["clean_white"],
+                                    "width": 3,
+                                },
+                            },
                             text=[f"Payback<br>{payback_years:.1f}y"],
                             textposition="top center",
-                            textfont=dict(
-                                size=self.plotly_config.TYPOGRAPHY["annotation_size"],
-                                color=self.plotly_config.COLORS["text_dark"],
-                                family=self.plotly_config.TYPOGRAPHY["font_family"],
-                            ),
+                            textfont={
+                                "size": self.plotly_config.TYPOGRAPHY["annotation_size"],
+                                "color": self.plotly_config.COLORS["text_dark"],
+                                "family": self.plotly_config.TYPOGRAPHY["font_family"],
+                            },
                             hovertemplate=f'<b>🎯 Punto de Recuperación</b><br>Año: {payback_years:.1f}<br><span style="font-size:14px;">Cash Flow: $%{{y:,.0f}}</span><extra></extra>',
                         ),
                         row=2,
@@ -2252,7 +2239,7 @@ class PremiumChartGenerator:
                     y=0.5,
                     text="Datos de ahorros<br>no disponibles",
                     showarrow=False,
-                    font=dict(size=16, color="#6b7280"),
+                    font={"size": 16, "color": "#6b7280"},
                     row=2,
                     col=2,
                 )
@@ -2269,22 +2256,22 @@ class PremiumChartGenerator:
                         "family": self.plotly_config.TYPOGRAPHY["font_family"],
                     },
                 },
-                font=dict(
-                    family=self.plotly_config.TYPOGRAPHY["font_family"],
-                    size=self.plotly_config.TYPOGRAPHY["label_size"],
-                    color=self.plotly_config.COLORS["text_medium"],
-                ),
+                font={
+                    "family": self.plotly_config.TYPOGRAPHY["font_family"],
+                    "size": self.plotly_config.TYPOGRAPHY["label_size"],
+                    "color": self.plotly_config.COLORS["text_medium"],
+                },
                 paper_bgcolor=self.plotly_config.COLORS["clean_white"],
                 plot_bgcolor=self.plotly_config.COLORS["background_light"],
                 showlegend=True,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.1,
-                    xanchor="center",
-                    x=0.5,
-                    font=dict(size=self.plotly_config.TYPOGRAPHY["value_size"]),
-                ),
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": -0.1,
+                    "xanchor": "center",
+                    "x": 0.5,
+                    "font": {"size": self.plotly_config.TYPOGRAPHY["value_size"]},
+                },
                 height=900,
                 width=1400,
                 margin=self.plotly_config.LAYOUT["margin"],
@@ -2295,15 +2282,15 @@ class PremiumChartGenerator:
                 gridcolor=self.plotly_config.COLORS["premium_gray_light"],
                 gridwidth=1,
                 showgrid=True,
-                tickfont=dict(size=self.plotly_config.TYPOGRAPHY["value_size"]),
-                titlefont=dict(size=self.plotly_config.TYPOGRAPHY["label_size"]),
+                tickfont={"size": self.plotly_config.TYPOGRAPHY["value_size"]},
+                titlefont={"size": self.plotly_config.TYPOGRAPHY["label_size"]},
             )
             fig.update_yaxes(
                 gridcolor=self.plotly_config.COLORS["premium_gray_light"],
                 gridwidth=1,
                 showgrid=True,
-                tickfont=dict(size=self.plotly_config.TYPOGRAPHY["value_size"]),
-                titlefont=dict(size=self.plotly_config.TYPOGRAPHY["label_size"]),
+                tickfont={"size": self.plotly_config.TYPOGRAPHY["value_size"]},
+                titlefont={"size": self.plotly_config.TYPOGRAPHY["label_size"]},
             )
 
             # Formatear ejes específicos del cash flow con estilo premium
@@ -2332,7 +2319,7 @@ class PremiumChartGenerator:
 
         except Exception as e:
             logger.error(f"❌ Error generando gráfico financiero Plotly: {e}")
-            return self._create_fallback_diagram(f"Error financiero: {str(e)}")
+            return self._create_fallback_diagram(f"Error financiero: {e!s}")
 
     def _generate_no_data_charts(self) -> dict[str, str]:
         """Genera mensaje cuando no hay datos del agente"""
@@ -2350,7 +2337,7 @@ class PremiumChartGenerator:
     def _create_fallback_diagram(self, message: str) -> str:
         """Crea diagrama de error simple"""
         try:
-            fig, ax = plt.subplots(figsize=(10, 6))
+            _fig, ax = plt.subplots(figsize=(10, 6))
             ax.set_xlim(0, 10)
             ax.set_ylim(0, 6)
             ax.axis("off")
@@ -2390,7 +2377,7 @@ class PremiumChartGenerator:
 
         except Exception as e:
             logger.error(f"❌ Error creando diagrama fallback: {e}")
-            return self._create_error_message(f"Error crítico: {str(e)}")
+            return self._create_error_message(f"Error crítico: {e!s}")
 
     def generate_simple_process_diagram(self, agent_data: dict[str, Any]) -> str:
         """
@@ -2430,7 +2417,7 @@ class PremiumChartGenerator:
 
         except Exception as e:
             logger.error(f"❌ Error generando diagrama P&ID simple: {e}")
-            return self._create_fallback_diagram(f"Error en diagrama simple: {str(e)}")
+            return self._create_fallback_diagram(f"Error en diagrama simple: {e!s}")
 
 
 # Instancia global

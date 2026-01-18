@@ -43,6 +43,8 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 # Import limiter for rate limiting
+from typing import Annotated
+
 from app.main import limiter
 
 # Allowed file extensions and max size (single source of truth via settings)
@@ -86,37 +88,37 @@ async def upload_file(
     request: Request,
     project: ProjectDep,
     current_user: CurrentUser,
-    file: UploadFile = File(...),
-    category: str = Form("general"),
-    process_with_ai: bool = Form(False),
+    file: Annotated[UploadFile, File()],
+    category: Annotated[str, Form()] = "general",
+    process_with_ai: Annotated[bool, Form()] = False,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
     Upload a file to a project.
-    
+
     **Supported file types:**
     - Documents: PDF, DOCX, TXT
     - Spreadsheets: XLSX, XLS
     - Images: JPG, JPEG, PNG
-    
+
     **Categories:**
     - `general` - General project files
     - `analysis` - Water quality analysis
     - `technical` - Technical specifications
     - `regulatory` - Regulatory documents
     - `photos` - Site photos
-    
+
     **Processing:**
     - If `process_with_ai=true`, extracts text and analyzes content
     - PDF: Extracts text and tables
     - Excel: Reads data and can import to technical fields
     - Images: OCR (optical character recognition)
-    
+
     **Storage:**
     - Local: `./storage/projects/{project_id}/`
     - S3: `projects/{project_id}/files/`
-    
+
     **Example:**
     ```bash
     curl -X POST /api/v1/projects/{id}/files \
@@ -241,7 +243,7 @@ async def upload_file(
         logger.error(f"Error uploading file: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error uploading file: {str(e)}",
+            detail=f"Error uploading file: {e!s}",
         )
 
 
@@ -298,7 +300,7 @@ async def list_files(
 async def get_file_detail(
     project: ProjectDep,
     file_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Get detailed information about a file.
@@ -346,7 +348,7 @@ async def download_file(
     file_id: UUID,
     current_user: CurrentUser,
     org: OrganizationContext,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Get a download URL for a file.
@@ -397,7 +399,7 @@ async def delete_file(
     project: ProjectDep,
     file_id: UUID,
     current_user: CurrentUser,
-    db: AsyncSession = Depends(get_async_db),
+    db: Annotated[AsyncSession, Depends(get_async_db)],
 ):
     """
     Delete a file from a project.
@@ -480,7 +482,7 @@ async def process_file_with_ai(
                 logger.error(f"File {file_id} not found")
                 return
 
-            project_file, project = row
+            _project_file, project = row
             project_sector = project.sector
             project_subsector = project.subsector
 

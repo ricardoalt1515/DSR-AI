@@ -11,13 +11,13 @@ from app.models.timeline import TimelineEvent
 from app.models.user import User
 
 __all__ = [
-    "Organization",
-    "User",
     "Company",
     "Location",
     "LocationContact",
+    "Organization",
     "Project",
-    "Proposal",
     "ProjectFile",
+    "Proposal",
     "TimelineEvent",
+    "User",
 ]

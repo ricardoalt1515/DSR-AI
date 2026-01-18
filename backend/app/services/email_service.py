@@ -34,8 +34,8 @@ PASSWORD_RESET_TEMPLATE = """
     <p>Hi,</p>
     <p>You requested to reset your password. Click the button below to proceed:</p>
     <p style="text-align: center; margin: 30px 0;">
-        <a href="{reset_url}" 
-           style="background-color: #1e40af; color: white; padding: 12px 24px; 
+        <a href="{reset_url}"
+           style="background-color: #1e40af; color: white; padding: 12px 24px;
                   text-decoration: none; border-radius: 6px; display: inline-block;">
             Reset Password
         </a>
@@ -61,8 +61,8 @@ WELCOME_TEMPLATE = """
     <p>Hi {first_name},</p>
     <p>Your account has been created successfully. You can now log in and start using the platform.</p>
     <p style="text-align: center; margin: 30px 0;">
-        <a href="{login_url}" 
-           style="background-color: #1e40af; color: white; padding: 12px 24px; 
+        <a href="{login_url}"
+           style="background-color: #1e40af; color: white; padding: 12px 24px;
                   text-decoration: none; border-radius: 6px; display: inline-block;">
             Go to Dashboard
         </a>
@@ -82,8 +82,8 @@ VERIFICATION_TEMPLATE = """
     <p>Hi,</p>
     <p>Please verify your email address by clicking the button below:</p>
     <p style="text-align: center; margin: 30px 0;">
-        <a href="{verify_url}" 
-           style="background-color: #1e40af; color: white; padding: 12px 24px; 
+        <a href="{verify_url}"
+           style="background-color: #1e40af; color: white; padding: 12px 24px;
                   text-decoration: none; border-radius: 6px; display: inline-block;">
             Verify Email
         </a>

@@ -526,7 +526,7 @@ class ProposalService:
                         "status": "failed",
                         "progress": 0,
                         "current_step": "Generation failed after retries",
-                        "error": f"Failed after 2 attempts: {str(e.last_attempt.exception())}",
+                        "error": f"Failed after 2 attempts: {e.last_attempt.exception()!s}",
                     },
                 )
                 return

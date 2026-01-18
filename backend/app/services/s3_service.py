@@ -70,7 +70,7 @@ async def upload_file_to_s3(
 
         return filename
     except Exception as e:
-        logger.error(f"Error uploading file: {str(e)}")
+        logger.error(f"Error uploading file: {e!s}")
         raise
 
 
@@ -115,10 +115,7 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
     else:
         # Remove storage prefix if present (e.g., "storage/projects/..." -> "projects/...")
         parts = file_path_obj.parts
-        if parts and parts[0] == "storage":
-            rel_path = Path(*parts[1:])
-        else:
-            rel_path = file_path_obj
+        rel_path = Path(*parts[1:]) if parts and parts[0] == "storage" else file_path_obj
 
     full_path = storage_path / rel_path
     if not full_path.exists():
@@ -164,7 +161,7 @@ async def download_file_content(filename: str) -> bytes:
                 return content
 
     except Exception as e:
-        logger.error(f"Error downloading file {filename}: {str(e)}")
+        logger.error(f"Error downloading file {filename}: {e!s}")
         raise
 
 
@@ -192,5 +189,5 @@ async def delete_file_from_s3(filename: str) -> None:
         async with session.client("s3", **client_args) as s3:
             await s3.delete_object(Bucket=S3_BUCKET, Key=filename)
     except Exception as e:
-        logger.error(f"Error deleting file {filename} from S3: {str(e)}")
+        logger.error(f"Error deleting file {filename} from S3: {e!s}")
         raise

@@ -38,6 +38,8 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 # Import limiter for rate limiting
+from typing import Annotated
+
 from app.main import limiter
 
 
@@ -58,8 +60,8 @@ async def list_projects(
     search: SearchQuery = None,
     status: StatusFilter = None,
     sector: SectorFilter = None,
-    company_id: UUID | None = Query(None, description="Filter by company ID"),
-    location_id: UUID | None = Query(None, description="Filter by location ID"),
+    company_id: Annotated[UUID | None, Query(description="Filter by company ID")] = None,
+    location_id: Annotated[UUID | None, Query(description="Filter by location ID")] = None,
 ):
     """
     List user's projects with filtering and pagination.
@@ -229,7 +231,7 @@ async def get_project(
     db: AsyncDB,
     org: OrganizationContext,
     _rate_limit: RateLimitUser60,
-    project_id: UUID = Path(description="Project unique identifier"),
+    project_id: Annotated[UUID, Path(description="Project unique identifier")],
 ):
     """
     Get full project details including proposals and recent timeline.
@@ -507,7 +509,7 @@ async def get_project_timeline(
     request: Request,
     project: ProjectDep,
     db: AsyncDB,
-    limit: int = Query(50, ge=1, le=100, description="Max events to return"),
+    limit: Annotated[int, Query(ge=1, le=100, description="Max events to return")] = 50,
 ):
     """Get project activity timeline (most recent first)."""
     from app.models.timeline import TimelineEvent

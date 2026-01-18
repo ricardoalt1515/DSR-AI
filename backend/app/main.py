@@ -290,7 +290,7 @@ async def granular_rate_limit_middleware(request: Request, call_next):
 
         try:
             # Parse limit string (e.g., "5/minute")
-            count, period = limit_str.split("/")
+            count, _period = limit_str.split("/")
             count = int(count)
 
             # Get client IP

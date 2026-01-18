@@ -225,7 +225,7 @@ def validate_all_templates(templates: dict) -> dict:
     Example:
         >>> from app.templates.registry import TEMPLATES
         >>> results = validate_all_templates(TEMPLATES)
-        >>> print(results['valid_count'])
+        >>> print(results["valid_count"])
     """
     results = {"valid_count": 0, "invalid_count": 0, "errors": []}
 
