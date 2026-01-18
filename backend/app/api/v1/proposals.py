@@ -549,7 +549,7 @@ async def get_proposal_pdf(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate PDF: {e!s}",
-        )
+        ) from e
 
 
 @router.delete(
@@ -752,4 +752,4 @@ async def get_proposal_ai_metadata(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"AI metadata validation failed: {e!s}",
-        )
+        ) from e

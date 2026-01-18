@@ -139,13 +139,13 @@ async def _generate_with_retry(
         logger.info(f"Proposal generated successfully for job {job_id}")
         return proposal_output
 
-    except TimeoutError:
+    except TimeoutError as e:
         logger.error(f"AI agent timeout after 480s for job {job_id}")
         raise ProposalGenerationError(
             "AI generation took too long (>8 min). "
             "This may indicate a loop or very complex project. "
             "Please try again or simplify requirements."
-        )
+        ) from e
     except Exception as e:
         logger.warning(f"Proposal generation attempt failed for job {job_id}: {e}")
         raise  # Re-raise for tenacity to handle

@@ -137,7 +137,7 @@ class PremiumChartGenerator:
 
         except Exception as e:
             logger.error(f"❌ Error verificando dependencias: {e}")
-            raise Exception("Dependencias premium requeridas no disponibles")
+            raise Exception("Dependencias premium requeridas no disponibles") from e
 
     def generate_executive_charts(self, metadata: dict[str, Any]) -> dict[str, str]:
         """
@@ -832,7 +832,7 @@ class PremiumChartGenerator:
                     os.unlink(mermaid_file)
                 if "output_file" in locals():
                     os.unlink(output_file)
-            except:
+            except Exception:
                 pass
             raise e
 

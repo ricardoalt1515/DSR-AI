@@ -110,8 +110,8 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
     if file_path_obj.is_absolute():
         try:
             rel_path = file_path_obj.relative_to(storage_path)
-        except ValueError:
-            raise StorageError(f"File outside storage directory: {filename}")
+        except ValueError as e:
+            raise StorageError(f"File outside storage directory: {filename}") from e
     else:
         # Remove storage prefix if present (e.g., "storage/projects/..." -> "projects/...")
         parts = file_path_obj.parts

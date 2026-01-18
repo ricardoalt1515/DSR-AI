@@ -309,8 +309,8 @@ class AIMetadataResponse(BaseModel):
         """Validate ISO 8601 timestamp format."""
         try:
             datetime.fromisoformat(v.replace("Z", "+00:00"))
-        except ValueError:
-            raise ValueError("generated_at must be valid ISO 8601 timestamp")
+        except ValueError as e:
+            raise ValueError("generated_at must be valid ISO 8601 timestamp") from e
         return v
 
     class Config:

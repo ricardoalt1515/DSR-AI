@@ -156,4 +156,4 @@ async def analyze_image(
 
     except Exception as e:
         logger.error(f"❌ Image analysis failed for {filename}: {e}", exc_info=True)
-        raise ImageAnalysisError(f"Failed to analyze image {filename}: {e}")
+        raise ImageAnalysisError(f"Failed to analyze image {filename}: {e}") from e

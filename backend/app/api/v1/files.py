@@ -244,7 +244,7 @@ async def upload_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error uploading file: {e!s}",
-        )
+        ) from e
 
 
 @router.get(
@@ -383,8 +383,8 @@ async def download_file(
         url = await get_presigned_url(file.file_path, expires=86400)
     except StorageError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
     return {"url": url, "filename": file.filename, "mime_type": file.mime_type}
 
