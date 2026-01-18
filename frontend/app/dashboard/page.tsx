@@ -10,11 +10,9 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
-import {
-	DashboardHero,
-	ProjectPipeline,
-	SimplifiedStats,
-} from "@/components/features/dashboard";
+import { DashboardHero } from "@/components/features/dashboard";
+import { ProjectCard } from "@/components/features/dashboard/components/project-card";
+import ClientOnly from "@/components/shared/common/client-only";
 
 const PremiumProjectWizard = dynamic(
 	() =>
@@ -24,9 +22,45 @@ const PremiumProjectWizard = dynamic(
 	{ ssr: false, loading: () => null },
 );
 
-import { ProjectCard } from "@/components/features/dashboard/components/project-card";
-import ClientOnly from "@/components/shared/common/client-only";
-import { OnboardingChecklist } from "@/components/shared/onboarding-checklist";
+const OnboardingChecklist = dynamic(
+	() =>
+		import("@/components/shared/onboarding-checklist").then(
+			(mod) => mod.OnboardingChecklist,
+		),
+	{ loading: () => null },
+);
+
+const ProjectPipeline = dynamic(
+	() =>
+		import("@/components/features/dashboard/components/project-pipeline").then(
+			(mod) => mod.ProjectPipeline,
+		),
+	{
+		loading: () => (
+			<div className="h-24 w-full animate-pulse rounded-lg bg-muted/50" />
+		),
+	},
+);
+
+const SimplifiedStats = dynamic(
+	() =>
+		import("@/components/features/dashboard/components/simplified-stats").then(
+			(mod) => mod.SimplifiedStats,
+		),
+	{
+		loading: () => (
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+				{[1, 2, 3].map((i) => (
+					<div
+						key={i}
+						className="h-32 w-full animate-pulse rounded-lg bg-muted/50"
+					/>
+				))}
+			</div>
+		),
+	},
+);
+
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -275,7 +309,8 @@ const DashboardContent = memo(function DashboardContent() {
 						<div className="relative">
 							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								placeholder="Search waste streams... (Cmd+K)"
+								placeholder="Search waste streams… (Cmd+K)"
+								aria-label="Search waste streams"
 								value={searchTerm}
 								onChange={(e) => setSearchTerm(e.target.value)}
 								className="pl-9 pr-9"
@@ -285,7 +320,7 @@ const DashboardContent = memo(function DashboardContent() {
 								<button
 									type="button"
 									onClick={() => setSearchTerm("")}
-									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
 									aria-label="Clear search"
 								>
 									<X className="h-4 w-4" />

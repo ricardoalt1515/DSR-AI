@@ -1,17 +1,60 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Separator } from "@/components/ui/separator";
-import { ActionPlaybook } from "./overview/action-playbook";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AIBadge } from "./overview/ai-badge";
-import { FinancialsSnapshot } from "./overview/financials-snapshot";
-import { HeroDecisionBanner } from "./overview/hero-decision-banner";
-import { PathwayCards } from "./overview/pathway-cards";
-import { QuickActions } from "./overview/quick-actions";
-import { SafetyAlert } from "./overview/safety-alert";
 import { SectionErrorBoundary } from "./overview/section-error-boundary";
-import { type ResourceInsight, TopResources } from "./overview/top-resources";
+import type { ResourceInsight } from "./overview/top-resources";
 import type { Proposal } from "./types";
+
+const HeroDecisionBanner = dynamic(
+	() =>
+		import("./overview/hero-decision-banner").then(
+			(mod) => mod.HeroDecisionBanner,
+		),
+	{ loading: () => <Skeleton className="h-32 w-full rounded-xl" /> },
+);
+
+const TopResources = dynamic(
+	() => import("./overview/top-resources").then((mod) => mod.TopResources),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-48 w-full rounded-xl" />,
+	},
+);
+
+const PathwayCards = dynamic(
+	() => import("./overview/pathway-cards").then((mod) => mod.PathwayCards),
+	{ loading: () => <Skeleton className="h-64 w-full rounded-xl" /> },
+);
+
+const FinancialsSnapshot = dynamic(
+	() =>
+		import("./overview/financials-snapshot").then(
+			(mod) => mod.FinancialsSnapshot,
+		),
+	{ loading: () => <Skeleton className="h-32 w-full rounded-xl" /> },
+);
+
+const SafetyAlert = dynamic(
+	() => import("./overview/safety-alert").then((mod) => mod.SafetyAlert),
+	{ loading: () => <Skeleton className="h-24 w-full rounded-xl" /> },
+);
+
+const ActionPlaybook = dynamic(
+	() => import("./overview/action-playbook").then((mod) => mod.ActionPlaybook),
+	{ loading: () => <Skeleton className="h-48 w-full rounded-xl" /> },
+);
+
+const QuickActions = dynamic(
+	() => import("./overview/quick-actions").then((mod) => mod.QuickActions),
+	{
+		ssr: false,
+		loading: () => <Skeleton className="h-16 w-full rounded-xl" />,
+	},
+);
 
 interface ProposalOverviewProps {
 	proposal: Proposal;
