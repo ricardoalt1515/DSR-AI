@@ -416,6 +416,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 									<ul className="text-sm text-muted-foreground space-y-1">
 										{annualImpactNotes.map((note, index) => (
 											<li
+												// biome-ignore lint/suspicious/noArrayIndexKey: notes may repeat, index needed
 												key={`${note}-${index}`}
 												className="flex items-start gap-2"
 											>
