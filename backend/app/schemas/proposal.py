@@ -40,7 +40,7 @@ class ProposalGenerationRequest(BaseModel):
     )
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "project_id": "123e4567-e89b-12d3-a456-426614174000",
                 "proposal_type": "Technical",
@@ -180,7 +180,7 @@ class UsageStatsResponse(BaseModel):
     success: bool = Field(default=True, description="Whether generation succeeded")
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "total_tokens": 45234,
                 "model_used": "gpt-4o-mini",
@@ -216,7 +216,7 @@ class ProvenCaseResponse(BaseModel):
         return v
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "case_id": "muni_sbr_uv_500",
                 "application_type": "Municipal Wastewater",
@@ -236,7 +236,7 @@ class AlternativeTechnologyResponse(BaseModel):
     reason_rejected: str = Field(..., description="Why it was not selected")
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "technology": "MBBR",
                 "reason_rejected": "Higher footprint required for this flow rate",
@@ -252,7 +252,7 @@ class TechnologyJustificationResponse(BaseModel):
     justification: str = Field(..., description="Detailed reasoning")
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "stage": "Secondary",
                 "technology": "SBR",
@@ -314,7 +314,7 @@ class AIMetadataResponse(BaseModel):
         return v
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "usage_stats": {
                     "total_tokens": 45234,

@@ -47,7 +47,7 @@ def load_image_analysis_prompt() -> str:
     prompt_path = Path(__file__).parent.parent / "prompts" / "image-analysis.md"
 
     try:
-        with open(prompt_path, encoding="utf-8") as f:
+        with prompt_path.open(encoding="utf-8") as f:
             content = f.read().strip()
 
         if not content:

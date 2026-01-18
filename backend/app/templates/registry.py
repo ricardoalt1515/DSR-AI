@@ -35,6 +35,8 @@ Why ID-only?
 - Simple: Backend just orchestrates which fields appear in which sections
 """
 
+from typing import NotRequired, TypedDict
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -43,7 +45,27 @@ logger = structlog.get_logger(__name__)
 # BASE TEMPLATE (Universal Fallback)
 # ═══════════════════════════════════════════════════════════
 
-BASE_TEMPLATE = {
+
+class TemplateFieldDict(TypedDict):
+    id: str
+    required: NotRequired[bool]
+    importance: NotRequired[str]
+
+
+class TemplateSectionDict(TypedDict):
+    id: str
+    title: str
+    fields: list[TemplateFieldDict]
+    description: NotRequired[str]
+
+
+class TemplateDict(TypedDict):
+    name: str
+    description: str
+    sections: list[TemplateSectionDict]
+
+
+BASE_TEMPLATE: TemplateDict = {
     "name": "Base Water Treatment Template",
     "description": "Universal template with essential fields for any water treatment project",
     "sections": [
@@ -119,7 +141,7 @@ BASE_TEMPLATE = {
 # SECTOR-SPECIFIC TEMPLATES
 # ═══════════════════════════════════════════════════════════
 
-INDUSTRIAL_TEMPLATE = {
+INDUSTRIAL_TEMPLATE: TemplateDict = {
     "name": "Industrial Water Treatment",
     "description": "Template for general industrial water treatment applications",
     "sections": [
@@ -165,7 +187,7 @@ INDUSTRIAL_TEMPLATE = {
 # SUBSECTOR-SPECIFIC TEMPLATES
 # ═══════════════════════════════════════════════════════════
 
-OIL_GAS_TEMPLATE = {
+OIL_GAS_TEMPLATE: TemplateDict = {
     "name": "Oil & Gas Water Treatment",
     "description": "Oil & gas with 5 essential parameters per engineer's questionnaire",
     "sections": [
@@ -239,7 +261,7 @@ OIL_GAS_TEMPLATE = {
     ],
 }
 
-MUNICIPAL_TEMPLATE = {
+MUNICIPAL_TEMPLATE: TemplateDict = {
     "name": "Municipal Water Treatment",
     "description": "Template for municipal drinking water and wastewater treatment",
     "sections": [
@@ -286,7 +308,7 @@ MUNICIPAL_TEMPLATE = {
 
 # Key format: (sector, subsector)
 # subsector can be None for sector-only templates
-TEMPLATES: dict[tuple[str, str | None], dict] = {
+TEMPLATES: dict[tuple[str, str | None], TemplateDict] = {
     # Sector-level templates
     ("industrial", None): INDUSTRIAL_TEMPLATE,
     ("municipal", None): MUNICIPAL_TEMPLATE,
@@ -311,12 +333,13 @@ def get_template_metadata() -> dict:
     Returns:
         Dict with counts and lists of available templates
     """
+    base_sections: list[TemplateSectionDict] = BASE_TEMPLATE["sections"]
     return {
         "total_templates": len(TEMPLATES) + 1,  # +1 for BASE_TEMPLATE
         "base_template": {
             "name": BASE_TEMPLATE["name"],
-            "sections": len(BASE_TEMPLATE["sections"]),
-            "total_fields": sum(len(s["fields"]) for s in BASE_TEMPLATE["sections"]),
+            "sections": len(base_sections),
+            "total_fields": sum(len(section["fields"]) for section in base_sections),
         },
         "registered_templates": [
             {
@@ -324,7 +347,7 @@ def get_template_metadata() -> dict:
                 "subsector": subsector,
                 "name": template["name"],
                 "sections": len(template["sections"]),
-                "total_fields": sum(len(s["fields"]) for s in template["sections"]),
+                "total_fields": sum(len(section["fields"]) for section in template["sections"]),
             }
             for (sector, subsector), template in TEMPLATES.items()
         ],

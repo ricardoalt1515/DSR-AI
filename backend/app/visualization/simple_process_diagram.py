@@ -5,6 +5,7 @@ Premium results while maintaining simplicity
 """
 
 import io
+from typing import ClassVar
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ class PremiumVisualConfig:
     """
 
     # Paleta de colores corporativa premium
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         # Colores base corporativos
         "primary_blue": "#1e40af",  # Azul corporativo elegante
         "secondary_blue": "#3b82f6",  # Light blue for gradients
@@ -53,7 +54,7 @@ class PremiumVisualConfig:
     }
 
     # Professional typography configuration
-    TYPOGRAPHY = {
+    TYPOGRAPHY: ClassVar[dict[str, object]] = {
         "font_family": "Arial",
         "title_size": 14,
         "equipment_size": 10,
@@ -64,7 +65,7 @@ class PremiumVisualConfig:
     }
 
     # Efectos premium
-    EFFECTS = {
+    EFFECTS: ClassVar[dict[str, object]] = {
         "shadow_offset": (2, 2),
         "shadow_blur": 4,
         "shadow_alpha": 0.15,
@@ -74,7 +75,7 @@ class PremiumVisualConfig:
     }
 
     # Mathematical spacing (golden ratio)
-    SPACING = {
+    SPACING: ClassVar[dict[str, float]] = {
         "golden_ratio": 1.618,
         "base_equipment_size": 80,
         "base_spacing": 200,

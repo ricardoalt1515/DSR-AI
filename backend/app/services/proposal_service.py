@@ -8,7 +8,7 @@ import logging
 import re
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -770,7 +770,7 @@ def create_proposal(
         "markdownExternal": external_markdown,
         "transparency": {
             "clientMetadata": client_metadata,
-            "generatedAt": datetime.utcnow().isoformat(),
+            "generatedAt": datetime.now(UTC).isoformat(),
             "generationTimeSeconds": round(generation_duration, 2),
             "reportType": "waste_opportunity",
         },
@@ -1284,10 +1284,11 @@ def _generate_markdown_external_report(
     metrics_md = chr(10).join(metrics_lines) if metrics_lines else ""
 
     # Circularity (only if computed)
-    circularity_lines = []
-    for indicator in sustainability.circularity:
-        if indicator.metric.status == "computed" and indicator.metric.value:
-            circularity_lines.append(f"- **{indicator.name}:** {indicator.metric.value}")
+    circularity_lines = [
+        f"- **{indicator.name}:** {indicator.metric.value}"
+        for indicator in sustainability.circularity
+        if indicator.metric.status == "computed" and indicator.metric.value
+    ]
     circularity_md = chr(10).join(circularity_lines) if circularity_lines else ""
 
     # Profitability assessment

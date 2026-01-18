@@ -3,7 +3,7 @@ Health check endpoints for monitoring and load balancers.
 """
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, status
@@ -172,5 +172,5 @@ async def get_version():
         version=settings.APP_VERSION,
         environment=settings.ENVIRONMENT,
         commit=os.environ.get("GIT_COMMIT", "unknown"),
-        deployed_at=os.environ.get("DEPLOYED_AT", datetime.utcnow().isoformat()),
+        deployed_at=os.environ.get("DEPLOYED_AT", datetime.now(UTC).isoformat()),
     )

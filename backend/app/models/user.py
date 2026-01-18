@@ -4,15 +4,30 @@ Represents system users with authentication and profile information.
 Integrated with FastAPI Users for production-ready authentication.
 """
 
+from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
-from app.models.base import BaseModel
+from app.core.database import Base
+
+if TYPE_CHECKING:
+
+    class SQLAlchemyBaseUserTableUUID:
+        id: Mapped[UUID]
+        email: Mapped[str]
+        hashed_password: Mapped[str]
+        is_active: Mapped[bool]
+        is_superuser: Mapped[bool]
+        is_verified: Mapped[bool]
+
+else:
+    from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
 
 class UserRole(str, Enum):
@@ -26,7 +41,21 @@ class UserRole(str, Enum):
     SALES = "sales"
 
 
-class User(SQLAlchemyBaseUserTableUUID, BaseModel):
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class User(SQLAlchemyBaseUserTableUUID, TimestampMixin, Base):
     """
     User model for authentication and profile management.
 

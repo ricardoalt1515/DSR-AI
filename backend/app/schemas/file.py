@@ -3,7 +3,7 @@ File-related schemas for uploads and downloads.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,7 @@ class FileUploadResponse(BaseModel):
     message: str = "File uploaded successfully"
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
                 "filename": "water_analysis.pdf",
@@ -60,7 +60,7 @@ class FileListResponse(BaseModel):
     total: int
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "project_id": "123e4567-e89b-12d3-a456-426614174000",
                 "files": [

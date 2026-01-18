@@ -12,15 +12,22 @@ Principles:
 """
 
 import copy
+from typing import cast
 
 import structlog
 
-from .registry import BASE_TEMPLATE, TEMPLATES
+from .registry import (
+    BASE_TEMPLATE,
+    TEMPLATES,
+    TemplateDict,
+    TemplateFieldDict,
+    TemplateSectionDict,
+)
 
 logger = structlog.get_logger(__name__)
 
 
-def _materialize_field(field: dict) -> dict:
+def _materialize_field(field: TemplateFieldDict) -> dict[str, object]:
     """
     Materialize field with initial state values.
 
@@ -40,17 +47,19 @@ def _materialize_field(field: dict) -> dict:
     }
 
 
-def _materialize_template(template: dict) -> dict:
+def _materialize_template(template: TemplateDict) -> dict[str, object]:
     """
     Materialize template sections with fully populated fields.
 
     Adds default value and source to all fields to ensure
     frontend compatibility.
     """
-    materialized = copy.deepcopy(template)
+    materialized = cast(dict[str, object], copy.deepcopy(template))
+    sections = cast(list[dict[str, object]], materialized["sections"])
 
-    for section in materialized["sections"]:
-        section["fields"] = [_materialize_field(field) for field in section["fields"]]
+    for section in sections:
+        fields = cast(list[TemplateFieldDict], section["fields"])
+        section["fields"] = [_materialize_field(field) for field in fields]
 
     return materialized
 
@@ -139,7 +148,8 @@ def list_available_templates() -> list[dict]:
         >>> for t in templates:
         ...     print(f"{t['name']} ({t['sector']}/{t['subsector']})")
     """
-    result = []
+    result: list[dict[str, object]] = []
+    base_sections: list[TemplateSectionDict] = BASE_TEMPLATE["sections"]
 
     # Base template (always available)
     result.append(
@@ -148,22 +158,23 @@ def list_available_templates() -> list[dict]:
             "subsector": None,
             "name": BASE_TEMPLATE["name"],
             "description": BASE_TEMPLATE["description"],
-            "sections_count": len(BASE_TEMPLATE["sections"]),
-            "total_fields": sum(len(s["fields"]) for s in BASE_TEMPLATE["sections"]),
+            "sections_count": len(base_sections),
+            "total_fields": sum(len(section["fields"]) for section in base_sections),
             "is_base": True,
         }
     )
 
     # Registered templates
     for (sector, subsector), template in sorted(TEMPLATES.items()):
+        sections: list[TemplateSectionDict] = template["sections"]
         result.append(
             {
                 "sector": sector,
                 "subsector": subsector,
                 "name": template["name"],
                 "description": template["description"],
-                "sections_count": len(template["sections"]),
-                "total_fields": sum(len(s["fields"]) for s in template["sections"]),
+                "sections_count": len(sections),
+                "total_fields": sum(len(section["fields"]) for section in sections),
                 "is_base": False,
             }
         )

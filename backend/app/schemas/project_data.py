@@ -2,7 +2,7 @@
 Pydantic schemas for flexible project data.
 """
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -124,7 +124,7 @@ class ProjectAIInput(BaseModel):
     raw_data: dict[str, Any] | None = None
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "company_name": "IBYMA",
                 "client_contact_info": "Ricardo Marquez",

@@ -3,7 +3,7 @@ Service layer for project data management.
 Handles JSONB operations and AI serialization.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -129,7 +129,7 @@ class ProjectDataService:
             sections = project.project_data.get("technical_sections", [])
             project.progress = ProjectDataService.calculate_progress(sections)
 
-        project.updated_at = datetime.utcnow()
+        project.updated_at = datetime.now(UTC)
 
         await db.commit()
         await db.refresh(project)

@@ -6,6 +6,11 @@ before they are used in the system. Catches errors at startup rather
 than runtime.
 """
 
+from typing import TYPE_CHECKING, ClassVar, TypedDict
+
+if TYPE_CHECKING:
+    from app.templates.registry import TemplateDict
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -56,7 +61,7 @@ class TemplateField(BaseModel):
         return v
 
     class Config:
-        json_schema_extra = {"example": {"id": "ph"}}
+        json_schema_extra: ClassVar[dict[str, object]] = {"example": {"id": "ph"}}
 
 
 class TemplateSection(BaseModel):
@@ -114,7 +119,7 @@ class TemplateSection(BaseModel):
         return v
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "id": "water-quality",
                 "title": "Water Quality Parameters",
@@ -170,7 +175,7 @@ class TemplateConfig(BaseModel):
         return sum(len(section.fields) for section in self.sections)
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "name": "Base Water Treatment Template",
                 "description": "Universal template for all water treatment projects",
@@ -191,7 +196,19 @@ class TemplateConfig(BaseModel):
 # ============================================================================
 
 
-def validate_template(template_dict: dict) -> TemplateConfig:
+class TemplateValidationError(TypedDict):
+    sector: str
+    subsector: str | None
+    error: str
+
+
+class TemplateValidationResults(TypedDict):
+    valid_count: int
+    invalid_count: int
+    errors: list[TemplateValidationError]
+
+
+def validate_template(template_dict: "TemplateDict") -> TemplateConfig:
     """
     Validate a template dictionary.
 
@@ -212,7 +229,9 @@ def validate_template(template_dict: dict) -> TemplateConfig:
     return TemplateConfig(**template_dict)
 
 
-def validate_all_templates(templates: dict) -> dict:
+def validate_all_templates(
+    templates: dict[tuple[str, str | None], "TemplateDict"],
+) -> TemplateValidationResults:
     """
     Validate all templates in registry.
 
@@ -227,7 +246,7 @@ def validate_all_templates(templates: dict) -> dict:
         >>> results = validate_all_templates(TEMPLATES)
         >>> print(results["valid_count"])
     """
-    results = {"valid_count": 0, "invalid_count": 0, "errors": []}
+    results: TemplateValidationResults = {"valid_count": 0, "invalid_count": 0, "errors": []}
 
     for (sector, subsector), template in templates.items():
         try:

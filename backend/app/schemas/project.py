@@ -3,7 +3,7 @@ Project schemas matching frontend interfaces.
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 from uuid import UUID
 
 from pydantic import Field, field_serializer
@@ -32,7 +32,7 @@ class ProjectCreate(BaseSchema):
     tags: list[str] = Field(default_factory=list)
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "location_id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "Waste Resource Assessment - ABC Factory",
@@ -62,7 +62,7 @@ class ProjectUpdate(BaseSchema):
     tags: list[str] | None = None
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "status": "In Engineering",
                 "progress": 35,

@@ -2,8 +2,8 @@
 Common schemas shared across the API.
 """
 
-from datetime import datetime
-from typing import Generic, TypeVar
+from datetime import UTC, datetime
+from typing import ClassVar, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -72,7 +72,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
     pages: int = Field(..., description="Total number of pages")
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "items": [],
                 "total": 100,
@@ -103,7 +103,7 @@ class APIError(BaseModel):
     details: dict | None = Field(default=None, description="Additional error details")
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "message": "Project not found",
                 "code": "NOT_FOUND",
@@ -116,7 +116,7 @@ class ErrorResponse(BaseModel):
     """Wrapper for error responses with timestamp."""
 
     error: APIError
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class SuccessResponse(BaseModel):
@@ -127,7 +127,7 @@ class SuccessResponse(BaseModel):
     data: dict | None = None
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: ClassVar[dict[str, object]] = {
             "example": {
                 "success": True,
                 "message": "Operation completed successfully",

@@ -1,4 +1,3 @@
-import os
 from io import BytesIO
 from pathlib import Path
 from typing import IO
@@ -58,9 +57,9 @@ async def upload_file_to_s3(
                 await s3.upload_fileobj(file_obj, S3_BUCKET, filename, ExtraArgs=extra_args)
         else:  # Development mode: save locally
             logger.info(f"Saving file locally (dev mode): {filename}")
-            local_path = os.path.join(LOCAL_UPLOADS_DIR, filename)
+            local_path = LOCAL_UPLOADS_DIR / filename
             # Ensure directory exists
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            local_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Save file locally
             file_obj.seek(0)
@@ -149,10 +148,10 @@ async def download_file_content(filename: str) -> bytes:
                 return content
         else:  # Local mode: read local file
             # file_path from DB is already the complete path (set during upload)
-            local_path = filename
+            local_path = Path(filename)
             logger.info(f"Reading local file: {local_path}")
 
-            if not os.path.exists(local_path):
+            if not local_path.exists():
                 raise FileNotFoundError(f"Local file not found: {local_path}")
 
             async with aiofiles.open(local_path, "rb") as f:

@@ -2,7 +2,6 @@
 File upload and management endpoints.
 """
 
-import os
 from pathlib import Path
 from uuid import UUID
 
@@ -89,10 +88,10 @@ async def upload_file(
     project: ProjectDep,
     current_user: CurrentUser,
     file: Annotated[UploadFile, File()],
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_async_db)],
     category: Annotated[str, Form()] = "general",
     process_with_ai: Annotated[bool, Form()] = False,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
-    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Upload a file to a project.
@@ -426,8 +425,9 @@ async def delete_file(
         if USE_S3:
             await delete_file_from_s3(file.file_path)
         else:
-            if os.path.exists(file.file_path):
-                os.remove(file.file_path)
+            file_path = Path(file.file_path)
+            if file_path.exists():
+                file_path.unlink()
     except Exception as e:
         logger.warning(f"Could not delete physical file: {e}")
 
@@ -500,7 +500,7 @@ async def process_file_with_ai(
         try:
             result = await processor.process(
                 file_content=file_content,
-                filename=os.path.basename(file_path),
+                filename=Path(file_path).name,
                 file_type=file_type,
                 project_sector=project_sector,
                 project_subsector=project_subsector,

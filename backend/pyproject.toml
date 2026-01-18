@@ -113,6 +113,7 @@ dev = [
       "E402",   # Dynamic imports ok
       "RUF001", # Ambiguous unicode (en-dash in test data is fine)
       "RUF003", # Ambiguous unicode in comments
+      "FAST003", # False positive: ProjectDep consumes path params internally
   ]
   fixable = ["ALL"]
 

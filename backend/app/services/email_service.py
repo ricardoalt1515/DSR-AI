@@ -139,6 +139,10 @@ class EmailService:
             logger.warning("📧 Email not configured - skipping send to %s", to_email)
             return False
 
+        if not self._from_email:
+            logger.error("📧 From email not configured - skipping send to %s", to_email)
+            return False
+
         try:
             # Build message
             message = MIMEMultipart("alternative")

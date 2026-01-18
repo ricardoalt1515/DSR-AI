@@ -4,7 +4,6 @@ AI Proposal generation endpoints.
 Includes PDF generation and AI transparency features (Oct 2025).
 """
 
-import os
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -617,9 +616,9 @@ async def delete_proposal(
                 await delete_file_from_s3(pdf_path)
                 logger.info("Deleted PDF from S3: %s", pdf_path)
             else:
-                local_file_path = os.path.join(LOCAL_UPLOADS_DIR, pdf_path)
-                if os.path.exists(local_file_path):
-                    os.remove(local_file_path)
+                local_file_path = LOCAL_UPLOADS_DIR / pdf_path
+                if local_file_path.exists():
+                    local_file_path.unlink()
                     logger.info("Deleted local PDF: %s", local_file_path)
         except Exception as e:
             # Log error but don't fail the request (file might already be deleted)

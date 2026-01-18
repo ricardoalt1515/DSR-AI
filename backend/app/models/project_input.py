@@ -230,8 +230,7 @@ class FlexibleWaterProjectData(BaseSchema):
         # Additional context
         if self.regulations:
             output.append("## regulations norms")
-            for reg in self.regulations:
-                output.append(f"- {reg}")
+            output.extend(f"- {reg}" for reg in self.regulations)
             output.append("")
 
         if self.field_observations:
@@ -433,8 +432,7 @@ class FlexibleWaterProjectData(BaseSchema):
         # === OPTIONAL FIELDS AT END ===
         if context.get("regulations"):
             lines.append("APPLICABLE REGULATIONS:")
-            for reg in context["regulations"]:
-                lines.append(f"- {reg}")
+            lines.extend(f"- {reg}" for reg in context["regulations"])
             lines.append("")
 
         if "field_observations" in context:

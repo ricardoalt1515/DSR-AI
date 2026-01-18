@@ -3,7 +3,6 @@ H2O Allegiant Backend - Main application entry point.
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -82,7 +81,7 @@ logging.basicConfig(
 logger = structlog.get_logger(__name__)
 
 # Ensure log directory exists
-os.makedirs(os.path.dirname(settings.LOG_FILE), exist_ok=True)
+Path(settings.LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 
 
 # Rate Limiter Configuration (slowapi with Redis backend)
@@ -186,7 +185,7 @@ async def lifespan(app: FastAPI):
 
     # Ensure storage directory exists
     if settings.USE_LOCAL_STORAGE:
-        os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
+        Path(settings.LOCAL_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
         logger.info(f"Local storage path: {settings.LOCAL_STORAGE_PATH}")
 
     logger.info("✅ Application started successfully")

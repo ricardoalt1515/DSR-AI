@@ -6,11 +6,11 @@ Professional approach for treatment train diagrams
 """
 
 import base64
-import os
 import subprocess
 import tempfile
 from io import BytesIO
-from typing import Any
+from pathlib import Path
+from typing import Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,6 +39,7 @@ class PremiumPlotlyConfig:
     """
 
     # Reuse premium palette from P&ID system
+    COLORS: ClassVar[dict[str, Any]]
     if SIMPLE_DIAGRAMS_AVAILABLE:
         _base_config = PremiumVisualConfig()
         COLORS = _base_config.COLORS.copy()
@@ -62,7 +63,7 @@ class PremiumPlotlyConfig:
         }
 
     # Esquemas de colores premium para diferentes tipos de gráficas
-    COLOR_SCHEMES = {
+    COLOR_SCHEMES: ClassVar[dict[str, Any]] = {
         "capex_opex": [COLORS["primary_blue"], COLORS["critical_red"]],
         "capex_breakdown": [
             COLORS["primary_blue"],
@@ -85,7 +86,7 @@ class PremiumPlotlyConfig:
     }
 
     # Tipografía premium consistente con P&ID
-    TYPOGRAPHY = {
+    TYPOGRAPHY: ClassVar[dict[str, Any]] = {
         "title_size": 16,
         "subtitle_size": 14,
         "label_size": 12,
@@ -97,7 +98,7 @@ class PremiumPlotlyConfig:
     }
 
     # Layout premium
-    LAYOUT = {
+    LAYOUT: ClassVar[dict[str, Any]] = {
         "margin": {"l": 80, "r": 80, "t": 100, "b": 80},
         "spacing": 0.15,  # Espaciado entre subplots basado en golden ratio
         "background_color": COLORS["clean_white"],
@@ -106,7 +107,7 @@ class PremiumPlotlyConfig:
     }
 
     # Efectos premium para gráficas
-    EFFECTS = {
+    EFFECTS: ClassVar[dict[str, Any]] = {
         "hover_shadow": "rgba(0,0,0,0.1)",
         "border_radius": 4,
         "gradient_opacity": 0.8,
@@ -462,6 +463,11 @@ class PremiumChartGenerator:
         else:
             return base_name
 
+    def _sanitize_mermaid_string(self, text: str) -> str:
+        """Sanitize Mermaid labels to avoid parser issues."""
+        sanitized = text.replace("\n", " ").replace('"', "'")
+        return " ".join(sanitized.split())
+
     def _create_premium_equipment_node(self, equipment: dict, index: int, group_info: dict) -> dict:
         """Crea nodo premium con información técnica rica"""
         # Usar análisis semántico para diseño
@@ -520,7 +526,7 @@ class PremiumChartGenerator:
 
     def _create_intelligent_connection(
         self, equipment: dict, previous_node: str, total_flow: float, group_info: dict
-    ) -> dict:
+    ) -> dict | None:
         """Crea conexión inteligente con etiquetas contextuales"""
         if not previous_node:
             return None
@@ -814,14 +820,17 @@ class PremiumChartGenerator:
 
                 raise Exception(error_msg)
 
+            mermaid_path = Path(mermaid_file)
+            output_path = Path(output_file)
+
             # Leer y convertir a base64
-            with open(output_file, "rb") as f:
+            with output_path.open("rb") as f:
                 image_data = f.read()
                 base64_image = base64.b64encode(image_data).decode("utf-8")
 
             # Limpiar archivos temporales
-            os.unlink(mermaid_file)
-            os.unlink(output_file)
+            mermaid_path.unlink()
+            output_path.unlink()
 
             return base64_image
 
@@ -829,9 +838,9 @@ class PremiumChartGenerator:
             # Limpiar archivos en caso de error
             try:
                 if "mermaid_file" in locals():
-                    os.unlink(mermaid_file)
+                    Path(mermaid_file).unlink(missing_ok=True)
                 if "output_file" in locals():
-                    os.unlink(output_file)
+                    Path(output_file).unlink(missing_ok=True)
             except Exception:
                 pass
             raise e
@@ -1414,19 +1423,19 @@ class PremiumChartGenerator:
             start_x = 7.0
 
         # Calcular posiciones 4K con información extendida
-        for i in range(num_equipos):
-            positions.append(
-                {
-                    "x_offset": start_x + i * spacing,
-                    "y": base_y,  # Altura central 4K
-                    "spacing": spacing,
-                    "index": i,
-                    "is_first": i == 0,
-                    "is_last": i == (num_equipos - 1),
-                    "canvas_width": 30,  # Canvas 4K width
-                    "canvas_height": 22,  # Canvas 4K height
-                }
-            )
+        positions = [
+            {
+                "x_offset": start_x + i * spacing,
+                "y": base_y,  # Altura central 4K
+                "spacing": spacing,
+                "index": i,
+                "is_first": i == 0,
+                "is_last": i == (num_equipos - 1),
+                "canvas_width": 30,  # Canvas 4K width
+                "canvas_height": 22,  # Canvas 4K height
+            }
+            for i in range(num_equipos)
+        ]
         return positions
 
     def _calculate_multi_row_layout(self, num_equipos: int) -> list[dict]:
@@ -1804,9 +1813,7 @@ class PremiumChartGenerator:
 
         # Lista de eficiencias 4K con diseño profesional
         y_offset = 0.7  # Mayor espaciado 4K
-        params_shown = 0
-
-        for _i, (param, value) in enumerate(efficiencies.items()):
+        for params_shown, (param, value) in enumerate(efficiencies.items()):
             if params_shown >= 5:  # Máximo 5 parámetros en 4K
                 break
 
@@ -1865,8 +1872,6 @@ class PremiumChartGenerator:
                 color=param_color,
                 style="italic",
             )
-
-            params_shown += 1
 
     def _draw_premium_tech_panel(self, ax, equipment_list: list[dict], colors: dict):
         """Dibuja panel de especificaciones técnicas premium con integración visual mejorada"""
