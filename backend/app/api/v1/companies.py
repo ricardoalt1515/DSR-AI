@@ -11,8 +11,15 @@ from sqlalchemy.orm import load_only, selectinload
 
 from app.api.dependencies import (
     AsyncDB,
-    CurrentClientDataWriter,
-    CurrentLocationContactsWriter,
+    CurrentCompanyCreator,
+    CurrentCompanyDeleter,
+    CurrentCompanyEditor,
+    CurrentCompanyLocationCreator,
+    CurrentLocationContactsCreator,
+    CurrentLocationContactsDeleter,
+    CurrentLocationContactsEditor,
+    CurrentLocationDeleter,
+    CurrentLocationEditor,
     CurrentUser,
     OrganizationContext,
     RateLimitUser10,
@@ -94,15 +101,20 @@ async def list_companies(
 async def create_company(
     company_data: CompanyCreate,
     db: AsyncDB,
-    current_user: CurrentClientDataWriter,
+    current_user: CurrentCompanyCreator,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Create a new company."""
-    company = Company(**company_data.model_dump(), organization_id=org.id)
+    company = Company(
+        **company_data.model_dump(),
+        organization_id=org.id,
+        created_by_user_id=current_user.id,
+    )
     db.add(company)
     await db.commit()
     await db.refresh(company)
+
     company_summary = CompanySummary.model_validate(company, from_attributes=True)
 
     return CompanyDetail(
@@ -194,23 +206,12 @@ async def update_company(
     company_id: UUID,
     company_data: CompanyUpdate,
     db: AsyncDB,
-    current_user: CurrentClientDataWriter,
+    current_user_company: CurrentCompanyEditor,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Update company information."""
-    result = await db.execute(
-        select(Company).where(
-            Company.id == company_id,
-            Company.organization_id == org.id,
-        )
-    )
-    company = result.scalar_one_or_none()
-
-    if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Company {company_id} not found"
-        )
+    current_user, company = current_user_company
 
     # Update only provided fields
     update_data = company_data.model_dump(exclude_unset=True)
@@ -247,7 +248,7 @@ async def update_company(
 async def delete_company(
     company_id: UUID,
     db: AsyncDB,
-    current_user: CurrentClientDataWriter,
+    current_user: CurrentCompanyDeleter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
@@ -288,7 +289,7 @@ async def create_location_contact(
     location_id: UUID,
     contact_data: LocationContactCreate,
     db: AsyncDB,
-    current_user: CurrentLocationContactsWriter,
+    current_user: CurrentLocationContactsCreator,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -326,7 +327,7 @@ async def update_location_contact(
     contact_id: UUID,
     contact_data: LocationContactUpdate,
     db: AsyncDB,
-    current_user: CurrentLocationContactsWriter,
+    current_user: CurrentLocationContactsEditor,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -363,7 +364,7 @@ async def delete_location_contact(
     location_id: UUID,
     contact_id: UUID,
     db: AsyncDB,
-    current_user: CurrentLocationContactsWriter,
+    current_user: CurrentLocationContactsDeleter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
@@ -428,31 +429,22 @@ async def create_location(
     company_id: UUID,
     location_data: LocationCreate,
     db: AsyncDB,
-    current_user: CurrentClientDataWriter,
+    current_user_company: CurrentCompanyLocationCreator,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Create a new location for a company."""
-    # Verify company exists
-    result = await db.execute(
-        select(Company).where(
-            Company.id == company_id,
-            Company.organization_id == org.id,
-        )
-    )
-    company = result.scalar_one_or_none()
-
-    if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Company {company_id} not found"
-        )
+    current_user, _company = current_user_company
 
     # Override company_id from URL (security)
     location_dict = location_data.model_dump()
     location_dict["company_id"] = company_id
 
-    location = Location(**location_dict)
-    location.organization_id = org.id
+    location = Location(
+        **location_dict,
+        organization_id=org.id,
+        created_by_user_id=current_user.id,
+    )
     db.add(location)
     await db.commit()
     await db.refresh(location)
@@ -528,23 +520,12 @@ async def update_location(
     location_id: UUID,
     location_data: LocationUpdate,
     db: AsyncDB,
-    current_user: CurrentClientDataWriter,
+    current_user_location: CurrentLocationEditor,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
     """Update location information."""
-    result = await db.execute(
-        select(Location).where(
-            Location.id == location_id,
-            Location.organization_id == org.id,
-        )
-    )
-    location = result.scalar_one_or_none()
-
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Location {location_id} not found"
-        )
+    current_user, location = current_user_location
 
     # Update only provided fields
     update_data = location_data.model_dump(exclude_unset=True)
@@ -607,7 +588,7 @@ async def update_location(
 async def delete_location(
     location_id: UUID,
     db: AsyncDB,
-    current_user: CurrentClientDataWriter,
+    current_user: CurrentLocationDeleter,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):

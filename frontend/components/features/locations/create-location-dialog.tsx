@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
+import { isForbiddenError } from "@/lib/api/client";
 import { locationSchema } from "@/lib/forms/schemas";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useLocationStore } from "@/lib/stores/location-store";
@@ -76,14 +77,16 @@ export function CreateLocationDialog({
 				form.reset();
 				onSuccess?.(location);
 			} catch (error) {
-				toast({
-					title: "Error",
-					description:
-						error instanceof Error
-							? error.message
-							: "Failed to create location",
-					variant: "destructive",
-				});
+				if (!isForbiddenError(error)) {
+					toast({
+						title: "Error",
+						description:
+							error instanceof Error
+								? error.message
+								: "Failed to create location",
+						variant: "destructive",
+					});
+				}
 			}
 		},
 	});

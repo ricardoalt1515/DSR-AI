@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
+import { isForbiddenError } from "@/lib/api/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import type { Sector, Subsector } from "@/lib/sectors-config";
 import { useCompanyStore } from "@/lib/stores/company-store";
@@ -130,12 +131,14 @@ export function CreateCompanyDialog({
 			setTouched({});
 			onSuccess?.(company);
 		} catch (error) {
-			toast({
-				title: "Error",
-				description:
-					error instanceof Error ? error.message : "Failed to save company",
-				variant: "destructive",
-			});
+			if (!isForbiddenError(error)) {
+				toast({
+					title: "Error",
+					description:
+						error instanceof Error ? error.message : "Failed to save company",
+					variant: "destructive",
+				});
+			}
 		} finally {
 			setLoading(false);
 		}

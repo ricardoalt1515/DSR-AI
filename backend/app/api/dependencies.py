@@ -14,15 +14,19 @@ from typing import Annotated
 
 import structlog
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy import select
 
+from app.authz import policies
 from app.core.fastapi_users_instance import (
     current_active_user,
     current_active_user_optional,
     current_superuser,
     current_verified_user,
 )
+from app.models.company import Company
+from app.models.location import Location
 from app.models.organization import Organization
-from app.models.user import User, UserRole
+from app.models.user import User
 
 logger = structlog.get_logger(__name__)
 
@@ -117,7 +121,6 @@ SectorFilter = Annotated[
 # ==============================================================================
 
 from fastapi import Path, status
-from sqlalchemy import select
 
 from app.models.project import Project
 
@@ -187,44 +190,222 @@ async def get_super_admin_only(
 SuperAdminOnly = Annotated[User, Depends(get_super_admin_only)]
 
 
-async def get_current_client_data_writer(
+async def get_current_project_creator(
     current_user: User = Depends(current_active_user),
 ) -> User:
-    """
-    Require user to be an organization admin or superuser.
-    Use for write operations on org-scoped resources (companies, locations).
-    """
-    if not (current_user.is_superuser or current_user.is_org_admin()):
+    if not policies.can_create_project(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only organization admins can perform this action",
+            detail="Insufficient permissions to create projects",
         )
     return current_user
 
 
-CurrentClientDataWriter = Annotated[User, Depends(get_current_client_data_writer)]
+CurrentProjectCreator = Annotated[User, Depends(get_current_project_creator)]
 
 
-async def get_current_location_contacts_writer(
+async def get_current_project_deleter(
     current_user: User = Depends(current_active_user),
 ) -> User:
-    """
-    Require user to write location contacts.
-    Field agents, org admins, or superusers are allowed.
-    """
-    if not (
-        current_user.is_superuser
-        or current_user.is_org_admin()
-        or current_user.role == UserRole.FIELD_AGENT
-    ):
+    if not policies.can_delete_project(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to manage location contacts",
+            detail="Insufficient permissions to delete projects",
         )
     return current_user
 
 
-CurrentLocationContactsWriter = Annotated[User, Depends(get_current_location_contacts_writer)]
+CurrentProjectDeleter = Annotated[User, Depends(get_current_project_deleter)]
+
+
+async def get_current_company_creator(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_create_company(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create companies",
+        )
+    return current_user
+
+
+CurrentCompanyCreator = Annotated[User, Depends(get_current_company_creator)]
+
+
+async def get_current_company_editor(
+    company_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> tuple[User, Company]:
+    result = await db.execute(
+        select(Company).where(Company.id == company_id, Company.organization_id == org.id)
+    )
+    company = result.scalar_one_or_none()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company {company_id} not found",
+        )
+
+    if not policies.can_update_company(current_user, company):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update company",
+        )
+
+    return current_user, company
+
+
+CurrentCompanyEditor = Annotated[tuple[User, Company], Depends(get_current_company_editor)]
+
+
+async def get_current_company_deleter(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_delete_company(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete company",
+        )
+    return current_user
+
+
+CurrentCompanyDeleter = Annotated[User, Depends(get_current_company_deleter)]
+
+
+async def get_current_location_creator(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_create_location(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create locations",
+        )
+    return current_user
+
+
+CurrentLocationCreator = Annotated[User, Depends(get_current_location_creator)]
+
+
+async def get_current_company_location_creator(
+    company_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> tuple[User, Company]:
+    result = await db.execute(
+        select(Company).where(Company.id == company_id, Company.organization_id == org.id)
+    )
+    company = result.scalar_one_or_none()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company {company_id} not found",
+        )
+
+    if not policies.can_create_location_for_company(current_user, company):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create location",
+        )
+
+    return current_user, company
+
+
+CurrentCompanyLocationCreator = Annotated[
+    tuple[User, Company], Depends(get_current_company_location_creator)
+]
+
+
+async def get_current_location_editor(
+    location_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> tuple[User, Location]:
+    result = await db.execute(
+        select(Location).where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
+    )
+    location = result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location {location_id} not found",
+        )
+
+    if not policies.can_update_location(current_user, location):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update location",
+        )
+
+    return current_user, location
+
+
+CurrentLocationEditor = Annotated[tuple[User, Location], Depends(get_current_location_editor)]
+
+
+async def get_current_location_deleter(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_delete_location(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete location",
+        )
+    return current_user
+
+
+CurrentLocationDeleter = Annotated[User, Depends(get_current_location_deleter)]
+
+
+async def get_current_location_contacts_creator(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_create_location_contact(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create location contacts",
+        )
+    return current_user
+
+
+CurrentLocationContactsCreator = Annotated[User, Depends(get_current_location_contacts_creator)]
+
+
+async def get_current_location_contacts_editor(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_update_location_contact(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update location contacts",
+        )
+    return current_user
+
+
+CurrentLocationContactsEditor = Annotated[User, Depends(get_current_location_contacts_editor)]
+
+
+async def get_current_location_contacts_deleter(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_delete_location_contact(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete location contacts",
+        )
+    return current_user
+
+
+CurrentLocationContactsDeleter = Annotated[User, Depends(get_current_location_contacts_deleter)]
 
 
 async def get_accessible_project(

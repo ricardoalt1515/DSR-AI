@@ -5,6 +5,7 @@ Each location can have multiple waste assessment projects.
 
 from sqlalchemy import (
     Column,
+    DateTime,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -64,6 +65,16 @@ class Location(BaseModel):
 
     # Additional info
     notes = Column(String(1000), nullable=True)
+
+    created_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+    locked_at = Column(DateTime(timezone=True), nullable=True, comment="Catalog lock timestamp")
+    locked_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    lock_reason = Column(String(255), nullable=True)
 
     # Relationships
     company = relationship("Company", back_populates="locations")

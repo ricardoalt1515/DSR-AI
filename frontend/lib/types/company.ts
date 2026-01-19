@@ -29,6 +29,7 @@ export interface CompanySummary extends CompanyBase {
 	locationCount: number;
 	createdAt: string;
 	updatedAt: string;
+	createdByUserId?: string;
 }
 
 export interface CompanyDetail extends CompanySummary {
@@ -62,6 +63,7 @@ export interface LocationSummary extends LocationBase {
 	projectCount: number;
 	createdAt: string;
 	updatedAt: string;
+	createdByUserId?: string;
 }
 
 export interface LocationDetail extends LocationSummary {

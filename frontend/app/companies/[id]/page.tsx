@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/contexts/auth-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useCompanyStore } from "@/lib/stores/company-store";
 import { useLocationStore } from "@/lib/stores/location-store";
 import type { LocationSummary } from "@/lib/types/company";
@@ -42,7 +43,8 @@ export default function CompanyDetailPage() {
 	const params = useParams();
 	const router = useRouter();
 	const companyId = params.id as string;
-	const { canWriteClientData } = useAuth();
+	const { canCreateClientData } = useAuth();
+	const { canEditCompany, canDeleteLocation } = usePermissions();
 
 	const {
 		currentCompany,
@@ -175,7 +177,7 @@ export default function CompanyDetailPage() {
 					{currentCompany.locationCount ?? 0}{" "}
 					{(currentCompany.locationCount ?? 0) === 1 ? "location" : "locations"}
 				</Badge>
-				{canWriteClientData && (
+				{canEditCompany(currentCompany) && (
 					<Button onClick={() => setEditCompanyDialogOpen(true)}>
 						<Edit className="mr-2 h-4 w-4" />
 						Edit Company
@@ -280,7 +282,7 @@ export default function CompanyDetailPage() {
 						<MapPin className="h-6 w-6" />
 						Locations
 					</h2>
-					{canWriteClientData && (
+					{canCreateClientData && (
 						<CreateLocationDialog
 							companyId={companyId}
 							onSuccess={() => {
@@ -297,11 +299,11 @@ export default function CompanyDetailPage() {
 							<MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
 							<h3 className="text-lg font-semibold mb-2">No locations yet</h3>
 							<p className="text-muted-foreground mb-4">
-								{canWriteClientData
+								{canCreateClientData
 									? "Add the first location for this company"
 									: "No locations have been added to this company yet"}
 							</p>
-							{canWriteClientData && (
+							{canCreateClientData && (
 								<CreateLocationDialog
 									companyId={companyId}
 									trigger={
@@ -373,13 +375,18 @@ export default function CompanyDetailPage() {
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
-													<DropdownMenuItem
-														disabled
-														className="text-muted-foreground cursor-not-allowed"
-													>
-														<Trash2 className="mr-2 h-4 w-4" />
-														Delete (Coming soon)
-													</DropdownMenuItem>
+													{canDeleteLocation() && (
+														<DropdownMenuItem
+															onClick={() => {
+																setLocationToDelete(location);
+																setDeleteDialogOpen(true);
+															}}
+															className="text-destructive focus:text-destructive"
+														>
+															<Trash2 className="mr-2 h-4 w-4" />
+															Delete
+														</DropdownMenuItem>
+													)}
 												</DropdownMenuContent>
 											</DropdownMenu>
 										</div>

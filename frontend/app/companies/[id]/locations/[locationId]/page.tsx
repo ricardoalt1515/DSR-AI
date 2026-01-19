@@ -40,7 +40,11 @@ export default function LocationDetailPage() {
 	const companyId = params.id as string;
 	const locationId = params.locationId as string;
 	const [wizardOpen, setWizardOpen] = useState(false);
-	const { canWriteLocationContacts } = useAuth();
+	const { canWriteLocationContacts, canCreateClientData, user } = useAuth();
+	const canCreateProject = Boolean(canCreateClientData);
+	const canDeleteContacts = Boolean(
+		user?.isSuperuser || user?.role === "org_admin",
+	);
 
 	const { currentLocation, loading, loadLocation, error, clearError } =
 		useLocationStore();
@@ -201,6 +205,7 @@ export default function LocationDetailPage() {
 				contacts={currentLocation.contacts ?? []}
 				locationId={locationId}
 				canWriteContacts={canWriteLocationContacts}
+				canDeleteContacts={canDeleteContacts}
 				onContactsUpdated={() => loadLocation(locationId)}
 			/>
 
@@ -211,10 +216,12 @@ export default function LocationDetailPage() {
 						<FolderKanban className="h-5 w-5" />
 						Waste Streams
 					</h2>
-					<Button onClick={() => setWizardOpen(true)}>
-						<Plus className="h-4 w-4 mr-2" />
-						New Waste Stream
-					</Button>
+					{canCreateProject && (
+						<Button onClick={() => setWizardOpen(true)}>
+							<Plus className="h-4 w-4 mr-2" />
+							New Waste Stream
+						</Button>
+					)}
 				</div>
 
 				{!currentLocation.projects || currentLocation.projects.length === 0 ? (
@@ -227,10 +234,12 @@ export default function LocationDetailPage() {
 							<p className="text-muted-foreground mb-4">
 								Create the first waste stream for this location
 							</p>
-							<Button onClick={() => setWizardOpen(true)}>
-								<Plus className="h-4 w-4 mr-2" />
-								Create First Waste Stream
-							</Button>
+							{canCreateProject && (
+								<Button onClick={() => setWizardOpen(true)}>
+									<Plus className="h-4 w-4 mr-2" />
+									Create First Waste Stream
+								</Button>
+							)}
 						</CardContent>
 					</Card>
 				) : (

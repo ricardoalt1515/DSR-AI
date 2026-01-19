@@ -69,6 +69,7 @@ class CompanySummary(CompanyBase):
     location_count: int = 0
     created_at: datetime
     updated_at: datetime
+    created_by_user_id: UUID | None = None
 
 
 class CompanyDetail(CompanySummary):

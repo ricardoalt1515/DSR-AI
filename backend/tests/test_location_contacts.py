@@ -7,7 +7,7 @@ from tests.test_multi_tenant import create_company, create_location, create_org,
 
 
 @pytest.mark.asyncio
-async def test_field_agent_can_manage_location_contacts(
+async def test_field_agent_can_create_and_update_location_contacts(
     client: AsyncClient,
     db_session,
     set_current_user,
@@ -54,10 +54,47 @@ async def test_field_agent_can_manage_location_contacts(
     assert update_response.status_code == 200
     assert update_response.json()["title"] == "Plant Manager"
 
-    delete_response = await client.delete(
-        f"/api/v1/companies/locations/{location.id}/contacts/{contact_id}",
+
+@pytest.mark.asyncio
+async def test_field_agent_cannot_delete_location_contacts(
+    client: AsyncClient,
+    db_session,
+    set_current_user,
+):
+    org = await create_org(db_session, "Org Contacts Deny", "org-contacts-deny")
+    user = await create_user(
+        db_session,
+        email="agent-deny@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
     )
-    assert delete_response.status_code == 200
+    company = await create_company(db_session, org_id=org.id, name="Contact Co 2")
+    location = await create_location(
+        db_session,
+        org_id=org.id,
+        company_id=company.id,
+        name="Plant 2",
+    )
+
+    contact = LocationContact(
+        organization_id=org.id,
+        location_id=location.id,
+        name="Delete Contact",
+        email=None,
+        phone=None,
+        title=None,
+        notes=None,
+    )
+    db_session.add(contact)
+    await db_session.commit()
+
+    set_current_user(user)
+
+    delete_response = await client.delete(
+        f"/api/v1/companies/locations/{location.id}/contacts/{contact.id}",
+    )
+    assert delete_response.status_code == 403
 
 
 @pytest.mark.asyncio

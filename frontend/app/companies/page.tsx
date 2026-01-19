@@ -15,7 +15,7 @@ import { useCompanyStore } from "@/lib/stores/company-store";
 
 export default function CompaniesPage() {
 	const { companies, loading, loadCompanies } = useCompanyStore();
-	const { canWriteClientData } = useAuth();
+	const { canCreateClientData } = useAuth();
 	const [searchTerm, setSearchTerm] = useState("");
 	const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
@@ -56,7 +56,7 @@ export default function CompaniesPage() {
 						Manage client companies and their locations
 					</p>
 				</div>
-				{canWriteClientData && (
+				{canCreateClientData && (
 					<CreateCompanyDialog onSuccess={() => loadCompanies()} />
 				)}
 			</div>
@@ -96,11 +96,11 @@ export default function CompaniesPage() {
 					<Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
 					<h3 className="text-lg font-semibold mb-2">No companies yet</h3>
 					<p className="text-muted-foreground mb-4">
-						{canWriteClientData
+						{canCreateClientData
 							? "Create your first company to get started"
 							: "No companies have been added yet"}
 					</p>
-					{canWriteClientData && (
+					{canCreateClientData && (
 						<CreateCompanyDialog
 							trigger={<Button>Create First Company</Button>}
 							onSuccess={() => loadCompanies()}

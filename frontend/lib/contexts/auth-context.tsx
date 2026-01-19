@@ -21,6 +21,7 @@ interface AuthContextType {
 	isSuperAdmin: boolean;
 	isOrgAdmin: boolean;
 	canWriteClientData: boolean;
+	canCreateClientData: boolean;
 	canWriteLocationContacts: boolean;
 	login: (email: string, password: string) => Promise<void>;
 	register: (
@@ -169,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUser(updatedUser);
 	};
 
-	// Only logout on 401/403; keep session on network/5xx errors
+	// Only logout on 401; 403 means action denied, not auth failure
 	const refreshUser = async () => {
 		try {
 			const currentUser = await authAPI.getCurrentUser();
@@ -179,9 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				error && typeof error === "object" && "status" in error
 					? (error as { status?: unknown }).status
 					: undefined;
-			if (status === 401 || status === 403) {
+			if (status === 401) {
 				setUser(null);
 			}
+			// 403: Keep session, user is authenticated but action was denied
 			// Network/5xx: silently keep current session
 		}
 	};
@@ -189,11 +191,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const canWriteClientData = Boolean(
 		user && (user.isSuperuser || user.role === "org_admin"),
 	);
+	const canCreateClientData = Boolean(
+		user &&
+			(user.isSuperuser ||
+				user.role === "org_admin" ||
+				user.role === "field_agent" ||
+				user.role === "contractor"),
+	);
 	const canWriteLocationContacts = Boolean(
 		user &&
 			(user.isSuperuser ||
 				user.role === "org_admin" ||
-				user.role === "field_agent"),
+				user.role === "field_agent" ||
+				user.role === "contractor"),
 	);
 
 	return (
@@ -206,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				isSuperAdmin: !!user?.isSuperuser,
 				isOrgAdmin: user?.role === "org_admin",
 				canWriteClientData,
+				canCreateClientData,
 				canWriteLocationContacts,
 				login,
 				register,

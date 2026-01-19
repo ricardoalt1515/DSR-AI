@@ -2,7 +2,17 @@
 A company can have multiple locations (plants, warehouses, etc.).
 """
 
-from sqlalchemy import JSON, Column, ForeignKey, String, Text, UniqueConstraint, func, select
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    select,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import column_property, relationship
 
@@ -53,6 +63,16 @@ class Company(BaseModel):
     # Additional info
     notes = Column(Text, nullable=True)
     tags = Column(JSON, default=list, comment="Categorization tags")
+
+    created_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+    locked_at = Column(DateTime(timezone=True), nullable=True, comment="Catalog lock timestamp")
+    locked_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    lock_reason = Column(String(255), nullable=True)
 
     # Relationships
     locations = relationship(

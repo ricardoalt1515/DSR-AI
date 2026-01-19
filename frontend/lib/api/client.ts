@@ -1,5 +1,6 @@
 // Base API client configuration for FastAPI backend integration
 
+import { toast } from "sonner";
 import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { API_TIMEOUT, RETRY } from "@/lib/constants/timings";
 import { logger } from "@/lib/utils/logger";
@@ -187,6 +188,11 @@ class APIClient {
 					if (response.status === 401 && this.onUnauthorized) {
 						logger.warn("401 Unauthorized - Clearing session", "APIClient");
 						this.onUnauthorized();
+					}
+
+					// Handle 403 Forbidden - show toast, don't logout
+					if (response.status === 403) {
+						toast.error("You don't have permission to perform this action");
 					}
 
 					// Normalize error format: handle both {error: {message, code}} and {message, code}
@@ -418,6 +424,9 @@ export const API_ERROR_CODES = {
 
 export { APIClientError };
 export type { APIError, RequestConfig };
+
+export const isForbiddenError = (error: unknown): boolean =>
+	error instanceof APIClientError && error.code === "HTTP_403";
 
 // Export class for custom instances
 export { APIClient };

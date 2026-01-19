@@ -12,6 +12,8 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import (
     AsyncDB,
+    CurrentProjectCreator,
+    CurrentProjectDeleter,
     CurrentUser,
     OrganizationContext,
     PageNumber,
@@ -283,7 +285,7 @@ async def get_project(
 async def create_project(
     request: Request,
     project_data: ProjectCreate,
-    current_user: CurrentUser,
+    current_user: CurrentProjectCreator,
     org: OrganizationContext,
     db: AsyncDB,  # Use type alias
 ):
@@ -488,6 +490,7 @@ async def delete_project(
     request: Request,
     project: ProjectDep,
     db: AsyncDB,
+    current_user: CurrentProjectDeleter,
 ):
     """Delete a project (cascade deletes all related data)."""
     project_id = project.id

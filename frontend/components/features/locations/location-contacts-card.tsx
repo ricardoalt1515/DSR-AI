@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import { isForbiddenError } from "@/lib/api/client";
 import { locationsAPI } from "@/lib/api/companies";
 import { useToast } from "@/lib/hooks/use-toast";
 import type { LocationContact } from "@/lib/types/company";
@@ -15,6 +16,7 @@ interface LocationContactsCardProps {
 	contacts: LocationContact[];
 	locationId: string;
 	canWriteContacts: boolean;
+	canDeleteContacts: boolean;
 	onContactsUpdated: () => void | Promise<void>;
 }
 
@@ -22,6 +24,7 @@ export function LocationContactsCard({
 	contacts,
 	locationId,
 	canWriteContacts,
+	canDeleteContacts,
 	onContactsUpdated,
 }: LocationContactsCardProps) {
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -46,12 +49,14 @@ export function LocationContactsCard({
 			});
 			await onContactsUpdated();
 		} catch (error) {
-			toast({
-				title: "Error",
-				description:
-					error instanceof Error ? error.message : "Failed to add contact",
-				variant: "destructive",
-			});
+			if (!isForbiddenError(error)) {
+				toast({
+					title: "Error",
+					description:
+						error instanceof Error ? error.message : "Failed to add contact",
+					variant: "destructive",
+				});
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -76,12 +81,14 @@ export function LocationContactsCard({
 			});
 			await onContactsUpdated();
 		} catch (error) {
-			toast({
-				title: "Error",
-				description:
-					error instanceof Error ? error.message : "Failed to update contact",
-				variant: "destructive",
-			});
+			if (!isForbiddenError(error)) {
+				toast({
+					title: "Error",
+					description:
+						error instanceof Error ? error.message : "Failed to update contact",
+					variant: "destructive",
+				});
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -100,12 +107,14 @@ export function LocationContactsCard({
 			setContactToDelete(null);
 			await onContactsUpdated();
 		} catch (error) {
-			toast({
-				title: "Error",
-				description:
-					error instanceof Error ? error.message : "Failed to delete contact",
-				variant: "destructive",
-			});
+			if (!isForbiddenError(error)) {
+				toast({
+					title: "Error",
+					description:
+						error instanceof Error ? error.message : "Failed to delete contact",
+					variant: "destructive",
+				});
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -174,16 +183,18 @@ export function LocationContactsCard({
 												}
 												onSubmit={(data) => handleUpdate(contact.id, data)}
 											/>
-											<Button
-												size="icon"
-												variant="ghost"
-												onClick={() => {
-													setContactToDelete(contact);
-													setDeleteDialogOpen(true);
-												}}
-											>
-												<Trash2 className="h-4 w-4 text-destructive" />
-											</Button>
+											{canDeleteContacts && (
+												<Button
+													size="icon"
+													variant="ghost"
+													onClick={() => {
+														setContactToDelete(contact);
+														setDeleteDialogOpen(true);
+													}}
+												>
+													<Trash2 className="h-4 w-4 text-destructive" />
+												</Button>
+											)}
 										</div>
 									)}
 								</div>
@@ -192,18 +203,20 @@ export function LocationContactsCard({
 					</div>
 				)}
 			</CardContent>
-			<ConfirmDeleteDialog
-				open={deleteDialogOpen}
-				onOpenChange={(open) => {
-					setDeleteDialogOpen(open);
-					if (!open) setContactToDelete(null);
-				}}
-				onConfirm={handleDelete}
-				title="Delete Contact"
-				description="This will permanently delete this contact."
-				itemName={contactToDelete?.name}
-				loading={loading}
-			/>
+			{canDeleteContacts && (
+				<ConfirmDeleteDialog
+					open={deleteDialogOpen}
+					onOpenChange={(open) => {
+						setDeleteDialogOpen(open);
+						if (!open) setContactToDelete(null);
+					}}
+					onConfirm={handleDelete}
+					title="Delete Contact"
+					description="This will permanently delete this contact."
+					itemName={contactToDelete?.name}
+					loading={loading}
+				/>
+			)}
 		</Card>
 	);
 }
