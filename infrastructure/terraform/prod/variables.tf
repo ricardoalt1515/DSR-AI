@@ -193,12 +193,6 @@ variable "cors_origins" {
   default     = "http://localhost:3000"
 }
 
-variable "openai_model" {
-  description = "OpenAI model to use"
-  type        = string
-  default     = "gpt-4o-mini"
-}
-
 # -----------------------------------------------------------------------------
 # Secrets (via environment variables)
 # -----------------------------------------------------------------------------

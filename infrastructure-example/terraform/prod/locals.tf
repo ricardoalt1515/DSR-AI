@@ -80,10 +80,6 @@ locals {
       value = var.aws_region
     },
     {
-      name  = "OPENAI_MODEL"
-      value = var.openai_model
-    },
-    {
       name  = "CORS_ORIGINS"
       value = var.cors_origins
     },

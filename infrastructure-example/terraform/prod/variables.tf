@@ -193,12 +193,6 @@ variable "cors_origins" {
   default     = "https://app.h2o-allegiant.com"
 }
 
-variable "openai_model" {
-  description = "OpenAI model to use"
-  type        = string
-  default     = "gpt-5-mini"
-}
-
 # -----------------------------------------------------------------------------
 # Secrets (via environment variables)
 # -----------------------------------------------------------------------------

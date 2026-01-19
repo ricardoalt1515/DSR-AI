@@ -59,7 +59,7 @@ def _load_prompt() -> str:
 
 # Initialize agent (lazy API key check happens on first use)
 proposal_agent = Agent(
-    f"openai:{settings.OPENAI_MODEL}",
+    settings.AI_PROPOSAL_MODEL,
     deps_type=ProposalContext,
     output_type=ProposalOutput,
     instructions=_load_prompt(),

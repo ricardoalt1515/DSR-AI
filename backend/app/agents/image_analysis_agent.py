@@ -66,13 +66,11 @@ def load_image_analysis_prompt() -> str:
 
 # Create the image analysis agent
 image_analysis_agent = Agent(
-    f"openai:{settings.OPENAI_MODEL}",
+    settings.AI_IMAGE_MODEL,
     deps_type=ImageContext,
     output_type=ImageAnalysisOutput,
     instructions=load_image_analysis_prompt(),
-    model_settings=ModelSettings(
-        temperature=0.3,  # Low temperature for consistent technical analysis
-    ),
+    model_settings=ModelSettings(temperature=0.2),
     retries=2,
 )
 

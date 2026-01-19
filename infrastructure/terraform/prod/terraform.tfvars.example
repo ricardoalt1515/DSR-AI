@@ -70,12 +70,6 @@ cors_origins        = "http://localhost:3000"  # Update with your frontend URL
 alarm_email = "alerts@dsr-inc.com"
 
 # -----------------------------------------------------------------------------
-# Application Configuration
-# -----------------------------------------------------------------------------
-
-openai_model = "gpt-4o-mini"
-
-# -----------------------------------------------------------------------------
 # Secrets (via environment variables - DO NOT COMMIT)
 # -----------------------------------------------------------------------------
 # Set these via environment variables:

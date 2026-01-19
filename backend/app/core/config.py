@@ -76,9 +76,10 @@ class Settings(BaseSettings):
 
     # OpenAI
     OPENAI_API_KEY: str = Field(..., min_length=20)
-    OPENAI_MODEL: str = "gpt-5-mini"
-    OPENAI_TEMPERATURE: float = Field(default=0.7, ge=0.0, le=2.0)
-    OPENAI_MAX_TOKENS: int = Field(default=4000, ge=100, le=128000)
+
+    # AI Models (format: "provider:model")
+    AI_PROPOSAL_MODEL: str = "openai:gpt-5.2"
+    AI_IMAGE_MODEL: str = "openai:gpt-5-mini"
 
     # AWS S3
     AWS_ACCESS_KEY_ID: str | None = None
