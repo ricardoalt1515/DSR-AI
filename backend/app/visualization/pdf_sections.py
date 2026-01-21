@@ -461,9 +461,24 @@ def _build_internal_sections(proposal_data: dict[str, Any]) -> str:
     co2_avoided = environment.get("co2Avoided") or "N/A"
     esg_headline = environment.get("esgHeadline") or "N/A"
     current_harm = environment.get("currentHarm") or "N/A"
+    water_savings = environment.get("waterSavings") or ""
+    circularity = environment.get("circularityPotential") or ""
+    circularity_rationale = environment.get("circularityRationale") or ""
     env_html += f"<p><strong>CO2 Avoided:</strong> {co2_avoided}</p>"
     env_html += f"<p><strong>ESG Headline:</strong> {esg_headline}</p>"
     env_html += f"<p><strong>If Not Diverted:</strong> {current_harm}</p>"
+    if water_savings and water_savings != "Not estimable":
+        env_html += f"<p><strong>Water Savings:</strong> {water_savings}</p>"
+
+    if circularity:
+        badge_class = _get_badge_class(circularity)
+        env_html += (
+            "<p><strong>Circularity Potential:</strong> "
+            f'<span class="metric-badge {badge_class}">{circularity}</span></p>'
+        )
+
+    if circularity_rationale:
+        env_html += f"<p><em>{circularity_rationale}</em></p>"
     env_html += "</div>"
     sections.append(env_html)
 
@@ -493,15 +508,64 @@ def _build_internal_sections(proposal_data: dict[str, Any]) -> str:
             price_range = pathway.get("priceRange") or "N/A"
             annual_value = pathway.get("annualValue") or "N/A"
             feasibility = pathway.get("feasibility") or "Medium"
+            esg_pitch = pathway.get("esgPitch") or ""
+            handling = pathway.get("handling") or ""
+            target_locations = pathway.get("targetLocations") or []
+            why_it_works = pathway.get("whyItWorks") or ""
+            badge_class = _get_badge_class(feasibility)
             pathways_html += f"""
             <h3>{action}</h3>
             <p><strong>Buyers:</strong> {buyer_types}</p>
             <p><strong>Price:</strong> {price_range}</p>
             <p><strong>Annual Value:</strong> {annual_value}</p>
-            <p><strong>Feasibility:</strong> {feasibility}</p>
+            <p><strong>Feasibility:</strong> <span class="metric-badge {badge_class}">{feasibility}</span></p>
             """
+            if esg_pitch:
+                pathways_html += f'<p><strong>ESG Pitch:</strong> <em>"{esg_pitch}"</em></p>'
+            if handling:
+                pathways_html += f"<p><strong>Handling:</strong> {handling}</p>"
+            if target_locations:
+                locations_str = ", ".join(target_locations)
+                pathways_html += f"<p><strong>Target Markets:</strong> {locations_str}</p>"
+            if why_it_works:
+                pathways_html += f"<p><strong>Why it works:</strong> <em>{why_it_works}</em></p>"
+            pathways_html += "<hr style='margin: 1rem 0; border-top: 1px solid #e5e7eb;'>"
         pathways_html += "</div>"
         sections.append(pathways_html)
+
+    risks = proposal_data.get("risks") or []
+    if risks:
+        risks_html = """
+        <div class="technical-section">
+            <h2 class="section-title">Risks & Blockers</h2>
+            <ul>
+        """
+        for risk in risks:
+            risks_html += f"<li>{risk}</li>"
+        risks_html += "</ul></div>"
+        sections.append(risks_html)
+
+    next_steps = proposal_data.get("nextSteps") or []
+    if next_steps:
+        steps_html = """
+        <div class="technical-section">
+            <h2 class="section-title">Recommended Next Steps</h2>
+            <ol>
+        """
+        for step in next_steps:
+            steps_html += f"<li>{step}</li>"
+        steps_html += "</ol></div>"
+        sections.append(steps_html)
+
+    roi_summary = proposal_data.get("roiSummary")
+    if roi_summary:
+        roi_html = f"""
+        <div class="technical-section">
+            <h2 class="section-title">ROI Summary</h2>
+            <p><strong>{roi_summary}</strong></p>
+        </div>
+        """
+        sections.append(roi_html)
 
     return "\n".join(sections)
 

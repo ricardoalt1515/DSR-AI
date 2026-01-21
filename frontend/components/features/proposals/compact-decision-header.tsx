@@ -27,24 +27,24 @@ export function CompactDecisionHeader({
 			case "GO":
 				return {
 					variant: "default" as const,
-					bg: "bg-green-50 dark:bg-green-950",
-					border: "border-green-200 dark:border-green-800",
-					text: "text-green-700 dark:text-green-300",
+					bg: "bg-decision-go-bg",
+					border: "border-decision-go-border",
+					text: "text-success",
 				};
 			case "NO-GO":
 				return {
 					variant: "destructive" as const,
-					bg: "bg-red-50 dark:bg-red-950",
-					border: "border-red-200 dark:border-red-800",
-					text: "text-red-700 dark:text-red-300",
+					bg: "bg-decision-nogo-bg",
+					border: "border-decision-nogo-border",
+					text: "text-destructive",
 				};
 			case "INVESTIGATE FURTHER":
 			case "INVESTIGATE":
 				return {
 					variant: "secondary" as const,
-					bg: "bg-yellow-50 dark:bg-yellow-950",
-					border: "border-yellow-200 dark:border-yellow-800",
-					text: "text-yellow-700 dark:text-yellow-300",
+					bg: "bg-decision-investigate-bg",
+					border: "border-decision-investigate-border",
+					text: "text-warning",
 				};
 		}
 	};
@@ -76,7 +76,7 @@ export function CompactDecisionHeader({
 					</div>
 					{riskCount > 0 && (
 						<div className="flex items-center gap-2">
-							<AlertCircle className="h-4 w-4 text-yellow-600" />
+							<AlertCircle className="h-4 w-4 text-warning" />
 							<span className="text-muted-foreground">{riskCount} risks</span>
 						</div>
 					)}

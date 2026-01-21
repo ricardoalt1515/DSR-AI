@@ -16,6 +16,9 @@ export interface BusinessPathway {
 	annualValue: string;
 	esgPitch: string; // Ready to copy-paste for buyers
 	handling: string;
+	feasibility?: "High" | "Medium" | "Low";
+	targetLocations?: string[];
+	whyItWorks?: string;
 }
 
 // ==============================================
@@ -32,12 +35,24 @@ export interface EnvironmentalImpact {
 	co2Avoided: string;
 	esgHeadline: string;
 	currentHarm: string;
+	waterSavings?: string;
+	circularityPotential?: "High" | "Medium" | "Low";
+	circularityRationale?: string;
 }
 
 export interface SafetyHandling {
 	hazard: "None" | "Low" | "Moderate" | "High";
 	warnings: string;
 	storage: string;
+}
+
+export interface EconomicsDeepDive {
+	profitabilityBand?: "High" | "Medium" | "Low" | "Unknown";
+	profitabilitySummary?: string;
+	costBreakdown?: string[];
+	scenarioSummary?: string[];
+	assumptions?: string[];
+	dataGaps?: string[];
 }
 
 // ==============================================
@@ -60,6 +75,7 @@ export interface WasteUpcyclingReport {
 	financials: FinancialSummary;
 	environment: EnvironmentalImpact;
 	safety: SafetyHandling;
+	economicsDeepDive?: EconomicsDeepDive;
 
 	// Core value: Business pathways
 	pathways: BusinessPathway[];
@@ -70,96 +86,6 @@ export interface WasteUpcyclingReport {
 
 	// ROI (like Wastetide's "$100 → $1000")
 	roiSummary: string;
-
-	// Legacy fields (from older proposal versions) - optional
-	businessOpportunity?: LegacyBusinessOpportunity;
-	lca?: LegacyLCA;
-	technicalData?: LegacyTechnicalData;
-
-	// Additional legacy fields used by some proposal views
-	aiInsights?: string[];
-	primaryWasteTypes?: string[];
-	dailyMonthlyVolume?: string;
-	existingDisposalMethod?: string;
-	markdownContent?: string;
-}
-
-// ==============================================
-// LEGACY TYPES (for older proposal versions)
-// ==============================================
-
-export interface LegacyBusinessOpportunity {
-	overallRecommendation?: string;
-	decisionSummary?: string;
-	circularEconomyOptions?: string[];
-	strategicRecommendations?: string[];
-	risks?: string[];
-	potentialRevenue?: {
-		annualPotential?: string[];
-		perKg?: string[];
-		marketRate?: string[];
-		notes?: string[];
-	};
-	landfillReduction?: {
-		before?: string[];
-		after?: string[];
-		annualSavings?: string[];
-	};
-	wasteHandlingCostSavings?: {
-		before?: string[];
-		after?: string[];
-		annualSavings?: string[];
-	};
-	resourceConsiderations?: LegacyResourceConsiderations;
-}
-
-export interface LegacyResourceConsiderations {
-	environmentalImpact?: {
-		currentSituation?: string;
-		benefitIfDiverted?: string;
-		esgStory?: string;
-	};
-	materialHandling?: {
-		hazardLevel?: "None" | "Low" | "Moderate" | "High";
-		specificHazards?: string[];
-		ppeRequirements?: string[];
-		storageRequirements?: string[];
-		degradationRisks?: string[];
-		qualityPriceImpact?: string[];
-		regulatoryNotes?: string[];
-	};
-	marketIntelligence?: {
-		buyerTypes?: string[];
-		typicalRequirements?: string[];
-		pricingFactors?: string[];
-	};
-}
-
-export interface LegacyLCA {
-	co2Impact?: string;
-	co2Reduction?: {
-		tons?: string[];
-		percent?: string[];
-		method?: string[];
-	};
-	environmentalNotes?: string;
-}
-
-export interface LegacyTechnicalData {
-	assumptions?: string[];
-	technologySelection?: {
-		rejectedAlternatives?: Array<{
-			technology: string;
-			reasonRejected: string;
-		}>;
-	};
-	designParameters?: {
-		peakFactor?: number;
-		safetyFactor?: number;
-		operatingHours?: number;
-		designLifeYears?: number;
-		regulatoryMarginPercent?: number;
-	};
 }
 
 // ==============================================

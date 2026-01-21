@@ -54,7 +54,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 								className={cn(
 									"shrink-0",
 									organization.isActive
-										? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+										? "bg-success/10 text-success border-success/20"
 										: "bg-muted text-muted-foreground",
 								)}
 							>
@@ -113,7 +113,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 						className="flex-1"
 					>
 						<Button variant="outline" size="sm" className="w-full">
-							<Users className="h-3.5 w-3.5 mr-2 text-blue-500" />
+							<Users className="h-3.5 w-3.5 mr-2 text-info" />
 							Manage Members
 						</Button>
 					</Link>

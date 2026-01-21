@@ -74,7 +74,7 @@ export function DecisionSidebar({
 				</CardHeader>
 				<CardContent className="space-y-3 text-sm">
 					<div className="flex items-center gap-2">
-						<Recycle className="h-4 w-4 text-green-600" />
+						<Recycle className="h-4 w-4 text-success" />
 						<span>
 							{pathwaysCount > 0
 								? `${pathwaysCount} business idea${pathwaysCount > 1 ? "s" : ""} identified`

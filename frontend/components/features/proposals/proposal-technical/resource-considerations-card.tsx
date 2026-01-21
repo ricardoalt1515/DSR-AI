@@ -78,10 +78,10 @@ export function ResourceConsiderationsCard({
 	pricingFactors,
 }: ResourceConsiderationsCardProps) {
 	return (
-		<Card className="border-green-200 bg-green-50/30 dark:border-green-800 dark:bg-green-950/20">
+		<Card className="border-success/25 bg-state-success-bg">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<Package className="h-6 w-6 text-green-600" />
+					<Package className="h-6 w-6 text-success" />
 					Resource Considerations
 				</CardTitle>
 				<p className="text-sm text-muted-foreground">
@@ -120,13 +120,13 @@ export function ResourceConsiderationsCard({
 									<p className="text-sm font-medium mb-2">
 										Benefit If Diverted
 									</p>
-									<p className="text-sm text-green-600 dark:text-green-400">
+									<p className="text-sm text-success">
 										{envImpact?.benefitIfDiverted}
 									</p>
 								</div>
 							</div>
 						</div>
-						<div className="p-3 rounded-lg bg-green-100/50 dark:bg-green-900/20">
+						<div className="p-3 rounded-lg bg-success/10">
 							<p className="text-sm font-medium mb-1">ESG Story</p>
 							<p className="text-sm text-muted-foreground italic">
 								{envImpact?.esgStory}
@@ -151,7 +151,7 @@ export function ResourceConsiderationsCard({
 						<ListSection
 							title="Regulatory Notes"
 							items={regulatoryNotes}
-							className="text-sm text-orange-600 dark:text-orange-400"
+							className="text-sm text-warning"
 						/>
 					</TabsContent>
 
@@ -164,7 +164,7 @@ export function ResourceConsiderationsCard({
 						<ListSection
 							title="Degradation Risks"
 							items={degradationRisks}
-							className="text-sm text-orange-600 dark:text-orange-400"
+							className="text-sm text-warning"
 						/>
 						<ListSection
 							title="Quality vs Price Impact"

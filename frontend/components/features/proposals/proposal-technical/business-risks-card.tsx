@@ -9,10 +9,10 @@ export function BusinessRisksCard({ risks }: BusinessRisksCardProps) {
 	if (risks.length === 0) return null;
 
 	return (
-		<Card className="border-l-4 border-l-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/20">
+		<Card className="border-l-4 border-l-warning bg-state-warning-bg">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<AlertCircle className="h-5 w-5 text-yellow-600" />
+					<AlertCircle className="h-5 w-5 text-warning" />
 					Business Risks to Monitor
 				</CardTitle>
 				<p className="text-sm text-muted-foreground">
@@ -24,14 +24,12 @@ export function BusinessRisksCard({ risks }: BusinessRisksCardProps) {
 					{risks.map((risk, idx) => (
 						<div
 							key={`risk-${risk.slice(0, 20)}-${idx}`}
-							className="flex items-start gap-2 p-3 rounded-lg bg-yellow-100/50 dark:bg-yellow-900/20"
+							className="flex items-start gap-2 p-3 rounded-lg bg-warning/10"
 						>
-							<span className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 flex items-center justify-center text-xs font-bold">
+							<span className="flex-shrink-0 w-5 h-5 rounded-full bg-warning/20 text-warning flex items-center justify-center text-xs font-bold">
 								{idx + 1}
 							</span>
-							<p className="text-sm text-yellow-800 dark:text-yellow-200">
-								{risk}
-							</p>
+							<p className="text-sm text-warning-foreground">{risk}</p>
 						</div>
 					))}
 				</div>

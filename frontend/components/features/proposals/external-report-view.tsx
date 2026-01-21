@@ -45,9 +45,9 @@ interface ExternalReportViewProps {
 }
 
 const PROFITABILITY_COLORS = {
-	High: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-	Medium: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-	Low: "bg-rose-500/10 text-rose-600 border-rose-500/30",
+	High: "bg-success/10 text-success border-success/30",
+	Medium: "bg-warning/10 text-warning border-warning/30",
+	Low: "bg-destructive/10 text-destructive border-destructive/30",
 	Unknown: "bg-muted text-muted-foreground border-border",
 } as const;
 
@@ -184,7 +184,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 
 			{/* Executive Summary */}
 			{sustainability.summary && (
-				<Card className="bg-gradient-to-br from-emerald-50/50 to-green-50/30 dark:from-emerald-950/20 dark:to-green-950/10 border-emerald-200/50 dark:border-emerald-800/30">
+				<Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/25">
 					<CardContent className="py-6">
 						<p className="text-lg leading-relaxed text-foreground/90">
 							{sustainability.summary}
@@ -198,7 +198,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 				<Card>
 					<CardHeader>
 						<div className="flex items-center gap-2">
-							<div className="p-2 rounded-lg bg-slate-500/10 text-slate-600">
+							<div className="p-2 rounded-lg bg-muted text-muted-foreground">
 								<Package className="h-5 w-5" />
 							</div>
 							<div>
@@ -225,7 +225,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 						<Card>
 							<CardHeader>
 								<div className="flex items-center gap-2">
-									<div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+									<div className="p-2 rounded-lg bg-success/10 text-success">
 										<CheckCircle className="h-5 w-5" />
 									</div>
 									<div>
@@ -244,7 +244,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 										const keys = createStableKeys(external.recommendedActions);
 										return external.recommendedActions.map((action, i) => (
 											<li key={keys[i]} className="flex items-start gap-2">
-												<CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+												<CheckCircle className="h-4 w-4 text-success mt-0.5 shrink-0" />
 												<span className="text-sm">{action}</span>
 											</li>
 										));
@@ -257,7 +257,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 						<Card>
 							<CardHeader>
 								<div className="flex items-center gap-2">
-									<div className="p-2 rounded-lg bg-blue-500/10 text-blue-600">
+									<div className="p-2 rounded-lg bg-info/10 text-info">
 										<Wrench className="h-5 w-5" />
 									</div>
 									<div>
@@ -276,7 +276,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 										const keys = createStableKeys(external.handlingGuidance);
 										return external.handlingGuidance.map((guidance, i) => (
 											<li key={keys[i]} className="flex items-start gap-2">
-												<ArrowRight className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+												<ArrowRight className="h-4 w-4 text-info mt-0.5 shrink-0" />
 												<span className="text-sm">{guidance}</span>
 											</li>
 										));
@@ -294,13 +294,13 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 					icon={Leaf}
 					title="CO₂e Reduction"
 					metric={sustainability.co2eReduction}
-					colorClass="bg-emerald-500/10 text-emerald-600"
+					colorClass="bg-success/10 text-success"
 				/>
 				<MetricCard
 					icon={Droplets}
 					title="Water Savings"
 					metric={sustainability.waterSavings}
-					colorClass="bg-blue-500/10 text-blue-600"
+					colorClass="bg-info/10 text-info"
 				/>
 			</div>
 
@@ -309,7 +309,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 				<Card>
 					<CardHeader>
 						<div className="flex items-center gap-2">
-							<div className="p-2 rounded-lg bg-violet-500/10 text-violet-600">
+							<div className="p-2 rounded-lg bg-primary/10 text-primary">
 								<Recycle className="h-5 w-5" />
 							</div>
 							<div>
@@ -333,7 +333,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 										<p className="font-medium">{indicator.name}</p>
 										{indicator.metric.status === "computed" &&
 										indicator.metric.value ? (
-											<p className="text-sm text-emerald-600 font-medium">
+											<p className="text-sm text-success font-medium">
 												{indicator.metric.value}
 											</p>
 										) : (
@@ -379,7 +379,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 				<Card>
 					<CardHeader>
 						<div className="flex items-center gap-2">
-							<div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+							<div className="p-2 rounded-lg bg-success/10 text-success">
 								<Coins className="h-5 w-5" />
 							</div>
 							<div>
@@ -437,7 +437,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 				<Card>
 					<CardHeader>
 						<div className="flex items-center gap-2">
-							<div className="p-2 rounded-lg bg-slate-500/10 text-slate-600">
+							<div className="p-2 rounded-lg bg-muted text-muted-foreground">
 								<Recycle className="h-5 w-5" />
 							</div>
 							<div>
@@ -468,7 +468,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 			<Card>
 				<CardHeader>
 					<div className="flex items-center gap-2">
-						<div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
+						<div className="p-2 rounded-lg bg-warning/10 text-warning">
 							<TrendingUp className="h-5 w-5" />
 						</div>
 						<div>
@@ -488,7 +488,7 @@ export function ExternalReportView({ proposal }: ExternalReportViewProps) {
 						</p>
 					)}
 					{isHighlyProfitable ? (
-						<Badge className="bg-emerald-500 hover:bg-emerald-600 text-white">
+						<Badge className="bg-success hover:bg-success/90 text-white">
 							Highly Profitable
 						</Badge>
 					) : (

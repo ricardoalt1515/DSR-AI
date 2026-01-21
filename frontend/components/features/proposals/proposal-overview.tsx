@@ -38,6 +38,22 @@ const FinancialsSnapshot = dynamic(
 	{ loading: () => <Skeleton className="h-32 w-full rounded-xl" /> },
 );
 
+const EnvironmentDetails = dynamic(
+	() =>
+		import("./overview/environment-details").then(
+			(mod) => mod.EnvironmentDetails,
+		),
+	{ loading: () => <Skeleton className="h-48 w-full rounded-xl" /> },
+);
+
+const EconomicsDeepDive = dynamic(
+	() =>
+		import("./overview/economics-deep-dive").then(
+			(mod) => mod.EconomicsDeepDive,
+		),
+	{ loading: () => <Skeleton className="h-64 w-full rounded-xl" /> },
+);
+
 const SafetyAlert = dynamic(
 	() => import("./overview/safety-alert").then((mod) => mod.SafetyAlert),
 	{ loading: () => <Skeleton className="h-24 w-full rounded-xl" /> },
@@ -204,7 +220,35 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				</SectionErrorBoundary>
 			)}
 
-			{/* 5. SAFETY ALERT (conditional) */}
+			{/* 5. ENVIRONMENT DETAILS */}
+			{report.environment && (
+				<SectionErrorBoundary sectionName="Environmental Impact">
+					<EnvironmentDetails
+						co2Avoided={report.environment.co2Avoided}
+						esgHeadline={report.environment.esgHeadline}
+						currentHarm={report.environment.currentHarm}
+						waterSavings={report.environment.waterSavings}
+						circularityPotential={report.environment.circularityPotential}
+						circularityRationale={report.environment.circularityRationale}
+					/>
+				</SectionErrorBoundary>
+			)}
+
+			{/* 6. ECONOMICS DEEP DIVE */}
+			{report.economicsDeepDive && (
+				<SectionErrorBoundary sectionName="Economics Analysis">
+					<EconomicsDeepDive
+						profitabilityBand={report.economicsDeepDive.profitabilityBand}
+						profitabilitySummary={report.economicsDeepDive.profitabilitySummary}
+						costBreakdown={report.economicsDeepDive.costBreakdown}
+						scenarioSummary={report.economicsDeepDive.scenarioSummary}
+						assumptions={report.economicsDeepDive.assumptions}
+						dataGaps={report.economicsDeepDive.dataGaps}
+					/>
+				</SectionErrorBoundary>
+			)}
+
+			{/* 7. SAFETY ALERT (conditional) */}
 			{report.safety && (
 				<SectionErrorBoundary sectionName="Safety">
 					<SafetyAlert
@@ -215,7 +259,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				</SectionErrorBoundary>
 			)}
 
-			{/* 6. RISKS & NEXT STEPS */}
+			{/* 8. RISKS & NEXT STEPS */}
 			<SectionErrorBoundary sectionName="Action Plan">
 				<ActionPlaybook
 					recommendations={report.nextSteps || []}
@@ -223,7 +267,7 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 				/>
 			</SectionErrorBoundary>
 
-			{/* 7. QUICK ACTIONS */}
+			{/* 9. QUICK ACTIONS */}
 			<QuickActions proposalId={proposal.id} proposalTitle={proposal.title} />
 
 			<Separator className="my-8" />

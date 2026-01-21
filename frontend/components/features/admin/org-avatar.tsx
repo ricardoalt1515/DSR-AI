@@ -10,14 +10,14 @@ interface OrgAvatarProps {
 }
 
 const COLORS = [
-	"bg-blue-500",
-	"bg-emerald-500",
-	"bg-violet-500",
-	"bg-amber-500",
-	"bg-rose-500",
-	"bg-cyan-500",
-	"bg-indigo-500",
-	"bg-teal-500",
+	"bg-avatar-1",
+	"bg-avatar-2",
+	"bg-avatar-3",
+	"bg-avatar-4",
+	"bg-avatar-5",
+	"bg-avatar-6",
+	"bg-avatar-7",
+	"bg-avatar-8",
 ];
 
 function getColorFromString(str: string): string {
@@ -26,7 +26,7 @@ function getColorFromString(str: string): string {
 		hash = str.charCodeAt(i) + ((hash << 5) - hash);
 	}
 	const index = Math.abs(hash) % COLORS.length;
-	return COLORS[index] ?? "bg-blue-500";
+	return COLORS[index] ?? "bg-avatar-1";
 }
 
 function getInitials(name: string): string {

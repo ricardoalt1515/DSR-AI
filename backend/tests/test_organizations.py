@@ -1,0 +1,195 @@
+import uuid
+
+import pytest
+from conftest import create_org, create_user
+from httpx import AsyncClient
+
+from app.models.user import UserRole
+
+
+@pytest.mark.asyncio
+async def test_get_current_org(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Current", "org-current")
+    user = await create_user(
+        db_session,
+        email=f"current-org-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+
+    set_current_user(user)
+    response = await client.get("/api/v1/organizations/current")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Org Current"
+    assert data["id"] == str(org.id)
+
+
+@pytest.mark.asyncio
+async def test_list_org_users_as_admin(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org List Users", "org-list-users")
+    admin = await create_user(
+        db_session,
+        email=f"admin-list-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    await create_user(
+        db_session,
+        email=f"agent1-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    await create_user(
+        db_session,
+        email=f"agent2-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+
+    set_current_user(admin)
+    response = await client.get("/api/v1/organizations/current/users")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 3
+
+
+@pytest.mark.asyncio
+async def test_list_org_users_as_agent_forbidden(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Forbidden List", "org-forbidden-list")
+    agent = await create_user(
+        db_session,
+        email=f"agent-forbidden-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+
+    set_current_user(agent)
+    response = await client.get("/api/v1/organizations/current/users")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_create_org_user_as_admin(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Create User", "org-create-user")
+    admin = await create_user(
+        db_session,
+        email=f"admin-create-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+
+    set_current_user(admin)
+    response = await client.post(
+        "/api/v1/organizations/current/users",
+        json={
+            "email": f"newuser-{uid}@example.com",
+            "password": "Password1",
+            "first_name": "New",
+            "last_name": "User",
+            "role": UserRole.FIELD_AGENT.value,
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["email"] == f"newuser-{uid}@example.com"
+
+
+@pytest.mark.asyncio
+async def test_create_org_user_cannot_create_platform_admin(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org No Platform Admin", "org-no-platform-admin")
+    admin = await create_user(
+        db_session,
+        email=f"admin-no-platform-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+
+    set_current_user(admin)
+    response = await client.post(
+        "/api/v1/organizations/current/users",
+        json={
+            "email": f"platform-admin-{uid}@example.com",
+            "password": "Password1",
+            "first_name": "Platform",
+            "last_name": "Admin",
+            "role": UserRole.ADMIN.value,
+        },
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_superadmin_list_all_orgs(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    await create_org(db_session, "Org Super 1", "org-super-1")
+    await create_org(db_session, "Org Super 2", "org-super-2")
+
+    superadmin = await create_user(
+        db_session,
+        email=f"superadmin-{uid}@example.com",
+        org_id=None,
+        role=UserRole.ADMIN.value,
+        is_superuser=True,
+    )
+
+    set_current_user(superadmin)
+    response = await client.get("/api/v1/organizations")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 2
+
+
+@pytest.mark.asyncio
+async def test_superadmin_create_org(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    superadmin = await create_user(
+        db_session,
+        email=f"superadmin-create-{uid}@example.com",
+        org_id=None,
+        role=UserRole.ADMIN.value,
+        is_superuser=True,
+    )
+
+    set_current_user(superadmin)
+    response = await client.post(
+        "/api/v1/organizations",
+        json={
+            "name": f"New Org {uid}",
+            "slug": f"new-org-{uid}",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == f"New Org {uid}"
+
+
+@pytest.mark.asyncio
+async def test_regular_user_cannot_list_all_orgs(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Regular", "org-regular")
+    user = await create_user(
+        db_session,
+        email=f"regular-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+
+    set_current_user(user)
+    response = await client.get("/api/v1/organizations")
+    assert response.status_code == 403

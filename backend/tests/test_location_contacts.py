@@ -1,9 +1,11 @@
+import uuid
+
 import pytest
+from conftest import create_company, create_location, create_org, create_user
 from httpx import AsyncClient
 
 from app.models.location_contact import LocationContact
 from app.models.user import UserRole
-from tests.test_multi_tenant import create_company, create_location, create_org, create_user
 
 
 @pytest.mark.asyncio
@@ -12,10 +14,11 @@ async def test_field_agent_can_create_and_update_location_contacts(
     db_session,
     set_current_user,
 ):
+    uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Contacts", "org-contacts")
     user = await create_user(
         db_session,
-        email="agent@example.com",
+        email=f"agent-{uid}@example.com",
         org_id=org.id,
         role=UserRole.FIELD_AGENT.value,
         is_superuser=False,
@@ -61,10 +64,11 @@ async def test_field_agent_cannot_delete_location_contacts(
     db_session,
     set_current_user,
 ):
+    uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Contacts Deny", "org-contacts-deny")
     user = await create_user(
         db_session,
-        email="agent-deny@example.com",
+        email=f"agent-deny-{uid}@example.com",
         org_id=org.id,
         role=UserRole.FIELD_AGENT.value,
         is_superuser=False,
@@ -103,10 +107,11 @@ async def test_non_writer_cannot_manage_location_contacts(
     db_session,
     set_current_user,
 ):
+    uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Readonly", "org-readonly")
     user = await create_user(
         db_session,
-        email="compliance@example.com",
+        email=f"compliance-{uid}@example.com",
         org_id=org.id,
         role=UserRole.COMPLIANCE.value,
         is_superuser=False,
@@ -134,10 +139,11 @@ async def test_location_detail_includes_contacts(
     db_session,
     set_current_user,
 ):
+    uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Detail", "org-detail")
     user = await create_user(
         db_session,
-        email="viewer@example.com",
+        email=f"viewer-{uid}@example.com",
         org_id=org.id,
         role=UserRole.FIELD_AGENT.value,
         is_superuser=False,

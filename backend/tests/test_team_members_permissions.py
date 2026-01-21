@@ -1,18 +1,21 @@
+import uuid
+
 import pytest
+from conftest import create_org, create_user
 from httpx import AsyncClient
 
 from app.models.user import UserRole
-from tests.test_multi_tenant import create_org, create_user
 
 
 @pytest.mark.asyncio
 async def test_field_agent_cannot_list_team_members(
     client: AsyncClient, db_session, set_current_user
 ):
+    uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Team", "org-team")
     agent = await create_user(
         db_session,
-        email="agent-team@example.com",
+        email=f"agent-team-{uid}@example.com",
         org_id=org.id,
         role=UserRole.FIELD_AGENT.value,
         is_superuser=False,
@@ -27,10 +30,11 @@ async def test_field_agent_cannot_list_team_members(
 async def test_field_agent_cannot_create_team_members(
     client: AsyncClient, db_session, set_current_user
 ):
+    uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Team Create", "org-team-create")
     agent = await create_user(
         db_session,
-        email="agent-create@example.com",
+        email=f"agent-create-{uid}@example.com",
         org_id=org.id,
         role=UserRole.FIELD_AGENT.value,
         is_superuser=False,

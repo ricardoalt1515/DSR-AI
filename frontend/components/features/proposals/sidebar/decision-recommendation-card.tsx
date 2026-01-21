@@ -30,28 +30,28 @@ export function DecisionRecommendationCard({
 				return {
 					variant: "default" as const,
 					icon: CheckCircle2,
-					bgColor: "bg-green-50 dark:bg-green-950",
-					borderColor: "border-green-200 dark:border-green-800",
-					textColor: "text-green-700 dark:text-green-300",
-					badgeBg: "bg-green-500",
+					bgColor: "bg-decision-go-bg",
+					borderColor: "border-decision-go-border",
+					textColor: "text-success",
+					badgeBg: "bg-success",
 				};
 			case "NO-GO":
 				return {
 					variant: "destructive" as const,
 					icon: XCircle,
-					bgColor: "bg-red-50 dark:bg-red-950",
-					borderColor: "border-red-200 dark:border-red-800",
-					textColor: "text-red-700 dark:text-red-300",
-					badgeBg: "bg-red-500",
+					bgColor: "bg-decision-nogo-bg",
+					borderColor: "border-decision-nogo-border",
+					textColor: "text-destructive",
+					badgeBg: "bg-destructive",
 				};
 			case "INVESTIGATE FURTHER":
 				return {
 					variant: "secondary" as const,
 					icon: AlertCircle,
-					bgColor: "bg-yellow-50 dark:bg-yellow-950",
-					borderColor: "border-yellow-200 dark:border-yellow-800",
-					textColor: "text-yellow-700 dark:text-yellow-300",
-					badgeBg: "bg-yellow-500",
+					bgColor: "bg-decision-investigate-bg",
+					borderColor: "border-decision-investigate-border",
+					textColor: "text-warning",
+					badgeBg: "bg-warning",
 				};
 		}
 	};

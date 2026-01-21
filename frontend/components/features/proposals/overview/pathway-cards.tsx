@@ -2,12 +2,16 @@
 
 import { motion } from "framer-motion";
 import {
+	AlertCircle,
 	Check,
+	CheckCircle2,
 	ChevronDown,
 	Copy,
 	Crown,
 	Lightbulb,
+	MapPin,
 	RefreshCw,
+	XCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +25,27 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
+const FEASIBILITY_CONFIG = {
+	High: {
+		bg: "bg-success/10",
+		text: "text-success",
+		border: "border-success/30",
+		icon: CheckCircle2,
+	},
+	Medium: {
+		bg: "bg-warning/10",
+		text: "text-warning",
+		border: "border-warning/30",
+		icon: AlertCircle,
+	},
+	Low: {
+		bg: "bg-destructive/10",
+		text: "text-destructive",
+		border: "border-destructive/30",
+		icon: XCircle,
+	},
+} as const;
+
 export interface PathwayData {
 	action: string;
 	buyerTypes: string;
@@ -28,6 +53,9 @@ export interface PathwayData {
 	annualValue: string;
 	esgPitch: string;
 	handling: string;
+	feasibility?: "High" | "Medium" | "Low";
+	targetLocations?: string[];
+	whyItWorks?: string;
 }
 
 interface PathwayCardsProps {
@@ -70,6 +98,9 @@ function PathwayCard({
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const FeasibilityIcon = pathway.feasibility
+		? FEASIBILITY_CONFIG[pathway.feasibility].icon
+		: null;
 
 	const handleCopy = () => {
 		copyToClipboard(pathway.esgPitch);
@@ -105,6 +136,20 @@ function PathwayCard({
 								>
 									<Crown className="h-3 w-3" />
 									Best ROI
+								</Badge>
+							)}
+							{pathway.feasibility && FeasibilityIcon && (
+								<Badge
+									variant="outline"
+									className={cn(
+										"gap-1",
+										FEASIBILITY_CONFIG[pathway.feasibility].bg,
+										FEASIBILITY_CONFIG[pathway.feasibility].text,
+										FEASIBILITY_CONFIG[pathway.feasibility].border,
+									)}
+								>
+									<FeasibilityIcon className="h-3 w-3" />
+									{pathway.feasibility}
 								</Badge>
 							)}
 						</div>
@@ -197,8 +242,40 @@ function PathwayCard({
 							</Button>
 						</CollapsibleTrigger>
 						<CollapsibleContent>
-							<div className="pt-2 px-1 text-sm text-muted-foreground">
-								{pathway.handling}
+							<div className="pt-2 px-1 space-y-3">
+								<p className="text-sm text-muted-foreground">
+									{pathway.handling}
+								</p>
+								{pathway.targetLocations &&
+									pathway.targetLocations.length > 0 && (
+										<div className="flex flex-wrap items-center gap-2">
+											<MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+											<span className="text-xs font-medium text-muted-foreground">
+												Target Markets:
+											</span>
+											{pathway.targetLocations.map((location) => (
+												<span
+													key={location}
+													className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+												>
+													{location}
+												</span>
+											))}
+										</div>
+									)}
+								{pathway.whyItWorks && (
+									<div className="pl-3 border-l-2 border-primary/30 bg-primary/5 rounded-r-lg p-3">
+										<div className="flex items-center gap-1.5 mb-1">
+											<Lightbulb className="h-3.5 w-3.5 text-primary" />
+											<span className="text-xs font-semibold text-primary">
+												Why it works
+											</span>
+										</div>
+										<p className="text-sm text-muted-foreground italic">
+											&quot;{pathway.whyItWorks}&quot;
+										</p>
+									</div>
+								)}
 							</div>
 						</CollapsibleContent>
 					</Collapsible>

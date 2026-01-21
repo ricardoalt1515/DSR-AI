@@ -21,14 +21,14 @@ const variantStyles = {
 		value: "text-foreground",
 	},
 	success: {
-		container: "border-green-500/20 bg-green-500/5",
-		icon: "bg-green-500/10 text-green-600 dark:text-green-400",
-		value: "text-green-600 dark:text-green-400",
+		container: "border-success/20 bg-success/5",
+		icon: "bg-success/10 text-success",
+		value: "text-success",
 	},
 	warning: {
-		container: "border-yellow-500/20 bg-yellow-500/5",
-		icon: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
-		value: "text-yellow-600 dark:text-yellow-400",
+		container: "border-warning/20 bg-warning/5",
+		icon: "bg-warning/10 text-warning",
+		value: "text-warning",
 	},
 	muted: {
 		container: "border-muted-foreground/20 bg-muted/50",
@@ -74,7 +74,7 @@ export function AdminStatsCard({
 						<span
 							className={cn(
 								"text-xs font-medium",
-								trend.isPositive ? "text-green-600" : "text-red-600",
+								trend.isPositive ? "text-success" : "text-destructive",
 							)}
 						>
 							{trend.isPositive ? "+" : "-"}

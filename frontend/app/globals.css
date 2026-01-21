@@ -22,8 +22,10 @@
 	--destructive-foreground: oklch(0.98 0.01 0);
 	--success: oklch(0.73 0.14 154);
 	--success-foreground: oklch(0.99 0.004 250);
-	--warning: oklch(0.86 0.15 90);
+	--warning: oklch(0.72 0.15 85);
 	--warning-foreground: oklch(0.28 0.05 75);
+	--info: oklch(0.55 0.15 235);
+	--info-foreground: oklch(0.99 0.004 250);
 	--border: oklch(0.92 0.01 250);
 	--input: oklch(0.88 0.01 250);
 	--ring: oklch(0.74 0.09 256);
@@ -48,6 +50,46 @@
 		var(--destructive) 18%,
 		transparent
 	);
+
+	/* Decision State Tokens */
+	--decision-go-bg: color-mix(in srgb, var(--success) 8%, var(--card));
+	--decision-go-border: color-mix(in srgb, var(--success) 25%, transparent);
+	--decision-nogo-bg: color-mix(in srgb, var(--destructive) 8%, var(--card));
+	--decision-nogo-border: color-mix(
+		in srgb,
+		var(--destructive) 25%,
+		transparent
+	);
+	--decision-investigate-bg: color-mix(in srgb, var(--warning) 8%, var(--card));
+	--decision-investigate-border: color-mix(
+		in srgb,
+		var(--warning) 25%,
+		transparent
+	);
+
+	/* Avatar Palette (8 colors for user avatars) */
+	--avatar-1: var(--primary);
+	--avatar-2: var(--success);
+	--avatar-3: oklch(0.6 0.14 320);
+	--avatar-4: var(--warning);
+	--avatar-5: var(--destructive);
+	--avatar-6: var(--info);
+	--avatar-7: oklch(0.55 0.12 270);
+	--avatar-8: oklch(0.65 0.13 175);
+
+	/* Password Strength Tokens */
+	--strength-weak: var(--destructive);
+	--strength-fair: var(--warning);
+	--strength-good: var(--info);
+	--strength-strong: var(--success);
+
+	/* Gradient Token */
+	--gradient-primary: linear-gradient(
+		135deg,
+		var(--primary),
+		color-mix(in srgb, var(--primary) 80%, var(--info))
+	);
+
 	--font-sans: var(--font-geist-sans), system-ui, sans-serif;
 	--font-display: var(--font-dm-sans), "DM Sans", sans-serif;
 	--font-mono:
@@ -167,12 +209,14 @@
 	--muted-foreground: oklch(0.76 0.03 255);
 	--accent: oklch(0.38 0.05 222);
 	--accent-foreground: oklch(0.92 0.03 230);
-	--destructive: oklch(0.4 0.14 25);
+	--destructive: oklch(0.55 0.16 25);
 	--destructive-foreground: oklch(0.93 0.01 14);
 	--success: oklch(0.68 0.13 150);
 	--success-foreground: oklch(0.19 0.02 250);
 	--warning: oklch(0.82 0.16 90);
 	--warning-foreground: oklch(0.22 0.05 78);
+	--info: oklch(0.68 0.12 235);
+	--info-foreground: oklch(0.19 0.02 250);
 	--border: oklch(0.28 0.02 250);
 	--input: oklch(0.32 0.02 250);
 	--ring: oklch(0.68 0.1 256);
@@ -275,6 +319,8 @@
 		--success-foreground: #f0fdf4;
 		--warning: #f59e0b;
 		--warning-foreground: #78350f;
+		--info: #3b82f6;
+		--info-foreground: #f8fafc;
 		--border: #e5e7eb;
 		--input: #e2e8f0;
 		--ring: #2563eb;
@@ -322,6 +368,8 @@
 		--success-foreground: #052e16;
 		--warning: #fbbf24;
 		--warning-foreground: #78350f;
+		--info: #60a5fa;
+		--info-foreground: #0f172a;
 		--border: #1f2937;
 		--input: #1f2937;
 		--ring: #3b82f6;
@@ -370,6 +418,8 @@
 	--color-success-foreground: var(--success-foreground);
 	--color-warning: var(--warning);
 	--color-warning-foreground: var(--warning-foreground);
+	--color-info: var(--info);
+	--color-info-foreground: var(--info-foreground);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -397,6 +447,30 @@
 	--state-success-bg: var(--state-success-bg);
 	--state-warning-bg: var(--state-warning-bg);
 	--state-destructive-bg: var(--state-destructive-bg);
+
+	/* Decision State Colors */
+	--color-decision-go-bg: var(--decision-go-bg);
+	--color-decision-go-border: var(--decision-go-border);
+	--color-decision-nogo-bg: var(--decision-nogo-bg);
+	--color-decision-nogo-border: var(--decision-nogo-border);
+	--color-decision-investigate-bg: var(--decision-investigate-bg);
+	--color-decision-investigate-border: var(--decision-investigate-border);
+
+	/* Avatar Colors */
+	--color-avatar-1: var(--avatar-1);
+	--color-avatar-2: var(--avatar-2);
+	--color-avatar-3: var(--avatar-3);
+	--color-avatar-4: var(--avatar-4);
+	--color-avatar-5: var(--avatar-5);
+	--color-avatar-6: var(--avatar-6);
+	--color-avatar-7: var(--avatar-7);
+	--color-avatar-8: var(--avatar-8);
+
+	/* Password Strength Colors */
+	--color-strength-weak: var(--strength-weak);
+	--color-strength-fair: var(--strength-fair);
+	--color-strength-good: var(--strength-good);
+	--color-strength-strong: var(--strength-strong);
 
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
@@ -1420,15 +1494,11 @@ body {
 		letter-spacing: 0.02em;
 		background: linear-gradient(
 			135deg,
-			color-mix(in srgb, var(--primary) 16%, transparent) 0%,
-			color-mix(in srgb, var(--accent) 10%, transparent) 100%
+			color-mix(in srgb, var(--primary) 25%, transparent) 0%,
+			color-mix(in srgb, var(--accent) 18%, transparent) 100%
 		);
-		color: color-mix(
-			in srgb,
-			var(--primary-foreground) 85%,
-			var(--foreground) 15%
-		);
-		border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+		color: var(--primary);
+		border: 1px solid color-mix(in srgb, var(--primary) 55%, transparent);
 		box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 25%, transparent);
 		backdrop-filter: blur(16px);
 	}

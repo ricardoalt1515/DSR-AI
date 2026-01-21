@@ -12,31 +12,31 @@ interface HeroDecisionBannerProps {
 }
 
 const CONFIDENCE_CONFIG = {
-	High: { percent: 90, color: "text-green-500", ring: "stroke-green-500" },
-	Medium: { percent: 65, color: "text-yellow-500", ring: "stroke-yellow-500" },
-	Low: { percent: 35, color: "text-red-500", ring: "stroke-red-500" },
+	High: { percent: 90, color: "text-success", ring: "stroke-success" },
+	Medium: { percent: 65, color: "text-warning", ring: "stroke-warning" },
+	Low: { percent: 35, color: "text-destructive", ring: "stroke-destructive" },
 } as const;
 
 const DECISION_CONFIG = {
 	GO: {
 		icon: CheckCircle2,
-		bg: "from-green-500/20 to-emerald-500/10",
-		border: "border-green-500/50",
-		text: "text-green-500",
+		bg: "from-success/20 to-success/10",
+		border: "border-success/50",
+		text: "text-success",
 		label: "GO",
 	},
 	"NO-GO": {
 		icon: XCircle,
-		bg: "from-red-500/20 to-rose-500/10",
-		border: "border-red-500/50",
-		text: "text-red-500",
+		bg: "from-destructive/20 to-destructive/10",
+		border: "border-destructive/50",
+		text: "text-destructive",
 		label: "NO-GO",
 	},
 	INVESTIGATE: {
 		icon: HelpCircle,
-		bg: "from-yellow-500/20 to-amber-500/10",
-		border: "border-yellow-500/50",
-		text: "text-yellow-500",
+		bg: "from-warning/20 to-warning/10",
+		border: "border-warning/50",
+		text: "text-warning",
 		label: "INVESTIGATE",
 	},
 } as const;

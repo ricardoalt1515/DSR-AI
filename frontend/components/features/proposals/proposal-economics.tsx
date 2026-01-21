@@ -37,7 +37,7 @@ function AssumptionBadge() {
 	return (
 		<Badge
 			variant="outline"
-			className="text-xs border-yellow-500/50 text-yellow-700 dark:text-yellow-400 bg-yellow-50/50 dark:bg-yellow-950/30"
+			className="text-xs border-warning/50 text-warning bg-state-warning-bg"
 		>
 			<AlertCircle className="h-3 w-3 mr-1" />
 			Assumption
@@ -154,14 +154,14 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								</span>
 							</div>
 							{/* Range Bar */}
-							<div className="relative p-6 rounded-xl bg-gradient-to-r from-yellow-500/10 via-green-500/10 to-green-600/15 border border-primary/20">
+							<div className="relative p-6 rounded-xl bg-gradient-to-r from-warning/10 via-success/10 to-success/15 border border-primary/20">
 								<div className="flex items-center justify-between">
 									{/* Low Case */}
 									<div className="text-center flex-1">
 										<div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
 											Conservative
 										</div>
-										<div className="text-4xl font-bold text-yellow-600 dark:text-yellow-400">
+										<div className="text-4xl font-bold text-warning">
 											{lowParsed.value}
 										</div>
 										{lowParsed.detail && (
@@ -179,7 +179,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 										<div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
 											Optimistic
 										</div>
-										<div className="text-4xl font-bold text-green-600 dark:text-green-400">
+										<div className="text-4xl font-bold text-success">
 											{highParsed.value}
 										</div>
 										{highParsed.detail && (
@@ -263,7 +263,7 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 					<div className="flex items-start justify-between">
 						<div>
 							<CardTitle className="flex items-center gap-2">
-								<TrendingDown className="h-5 w-5 text-green-600" />
+								<TrendingDown className="h-5 w-5 text-success" />
 								Landfill Reduction
 							</CardTitle>
 							<p className="text-sm text-muted-foreground">
@@ -287,11 +287,11 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 						</div>
 
 						<div className="space-y-2">
-							<p className="text-xs uppercase tracking-wide text-green-600 font-medium">
+							<p className="text-xs uppercase tracking-wide text-success font-medium">
 								After DSR Acquisition
 							</p>
 							{landfillAfter.map((item: string) => (
-								<p key={item} className="text-lg font-semibold text-green-600">
+								<p key={item} className="text-lg font-semibold text-success">
 									{item}
 								</p>
 							))}
@@ -312,12 +312,12 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 			</Card>
 
 			{/* GENERATOR COST SAVINGS */}
-			<Card className="border-blue-200 dark:border-blue-800">
+			<Card className="border-info/25">
 				<CardHeader>
 					<div className="flex items-start justify-between">
 						<div>
 							<CardTitle className="flex items-center gap-2">
-								<DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+								<DollarSign className="h-5 w-5 text-info" />
 								Generator Cost Savings
 							</CardTitle>
 							<p className="text-sm text-muted-foreground">
@@ -341,14 +341,11 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 						</div>
 
 						<div className="space-y-2">
-							<p className="text-xs uppercase tracking-wide text-blue-600 font-medium">
+							<p className="text-xs uppercase tracking-wide text-info font-medium">
 								After DSR
 							</p>
 							{wasteAfter.map((item: string) => (
-								<p
-									key={item}
-									className="text-lg font-semibold text-blue-600 dark:text-blue-400"
-								>
+								<p key={item} className="text-lg font-semibold text-info">
 									{item}
 								</p>
 							))}
@@ -371,12 +368,12 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 			<Separator />
 
 			{/* CO2 REDUCTION - BIG NUMBERS */}
-			<Card className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20">
+			<Card className="border-success/25 bg-state-success-bg">
 				<CardHeader>
 					<div className="flex items-start justify-between">
 						<div>
 							<CardTitle className="flex items-center gap-2">
-								<Leaf className="h-6 w-6 text-green-600 dark:text-green-400" />
+								<Leaf className="h-6 w-6 text-success" />
 								CO₂ Emissions Avoided
 							</CardTitle>
 							<p className="text-sm text-muted-foreground">
@@ -389,25 +386,19 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 				<CardContent className="space-y-6">
 					{/* BIG CO2 NUMBER */}
 					{co2Tons.length > 0 && (
-						<div className="text-center p-6 rounded-xl bg-green-100/50 dark:bg-green-900/20">
-							<div className="text-sm uppercase tracking-wide text-green-700 dark:text-green-300 mb-2">
+						<div className="text-center p-6 rounded-xl bg-success/10">
+							<div className="text-sm uppercase tracking-wide text-success mb-2">
 								Annual CO₂ Avoided
 							</div>
 							{co2Tons.map((item: string) => (
-								<div
-									key={item}
-									className="text-5xl font-bold text-green-600 dark:text-green-400"
-								>
+								<div key={item} className="text-5xl font-bold text-success">
 									{item}
 								</div>
 							))}
 							{co2Percent.length > 0 && (
 								<div className="mt-4 flex justify-center gap-2">
 									{co2Percent.map((pct: string) => (
-										<Badge
-											key={pct}
-											className="bg-green-600 text-base px-4 py-1"
-										>
+										<Badge key={pct} className="bg-success text-base px-4 py-1">
 											{pct}
 										</Badge>
 									))}
@@ -436,10 +427,10 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 								{/* Equivalents Grid */}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 									{/* Cars off the road */}
-									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-										<Car className="h-8 w-8 text-green-600 dark:text-green-400" />
+									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-card border border-success/25">
+										<Car className="h-8 w-8 text-success" />
 										<div className="text-center">
-											<div className="text-3xl font-bold text-green-600 dark:text-green-400">
+											<div className="text-3xl font-bold text-success">
 												{formatNumber(cars)}
 											</div>
 											<p className="text-xs text-muted-foreground mt-1">
@@ -449,10 +440,10 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 									</div>
 
 									{/* Trees planted */}
-									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-										<TreeDeciduous className="h-8 w-8 text-green-600 dark:text-green-400" />
+									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-card border border-success/25">
+										<TreeDeciduous className="h-8 w-8 text-success" />
 										<div className="text-center">
-											<div className="text-3xl font-bold text-green-600 dark:text-green-400">
+											<div className="text-3xl font-bold text-success">
 												{formatNumber(trees)}
 											</div>
 											<p className="text-xs text-muted-foreground mt-1">
@@ -462,10 +453,10 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 									</div>
 
 									{/* Coal power avoided */}
-									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-										<Zap className="h-8 w-8 text-green-600 dark:text-green-400" />
+									<div className="flex flex-col items-center gap-3 p-4 rounded-lg bg-card border border-success/25">
+										<Zap className="h-8 w-8 text-success" />
 										<div className="text-center">
-											<div className="text-3xl font-bold text-green-600 dark:text-green-400">
+											<div className="text-3xl font-bold text-success">
 												{formatNumber(kwhCoal)}
 											</div>
 											<p className="text-xs text-muted-foreground mt-1">
@@ -510,10 +501,10 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 
 			{/* Environmental Value Proposition */}
 			{lca.environmentalNotes && (
-				<Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+				<Card className="border-info/25 bg-info/5">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
-							<Leaf className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<Leaf className="h-5 w-5 text-info" />
 							Environmental Value Proposition
 						</CardTitle>
 						<p className="text-sm text-muted-foreground">
@@ -530,15 +521,15 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 
 			{/* Business Risks */}
 			{businessOpp.risks && businessOpp.risks.length > 0 && (
-				<Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+				<Card className="border-warning/25 bg-state-warning-bg">
 					<CardHeader>
 						<div className="flex items-center gap-2">
-							<AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-							<CardTitle className="text-yellow-900 dark:text-yellow-100">
+							<AlertCircle className="h-5 w-5 text-warning" />
+							<CardTitle className="text-warning-foreground">
 								Business Risks to Monitor
 							</CardTitle>
 						</div>
-						<p className="text-sm text-yellow-700 dark:text-yellow-300">
+						<p className="text-sm text-warning">
 							Key risks DSR should evaluate before committing
 						</p>
 					</CardHeader>
@@ -547,14 +538,14 @@ export function ProposalEconomics({ proposal }: ProposalEconomicsProps) {
 							{businessOpp.risks.map((risk: string, index: number) => (
 								<div
 									key={risk}
-									className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-white p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
+									className="flex items-start gap-3 rounded-lg border border-warning/25 bg-card p-4"
 								>
-									<div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
-										<span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">
+									<div className="flex-shrink-0 w-6 h-6 rounded-full bg-warning/20 flex items-center justify-center">
+										<span className="text-xs font-bold text-warning">
 											{index + 1}
 										</span>
 									</div>
-									<span className="text-sm text-yellow-900 dark:text-yellow-100 leading-relaxed">
+									<span className="text-sm text-warning-foreground leading-relaxed">
 										{risk}
 									</span>
 								</div>
