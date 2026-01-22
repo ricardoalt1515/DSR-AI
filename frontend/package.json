@@ -12,7 +12,7 @@
 		"format": "biome format --write ./",
 		"format:check": "biome format ./",
 		"check": "biome check --write ./",
-		"check:ci": "biome ci ./",
+		"check:ci": "biome ci ./ && bun run build",
 		"validate:env": "bun scripts/validate-env.ts",
 		"export:parameter-ids": "bun scripts/export-parameter-ids.ts"
 	},

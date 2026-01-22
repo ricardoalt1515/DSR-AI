@@ -47,6 +47,7 @@ interface UploadDropZoneProps {
 	inputProps: InputHTMLAttributes<HTMLInputElement>;
 	isDragActive: boolean;
 	maxSize: number;
+	disabled?: boolean;
 }
 
 interface UploadingFilesCardProps {
@@ -60,6 +61,7 @@ interface UploadedFilesCardProps {
 	maxFiles: number;
 	onSelectFile: (fileId: string) => void;
 	onDeleteClick: (file: ProjectFile) => void;
+	readOnly?: boolean;
 }
 
 interface FileDetailPanelProps {
@@ -133,6 +135,7 @@ export function UploadDropZone({
 	inputProps,
 	isDragActive,
 	maxSize,
+	disabled = false,
 }: UploadDropZoneProps) {
 	const { className, ...restRootProps } = rootProps;
 
@@ -143,11 +146,14 @@ export function UploadDropZone({
 					{...restRootProps}
 					className={cn(
 						"relative cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-[border-color,background-color,transform,box-shadow] duration-200",
-						isDragActive
+						isDragActive && !disabled
 							? "border-primary bg-primary/10 scale-[1.02] shadow-lg shadow-primary/20"
 							: "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/25",
+						disabled &&
+							"cursor-not-allowed opacity-60 hover:border-muted-foreground/25 hover:bg-transparent",
 						className,
 					)}
+					aria-disabled={disabled}
 				>
 					<input {...inputProps} />
 
@@ -163,10 +169,12 @@ export function UploadDropZone({
 
 						<div className="space-y-2">
 							<h3 className="text-lg font-semibold">
-								{isDragActive ? "Drop files here" : "Upload files"}
+								{isDragActive && !disabled ? "Drop files here" : "Upload files"}
 							</h3>
 							<p className="text-sm text-muted-foreground">
-								Drag files or click to select
+								{disabled
+									? "Uploads disabled for archived projects"
+									: "Drag files or click to select"}
 							</p>
 							<p className="text-xs text-muted-foreground">
 								Supports PDF, Excel, CSV, JSON, TXT, Images (max{" "}
@@ -174,7 +182,9 @@ export function UploadDropZone({
 							</p>
 						</div>
 
-						<Button variant="outline">Select Files</Button>
+						<Button variant="outline" disabled={disabled}>
+							Select Files
+						</Button>
 					</div>
 				</div>
 			</CardContent>
@@ -632,6 +642,7 @@ export function UploadedFilesCard({
 	maxFiles,
 	onSelectFile,
 	onDeleteClick,
+	readOnly = false,
 }: UploadedFilesCardProps) {
 	if (isLoading) {
 		return (
@@ -736,9 +747,12 @@ export function UploadedFilesCard({
 									aria-label={`Delete ${file.filename}`}
 									onClick={(event) => {
 										event.stopPropagation();
-										onDeleteClick(file);
+										if (!readOnly) {
+											onDeleteClick(file);
+										}
 									}}
 									className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+									disabled={readOnly}
 								>
 									<X className="h-4 w-4" />
 								</Button>

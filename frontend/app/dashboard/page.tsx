@@ -61,6 +61,7 @@ const SimplifiedStats = dynamic(
 	},
 );
 
+import { ArchivedFilterSelect } from "@/components/ui/archived-filter-select";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -79,6 +80,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ArchivedFilter } from "@/lib/api/companies";
 import { PROJECT_STATUS_GROUPS } from "@/lib/project-status";
 import type { ProjectSummary } from "@/lib/project-types";
 import { useCompanyStore } from "@/lib/stores/company-store";
@@ -128,6 +130,9 @@ const WasteStreamList = memo(function WasteStreamList({
 					updatedAt={project.updatedAt}
 					createdAt={project.createdAt}
 					proposalsCount={project.proposalsCount}
+					{...(project.archivedAt !== undefined
+						? { archivedAt: project.archivedAt }
+						: {})}
 				/>
 			))}
 		</div>
@@ -164,19 +169,22 @@ function WasteStreamGridSkeleton() {
  * Assessment-first view with company/location context
  */
 const DashboardContent = memo(function DashboardContent() {
-	const { setFilter } = useProjectActions();
+	const { setFilter, setFilters, reloadProjects } = useProjectActions();
 	const { companies, loadCompanies } = useCompanyStore();
 	const [createModalOpen, setCreateModalOpen] = React.useState(false);
 	const [searchTerm, setSearchTerm] = React.useState("");
 	const [companyFilter, setCompanyFilter] = React.useState<string>("all");
 	const [statusFilter, setStatusFilter] = React.useState<string>("active");
+	const [archivedFilter, setArchivedFilter] =
+		React.useState<ArchivedFilter>("active");
 
 	// Load data on mount
 	useEffect(() => {
 		const activeStatuses = PROJECT_STATUS_GROUPS.active.join(",");
-		setFilter("status", activeStatuses);
+		setFilters({ status: activeStatuses, archived: "active" });
+		void reloadProjects();
 		loadCompanies();
-	}, [setFilter, loadCompanies]);
+	}, [setFilters, reloadProjects, loadCompanies]);
 
 	// Handle status filter change with server-side filtering
 	const handleStatusFilterChange = useCallback(
@@ -194,8 +202,9 @@ const DashboardContent = memo(function DashboardContent() {
 				// Single status filter
 				setFilter("status", value);
 			}
+			void reloadProjects();
 		},
-		[setFilter],
+		[setFilter, reloadProjects],
 	);
 
 	// Handle company filter (server-side via companyId)
@@ -203,8 +212,19 @@ const DashboardContent = memo(function DashboardContent() {
 		(value: string) => {
 			setCompanyFilter(value);
 			setFilter("companyId", value === "all" ? undefined : value);
+			void reloadProjects();
 		},
-		[setFilter],
+		[setFilter, reloadProjects],
+	);
+
+	// Handle archived filter (server-side)
+	const handleArchivedFilterChange = useCallback(
+		(value: ArchivedFilter) => {
+			setArchivedFilter(value);
+			setFilter("archived", value);
+			void reloadProjects();
+		},
+		[setFilter, reloadProjects],
 	);
 
 	const handleOpenCreateModal = useCallback(() => {
@@ -363,6 +383,11 @@ const DashboardContent = memo(function DashboardContent() {
 									<SelectItem value="On Hold">On Hold</SelectItem>
 								</SelectContent>
 							</Select>
+
+							<ArchivedFilterSelect
+								value={archivedFilter}
+								onChange={handleArchivedFilterChange}
+							/>
 						</div>
 					</CardContent>
 				</Card>

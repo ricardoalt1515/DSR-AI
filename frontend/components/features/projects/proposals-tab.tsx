@@ -80,7 +80,7 @@ const IntelligentProposalGeneratorComponent = dynamic(
 	},
 );
 
-type Project = Pick<ProjectSummary, "id" | "name" | "type">;
+type Project = Pick<ProjectSummary, "id" | "name" | "projectType">;
 
 const ProposalStatusLabels: Record<ProposalStatus, string> = {
 	Draft: "Draft",
@@ -135,6 +135,8 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 		storeProject && storeProject.id === project.id
 			? (storeProject as ProjectDetail)
 			: null;
+	const isArchived =
+		storeProject?.id === project.id && Boolean(storeProject.archivedAt);
 
 	const prioritizedGaps = useMemo(
 		() =>
@@ -173,7 +175,8 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 		useProposalGenerationStore();
 	const isGeneratingForProject =
 		isGenerating && generatingProjectId === project.id;
-	const shouldShowGenerator = isReady || isGeneratingForProject;
+	const shouldShowGenerator =
+		!isArchived && (isReady || isGeneratingForProject);
 
 	// Ref to trigger generation from "Generate First Proposal" button
 	const generatorRef = useRef<ProposalGeneratorHandle | null>(null);
@@ -189,11 +192,18 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 	} | null>(null);
 
 	const openDeleteDialog = (proposalId: string, proposalTitle: string) => {
+		if (isArchived) {
+			toast.info("Proposals are read-only for archived projects.");
+			return;
+		}
 		setProposalToDelete({ id: proposalId, title: proposalTitle });
 		setShowDeleteDialog(true);
 	};
 
 	const handleDeleteProposal = async () => {
+		if (isArchived) {
+			return;
+		}
 		if (!proposalToDelete) return;
 
 		setDeletingProposalId(proposalToDelete.id);
@@ -221,82 +231,94 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 
 	return (
 		<div className="space-y-6">
-			{shouldShowGenerator ? (
-				<IntelligentProposalGeneratorComponent
-					projectId={project.id}
-					triggerRef={generatorRef}
-				/>
-			) : (
-				<Card className="alert-warning-card">
-					<CardHeader className="space-y-2">
-						<CardTitle className="flex items-center gap-2">
-							<ClipboardCheck className="h-5 w-5" />
-							Before Generating Proposal
-						</CardTitle>
-						<CardDescription className="opacity-90">
-							Complete the technical sheet so the conceptual agent has
-							sufficient data.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<Alert variant="default" className="border-warning/30 bg-card/50">
-							<Sparkles className="h-4 w-4" />
-							<AlertDescription>
-								<span className="font-semibold">
-									Current progress: {completion.percentage}% complete.
-								</span>{" "}
-								At least {PROPOSAL_READINESS_THRESHOLD}% required.
-							</AlertDescription>
-						</Alert>
-						{prioritizedGaps.length > 0 && (
-							<div className="space-y-4">
-								<div className="space-y-2 text-sm">
-									<p className="font-semibold">
-										Complete these sections to continue:
-									</p>
-									<div className="space-y-2">
-										{prioritizedGaps.map(({ section, stats }) => (
-											<div
-												key={section.id}
-												className="flex items-center justify-between p-3 bg-card/60 rounded-lg border border-border/60 backdrop-blur"
-											>
-												<div>
-													<p className="font-medium">{section.title}</p>
-													<p className="text-xs text-muted-foreground">
-														{stats.completed} of {stats.total} fields
-													</p>
+			{isArchived && (
+				<Alert className="border-warning/40 bg-warning/10">
+					<AlertDescription>
+						This project is archived. Proposal generation and deletion are
+						disabled.
+					</AlertDescription>
+				</Alert>
+			)}
+			{!isArchived &&
+				(shouldShowGenerator ? (
+					<IntelligentProposalGeneratorComponent
+						projectId={project.id}
+						triggerRef={generatorRef}
+					/>
+				) : (
+					<Card className="alert-warning-card">
+						<CardHeader className="space-y-2">
+							<CardTitle className="flex items-center gap-2">
+								<ClipboardCheck className="h-5 w-5" />
+								Before Generating Proposal
+							</CardTitle>
+							<CardDescription className="opacity-90">
+								Complete the technical sheet so the conceptual agent has
+								sufficient data.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<Alert variant="default" className="border-warning/30 bg-card/50">
+								<Sparkles className="h-4 w-4" />
+								<AlertDescription>
+									<span className="font-semibold">
+										Current progress: {completion.percentage}% complete.
+									</span>{" "}
+									At least {PROPOSAL_READINESS_THRESHOLD}% required.
+								</AlertDescription>
+							</Alert>
+							{prioritizedGaps.length > 0 && (
+								<div className="space-y-4">
+									<div className="space-y-2 text-sm">
+										<p className="font-semibold">
+											Complete these sections to continue:
+										</p>
+										<div className="space-y-2">
+											{prioritizedGaps.map(({ section, stats }) => (
+												<div
+													key={section.id}
+													className="flex items-center justify-between p-3 bg-card/60 rounded-lg border border-border/60 backdrop-blur"
+												>
+													<div>
+														<p className="font-medium">{section.title}</p>
+														<p className="text-xs text-muted-foreground">
+															{stats.completed} of {stats.total} fields
+														</p>
+													</div>
+													<Badge
+														variant="outline"
+														className="border-primary/40"
+													>
+														{stats.percentage}%
+													</Badge>
 												</div>
-												<Badge variant="outline" className="border-primary/40">
-													{stats.percentage}%
-												</Badge>
-											</div>
-										))}
+											))}
+										</div>
 									</div>
 								</div>
+							)}
+							<div className="flex flex-wrap gap-2 mt-4">
+								<Button
+									size="sm"
+									variant="default"
+									onClick={() =>
+										router.push(routes.project.technical(project.id))
+									}
+								>
+									<Lightbulb className="mr-2 h-4 w-4" />
+									Complete Technical Sheet
+								</Button>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() => router.push(routes.project.files(project.id))}
+								>
+									Import from Files
+								</Button>
 							</div>
-						)}
-						<div className="flex flex-wrap gap-2 mt-4">
-							<Button
-								size="sm"
-								variant="default"
-								onClick={() =>
-									router.push(routes.project.technical(project.id))
-								}
-							>
-								<Lightbulb className="mr-2 h-4 w-4" />
-								Complete Technical Sheet
-							</Button>
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={() => router.push(routes.project.files(project.id))}
-							>
-								Import from Files
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			)}
+						</CardContent>
+					</Card>
+				))}
 
 			<div className="border-t pt-6">
 				<div className="flex items-center justify-between mb-4">
@@ -351,6 +373,9 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 							<div className="flex flex-col sm:flex-row gap-3">
 								<Button
 									onClick={() => {
+										if (isArchived) {
+											return;
+										}
 										if (isReady) {
 											// Trigger the proposal generation
 											generatorRef.current?.triggerGeneration();
@@ -362,6 +387,7 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 										}
 									}}
 									variant={isReady ? "default" : "outline"}
+									disabled={isArchived}
 								>
 									{isReady ? (
 										<>
@@ -461,7 +487,9 @@ export function ProposalsTab({ project }: ProposalsTabProps) {
 											onClick={() =>
 												openDeleteDialog(proposal.id, proposal.title)
 											}
-											disabled={deletingProposalId === proposal.id}
+											disabled={
+												isArchived || deletingProposalId === proposal.id
+											}
 										>
 											{deletingProposalId === proposal.id ? (
 												<Loader2 className="h-4 w-4 animate-spin" />

@@ -115,6 +115,9 @@ class ProjectSummary(BaseSchema):
     # Timestamps
     created_at: datetime
     updated_at: datetime
+    archived_at: datetime | None = None
+    archived_by_user_id: UUID | None = None
+    archived_by_parent_id: UUID | None = None
 
     # Details
     project_type: str

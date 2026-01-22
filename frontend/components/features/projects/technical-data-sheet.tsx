@@ -80,6 +80,8 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 
 	// Get project timeline for activity tab
 	const currentProject = useProjectStore((state) => state.currentProject);
+	const isArchived =
+		currentProject?.id === projectId && Boolean(currentProject.archivedAt);
 	const timeline =
 		currentProject?.id === projectId ? currentProject.timeline : [];
 
@@ -123,6 +125,9 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 			unit?: string,
 			_notes?: string,
 		) => {
+			if (isArchived) {
+				return;
+			}
 			// Map notes to source for now (notes parameter required by FlexibleDataCapture)
 			const source: DataSource = "manual"; // Default to manual for now
 
@@ -145,11 +150,14 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 			// Store handles saving state and lastSaved automatically
 			updateField(projectId, payload);
 		},
-		[projectId, updateField],
+		[isArchived, projectId, updateField],
 	);
 
 	const handleAddSection = useCallback(
 		(sectionInput: Omit<TableSection, "id">) => {
+			if (isArchived) {
+				return;
+			}
 			const section: TableSection = {
 				...sectionInput,
 				id: crypto.randomUUID(),
@@ -158,18 +166,24 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 
 			addCustomSection(projectId, section);
 		},
-		[addCustomSection, projectId],
+		[addCustomSection, isArchived, projectId],
 	);
 
 	const handleRemoveSection = useCallback(
 		(sectionId: string) => {
+			if (isArchived) {
+				return;
+			}
 			removeSection(projectId, sectionId);
 		},
-		[projectId, removeSection],
+		[isArchived, projectId, removeSection],
 	);
 
 	const handleAddField = useCallback(
 		(sectionId: string, fieldInput: Omit<TableField, "id">) => {
+			if (isArchived) {
+				return;
+			}
 			const field: TableField = {
 				...fieldInput,
 				id: crypto.randomUUID(),
@@ -178,14 +192,17 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 
 			addField(projectId, sectionId, field);
 		},
-		[addField, projectId],
+		[addField, isArchived, projectId],
 	);
 
 	const handleRemoveField = useCallback(
 		(sectionId: string, fieldId: string) => {
+			if (isArchived) {
+				return;
+			}
 			removeField(projectId, sectionId, fieldId);
 		},
-		[projectId, removeField],
+		[isArchived, projectId, removeField],
 	);
 
 	if (loading) {
@@ -221,6 +238,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 								size="sm"
 								className="h-6 px-2 text-xs"
 								onClick={() => retrySync(projectId)}
+								disabled={isArchived}
 							>
 								<RefreshCcw className="mr-1 h-3 w-3" />
 								Retry
@@ -395,6 +413,14 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 				</div>
 			</div>
 
+			{isArchived && (
+				<Alert className="border-warning/40 bg-warning/10">
+					<AlertDescription>
+						This project is archived. Questionnaire edits are disabled.
+					</AlertDescription>
+				</Alert>
+			)}
+
 			{completion.percentage < PROPOSAL_READINESS_THRESHOLD && (
 				<Alert className="alert-warning-card">
 					<Sparkles className="h-4 w-4" />
@@ -462,6 +488,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 									});
 								}}
 								className="bg-success text-success-foreground hover:bg-success/90 shrink-0 w-full sm:w-auto min-h-[44px]"
+								disabled={isArchived}
 							>
 								<Sparkles className="mr-2 h-4 w-4" />
 								Generate Proposal
@@ -473,26 +500,30 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 
 			{/* Main content: Form or Table view based on toggle */}
 			{isTableView ? (
-				<EngineeringDataTable
-					sections={sections}
-					onFieldChange={handleFieldChange}
-				/>
+				<div className={isArchived ? "pointer-events-none opacity-60" : ""}>
+					<EngineeringDataTable
+						sections={sections}
+						onFieldChange={handleFieldChange}
+					/>
+				</div>
 			) : (
-				<ResizableDataLayout
-					sections={sections}
-					onFieldChange={handleFieldChange}
-					projectId={projectId}
-					onAddSection={handleAddSection}
-					onRemoveSection={handleRemoveSection}
-					onAddField={(sectionId, field) => handleAddField(sectionId, field)}
-					onRemoveField={handleRemoveField}
-					autoSave
-					focusSectionId={focusSectionId}
-					onFocusSectionFromSummary={(sectionId) => {
-						setIsTableView(false);
-						setFocusSectionId(sectionId);
-					}}
-				/>
+				<div className={isArchived ? "pointer-events-none opacity-60" : ""}>
+					<ResizableDataLayout
+						sections={sections}
+						onFieldChange={handleFieldChange}
+						projectId={projectId}
+						onAddSection={handleAddSection}
+						onRemoveSection={handleRemoveSection}
+						onAddField={(sectionId, field) => handleAddField(sectionId, field)}
+						onRemoveField={handleRemoveField}
+						autoSave
+						focusSectionId={focusSectionId}
+						onFocusSectionFromSummary={(sectionId) => {
+							setIsTableView(false);
+							setFocusSectionId(sectionId);
+						}}
+					/>
+				</div>
 			)}
 		</div>
 	);

@@ -7,14 +7,22 @@ import { Building2, Loader2, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CompanyCard } from "@/components/features/companies/company-card";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
+import { ArchivedFilterSelect } from "@/components/ui/archived-filter-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { ArchivedFilter } from "@/lib/api/companies";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { useDebouncedValue } from "@/lib/hooks/use-debounce";
 import { useCompanyStore } from "@/lib/stores/company-store";
 
 export default function CompaniesPage() {
-	const { companies, loading, loadCompanies } = useCompanyStore();
+	const {
+		companies,
+		loading,
+		loadCompanies,
+		archivedFilter,
+		setArchivedFilter,
+	} = useCompanyStore();
 	const { canCreateClientData } = useAuth();
 	const [searchTerm, setSearchTerm] = useState("");
 	const debouncedSearch = useDebouncedValue(searchTerm, 300);
@@ -34,6 +42,10 @@ export default function CompaniesPage() {
 				company.industry?.toLowerCase().includes(search),
 		);
 	}, [companies, debouncedSearch]);
+
+	const handleArchivedFilterChange = (value: ArchivedFilter) => {
+		setArchivedFilter(value);
+	};
 
 	if (loading && companies.length === 0) {
 		return (
@@ -61,26 +73,32 @@ export default function CompaniesPage() {
 				)}
 			</div>
 
-			{/* Search Bar */}
-			<div className="relative max-w-md">
-				<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-				<Input
-					placeholder="Search companies by name or industry..."
-					value={searchTerm}
-					onChange={(e) => setSearchTerm(e.target.value)}
-					className="pl-9 pr-9"
-					autoComplete="off"
+			{/* Search Bar and Filters */}
+			<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+				<div className="relative flex-1 max-w-md">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search companies by name or industry..."
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+						className="pl-9 pr-9"
+						autoComplete="off"
+					/>
+					{searchTerm && (
+						<button
+							type="button"
+							onClick={() => setSearchTerm("")}
+							className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+							aria-label="Clear search"
+						>
+							<X className="h-4 w-4" />
+						</button>
+					)}
+				</div>
+				<ArchivedFilterSelect
+					value={archivedFilter}
+					onChange={handleArchivedFilterChange}
 				/>
-				{searchTerm && (
-					<button
-						type="button"
-						onClick={() => setSearchTerm("")}
-						className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-						aria-label="Clear search"
-					>
-						<X className="h-4 w-4" />
-					</button>
-				)}
 			</div>
 
 			{/* Results counter */}
@@ -94,13 +112,19 @@ export default function CompaniesPage() {
 			{companies.length === 0 ? (
 				<div className="text-center py-12">
 					<Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-					<h3 className="text-lg font-semibold mb-2">No companies yet</h3>
+					<h3 className="text-lg font-semibold mb-2">
+						{archivedFilter === "archived"
+							? "No archived companies"
+							: "No companies yet"}
+					</h3>
 					<p className="text-muted-foreground mb-4">
-						{canCreateClientData
-							? "Create your first company to get started"
-							: "No companies have been added yet"}
+						{archivedFilter === "archived"
+							? "No companies have been archived"
+							: canCreateClientData
+								? "Create your first company to get started"
+								: "No companies have been added yet"}
 					</p>
-					{canCreateClientData && (
+					{canCreateClientData && archivedFilter !== "archived" && (
 						<CreateCompanyDialog
 							trigger={<Button>Create First Company</Button>}
 							onSuccess={() => loadCompanies()}

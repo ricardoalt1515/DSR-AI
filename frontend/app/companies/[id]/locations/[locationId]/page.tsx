@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Archive,
 	ArrowLeft,
 	Building2,
 	FolderKanban,
@@ -14,6 +15,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
  * Location detail page - Shows location info and projects
  */
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const PremiumProjectWizard = dynamic(
 	() =>
@@ -24,13 +26,19 @@ const PremiumProjectWizard = dynamic(
 );
 
 import { LocationContactsCard } from "@/components/features/locations/location-contacts-card";
+import { ArchivedBanner } from "@/components/shared/archived-banner";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
+import { ConfirmPurgeDialog } from "@/components/ui/confirm-purge-dialog";
+import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
 import { Separator } from "@/components/ui/separator";
+import type { ArchivedFilter } from "@/lib/api/companies";
 import { useAuth } from "@/lib/contexts/auth-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useLocationStore } from "@/lib/stores/location-store";
 
 export default function LocationDetailPage() {
@@ -41,28 +49,113 @@ export default function LocationDetailPage() {
 	const locationId = params.locationId as string;
 	const [wizardOpen, setWizardOpen] = useState(false);
 	const { canWriteLocationContacts, canCreateClientData, user } = useAuth();
+	const { canArchiveLocation, canRestoreLocation, canPurgeLocation } =
+		usePermissions();
 	const canCreateProject = Boolean(canCreateClientData);
 	const canDeleteContacts = Boolean(
 		user?.isSuperuser || user?.role === "org_admin",
 	);
 
-	const { currentLocation, loading, loadLocation, error, clearError } =
-		useLocationStore();
+	const {
+		currentLocation,
+		loading,
+		loadLocation,
+		archiveLocation,
+		restoreLocation,
+		purgeLocation,
+		error,
+		clearError,
+	} = useLocationStore();
+
+	// Archive dialog states
+	const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+	const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+	const [showPurgeDialog, setShowPurgeDialog] = useState(false);
+	const [isArchiving, setIsArchiving] = useState(false);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const [isPurging, setIsPurging] = useState(false);
+	const [projectsFilter, setProjectsFilter] =
+		useState<ArchivedFilter>("active");
+
+	const isArchived = Boolean(currentLocation?.archivedAt);
 
 	useEffect(() => {
 		if (locationId) {
-			void loadLocation(locationId).catch(() => {});
+			void loadLocation(locationId, projectsFilter).catch(() => {});
 		}
-	}, [locationId, loadLocation]);
+	}, [locationId, loadLocation, projectsFilter]);
+
+	useEffect(() => {
+		if (isArchived && projectsFilter === "active") {
+			setProjectsFilter("archived");
+			return;
+		}
+		if (!isArchived && projectsFilter !== "active") {
+			setProjectsFilter("active");
+		}
+	}, [isArchived, projectsFilter]);
 
 	// Auto-open wizard if action=new-assessment query param
 	useEffect(() => {
-		if (searchParams.get("action") === "new-assessment") {
+		const action = searchParams.get("action");
+		if (action === "new-assessment" || action === "new-waste-stream") {
 			setWizardOpen(true);
 			// Clean URL after opening wizard
 			router.replace(`/companies/${companyId}/locations/${locationId}`);
 		}
 	}, [searchParams, companyId, locationId, router]);
+
+	const handleArchive = async () => {
+		setIsArchiving(true);
+		try {
+			await archiveLocation(locationId);
+			toast.success("Location archived", {
+				description: `"${currentLocation?.name}" has been archived`,
+			});
+			setShowArchiveDialog(false);
+		} catch (_error) {
+			toast.error("Archive failed", {
+				description: "The location could not be archived. Please try again.",
+			});
+		} finally {
+			setIsArchiving(false);
+		}
+	};
+
+	const handleRestore = async () => {
+		setIsRestoring(true);
+		try {
+			await restoreLocation(locationId);
+			toast.success("Location restored", {
+				description: `"${currentLocation?.name}" has been restored`,
+			});
+			setShowRestoreDialog(false);
+		} catch (_error) {
+			toast.error("Restore failed", {
+				description: "The location could not be restored. Please try again.",
+			});
+		} finally {
+			setIsRestoring(false);
+		}
+	};
+
+	const handlePurge = async () => {
+		if (!currentLocation) return;
+		setIsPurging(true);
+		try {
+			await purgeLocation(locationId, currentLocation.name);
+			toast.success("Location permanently deleted", {
+				description: `"${currentLocation.name}" has been permanently deleted`,
+			});
+			router.push(`/companies/${companyId}`);
+		} catch (_error) {
+			toast.error("Purge failed", {
+				description:
+					"The location could not be permanently deleted. Please try again.",
+			});
+			setIsPurging(false);
+		}
+	};
 
 	if (loading && !currentLocation) {
 		return (
@@ -83,7 +176,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId).catch(() => {});
+								void loadLocation(locationId, projectsFilter).catch(() => {});
 							}}
 						>
 							Retry
@@ -117,6 +210,20 @@ export default function LocationDetailPage() {
 				]}
 			/>
 
+			{/* Archived Banner */}
+			{isArchived && currentLocation.archivedAt && (
+				<ArchivedBanner
+					entityType="location"
+					entityName={currentLocation.name}
+					archivedAt={currentLocation.archivedAt}
+					canRestore={canRestoreLocation()}
+					canPurge={canPurgeLocation()}
+					onRestore={() => setShowRestoreDialog(true)}
+					onPurge={() => setShowPurgeDialog(true)}
+					loading={isRestoring || isPurging}
+				/>
+			)}
+
 			{error && (
 				<Alert variant="destructive">
 					<AlertTitle>Some data may be out of date</AlertTitle>
@@ -126,7 +233,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId).catch(() => {});
+								void loadLocation(locationId, projectsFilter).catch(() => {});
 							}}
 						>
 							Retry
@@ -146,10 +253,20 @@ export default function LocationDetailPage() {
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex-1">
-					<h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-						<MapPin className="h-8 w-8" />
-						{currentLocation.name}
-					</h1>
+					<div className="flex items-center gap-3">
+						<h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+							<MapPin className="h-8 w-8" />
+							{currentLocation.name}
+						</h1>
+						{isArchived && (
+							<Badge
+								variant="outline"
+								className="border-amber-500 text-amber-500"
+							>
+								Archived
+							</Badge>
+						)}
+					</div>
 					<p className="text-muted-foreground mt-1">
 						{currentLocation.city}, {currentLocation.state}
 					</p>
@@ -160,6 +277,16 @@ export default function LocationDetailPage() {
 						? "waste stream"
 						: "waste streams"}
 				</Badge>
+				{!isArchived && canArchiveLocation() && (
+					<Button
+						variant="outline"
+						onClick={() => setShowArchiveDialog(true)}
+						className="text-amber-600 border-amber-600 hover:bg-amber-50"
+					>
+						<Archive className="mr-2 h-4 w-4" />
+						Archive
+					</Button>
+				)}
 			</div>
 
 			{/* Location Info */}
@@ -204,9 +331,9 @@ export default function LocationDetailPage() {
 			<LocationContactsCard
 				contacts={currentLocation.contacts ?? []}
 				locationId={locationId}
-				canWriteContacts={canWriteLocationContacts}
-				canDeleteContacts={canDeleteContacts}
-				onContactsUpdated={() => loadLocation(locationId)}
+				canWriteContacts={canWriteLocationContacts && !isArchived}
+				canDeleteContacts={canDeleteContacts && !isArchived}
+				onContactsUpdated={() => loadLocation(locationId, projectsFilter)}
 			/>
 
 			{/* Projects Section */}
@@ -216,7 +343,7 @@ export default function LocationDetailPage() {
 						<FolderKanban className="h-5 w-5" />
 						Waste Streams
 					</h2>
-					{canCreateProject && (
+					{canCreateProject && !isArchived && (
 						<Button onClick={() => setWizardOpen(true)}>
 							<Plus className="h-4 w-4 mr-2" />
 							New Waste Stream
@@ -232,9 +359,11 @@ export default function LocationDetailPage() {
 								No waste streams yet
 							</h3>
 							<p className="text-muted-foreground mb-4">
-								Create the first waste stream for this location
+								{isArchived
+									? "This location is archived"
+									: "Create the first waste stream for this location"}
 							</p>
-							{canCreateProject && (
+							{canCreateProject && !isArchived && (
 								<Button onClick={() => setWizardOpen(true)}>
 									<Plus className="h-4 w-4 mr-2" />
 									Create First Waste Stream
@@ -267,23 +396,53 @@ export default function LocationDetailPage() {
 				)}
 			</div>
 
-			{/* Contextual Wizard */}
-			<PremiumProjectWizard
-				open={wizardOpen}
-				onOpenChange={setWizardOpen}
-				defaultCompanyId={companyId}
-				defaultLocationId={locationId}
-				onProjectCreated={async (projectId) => {
-					// Reload location to show new assessment
-					try {
-						await loadLocation(locationId);
-					} catch {
-						// Location store already captures error state for the UI
-					}
-					// Then navigate to project
-					router.push(`/project/${projectId}`);
-				}}
+			{/* Archive/Restore/Purge Dialogs */}
+			<ConfirmArchiveDialog
+				open={showArchiveDialog}
+				onOpenChange={setShowArchiveDialog}
+				onConfirm={handleArchive}
+				entityType="location"
+				entityName={currentLocation.name}
+				loading={isArchiving}
 			/>
+
+			<ConfirmRestoreDialog
+				open={showRestoreDialog}
+				onOpenChange={setShowRestoreDialog}
+				onConfirm={handleRestore}
+				entityType="location"
+				entityName={currentLocation.name}
+				loading={isRestoring}
+			/>
+
+			<ConfirmPurgeDialog
+				open={showPurgeDialog}
+				onOpenChange={setShowPurgeDialog}
+				onConfirm={handlePurge}
+				entityType="location"
+				entityName={currentLocation.name}
+				loading={isPurging}
+			/>
+
+			{/* Contextual Wizard */}
+			{!isArchived && (
+				<PremiumProjectWizard
+					open={wizardOpen}
+					onOpenChange={setWizardOpen}
+					defaultCompanyId={companyId}
+					defaultLocationId={locationId}
+					onProjectCreated={async (projectId) => {
+						// Reload location to show new assessment
+						try {
+							await loadLocation(locationId, projectsFilter);
+						} catch {
+							// Location store already captures error state for the UI
+						}
+						// Then navigate to project
+						router.push(`/project/${projectId}`);
+					}}
+				/>
+			)}
 		</div>
 	);
 }

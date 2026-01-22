@@ -68,6 +68,9 @@ class LocationSummary(LocationBase):
     created_at: datetime
     updated_at: datetime
     created_by_user_id: UUID | None = None
+    archived_at: datetime | None = None
+    archived_by_user_id: UUID | None = None
+    archived_by_parent_id: UUID | None = None
 
 
 class LocationDetail(LocationSummary):

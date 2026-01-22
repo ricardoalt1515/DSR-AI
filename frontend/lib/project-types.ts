@@ -40,7 +40,13 @@ export interface ProjectSummary {
 	progress: number;
 	createdAt: string;
 	updatedAt: string;
-	type: string;
+	// Ownership
+	userId?: string; // Owner of the project (sales agent)
+	// Archive fields
+	archivedAt?: string | null;
+	archivedByUserId?: string | null;
+	archivedByParentId?: string | null;
+	projectType: string;
 	description: string;
 	proposalsCount: number;
 	filesCount: number;

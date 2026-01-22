@@ -30,6 +30,8 @@ export interface CompanySummary extends CompanyBase {
 	createdAt: string;
 	updatedAt: string;
 	createdByUserId?: string;
+	archivedAt?: string | null;
+	archivedByUserId?: string | null;
 }
 
 export interface CompanyDetail extends CompanySummary {
@@ -64,6 +66,9 @@ export interface LocationSummary extends LocationBase {
 	createdAt: string;
 	updatedAt: string;
 	createdByUserId?: string;
+	archivedAt?: string | null;
+	archivedByUserId?: string | null;
+	archivedByParentId?: string | null;
 }
 
 export interface LocationDetail extends LocationSummary {

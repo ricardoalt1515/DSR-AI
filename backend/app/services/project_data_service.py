@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import require_not_archived
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.project_data import ProjectAIInput
@@ -103,10 +104,12 @@ class ProjectDataService:
                    If False, replaces completely.
         """
         result = await db.execute(
-            select(Project).where(
+            select(Project)
+            .where(
                 Project.id == project_id,
                 Project.organization_id == org_id,
             )
+            .with_for_update()
         )
         project = result.scalar_one_or_none()
 
@@ -115,6 +118,8 @@ class ProjectDataService:
 
         if not current_user.can_see_all_org_projects() and project.user_id != current_user.id:
             raise HTTPException(404, "Project not found")
+
+        require_not_archived(project)
 
         if merge:
             # Merge with existing data

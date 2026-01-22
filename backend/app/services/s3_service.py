@@ -1,5 +1,5 @@
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import IO
 
 import aioboto3
@@ -23,13 +23,67 @@ S3_ACCESS_KEY = settings.AWS_ACCESS_KEY_ID
 S3_SECRET_KEY = settings.AWS_SECRET_ACCESS_KEY
 
 # Local storage configuration for development
-LOCAL_UPLOADS_DIR = Path(settings.LOCAL_STORAGE_PATH) / "uploads"
+# Canonical local layout (no extra "/uploads" layer):
+# - projects/... and proposals/... live directly under LOCAL_STORAGE_PATH
+LOCAL_UPLOADS_DIR = Path(settings.LOCAL_STORAGE_PATH)
 LOCAL_UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
 
 # Explicit S3 validation: bucket must be non-empty string (not just "not None")
 USE_S3 = bool(S3_BUCKET and S3_BUCKET.strip())
 
 logger = structlog.get_logger(__name__)
+_ALLOWED_LOCAL_PREFIXES = ("projects/", "proposals/")
+
+
+def _is_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _normalize_relative_key(key: str) -> str:
+    trimmed = key.strip()
+    if not trimmed:
+        raise StorageError("Storage key is empty")
+
+    posix_path = PurePosixPath(trimmed)
+    if posix_path.is_absolute():
+        raise StorageError("Storage key must be relative")
+    if any(part == ".." for part in posix_path.parts):
+        raise StorageError("Storage key contains path traversal")
+    if not trimmed.startswith(_ALLOWED_LOCAL_PREFIXES):
+        raise StorageError("Storage key prefix is not allowed")
+    return trimmed
+
+
+def _resolve_local_file(filename: str) -> tuple[Path, Path]:
+    storage_root = Path(settings.LOCAL_STORAGE_PATH).resolve()
+    uploads_root = LOCAL_UPLOADS_DIR.resolve()
+    path_obj = Path(filename)
+
+    if path_obj.is_absolute():
+        resolved = path_obj.resolve()
+        if _is_within_root(resolved, storage_root):
+            rel_path = resolved.relative_to(storage_root)
+            if not rel_path.as_posix().startswith(_ALLOWED_LOCAL_PREFIXES):
+                raise StorageError("Local file path prefix is not allowed")
+            return resolved, rel_path
+        raise StorageError("Local file path outside storage roots")
+
+    normalized = _normalize_relative_key(filename)
+    rel_path = Path(normalized)
+
+    storage_path = (storage_root / rel_path).resolve()
+    if _is_within_root(storage_path, storage_root) and storage_path.exists():
+        return storage_path, rel_path
+
+    uploads_path = (uploads_root / rel_path).resolve()
+    if _is_within_root(uploads_path, uploads_root) and uploads_path.exists():
+        return uploads_path, rel_path
+
+    return storage_path, rel_path
 
 
 async def upload_file_to_s3(
@@ -42,22 +96,24 @@ async def upload_file_to_s3(
             session = aioboto3.Session()
             extra_args = {"ContentType": content_type} if content_type else {}
 
-            # In production (AWS), boto3 client will automatically use the IAM role of the ECS task.
-            # It's not necessary (and insecure) to pass explicit credentials.
-            client_args = {"region_name": S3_REGION}
             if S3_ACCESS_KEY and S3_SECRET_KEY:
-                # Allow explicit credentials for non-AWS testing environments that use S3.
                 logger.warning(
                     "Using explicit S3 credentials. This is not recommended in AWS production."
                 )
-                client_args["aws_access_key_id"] = S3_ACCESS_KEY
-                client_args["aws_secret_access_key"] = S3_SECRET_KEY
-
-            async with session.client("s3", **client_args) as s3:
-                await s3.upload_fileobj(file_obj, S3_BUCKET, filename, ExtraArgs=extra_args)
+                async with session.client(
+                    "s3",
+                    region_name=S3_REGION,
+                    aws_access_key_id=S3_ACCESS_KEY,
+                    aws_secret_access_key=S3_SECRET_KEY,
+                ) as s3:
+                    await s3.upload_fileobj(file_obj, S3_BUCKET, filename, ExtraArgs=extra_args)
+            else:
+                async with session.client("s3", region_name=S3_REGION) as s3:
+                    await s3.upload_fileobj(file_obj, S3_BUCKET, filename, ExtraArgs=extra_args)
         else:  # Development mode: save locally
             logger.info(f"Saving file locally (dev mode): {filename}")
-            local_path = LOCAL_UPLOADS_DIR / filename
+            normalized = _normalize_relative_key(filename)
+            local_path = LOCAL_UPLOADS_DIR / normalized
             # Ensure directory exists
             local_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -83,17 +139,25 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
         # Production mode: S3 URL
         try:
             session = aioboto3.Session()
-            client_args = {"region_name": S3_REGION}
             if S3_ACCESS_KEY and S3_SECRET_KEY:
-                client_args["aws_access_key_id"] = S3_ACCESS_KEY
-                client_args["aws_secret_access_key"] = S3_SECRET_KEY
-
-            async with session.client("s3", **client_args) as s3:
-                url = await s3.generate_presigned_url(
-                    "get_object",
-                    Params={"Bucket": S3_BUCKET, "Key": filename},
-                    ExpiresIn=expires,
-                )
+                async with session.client(
+                    "s3",
+                    region_name=S3_REGION,
+                    aws_access_key_id=S3_ACCESS_KEY,
+                    aws_secret_access_key=S3_SECRET_KEY,
+                ) as s3:
+                    url = await s3.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": S3_BUCKET, "Key": filename},
+                        ExpiresIn=expires,
+                    )
+            else:
+                async with session.client("s3", region_name=S3_REGION) as s3:
+                    url = await s3.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": S3_BUCKET, "Key": filename},
+                        ExpiresIn=expires,
+                    )
             return url
         except Exception as e:
             logger.error("S3 presigned URL generation failed", error=str(e), key=filename)
@@ -102,30 +166,15 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
     # Development/local mode: build static URL
     from app.core.config import settings
 
-    storage_path = Path(settings.LOCAL_STORAGE_PATH).resolve()
-    file_path_obj = Path(filename)
+    try:
+        full_path, rel_path = _resolve_local_file(filename)
+    except StorageError as e:
+        raise StorageError(f"Invalid local storage key: {filename}") from e
 
-    # Handle relative paths that may include storage prefix
-    if file_path_obj.is_absolute():
-        try:
-            rel_path = file_path_obj.relative_to(storage_path)
-        except ValueError as e:
-            raise StorageError(f"File outside storage directory: {filename}") from e
-    else:
-        # Remove storage prefix if present (e.g., "storage/projects/..." -> "projects/...")
-        parts = file_path_obj.parts
-        rel_path = Path(*parts[1:]) if parts and parts[0] == "storage" else file_path_obj
-
-    full_path = storage_path / rel_path
     if not full_path.exists():
-        uploads_path = LOCAL_UPLOADS_DIR / rel_path
-        if uploads_path.exists():
-            rel_path = uploads_path.relative_to(storage_path)
-            full_path = uploads_path
-        else:
-            raise StorageError(f"Local file not found: {full_path}")
+        raise StorageError(f"Local file not found: {full_path}")
 
-    return f"{settings.BACKEND_URL}/uploads/{rel_path}"
+    return f"{settings.BACKEND_URL}/uploads/{rel_path.as_posix()}"
 
 
 async def download_file_content(filename: str) -> bytes:
@@ -135,20 +184,25 @@ async def download_file_content(filename: str) -> bytes:
             logger.info(f"Downloading file from S3: {filename}")
             session = aioboto3.Session()
 
-            # Same logic as upload: use IAM role by default
-            client_args = {"region_name": S3_REGION}
             if S3_ACCESS_KEY and S3_SECRET_KEY:
-                client_args["aws_access_key_id"] = S3_ACCESS_KEY
-                client_args["aws_secret_access_key"] = S3_SECRET_KEY
+                async with session.client(
+                    "s3",
+                    region_name=S3_REGION,
+                    aws_access_key_id=S3_ACCESS_KEY,
+                    aws_secret_access_key=S3_SECRET_KEY,
+                ) as s3:
+                    response = await s3.get_object(Bucket=S3_BUCKET, Key=filename)
+                    content = await response["Body"].read()
+                    logger.info(f"✅ File downloaded from S3: {len(content)} bytes")
+                    return content
 
-            async with session.client("s3", **client_args) as s3:
+            async with session.client("s3", region_name=S3_REGION) as s3:
                 response = await s3.get_object(Bucket=S3_BUCKET, Key=filename)
                 content = await response["Body"].read()
                 logger.info(f"✅ File downloaded from S3: {len(content)} bytes")
                 return content
         else:  # Local mode: read local file
-            # file_path from DB is already the complete path (set during upload)
-            local_path = Path(filename)
+            local_path, _ = _resolve_local_file(filename)
             logger.info(f"Reading local file: {local_path}")
 
             if not local_path.exists():
@@ -175,18 +229,26 @@ async def delete_file_from_s3(filename: str) -> None:
             # Nothing to do: file is managed locally by the caller
             return
 
-        logger.info(f"Deleting file from S3: {filename}")
+        normalized = _normalize_relative_key(filename)
+
+        logger.info(f"Deleting file from S3: {normalized}")
         session = aioboto3.Session()
-        client_args = {"region_name": S3_REGION}
         if S3_ACCESS_KEY and S3_SECRET_KEY:
             logger.warning(
                 "Using explicit S3 credentials for delete; avoid this in AWS production."
             )
-            client_args["aws_access_key_id"] = S3_ACCESS_KEY
-            client_args["aws_secret_access_key"] = S3_SECRET_KEY
 
-        async with session.client("s3", **client_args) as s3:
-            await s3.delete_object(Bucket=S3_BUCKET, Key=filename)
+            async with session.client(
+                "s3",
+                region_name=S3_REGION,
+                aws_access_key_id=S3_ACCESS_KEY,
+                aws_secret_access_key=S3_SECRET_KEY,
+            ) as s3:
+                await s3.delete_object(Bucket=S3_BUCKET, Key=normalized)
+            return
+
+        async with session.client("s3", region_name=S3_REGION) as s3:
+            await s3.delete_object(Bucket=S3_BUCKET, Key=normalized)
     except Exception as e:
         logger.error(f"Error deleting file {filename} from S3: {e!s}")
         raise

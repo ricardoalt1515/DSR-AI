@@ -3,30 +3,37 @@ Companies API endpoints.
 CRUD operations for companies and their locations.
 """
 
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import func, select
+import structlog
+from fastapi import APIRouter, HTTPException, Response, status
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import load_only, selectinload
 
 from app.api.dependencies import (
+    ActiveCompanyEditor,
+    ActiveCompanyLocationCreator,
+    ActiveLocationDep,
+    ActiveLocationEditor,
+    ArchivedFilter,
     AsyncDB,
+    CompanyAdminActionDep,
     CurrentCompanyCreator,
-    CurrentCompanyDeleter,
-    CurrentCompanyEditor,
-    CurrentCompanyLocationCreator,
     CurrentLocationContactsCreator,
     CurrentLocationContactsDeleter,
     CurrentLocationContactsEditor,
-    CurrentLocationDeleter,
-    CurrentLocationEditor,
     CurrentUser,
+    LocationAdminActionDep,
     OrganizationContext,
     RateLimitUser10,
     RateLimitUser30,
     RateLimitUser60,
+    apply_archived_filter,
 )
 from app.models import Company, Location, LocationContact, Project
+from app.models.file import ProjectFile
+from app.models.proposal import Proposal
 from app.schemas.common import SuccessResponse
 from app.schemas.company import (
     CompanyCreate,
@@ -46,8 +53,15 @@ from app.schemas.location_contact import (
     LocationContactRead,
     LocationContactUpdate,
 )
+from app.services.storage_delete_service import (
+    StorageDeleteError,
+    delete_storage_keys,
+    validate_storage_keys,
+)
+from app.utils.purge_utils import extract_confirm_name, extract_pdf_paths
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 
 async def _get_project_counts_by_location(
@@ -55,6 +69,7 @@ async def _get_project_counts_by_location(
     org_id: UUID,
     location_ids: list[UUID],
     current_user: CurrentUser,
+    archived: ArchivedFilter = "active",
 ) -> dict[UUID, int]:
     if not location_ids:
         return {}
@@ -63,6 +78,10 @@ async def _get_project_counts_by_location(
         Project.organization_id == org_id,
         Project.location_id.in_(location_ids),
     ]
+    if archived == "active":
+        count_conditions.append(Project.archived_at.is_(None))
+    elif archived == "archived":
+        count_conditions.append(Project.archived_at.isnot(None))
     if not current_user.can_see_all_org_projects():
         count_conditions.append(Project.user_id == current_user.id)
 
@@ -77,6 +96,345 @@ async def _get_project_counts_by_location(
     return {row.location_id: row.project_count for row in counts_result}
 
 
+async def _collect_project_storage_paths(
+    db: AsyncDB,
+    org_id: UUID,
+    project_id: UUID,
+) -> set[str]:
+    storage_paths: set[str] = set()
+
+    file_rows = await db.execute(
+        select(ProjectFile.file_path).where(
+            ProjectFile.organization_id == org_id,
+            ProjectFile.project_id == project_id,
+        )
+    )
+    storage_paths.update({row.file_path for row in file_rows if row.file_path})
+
+    proposal_rows = await db.execute(
+        select(Proposal.pdf_path, Proposal.ai_metadata).where(
+            Proposal.organization_id == org_id,
+            Proposal.project_id == project_id,
+        )
+    )
+    for pdf_path, ai_metadata in proposal_rows:
+        if pdf_path:
+            storage_paths.add(pdf_path)
+        storage_paths.update(extract_pdf_paths(ai_metadata))
+
+    return storage_paths
+
+
+async def _collect_location_storage_paths(
+    db: AsyncDB,
+    org_id: UUID,
+    location_id: UUID,
+) -> set[str]:
+    storage_paths: set[str] = set()
+
+    file_rows = await db.execute(
+        select(ProjectFile.file_path)
+        .join(Project, ProjectFile.project_id == Project.id)
+        .where(
+            ProjectFile.organization_id == org_id,
+            Project.organization_id == org_id,
+            Project.location_id == location_id,
+        )
+    )
+    storage_paths.update({row.file_path for row in file_rows if row.file_path})
+
+    proposal_rows = await db.execute(
+        select(Proposal.pdf_path, Proposal.ai_metadata)
+        .join(Project, Proposal.project_id == Project.id)
+        .where(
+            Proposal.organization_id == org_id,
+            Project.organization_id == org_id,
+            Project.location_id == location_id,
+        )
+    )
+    for pdf_path, ai_metadata in proposal_rows:
+        if pdf_path:
+            storage_paths.add(pdf_path)
+        storage_paths.update(extract_pdf_paths(ai_metadata))
+
+    return storage_paths
+
+
+async def _collect_company_storage_paths(
+    db: AsyncDB,
+    org_id: UUID,
+    company_id: UUID,
+) -> set[str]:
+    storage_paths: set[str] = set()
+
+    file_rows = await db.execute(
+        select(ProjectFile.file_path)
+        .join(Project, ProjectFile.project_id == Project.id)
+        .join(Location, Project.location_id == Location.id)
+        .where(
+            ProjectFile.organization_id == org_id,
+            Project.organization_id == org_id,
+            Location.organization_id == org_id,
+            Location.company_id == company_id,
+        )
+    )
+    storage_paths.update({row.file_path for row in file_rows if row.file_path})
+
+    proposal_rows = await db.execute(
+        select(Proposal.pdf_path, Proposal.ai_metadata)
+        .join(Project, Proposal.project_id == Project.id)
+        .join(Location, Project.location_id == Location.id)
+        .where(
+            Proposal.organization_id == org_id,
+            Project.organization_id == org_id,
+            Location.organization_id == org_id,
+            Location.company_id == company_id,
+        )
+    )
+    for pdf_path, ai_metadata in proposal_rows:
+        if pdf_path:
+            storage_paths.add(pdf_path)
+        storage_paths.update(extract_pdf_paths(ai_metadata))
+
+    return storage_paths
+
+
+async def _lock_company_for_update(db: AsyncDB, org_id: UUID, company_id: UUID) -> Company | None:
+    result = await db.execute(
+        select(Company)
+        .where(Company.id == company_id, Company.organization_id == org_id)
+        .with_for_update()
+    )
+    return result.scalar_one_or_none()
+
+
+async def _lock_location_for_update(
+    db: AsyncDB,
+    org_id: UUID,
+    location_id: UUID,
+) -> Location | None:
+    result = await db.execute(
+        select(Location)
+        .where(Location.id == location_id, Location.organization_id == org_id)
+        .with_for_update()
+    )
+    return result.scalar_one_or_none()
+
+
+async def _archive_company(
+    db: AsyncDB,
+    org_id: UUID,
+    company_id: UUID,
+    user_id: UUID,
+) -> SuccessResponse:
+    company = await _lock_company_for_update(db=db, org_id=org_id, company_id=company_id)
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+    if company.archived_at is not None:
+        return SuccessResponse(message=f"Company {company.name} already archived")
+
+    archived_at = datetime.now(UTC)
+    company.archived_at = archived_at
+    company.archived_by_user_id = user_id
+
+    location_rows = await db.execute(
+        select(Location.id)
+        .where(Location.organization_id == org_id, Location.company_id == company_id)
+        .order_by(Location.id)
+        .with_for_update()
+    )
+    location_ids = [row.id for row in location_rows]
+
+    if location_ids:
+        await db.execute(
+            update(Location)
+            .where(
+                Location.organization_id == org_id,
+                Location.company_id == company_id,
+                Location.archived_at.is_(None),
+            )
+            .values(
+                archived_at=archived_at,
+                archived_by_user_id=user_id,
+                archived_by_parent_id=company_id,
+            )
+        )
+
+        await db.execute(
+            select(Project.id)
+            .where(Project.organization_id == org_id, Project.location_id.in_(location_ids))
+            .order_by(Project.id)
+            .with_for_update()
+        )
+        await db.execute(
+            update(Project)
+            .where(
+                Project.organization_id == org_id,
+                Project.location_id.in_(location_ids),
+                Project.archived_at.is_(None),
+            )
+            .values(
+                archived_at=archived_at,
+                archived_by_user_id=user_id,
+                archived_by_parent_id=Project.location_id,
+            )
+        )
+
+    await db.commit()
+    return SuccessResponse(message=f"Company {company.name} archived successfully")
+
+
+async def _restore_company(
+    db: AsyncDB,
+    org_id: UUID,
+    company_id: UUID,
+) -> SuccessResponse:
+    company = await _lock_company_for_update(db=db, org_id=org_id, company_id=company_id)
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+
+    if company.archived_at is None:
+        return SuccessResponse(message=f"Company {company.name} already active")
+
+    company.archived_at = None
+    company.archived_by_user_id = None
+
+    location_rows = await db.execute(
+        select(Location.id)
+        .where(
+            Location.organization_id == org_id,
+            Location.archived_by_parent_id == company_id,
+        )
+        .order_by(Location.id)
+        .with_for_update()
+    )
+    location_ids = [row.id for row in location_rows]
+
+    if location_ids:
+        await db.execute(
+            update(Location)
+            .where(
+                Location.organization_id == org_id,
+                Location.archived_by_parent_id == company_id,
+            )
+            .values(
+                archived_at=None,
+                archived_by_user_id=None,
+                archived_by_parent_id=None,
+            )
+        )
+
+        await db.execute(
+            select(Project.id)
+            .where(
+                Project.organization_id == org_id,
+                Project.archived_by_parent_id.in_(location_ids),
+            )
+            .order_by(Project.id)
+            .with_for_update()
+        )
+        await db.execute(
+            update(Project)
+            .where(
+                Project.organization_id == org_id,
+                Project.archived_by_parent_id.in_(location_ids),
+            )
+            .values(
+                archived_at=None,
+                archived_by_user_id=None,
+                archived_by_parent_id=None,
+            )
+        )
+
+    await db.commit()
+    return SuccessResponse(message=f"Company {company.name} restored successfully")
+
+
+async def _archive_location(
+    db: AsyncDB,
+    org_id: UUID,
+    location_id: UUID,
+    user_id: UUID,
+) -> SuccessResponse:
+    location = await _lock_location_for_update(db=db, org_id=org_id, location_id=location_id)
+    if not location:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found")
+
+    if location.archived_at is not None:
+        return SuccessResponse(message=f"Location {location.name} already archived")
+
+    archived_at = datetime.now(UTC)
+    location.archived_at = archived_at
+    location.archived_by_user_id = user_id
+    location.archived_by_parent_id = None
+
+    await db.execute(
+        select(Project.id)
+        .where(Project.organization_id == org_id, Project.location_id == location_id)
+        .order_by(Project.id)
+        .with_for_update()
+    )
+    await db.execute(
+        update(Project)
+        .where(
+            Project.organization_id == org_id,
+            Project.location_id == location_id,
+            Project.archived_at.is_(None),
+        )
+        .values(
+            archived_at=archived_at,
+            archived_by_user_id=user_id,
+            archived_by_parent_id=location_id,
+        )
+    )
+
+    await db.commit()
+    return SuccessResponse(message=f"Location {location.name} archived successfully")
+
+
+async def _restore_location(
+    db: AsyncDB,
+    org_id: UUID,
+    location_id: UUID,
+) -> SuccessResponse:
+    location = await _lock_location_for_update(db=db, org_id=org_id, location_id=location_id)
+    if not location:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found")
+
+    if location.archived_at is None:
+        return SuccessResponse(message=f"Location {location.name} already active")
+
+    location.archived_at = None
+    location.archived_by_user_id = None
+    location.archived_by_parent_id = None
+
+    await db.execute(
+        select(Project.id)
+        .where(
+            Project.organization_id == org_id,
+            Project.archived_by_parent_id == location_id,
+        )
+        .order_by(Project.id)
+        .with_for_update()
+    )
+    await db.execute(
+        update(Project)
+        .where(
+            Project.organization_id == org_id,
+            Project.archived_by_parent_id == location_id,
+        )
+        .values(
+            archived_at=None,
+            archived_by_user_id=None,
+            archived_by_parent_id=None,
+        )
+    )
+
+    await db.commit()
+    return SuccessResponse(message=f"Location {location.name} restored successfully")
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # COMPANIES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -88,11 +446,12 @@ async def list_companies(
     current_user: CurrentUser,
     org: OrganizationContext,
     _rate_limit: RateLimitUser60,
+    archived: ArchivedFilter = "active",
 ):
     """List all companies."""
-    result = await db.execute(
-        select(Company).where(Company.organization_id == org.id).order_by(Company.name)
-    )
+    query = select(Company).where(Company.organization_id == org.id)
+    query = apply_archived_filter(query, Company, archived).order_by(Company.name)
+    result = await db.execute(query)
     companies = result.scalars().all()
     return companies
 
@@ -131,13 +490,15 @@ async def list_all_locations(
     org: OrganizationContext,
     _rate_limit: RateLimitUser60,
     company_id: UUID | None = None,
+    archived: ArchivedFilter = "active",
 ):
     """List all locations, optionally filtered by company."""
-    query = select(Location).where(Location.organization_id == org.id).order_by(Location.name)
+    query = select(Location).where(Location.organization_id == org.id)
 
     if company_id:
         query = query.where(Location.company_id == company_id)
 
+    query = apply_archived_filter(query, Location, archived).order_by(Location.name)
     result = await db.execute(query)
     locations = result.scalars().all()
 
@@ -147,6 +508,7 @@ async def list_all_locations(
         org_id=org.id,
         location_ids=location_ids,
         current_user=current_user,
+        archived=archived,
     )
 
     return [
@@ -164,6 +526,7 @@ async def get_company(
     current_user: CurrentUser,
     org: OrganizationContext,
     _rate_limit: RateLimitUser60,
+    archived: ArchivedFilter = "active",
 ):
     """Get company details with locations."""
     result = await db.execute(
@@ -179,12 +542,19 @@ async def get_company(
         )
 
     locations = company.locations or []
+    if archived != "all":
+        locations = [
+            location
+            for location in locations
+            if (location.archived_at is None) == (archived == "active")
+        ]
     location_ids = [location.id for location in locations]
     project_counts_by_location = await _get_project_counts_by_location(
         db=db,
         org_id=org.id,
         location_ids=location_ids,
         current_user=current_user,
+        archived=archived,
     )
 
     company_summary = CompanySummary.model_validate(company, from_attributes=True)
@@ -206,9 +576,10 @@ async def update_company(
     company_id: UUID,
     company_data: CompanyUpdate,
     db: AsyncDB,
-    current_user_company: CurrentCompanyEditor,
+    current_user_company: ActiveCompanyEditor,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
+    archived: ArchivedFilter = "active",
 ):
     """Update company information."""
     current_user, company = current_user_company
@@ -222,12 +593,19 @@ async def update_company(
     await db.refresh(company)
 
     locations = company.locations or []
+    if archived != "all":
+        locations = [
+            location
+            for location in locations
+            if (location.archived_at is None) == (archived == "active")
+        ]
     location_ids = [location.id for location in locations]
     project_counts_by_location = await _get_project_counts_by_location(
         db=db,
         org_id=org.id,
         location_ids=location_ids,
         current_user=current_user,
+        archived=archived,
     )
 
     company_summary = CompanySummary.model_validate(company, from_attributes=True)
@@ -244,35 +622,107 @@ async def update_company(
     )
 
 
+@router.post("/{company_id}/archive", response_model=SuccessResponse)
+async def archive_company(
+    company: CompanyAdminActionDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+):
+    return await _archive_company(
+        db=db,
+        org_id=org.id,
+        company_id=company.id,
+        user_id=current_user.id,
+    )
+
+
+@router.post("/{company_id}/restore", response_model=SuccessResponse)
+async def restore_company(
+    company: CompanyAdminActionDep,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+):
+    return await _restore_company(
+        db=db,
+        org_id=org.id,
+        company_id=company.id,
+    )
+
+
+@router.post("/{company_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_company(
+    company: CompanyAdminActionDep,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+    payload: dict[str, str] | None = None,
+):
+    confirm_name = extract_confirm_name(payload)
+    if not confirm_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="confirm_name is required"
+        )
+    if confirm_name != company.name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="confirm_name does not match"
+        )
+
+    locked_company = await _lock_company_for_update(
+        db=db,
+        org_id=org.id,
+        company_id=company.id,
+    )
+    if not locked_company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    if locked_company.archived_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Company must be archived before purge",
+        )
+
+    storage_paths = await _collect_company_storage_paths(
+        db=db,
+        org_id=org.id,
+        company_id=company.id,
+    )
+    try:
+        validate_storage_keys(storage_paths)
+    except StorageDeleteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    await db.delete(locked_company)
+    await db.commit()
+
+    try:
+        await delete_storage_keys(storage_paths)
+    except Exception as exc:
+        logger.warning("company_purge_storage_delete_failed", error=str(exc))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.delete("/{company_id}", response_model=SuccessResponse)
 async def delete_company(
-    company_id: UUID,
     db: AsyncDB,
-    current_user: CurrentCompanyDeleter,
+    company: CompanyAdminActionDep,
+    current_user: CurrentUser,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
     """
-    Delete company.
-    Cascade deletes all locations and projects.
+    Archive company (compat).
     """
-    result = await db.execute(
-        select(Company).where(
-            Company.id == company_id,
-            Company.organization_id == org.id,
-        )
+    return await _archive_company(
+        db=db,
+        org_id=org.id,
+        company_id=company.id,
+        user_id=current_user.id,
     )
-    company = result.scalar_one_or_none()
-
-    if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Company {company_id} not found"
-        )
-
-    await db.delete(company)
-    await db.commit()
-
-    return SuccessResponse(message=f"Company {company.name} deleted successfully")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -286,7 +736,7 @@ async def delete_company(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_location_contact(
-    location_id: UUID,
+    location: ActiveLocationDep,
     contact_data: LocationContactCreate,
     db: AsyncDB,
     current_user: CurrentLocationContactsCreator,
@@ -294,23 +744,10 @@ async def create_location_contact(
     _rate_limit: RateLimitUser30,
 ):
     """Create a contact for a location."""
-    result = await db.execute(
-        select(Location).where(
-            Location.id == location_id,
-            Location.organization_id == org.id,
-        )
-    )
-    location = result.scalar_one_or_none()
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Location {location_id} not found",
-        )
-
     contact = LocationContact(
         **contact_data.model_dump(),
         organization_id=org.id,
-        location_id=location_id,
+        location_id=location.id,
     )
     db.add(contact)
     await db.commit()
@@ -323,7 +760,7 @@ async def create_location_contact(
     response_model=LocationContactRead,
 )
 async def update_location_contact(
-    location_id: UUID,
+    location: ActiveLocationDep,
     contact_id: UUID,
     contact_data: LocationContactUpdate,
     db: AsyncDB,
@@ -335,7 +772,7 @@ async def update_location_contact(
     result = await db.execute(
         select(LocationContact).where(
             LocationContact.id == contact_id,
-            LocationContact.location_id == location_id,
+            LocationContact.location_id == location.id,
             LocationContact.organization_id == org.id,
         )
     )
@@ -361,7 +798,7 @@ async def update_location_contact(
     response_model=SuccessResponse,
 )
 async def delete_location_contact(
-    location_id: UUID,
+    location: ActiveLocationDep,
     contact_id: UUID,
     db: AsyncDB,
     current_user: CurrentLocationContactsDeleter,
@@ -372,7 +809,7 @@ async def delete_location_contact(
     result = await db.execute(
         select(LocationContact).where(
             LocationContact.id == contact_id,
-            LocationContact.location_id == location_id,
+            LocationContact.location_id == location.id,
             LocationContact.organization_id == org.id,
         )
     )
@@ -402,6 +839,7 @@ async def list_company_locations(
     current_user: CurrentUser,
     org: OrganizationContext,
     _rate_limit: RateLimitUser60,
+    archived: ArchivedFilter = "active",
 ):
     """List all locations for a company."""
     company = await db.get(Company, company_id)
@@ -417,6 +855,7 @@ async def list_company_locations(
         org=org,
         _rate_limit=_rate_limit,
         company_id=company_id,
+        archived=archived,
     )
 
 
@@ -429,7 +868,7 @@ async def create_location(
     company_id: UUID,
     location_data: LocationCreate,
     db: AsyncDB,
-    current_user_company: CurrentCompanyLocationCreator,
+    current_user_company: ActiveCompanyLocationCreator,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
 ):
@@ -458,6 +897,7 @@ async def get_location(
     current_user: CurrentUser,
     org: OrganizationContext,
     _rate_limit: RateLimitUser60,
+    archived: ArchivedFilter = "active",
 ):
     """Get location details with company and projects."""
     result = await db.execute(
@@ -483,6 +923,10 @@ async def get_location(
         Project.organization_id == org.id,
         Project.location_id == location.id,
     ]
+    if archived == "active":
+        project_conditions.append(Project.archived_at.is_(None))
+    elif archived == "archived":
+        project_conditions.append(Project.archived_at.isnot(None))
     if not current_user.can_see_all_org_projects():
         project_conditions.append(Project.user_id == current_user.id)
 
@@ -520,9 +964,10 @@ async def update_location(
     location_id: UUID,
     location_data: LocationUpdate,
     db: AsyncDB,
-    current_user_location: CurrentLocationEditor,
+    current_user_location: ActiveLocationEditor,
     org: OrganizationContext,
     _rate_limit: RateLimitUser30,
+    archived: ArchivedFilter = "active",
 ):
     """Update location information."""
     current_user, location = current_user_location
@@ -554,6 +999,10 @@ async def update_location(
         Project.organization_id == org.id,
         Project.location_id == location.id,
     ]
+    if archived == "active":
+        project_conditions.append(Project.archived_at.is_(None))
+    elif archived == "archived":
+        project_conditions.append(Project.archived_at.isnot(None))
     if not current_user.can_see_all_org_projects():
         project_conditions.append(Project.user_id == current_user.id)
 
@@ -584,32 +1033,104 @@ async def update_location(
     )
 
 
+@router.post("/locations/{location_id}/archive", response_model=SuccessResponse)
+async def archive_location(
+    location: LocationAdminActionDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+):
+    return await _archive_location(
+        db=db,
+        org_id=org.id,
+        location_id=location.id,
+        user_id=current_user.id,
+    )
+
+
+@router.post("/locations/{location_id}/restore", response_model=SuccessResponse)
+async def restore_location(
+    location: LocationAdminActionDep,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+):
+    return await _restore_location(
+        db=db,
+        org_id=org.id,
+        location_id=location.id,
+    )
+
+
+@router.post("/locations/{location_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_location(
+    location: LocationAdminActionDep,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+    payload: dict[str, str] | None = None,
+):
+    confirm_name = extract_confirm_name(payload)
+    if not confirm_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="confirm_name is required"
+        )
+    if confirm_name != location.name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="confirm_name does not match"
+        )
+
+    locked_location = await _lock_location_for_update(
+        db=db,
+        org_id=org.id,
+        location_id=location.id,
+    )
+    if not locked_location:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found")
+    if locked_location.archived_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Location must be archived before purge",
+        )
+
+    storage_paths = await _collect_location_storage_paths(
+        db=db,
+        org_id=org.id,
+        location_id=location.id,
+    )
+    try:
+        validate_storage_keys(storage_paths)
+    except StorageDeleteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    await db.delete(locked_location)
+    await db.commit()
+
+    try:
+        await delete_storage_keys(storage_paths)
+    except Exception as exc:
+        logger.warning("location_purge_storage_delete_failed", error=str(exc))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.delete("/locations/{location_id}", response_model=SuccessResponse)
 async def delete_location(
-    location_id: UUID,
     db: AsyncDB,
-    current_user: CurrentLocationDeleter,
+    location: LocationAdminActionDep,
+    current_user: CurrentUser,
     org: OrganizationContext,
     _rate_limit: RateLimitUser10,
 ):
     """
-    Delete location.
-    Cascade deletes all projects at this location.
+    Archive location (compat).
     """
-    result = await db.execute(
-        select(Location).where(
-            Location.id == location_id,
-            Location.organization_id == org.id,
-        )
+    return await _archive_location(
+        db=db,
+        org_id=org.id,
+        location_id=location.id,
+        user_id=current_user.id,
     )
-    location = result.scalar_one_or_none()
-
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Location {location_id} not found"
-        )
-
-    await db.delete(location)
-    await db.commit()
-
-    return SuccessResponse(message=f"Location {location.name} deleted successfully")

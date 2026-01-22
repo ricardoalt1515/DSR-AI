@@ -166,6 +166,8 @@ export function FilesTabEnhanced({
 	const currentProject = useCurrentProject();
 	const isLoading = useProjectLoading();
 	const isProjectLoaded = currentProject?.id === projectId;
+	const isArchived =
+		currentProject?.id === projectId && Boolean(currentProject.archivedAt);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [fileTypeFilter, setFileTypeFilter] = useState<string>("all");
 
@@ -226,7 +228,19 @@ export function FilesTabEnhanced({
 				</p>
 			</div>
 
-			<FileUploader projectId={projectId} onUploadComplete={onDataImported} />
+			{isArchived && (
+				<Card className="border-warning/40 bg-warning/10">
+					<CardContent className="p-4 text-sm text-muted-foreground">
+						This project is archived. File uploads and deletions are disabled.
+					</CardContent>
+				</Card>
+			)}
+
+			<FileUploader
+				projectId={projectId}
+				onUploadComplete={onDataImported}
+				readOnly={isArchived}
+			/>
 
 			{/* Search and Filter */}
 			{files.length > 0 && (

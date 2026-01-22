@@ -1,4 +1,4 @@
-import type { PaginatedResponse } from "@/lib/types/api";
+import type { PaginatedResponse, SuccessResponse } from "@/lib/types/api";
 import type {
 	ProjectDetail,
 	ProjectFile,
@@ -16,6 +16,7 @@ export type ProjectListParams = {
 	search?: string;
 	status?: string;
 	sector?: string;
+	archived?: "active" | "archived" | "all";
 	companyId?: string; // Filter by company
 	locationId?: string; // Filter by location
 };
@@ -36,15 +37,21 @@ export type UpdateProjectPayload = JsonObject &
 		progress?: number;
 	};
 
+export type PipelineStageStats = {
+	count: number;
+	avgProgress: number;
+};
+
 export type DashboardStats = {
-	total_projects: number;
-	in_preparation: number;
+	totalProjects: number;
+	inPreparation: number;
 	generating: number;
-	proposal_ready: number;
-	in_development: number;
+	ready: number;
 	completed: number;
-	on_hold: number;
-	avg_progress: number;
+	avgProgress: number;
+	totalBudget: number;
+	lastUpdated: string | null;
+	pipelineStages: Record<string, PipelineStageStats>;
 };
 
 export type ProjectFilesListResponse = {
@@ -75,6 +82,7 @@ export const projectsAPI = {
 		if (params?.search) searchParams.append("search", params.search);
 		if (params?.status) searchParams.append("status", params.status);
 		if (params?.sector) searchParams.append("sector", params.sector);
+		if (params?.archived) searchParams.append("archived", params.archived);
 		if (params?.companyId) searchParams.append("company_id", params.companyId);
 		if (params?.locationId)
 			searchParams.append("location_id", params.locationId);
@@ -89,8 +97,11 @@ export const projectsAPI = {
 		return apiClient.get<ProjectDetail>(`/projects/${id}`);
 	},
 
-	async getStats(): Promise<DashboardStats> {
-		return apiClient.get<DashboardStats>("/projects/stats");
+	async getStats(
+		archived?: "active" | "archived" | "all",
+	): Promise<DashboardStats> {
+		const query = archived ? `?archived=${archived}` : "";
+		return apiClient.get<DashboardStats>(`/projects/stats${query}`);
 	},
 
 	async createProject(data: CreateProjectPayload): Promise<ProjectDetail> {
@@ -104,8 +115,22 @@ export const projectsAPI = {
 		return apiClient.patch<ProjectDetail>(`/projects/${id}`, data);
 	},
 
-	async deleteProject(id: string): Promise<void> {
-		await apiClient.delete<void>(`/projects/${id}`);
+	async deleteProject(id: string): Promise<SuccessResponse> {
+		return apiClient.delete<SuccessResponse>(`/projects/${id}`);
+	},
+
+	async archiveProject(id: string): Promise<SuccessResponse> {
+		return apiClient.post<SuccessResponse>(`/projects/${id}/archive`);
+	},
+
+	async restoreProject(id: string): Promise<SuccessResponse> {
+		return apiClient.post<SuccessResponse>(`/projects/${id}/restore`);
+	},
+
+	async purgeProject(id: string, confirmName: string): Promise<void> {
+		await apiClient.post<void>(`/projects/${id}/purge`, {
+			confirm_name: confirmName,
+		});
 	},
 
 	// ❌ REMOVED: Proposal methods (getProposals, createProposal, updateProposal, deleteProposal)

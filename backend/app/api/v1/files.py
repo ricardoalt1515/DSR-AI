@@ -21,7 +21,14 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import AsyncDB, CurrentUser, OrganizationContext, ProjectDep
+from app.api.dependencies import (
+    ActiveProjectDep,
+    AsyncDB,
+    CurrentUser,
+    OrganizationContext,
+    ProjectDep,
+    require_not_archived,
+)
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_async_db
 from app.models.file import ProjectFile
@@ -30,11 +37,11 @@ from app.models.timeline import TimelineEvent
 from app.schemas.common import ErrorResponse
 from app.schemas.file import FileDetailResponse, FileListResponse, FileUploadResponse
 from app.services.document_processor import DocumentProcessor
-from app.services.s3_service import (
-    USE_S3,
-    delete_file_from_s3,
-    get_presigned_url,
-    upload_file_to_s3,
+from app.services.s3_service import USE_S3, get_presigned_url, upload_file_to_s3
+from app.services.storage_delete_service import (
+    StorageDeleteError,
+    delete_storage_keys,
+    validate_storage_keys,
 )
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +92,7 @@ def validate_file(upload_file: UploadFile) -> None:
 @limiter.limit("10/minute")  # File upload - conservative (resource intensive)
 async def upload_file(
     request: Request,
-    project: ProjectDep,
+    project: ActiveProjectDep,
     current_user: CurrentUser,
     file: Annotated[UploadFile, File()],
     background_tasks: BackgroundTasks,
@@ -167,13 +174,39 @@ async def upload_file(
             await upload_file_to_s3(file_buffer, s3_key, file.content_type)
             file_path = s3_key
         else:
-            # Store locally
-            storage_dir = Path(settings.LOCAL_STORAGE_PATH) / "projects" / str(project.id) / "files"
-            storage_dir.mkdir(parents=True, exist_ok=True)
-            file_path = str(storage_dir / unique_filename)
+            # Store locally using relative storage key
+            storage_key = f"projects/{project.id}/files/{unique_filename}"
+            storage_path = Path(settings.LOCAL_STORAGE_PATH) / storage_key
+            storage_path.parent.mkdir(parents=True, exist_ok=True)
 
-            async with aiofiles.open(file_path, "wb") as f:
+            async with aiofiles.open(storage_path, "wb") as f:
                 await f.write(file_content)
+
+            file_path = storage_key
+
+        # Re-check archive state with lock before DB mutation
+        locked_result = await db.execute(
+            select(Project)
+            .where(
+                Project.id == project.id,
+                Project.organization_id == project.organization_id,
+            )
+            .with_for_update()
+        )
+        locked_project = locked_result.scalar_one_or_none()
+        if not locked_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+        try:
+            require_not_archived(locked_project)
+        except HTTPException:
+            try:
+                await delete_storage_keys([file_path])
+            except StorageDeleteError as exc:
+                logger.warning("uploaded_file_cleanup_failed", path=file_path, error=str(exc))
+            raise
 
         # Create database record
         project_file = ProjectFile(
@@ -395,7 +428,7 @@ async def download_file(
     summary="Delete file",
 )
 async def delete_file(
-    project: ProjectDep,
+    project: ActiveProjectDep,
     file_id: UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_async_db)],
@@ -420,16 +453,32 @@ async def delete_file(
             detail="File not found",
         )
 
-    # Delete physical file
+    # Re-check archive state with lock before DB mutation
+    locked_result = await db.execute(
+        select(Project)
+        .where(
+            Project.id == project.id,
+            Project.organization_id == project.organization_id,
+        )
+        .with_for_update()
+    )
+    locked_project = locked_result.scalar_one_or_none()
+    if not locked_project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+    require_not_archived(locked_project)
+
+    file_path = file.file_path
+    filename = file.filename
     try:
-        if USE_S3:
-            await delete_file_from_s3(file.file_path)
-        else:
-            file_path = Path(file.file_path)
-            if file_path.exists():
-                file_path.unlink()
-    except Exception as e:
-        logger.warning(f"Could not delete physical file: {e}")
+        validate_storage_keys([file_path])
+    except StorageDeleteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
     # Delete database record
     await db.delete(file)
@@ -450,7 +499,13 @@ async def delete_file(
     db.add(event)
     await db.commit()
 
-    logger.info("File deleted", filename=file.filename, project_id=str(project.id))
+    # Delete physical file after DB commit (best effort)
+    try:
+        await delete_storage_keys([file_path])
+    except Exception as exc:
+        logger.warning("file_storage_delete_failed", path=file_path, error=str(exc))
+
+    logger.info("File deleted", filename=filename, project_id=str(project.id))
 
     return None
 
@@ -483,6 +538,15 @@ async def process_file_with_ai(
                 return
 
             _project_file, project = row
+
+            if project.archived_at is not None:
+                logger.info(
+                    "file_ai_processing_skipped_project_archived",
+                    file_id=str(file_id),
+                    project_id=str(project.id),
+                )
+                return
+
             project_sector = project.sector
             project_subsector = project.subsector
 
@@ -511,16 +575,34 @@ async def process_file_with_ai(
         # Update file record in its own async DB session
         async with AsyncSessionLocal() as db:
             try:
-                result_db = await db.execute(select(ProjectFile).where(ProjectFile.id == file_id))
-                file = result_db.scalar_one_or_none()
+                result_db = await db.execute(
+                    select(ProjectFile, Project)
+                    .join(Project, ProjectFile.project_id == Project.id)
+                    .where(ProjectFile.id == file_id)
+                    .with_for_update()
+                )
+                row = result_db.one_or_none()
 
-                if file:
-                    file.processed_text = result.get("text")
-                    file.ai_analysis = result.get("analysis")
-                    await db.commit()
+                if not row:
+                    return
+
+                file, project = row
+                if project.archived_at is not None:
                     logger.info(
-                        "File processed successfully", file_id=str(file_id), sector=project_sector
+                        "file_ai_result_discarded_project_archived",
+                        file_id=str(file_id),
+                        project_id=str(project.id),
                     )
+                    return
+
+                file.processed_text = result.get("text")
+                file.ai_analysis = result.get("analysis")
+                await db.commit()
+                logger.info(
+                    "File processed successfully",
+                    file_id=str(file_id),
+                    sector=project_sector,
+                )
             except Exception:
                 await db.rollback()
                 raise

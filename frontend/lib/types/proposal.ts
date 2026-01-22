@@ -55,6 +55,77 @@ export interface EconomicsDeepDive {
 	dataGaps?: string[];
 }
 
+export interface BusinessOpportunity {
+	overallRecommendation?: string;
+	decisionSummary?: string;
+	circularEconomyOptions?: string[];
+	strategicRecommendations?: string[];
+	risks?: string[];
+	potentialRevenue?: {
+		annualPotential?: string[];
+		perKg?: string[];
+		marketRate?: string[];
+		notes?: string[];
+	};
+	landfillReduction?: {
+		before?: string[];
+		after?: string[];
+		annualSavings?: string[];
+	};
+	wasteHandlingCostSavings?: {
+		before?: string[];
+		after?: string[];
+		annualSavings?: string[];
+	};
+	resourceConsiderations?: {
+		environmentalImpact?: {
+			currentSituation?: string;
+			benefitIfDiverted?: string;
+			esgStory?: string;
+		};
+		materialHandling?: {
+			hazardLevel?: string;
+			ppeRequirements?: string[];
+			specificHazards?: string[];
+			storageRequirements?: string[];
+			degradationRisks?: string[];
+			qualityPriceImpact?: string[];
+			regulatoryNotes?: string[];
+		};
+		marketIntelligence?: {
+			buyerTypes?: string[];
+			typicalRequirements?: string[];
+			pricingFactors?: string[];
+		};
+	};
+}
+
+export interface LifeCycleAssessment {
+	co2Reduction?: {
+		tons?: string[];
+		percent?: string[];
+		method?: string[];
+	};
+	environmentalNotes?: string;
+}
+
+export interface TechnicalData {
+	assumptions?: string[];
+	technologySelection?: {
+		rejectedAlternatives?: Array<{
+			technology: string;
+			reasonRejected: string;
+		}>;
+	};
+	designParameters?: {
+		peakFactor?: string | number;
+		safetyFactor?: string | number;
+		operatingHours?: string | number;
+		designLifeYears?: string | number;
+		regulatoryMarginPercent?: string | number;
+	};
+}
+
 // ==============================================
 // MAIN REPORT (matches backend ProposalOutput)
 // ==============================================
@@ -86,6 +157,15 @@ export interface WasteUpcyclingReport {
 
 	// ROI (like Wastetide's "$100 → $1000")
 	roiSummary: string;
+
+	// Legacy/report enhancements (optional)
+	businessOpportunity?: BusinessOpportunity;
+	lca?: LifeCycleAssessment;
+	technicalData?: TechnicalData;
+	aiInsights?: string[];
+	primaryWasteTypes?: string[];
+	dailyMonthlyVolume?: string;
+	existingDisposalMethod?: string;
 }
 
 // ==============================================

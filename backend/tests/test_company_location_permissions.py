@@ -142,7 +142,9 @@ async def test_compliance_cannot_create_project(client: AsyncClient, db_session,
 
 
 @pytest.mark.asyncio
-async def test_field_agent_cannot_delete_project(client: AsyncClient, db_session, set_current_user):
+async def test_field_agent_can_archive_own_project(
+    client: AsyncClient, db_session, set_current_user
+):
     uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Project Delete", "org-project-delete")
     agent = await create_user(
@@ -170,7 +172,7 @@ async def test_field_agent_cannot_delete_project(client: AsyncClient, db_session
     set_current_user(agent)
 
     response = await client.delete(f"/api/v1/projects/{project.id}")
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio

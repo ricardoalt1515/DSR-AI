@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Archive,
 	ChevronRight,
 	Download,
 	Edit,
@@ -8,16 +9,18 @@ import {
 	Home,
 	Lightbulb,
 	MoreHorizontal,
-	Trash2,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ArchivedBanner } from "@/components/shared/archived-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
+import { ConfirmPurgeDialog } from "@/components/ui/confirm-purge-dialog";
+import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -26,6 +29,12 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { STATUS_COLORS } from "@/lib/project-status";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
@@ -44,11 +53,20 @@ interface ProjectHeaderProps {
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
 	const router = useRouter();
-	const { deleteProject } = useProjectActions();
-	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const { archiveProject, restoreProject, purgeProject } = useProjectActions();
+	const { canArchiveProject, canRestoreProject, canPurgeProject } =
+		usePermissions();
+
 	const [showEditDialog, setShowEditDialog] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
+	const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+	const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+	const [showPurgeDialog, setShowPurgeDialog] = useState(false);
+	const [isArchiving, setIsArchiving] = useState(false);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const [isPurging, setIsPurging] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
+
+	const isArchived = Boolean(project.archivedAt);
 
 	// ✅ Calculate progress dynamically from technical sections (same as body)
 	const sections = useTechnicalSections(project.id);
@@ -57,25 +75,74 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 			? overallCompletion(sections)
 			: { percentage: project.progress, completed: 0, total: 0 };
 
-	const handleDelete = async () => {
-		setIsDeleting(true);
+	const handleArchive = async () => {
+		setIsArchiving(true);
 		try {
-			await deleteProject(project.id);
-			toast.success("Project deleted", {
-				description: `"${project.name}" has been deleted successfully`,
+			await archiveProject(project.id);
+			toast.success("Project archived", {
+				description: `"${project.name}" has been archived`,
+			});
+			setShowArchiveDialog(false);
+		} catch (_error) {
+			toast.error("Archive failed", {
+				description: "The project could not be archived. Please try again.",
+			});
+		} finally {
+			setIsArchiving(false);
+		}
+	};
+
+	const handleRestore = async () => {
+		setIsRestoring(true);
+		try {
+			await restoreProject(project.id);
+			toast.success("Project restored", {
+				description: `"${project.name}" has been restored`,
+			});
+			setShowRestoreDialog(false);
+		} catch (_error) {
+			toast.error("Restore failed", {
+				description: "The project could not be restored. Please try again.",
+			});
+		} finally {
+			setIsRestoring(false);
+		}
+	};
+
+	const handlePurge = async () => {
+		setIsPurging(true);
+		try {
+			await purgeProject(project.id, project.name);
+			toast.success("Project permanently deleted", {
+				description: `"${project.name}" has been permanently deleted`,
 			});
 			router.push(routes.dashboard);
 		} catch (_error) {
-			toast.error("Delete failed", {
-				description: "The project could not be deleted. Please try again.",
+			toast.error("Purge failed", {
+				description:
+					"The project could not be permanently deleted. Please try again.",
 			});
-			setIsDeleting(false);
+			setIsPurging(false);
 		}
 	};
 
 	return (
 		<header className="border-b bg-card">
 			<div className="container mx-auto px-4 py-6">
+				{/* Archived Banner */}
+				{isArchived && project.archivedAt && (
+					<ArchivedBanner
+						entityType="project"
+						entityName={project.name}
+						archivedAt={project.archivedAt}
+						canRestore={canRestoreProject(project)}
+						canPurge={canPurgeProject()}
+						onRestore={() => setShowRestoreDialog(true)}
+						onPurge={() => setShowPurgeDialog(true)}
+						loading={isRestoring || isPurging}
+					/>
+				)}
+
 				{/* Breadcrumb navigation */}
 				<nav
 					aria-label="Breadcrumb"
@@ -111,9 +178,17 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 							>
 								{project.status}
 							</Badge>
+							{isArchived && (
+								<Badge
+									variant="outline"
+									className="border-amber-500 text-amber-500"
+								>
+									Archived
+								</Badge>
+							)}
 						</div>
 						<p className="text-sm text-muted-foreground mb-4">
-							{project.client} &bull; {project.location || project.type}
+							{project.client} &bull; {project.location || project.projectType}
 						</p>
 
 						{/* Prominent progress bar */}
@@ -136,14 +211,26 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 					{/* Right: Actions */}
 					<div className="flex items-center gap-2 flex-shrink-0">
 						{/* Primary CTA - hidden on mobile, visible in dropdown */}
-						<Button
-							onClick={() => router.push(routes.project.proposals(project.id))}
-							size="sm"
-							className="hidden sm:inline-flex"
-						>
-							<FileText className="mr-2 h-4 w-4" />
-							Generate Proposal
-						</Button>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span tabIndex={isArchived ? 0 : undefined}>
+									<Button
+										onClick={() =>
+											router.push(routes.project.proposals(project.id))
+										}
+										size="sm"
+										className="hidden sm:inline-flex"
+										disabled={isArchived}
+									>
+										<FileText className="mr-2 h-4 w-4" />
+										Generate Proposal
+									</Button>
+								</span>
+							</TooltipTrigger>
+							{isArchived && (
+								<TooltipContent>Project is archived</TooltipContent>
+							)}
+						</Tooltip>
 
 						{/* Secondary actions dropdown */}
 						<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -161,6 +248,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 								{/* Mobile-only: Generate Proposal */}
 								<DropdownMenuItem
 									className="sm:hidden"
+									disabled={isArchived}
 									onSelect={() =>
 										router.push(routes.project.proposals(project.id))
 									}
@@ -169,6 +257,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 									Generate Proposal
 								</DropdownMenuItem>
 								<DropdownMenuItem
+									disabled={isArchived}
 									onSelect={(event) => {
 										event.preventDefault();
 										setMenuOpen(false);
@@ -180,49 +269,70 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
 									<Edit className="mr-2 h-4 w-4" />
 									Edit Project
 								</DropdownMenuItem>
-								<DropdownMenuItem>
+								<DropdownMenuItem disabled={isArchived}>
 									<Download className="mr-2 h-4 w-4" />
 									Export PDF
 								</DropdownMenuItem>
 								<DropdownMenuSeparator />
-								<DropdownMenuItem
-									className="text-destructive focus:text-destructive"
-									onSelect={(event) => {
-										event.preventDefault();
-										setMenuOpen(false);
-										requestAnimationFrame(() => {
-											setShowDeleteDialog(true);
-										});
-									}}
-								>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete Project
-								</DropdownMenuItem>
+								{!isArchived && canArchiveProject(project) && (
+									<DropdownMenuItem
+										className="text-amber-600 focus:text-amber-600"
+										onSelect={(event) => {
+											event.preventDefault();
+											setMenuOpen(false);
+											requestAnimationFrame(() => {
+												setShowArchiveDialog(true);
+											});
+										}}
+									>
+										<Archive className="mr-2 h-4 w-4" />
+										Archive Project
+									</DropdownMenuItem>
+								)}
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</div>
 				</div>
 
 				{/* AI Data Quality Insight */}
-				<div className="mt-4 flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-border/50">
-					<Lightbulb className="h-4 w-4 flex-shrink-0 text-warning" />
-					<span>
-						<span className="hidden sm:inline">
-							The more complete your data, the more accurate your AI proposal.
+				{!isArchived && (
+					<div className="mt-4 flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-border/50">
+						<Lightbulb className="h-4 w-4 flex-shrink-0 text-warning" />
+						<span>
+							<span className="hidden sm:inline">
+								The more complete your data, the more accurate your AI proposal.
+							</span>
+							<span className="sm:hidden">Better data = Better proposals.</span>
 						</span>
-						<span className="sm:hidden">Better data = Better proposals.</span>
-					</span>
-				</div>
+					</div>
+				)}
 			</div>
 
-			<ConfirmDeleteDialog
-				open={showDeleteDialog}
-				onOpenChange={setShowDeleteDialog}
-				onConfirm={handleDelete}
-				title="Delete Project?"
-				description="This action cannot be undone. All technical data, proposals and associated files will be deleted."
-				itemName={project.name}
-				loading={isDeleting}
+			<ConfirmArchiveDialog
+				open={showArchiveDialog}
+				onOpenChange={setShowArchiveDialog}
+				onConfirm={handleArchive}
+				entityType="project"
+				entityName={project.name}
+				loading={isArchiving}
+			/>
+
+			<ConfirmRestoreDialog
+				open={showRestoreDialog}
+				onOpenChange={setShowRestoreDialog}
+				onConfirm={handleRestore}
+				entityType="project"
+				entityName={project.name}
+				loading={isRestoring}
+			/>
+
+			<ConfirmPurgeDialog
+				open={showPurgeDialog}
+				onOpenChange={setShowPurgeDialog}
+				onConfirm={handlePurge}
+				entityType="project"
+				entityName={project.name}
+				loading={isPurging}
 			/>
 
 			<EditProjectDialog

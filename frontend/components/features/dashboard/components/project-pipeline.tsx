@@ -92,42 +92,69 @@ const STAGE_COLOR_MAP = {
 
 // Map ProjectStatus to DashboardStats property names
 const STATUS_TO_STAT_KEY: Record<ProjectStatus, keyof typeof STAT_KEYS> = {
-	"In Preparation": "in_preparation",
+	"In Preparation": "inPreparation",
 	"Generating Proposal": "generating",
-	"Proposal Ready": "proposal_ready",
-	"In Development": "in_development",
+	"Proposal Ready": "ready",
+	"In Development": "generating",
 	Completed: "completed",
-	"On Hold": "on_hold",
+	"On Hold": "generating",
 };
 
 const STAT_KEYS = {
-	in_preparation: true,
+	inPreparation: true,
 	generating: true,
-	proposal_ready: true,
-	in_development: true,
+	ready: true,
 	completed: true,
-	on_hold: true,
 } as const;
 
 export function ProjectPipeline() {
 	const stats = useProjectStatsData();
 
-	if (!stats || stats.total_projects === 0) {
+	if (!stats || stats.totalProjects === 0) {
 		return null;
 	}
 
-	// Calculate stage counts from flat stats properties
+	const stageStats = stats.pipelineStages ?? {};
+	const hasPipelineStats = Object.keys(stageStats).length > 0;
+
+	// Calculate stage counts from pipeline stats (fallback to flat stats if missing)
 	const getStageCount = (stage: StageDefinition): number => {
+		if (hasPipelineStats) {
+			return stage.statuses.reduce((sum, status) => {
+				const stageStat = stageStats[status];
+				return sum + (stageStat?.count ?? 0);
+			}, 0);
+		}
+
 		return stage.statuses.reduce((sum, status) => {
 			const key = STATUS_TO_STAT_KEY[status];
 			return sum + (stats[key] ?? 0);
 		}, 0);
 	};
 
+	const getStageAvgProgress = (stage: StageDefinition): number => {
+		if (!hasPipelineStats) {
+			return stats.avgProgress ?? 0;
+		}
+
+		let totalCount = 0;
+		let totalProgress = 0;
+
+		for (const status of stage.statuses) {
+			const stageStat = stageStats[status];
+			if (stageStat) {
+				totalCount += stageStat.count ?? 0;
+				totalProgress += (stageStat.count ?? 0) * (stageStat.avgProgress ?? 0);
+			}
+		}
+
+		return totalCount > 0 ? Math.round(totalProgress / totalCount) : 0;
+	};
+
 	const stageData = PIPELINE_STAGES.map((stage) => ({
 		...stage,
 		count: getStageCount(stage),
-		avgProgress: stats.avg_progress ?? 0,
+		avgProgress: getStageAvgProgress(stage),
 	}));
 
 	const totalActive = stageData

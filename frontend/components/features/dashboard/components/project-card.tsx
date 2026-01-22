@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Archive,
 	Briefcase,
 	Building,
 	Calendar,
@@ -12,7 +13,6 @@ import {
 	Home,
 	MapPin,
 	MoreHorizontal,
-	Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
@@ -22,7 +22,7 @@ import { ProjectProgressIndicator } from "@/components/features/projects";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -53,6 +53,7 @@ interface ProjectCardProps {
 	updatedAt: string;
 	createdAt: string;
 	proposalsCount?: number;
+	archivedAt?: string | null;
 	className?: string;
 }
 
@@ -89,12 +90,14 @@ const ProjectCard = memo(function ProjectCard({
 	updatedAt,
 	createdAt,
 	proposalsCount = 0,
+	archivedAt,
 	className,
 }: ProjectCardProps) {
-	const { deleteProject } = useProjectActions();
-	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
+	const { archiveProject } = useProjectActions();
+	const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+	const [isArchiving, setIsArchiving] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const isArchived = Boolean(archivedAt);
 
 	// ✅ Calculate progress dynamically from technical sections
 	const sections = useTechnicalSections(id);
@@ -139,20 +142,20 @@ const ProjectCard = memo(function ProjectCard({
 		}
 	}, [status, id]);
 
-	const handleDelete = async () => {
-		setIsDeleting(true);
+	const handleArchive = async () => {
+		setIsArchiving(true);
 		try {
-			await deleteProject(id);
-			toast.success("Waste stream deleted", {
-				description: `"${name}" has been successfully deleted`,
+			await archiveProject(id);
+			toast.success("Waste stream archived", {
+				description: `"${name}" has been archived`,
 			});
-			setShowDeleteDialog(false);
+			setShowArchiveDialog(false);
 		} catch (_error) {
-			toast.error("Deletion error", {
-				description: "Could not delete the waste stream. Please try again.",
+			toast.error("Archive error", {
+				description: "Could not archive the waste stream. Please try again.",
 			});
 		} finally {
-			setIsDeleting(false);
+			setIsArchiving(false);
 		}
 	};
 
@@ -160,6 +163,7 @@ const ProjectCard = memo(function ProjectCard({
 		<Card
 			className={cn(
 				"group relative flex h-full flex-col bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-[box-shadow,transform] duration-300 overflow-hidden",
+				isArchived && "border-amber-500/40 bg-amber-500/5",
 				className,
 			)}
 		>
@@ -217,20 +221,22 @@ const ProjectCard = memo(function ProjectCard({
 								</Link>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								disabled={isDeleting}
-								className="text-destructive focus:text-destructive"
-								onSelect={(e) => {
-									e.preventDefault();
-									setMenuOpen(false);
-									requestAnimationFrame(() => {
-										setShowDeleteDialog(true);
-									});
-								}}
-							>
-								<Trash2 className="mr-2 h-4 w-4" />
-								Delete Waste Stream
-							</DropdownMenuItem>
+							{!isArchived && (
+								<DropdownMenuItem
+									disabled={isArchiving}
+									className="text-destructive focus:text-destructive"
+									onSelect={(e) => {
+										e.preventDefault();
+										setMenuOpen(false);
+										requestAnimationFrame(() => {
+											setShowArchiveDialog(true);
+										});
+									}}
+								>
+									<Archive className="mr-2 h-4 w-4" />
+									Archive Waste Stream
+								</DropdownMenuItem>
+							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>
@@ -247,6 +253,14 @@ const ProjectCard = memo(function ProjectCard({
 					>
 						{statusLabel}
 					</Badge>
+					{isArchived && (
+						<Badge
+							variant="outline"
+							className="border-amber-500 text-amber-500 text-xs"
+						>
+							Archived
+						</Badge>
+					)}
 					<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors duration-300">
 						{statusDescription}
 					</span>
@@ -330,14 +344,13 @@ const ProjectCard = memo(function ProjectCard({
 				</div>
 			</CardContent>
 
-			<ConfirmDeleteDialog
-				open={showDeleteDialog}
-				onOpenChange={setShowDeleteDialog}
-				onConfirm={handleDelete}
-				title="Delete Waste Stream"
-				description={`This will permanently delete all technical information, ${proposalsCount} proposal${proposalsCount !== 1 ? "s" : ""}, attached files, and change history. This action cannot be undone.`}
-				itemName={name}
-				loading={isDeleting}
+			<ConfirmArchiveDialog
+				open={showArchiveDialog}
+				onOpenChange={setShowArchiveDialog}
+				onConfirm={handleArchive}
+				entityType="project"
+				entityName={name}
+				loading={isArchiving}
 			/>
 		</Card>
 	);

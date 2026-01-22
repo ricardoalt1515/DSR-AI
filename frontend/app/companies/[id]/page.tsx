@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Archive,
 	ArrowLeft,
 	Building2,
 	Edit,
@@ -19,13 +20,18 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
+import { ArchivedBanner } from "@/components/shared/archived-banner";
 import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArchivedFilterSelect } from "@/components/ui/archived-filter-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import { ConfirmPurgeDialog } from "@/components/ui/confirm-purge-dialog";
+import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -33,6 +39,12 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { ArchivedFilter } from "@/lib/api/companies";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useCompanyStore } from "@/lib/stores/company-store";
@@ -44,12 +56,21 @@ export default function CompanyDetailPage() {
 	const router = useRouter();
 	const companyId = params.id as string;
 	const { canCreateClientData } = useAuth();
-	const { canEditCompany, canDeleteLocation } = usePermissions();
+	const {
+		canEditCompany,
+		canDeleteLocation,
+		canArchiveCompany,
+		canRestoreCompany,
+		canPurgeCompany,
+	} = usePermissions();
 
 	const {
 		currentCompany,
 		loading,
 		loadCompany,
+		archiveCompany,
+		restoreCompany,
+		purgeCompany,
 		error: companyError,
 		clearError: clearCompanyError,
 	} = useCompanyStore();
@@ -61,11 +82,15 @@ export default function CompanyDetailPage() {
 		clearError: clearLocationsError,
 	} = useLocationStore();
 
+	const [locationsFilter, setLocationsFilter] =
+		useState<ArchivedFilter>("active");
+
 	// Filter locations for current company only (store may have cached data from other companies)
 	const locations = useMemo(
 		() => allLocations.filter((loc) => loc.companyId === companyId),
 		[allLocations, companyId],
 	);
+
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [locationToDelete, setLocationToDelete] =
 		useState<LocationSummary | null>(null);
@@ -73,12 +98,28 @@ export default function CompanyDetailPage() {
 	const [editCompanyDialogOpen, setEditCompanyDialogOpen] = useState(false);
 	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
+	// Archive dialog states
+	const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+	const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+	const [showPurgeDialog, setShowPurgeDialog] = useState(false);
+	const [isArchiving, setIsArchiving] = useState(false);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const [isPurging, setIsPurging] = useState(false);
+
+	const isArchived = Boolean(currentCompany?.archivedAt);
+
+	useEffect(() => {
+		if (isArchived && locationsFilter === "active") {
+			setLocationsFilter("archived");
+		}
+	}, [isArchived, locationsFilter]);
+
 	useEffect(() => {
 		if (companyId) {
 			void loadCompany(companyId).catch(() => {});
-			void loadLocationsByCompany(companyId).catch(() => {});
+			void loadLocationsByCompany(companyId, locationsFilter).catch(() => {});
 		}
-	}, [companyId, loadCompany, loadLocationsByCompany]);
+	}, [companyId, loadCompany, loadLocationsByCompany, locationsFilter]);
 
 	const handleConfirmDelete = async () => {
 		if (!locationToDelete) return;
@@ -95,12 +136,64 @@ export default function CompanyDetailPage() {
 
 			// Reload data in background (non-blocking)
 			void loadCompany(companyId).catch(() => {});
-			void loadLocationsByCompany(companyId).catch(() => {});
+			void loadLocationsByCompany(companyId, locationsFilter).catch(() => {});
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
 			);
 			setDeleting(false);
+		}
+	};
+
+	const handleArchive = async () => {
+		setIsArchiving(true);
+		try {
+			await archiveCompany(companyId);
+			toast.success("Company archived", {
+				description: `"${currentCompany?.name}" has been archived`,
+			});
+			setShowArchiveDialog(false);
+		} catch (_error) {
+			toast.error("Archive failed", {
+				description: "The company could not be archived. Please try again.",
+			});
+		} finally {
+			setIsArchiving(false);
+		}
+	};
+
+	const handleRestore = async () => {
+		setIsRestoring(true);
+		try {
+			await restoreCompany(companyId);
+			toast.success("Company restored", {
+				description: `"${currentCompany?.name}" has been restored`,
+			});
+			setShowRestoreDialog(false);
+		} catch (_error) {
+			toast.error("Restore failed", {
+				description: "The company could not be restored. Please try again.",
+			});
+		} finally {
+			setIsRestoring(false);
+		}
+	};
+
+	const handlePurge = async () => {
+		if (!currentCompany) return;
+		setIsPurging(true);
+		try {
+			await purgeCompany(companyId, currentCompany.name);
+			toast.success("Company permanently deleted", {
+				description: `"${currentCompany.name}" has been permanently deleted`,
+			});
+			router.push("/companies");
+		} catch (_error) {
+			toast.error("Purge failed", {
+				description:
+					"The company could not be permanently deleted. Please try again.",
+			});
+			setIsPurging(false);
 		}
 	};
 
@@ -130,6 +223,20 @@ export default function CompanyDetailPage() {
 				]}
 			/>
 
+			{/* Archived Banner */}
+			{isArchived && currentCompany.archivedAt && (
+				<ArchivedBanner
+					entityType="company"
+					entityName={currentCompany.name}
+					archivedAt={currentCompany.archivedAt}
+					canRestore={canRestoreCompany()}
+					canPurge={canPurgeCompany()}
+					onRestore={() => setShowRestoreDialog(true)}
+					onPurge={() => setShowPurgeDialog(true)}
+					loading={isRestoring || isPurging}
+				/>
+			)}
+
 			{(companyError || locationsError) && (
 				<Alert variant="destructive">
 					<AlertTitle>Could not load company data</AlertTitle>
@@ -143,7 +250,9 @@ export default function CompanyDetailPage() {
 								clearCompanyError();
 								clearLocationsError();
 								void loadCompany(companyId).catch(() => {});
-								void loadLocationsByCompany(companyId).catch(() => {});
+								void loadLocationsByCompany(companyId, locationsFilter).catch(
+									() => {},
+								);
 							}}
 						>
 							Retry
@@ -163,10 +272,20 @@ export default function CompanyDetailPage() {
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex-1">
-					<h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-						<Building2 className="h-8 w-8" />
-						{currentCompany.name}
-					</h1>
+					<div className="flex items-center gap-3">
+						<h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+							<Building2 className="h-8 w-8" />
+							{currentCompany.name}
+						</h1>
+						{isArchived && (
+							<Badge
+								variant="outline"
+								className="border-amber-500 text-amber-500"
+							>
+								Archived
+							</Badge>
+						)}
+					</div>
 					<p className="text-muted-foreground mt-1">
 						{currentCompany.subsector
 							? formatSubsector(currentCompany.subsector)
@@ -177,10 +296,33 @@ export default function CompanyDetailPage() {
 					{currentCompany.locationCount ?? 0}{" "}
 					{(currentCompany.locationCount ?? 0) === 1 ? "location" : "locations"}
 				</Badge>
+
+				{/* Actions */}
 				{canEditCompany(currentCompany) && (
-					<Button onClick={() => setEditCompanyDialogOpen(true)}>
-						<Edit className="mr-2 h-4 w-4" />
-						Edit Company
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span tabIndex={isArchived ? 0 : undefined}>
+								<Button
+									onClick={() => setEditCompanyDialogOpen(true)}
+									disabled={isArchived}
+								>
+									<Edit className="mr-2 h-4 w-4" />
+									Edit Company
+								</Button>
+							</span>
+						</TooltipTrigger>
+						{isArchived && <TooltipContent>Company is archived</TooltipContent>}
+					</Tooltip>
+				)}
+
+				{!isArchived && canArchiveCompany() && (
+					<Button
+						variant="outline"
+						onClick={() => setShowArchiveDialog(true)}
+						className="text-amber-600 border-amber-600 hover:bg-amber-50"
+					>
+						<Archive className="mr-2 h-4 w-4" />
+						Archive
 					</Button>
 				)}
 			</div>
@@ -277,47 +419,66 @@ export default function CompanyDetailPage() {
 
 			{/* Locations Section */}
 			<div className="space-y-4">
-				<div className="flex items-center justify-between">
+				<div className="flex items-center justify-between flex-wrap gap-4">
 					<h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
 						<MapPin className="h-6 w-6" />
 						Locations
 					</h2>
-					{canCreateClientData && (
-						<CreateLocationDialog
-							companyId={companyId}
-							onSuccess={() => {
-								void loadCompany(companyId).catch(() => {});
-								void loadLocationsByCompany(companyId).catch(() => {});
-							}}
+					<div className="flex items-center gap-4">
+						<ArchivedFilterSelect
+							value={locationsFilter}
+							onChange={setLocationsFilter}
 						/>
-					)}
+						{canCreateClientData && !isArchived && (
+							<CreateLocationDialog
+								companyId={companyId}
+								onSuccess={() => {
+									void loadCompany(companyId).catch(() => {});
+									void loadLocationsByCompany(companyId, locationsFilter).catch(
+										() => {},
+									);
+								}}
+							/>
+						)}
+					</div>
 				</div>
 
 				{locations.length === 0 ? (
 					<Card>
 						<CardContent className="py-12 text-center">
 							<MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-							<h3 className="text-lg font-semibold mb-2">No locations yet</h3>
+							<h3 className="text-lg font-semibold mb-2">
+								{locationsFilter === "archived"
+									? "No archived locations"
+									: "No locations yet"}
+							</h3>
 							<p className="text-muted-foreground mb-4">
-								{canCreateClientData
-									? "Add the first location for this company"
-									: "No locations have been added to this company yet"}
+								{locationsFilter === "archived"
+									? "No locations have been archived for this company"
+									: canCreateClientData && !isArchived
+										? "Add the first location for this company"
+										: "No locations have been added to this company yet"}
 							</p>
-							{canCreateClientData && (
-								<CreateLocationDialog
-									companyId={companyId}
-									trigger={
-										<Button>
-											<Plus className="mr-2 h-4 w-4" />
-											Add First Location
-										</Button>
-									}
-									onSuccess={() => {
-										void loadCompany(companyId).catch(() => {});
-										void loadLocationsByCompany(companyId).catch(() => {});
-									}}
-								/>
-							)}
+							{canCreateClientData &&
+								!isArchived &&
+								locationsFilter !== "archived" && (
+									<CreateLocationDialog
+										companyId={companyId}
+										trigger={
+											<Button>
+												<Plus className="mr-2 h-4 w-4" />
+												Add First Location
+											</Button>
+										}
+										onSuccess={() => {
+											void loadCompany(companyId).catch(() => {});
+											void loadLocationsByCompany(
+												companyId,
+												locationsFilter,
+											).catch(() => {});
+										}}
+									/>
+								)}
 						</CardContent>
 					</Card>
 				) : (
@@ -338,9 +499,19 @@ export default function CompanyDetailPage() {
 												)
 											}
 										>
-											<CardTitle className="text-lg group-hover:text-primary transition-colors">
-												{location.name}
-											</CardTitle>
+											<div className="flex items-center gap-2">
+												<CardTitle className="text-lg group-hover:text-primary transition-colors">
+													{location.name}
+												</CardTitle>
+												{location.archivedAt && (
+													<Badge
+														variant="outline"
+														className="border-amber-500 text-amber-500 text-xs"
+													>
+														Archived
+													</Badge>
+												)}
+											</div>
 											<p className="text-sm text-muted-foreground mt-1">
 												{location.city}, {location.state}
 											</p>
@@ -375,7 +546,7 @@ export default function CompanyDetailPage() {
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
-													{canDeleteLocation() && (
+													{canDeleteLocation() && !location.archivedAt && (
 														<DropdownMenuItem
 															onClick={() => {
 																setLocationToDelete(location);
@@ -415,19 +586,21 @@ export default function CompanyDetailPage() {
 										>
 											View Details
 										</Button>
-										<Button
-											size="sm"
-											className="flex-1"
-											onClick={(e) => {
-												e.stopPropagation();
-												router.push(
-													`/companies/${companyId}/locations/${location.id}?action=new-waste-stream`,
-												);
-											}}
-										>
-											<Plus className="h-4 w-4 mr-1" />
-											New Waste Stream
-										</Button>
+										{!location.archivedAt && !isArchived && (
+											<Button
+												size="sm"
+												className="flex-1"
+												onClick={(e) => {
+													e.stopPropagation();
+													router.push(
+														`/companies/${companyId}/locations/${location.id}?action=new-waste-stream`,
+													);
+												}}
+											>
+												<Plus className="h-4 w-4 mr-1" />
+												New Waste Stream
+											</Button>
+										)}
 									</div>
 								</CardContent>
 							</Card>
@@ -448,6 +621,34 @@ export default function CompanyDetailPage() {
 				description="This will permanently delete all waste streams associated with this location. This action cannot be undone."
 				itemName={locationToDelete?.name}
 				loading={deleting}
+			/>
+
+			{/* Archive/Restore/Purge Dialogs */}
+			<ConfirmArchiveDialog
+				open={showArchiveDialog}
+				onOpenChange={setShowArchiveDialog}
+				onConfirm={handleArchive}
+				entityType="company"
+				entityName={currentCompany.name}
+				loading={isArchiving}
+			/>
+
+			<ConfirmRestoreDialog
+				open={showRestoreDialog}
+				onOpenChange={setShowRestoreDialog}
+				onConfirm={handleRestore}
+				entityType="company"
+				entityName={currentCompany.name}
+				loading={isRestoring}
+			/>
+
+			<ConfirmPurgeDialog
+				open={showPurgeDialog}
+				onOpenChange={setShowPurgeDialog}
+				onConfirm={handlePurge}
+				entityType="company"
+				entityName={currentCompany.name}
+				loading={isPurging}
 			/>
 
 			{/* Edit Company Dialog - Reuse CreateCompanyDialog (DRY) */}

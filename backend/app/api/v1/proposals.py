@@ -13,8 +13,15 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import CurrentUser, OrganizationContext, ProjectDep
+from app.api.dependencies import (
+    ActiveProjectDep,
+    CurrentUser,
+    OrganizationContext,
+    ProjectDep,
+    require_not_archived,
+)
 from app.core.database import get_async_db
+from app.main import limiter
 from app.models.file import ProjectFile
 from app.models.project import Project
 from app.schemas.common import ErrorResponse
@@ -29,20 +36,18 @@ from app.services.proposal_service import (
     build_external_markdown_from_data,
     sanitize_external_text,
 )
-from app.services.s3_service import (
-    LOCAL_UPLOADS_DIR,
-    USE_S3,
-    delete_file_from_s3,
-    get_presigned_url,
+from app.services.s3_service import StorageError, get_presigned_url
+from app.services.storage_delete_service import (
+    StorageDeleteError,
+    delete_storage_keys,
+    validate_storage_keys,
 )
+from app.utils.purge_utils import extract_pdf_paths
 from app.visualization.pdf_generator import pdf_generator
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
-
-# Import rate limiter from main app
-from app.main import limiter
 
 
 @router.post(
@@ -109,6 +114,7 @@ async def generate_proposal(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
+    require_not_archived(project)
 
     # Start proposal generation
     try:
@@ -324,6 +330,7 @@ async def get_proposal(
     responses={
         200: {"description": "PDF URL returned successfully"},
         404: {"model": ErrorResponse, "description": "Proposal not found"},
+        409: {"model": ErrorResponse, "description": "Project is archived"},
         500: {"model": ErrorResponse, "description": "PDF generation failed"},
         429: {"model": ErrorResponse, "description": "Too many requests"},
     },
@@ -379,6 +386,7 @@ async def get_proposal_pdf(
             pdf_paths = {}
 
         cached_pdf_path = proposal.pdf_path if audience == "internal" else pdf_paths.get("external")
+        is_archived = project.archived_at is not None
 
         # Check if PDF exists and regeneration not requested
         if cached_pdf_path and not regenerate:
@@ -389,10 +397,30 @@ async def get_proposal_pdf(
             )
 
             # Generate fresh presigned URL or serve local path
-            pdf_url = await get_presigned_url(cached_pdf_path, expires=3600)
+            try:
+                pdf_url = await get_presigned_url(cached_pdf_path, expires=3600)
+            except StorageError as exc:
+                if is_archived:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Project is archived",
+                    ) from exc
+                logger.warning("cached_pdf_unavailable", error=str(exc))
+                pdf_url = ""
 
             if pdf_url:
                 return {"url": pdf_url}
+            if is_archived:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Project is archived",
+                )
+
+        if is_archived:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Project is archived",
+            )
 
         # Generate new PDF using existing ProfessionalPDFGenerator
         logger.info("Generating new PDF for proposal %s", proposal_id)
@@ -529,6 +557,41 @@ async def get_proposal_pdf(
             ai_metadata["pdfPaths"] = pdf_paths
             proposal.ai_metadata = ai_metadata
 
+        lock_result = await db.execute(
+            select(Project)
+            .where(
+                Project.id == project.id,
+                Project.organization_id == project.organization_id,
+            )
+            .with_for_update()
+        )
+        locked_project = lock_result.scalar_one_or_none()
+        if not locked_project:
+            try:
+                await delete_storage_keys([pdf_filename])
+            except Exception as exc:
+                logger.warning(
+                    "pdf_cleanup_failed_after_project_missing",
+                    error=str(exc),
+                    key=pdf_filename,
+                )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+        try:
+            require_not_archived(locked_project)
+        except HTTPException:
+            try:
+                await delete_storage_keys([pdf_filename])
+            except Exception as exc:
+                logger.warning(
+                    "pdf_cleanup_failed_after_archive",
+                    error=str(exc),
+                    key=pdf_filename,
+                )
+            raise
+
         await db.commit()
 
         logger.info("PDF generated and saved: %s", pdf_filename)
@@ -543,6 +606,8 @@ async def get_proposal_pdf(
 
         return {"url": pdf_url}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("PDF generation failed: %s", e, exc_info=True)
         raise HTTPException(
@@ -566,7 +631,7 @@ async def get_proposal_pdf(
 @limiter.limit("10/minute")  # ⭐ Rate limit: Delete operation (conservative)
 async def delete_proposal(
     request: Request,  # Required for rate limiter
-    project: ProjectDep,
+    project: ActiveProjectDep,
     proposal_id: UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_async_db)],
@@ -602,27 +667,45 @@ async def delete_proposal(
             detail="Proposal not found",
         )
 
-    # Store pdf_path before deleting (for cleanup)
-    pdf_path = proposal.pdf_path
+    lock_result = await db.execute(
+        select(Project)
+        .where(
+            Project.id == project.id,
+            Project.organization_id == project.organization_id,
+        )
+        .with_for_update()
+    )
+    locked_project = lock_result.scalar_one_or_none()
+    if not locked_project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+    require_not_archived(locked_project)
+
+    # Store paths before deleting (for cleanup)
+    storage_keys = []
+    if proposal.pdf_path:
+        storage_keys.append(proposal.pdf_path)
+        storage_keys.extend(extract_pdf_paths(proposal.ai_metadata))
+    try:
+        validate_storage_keys(storage_keys)
+    except StorageDeleteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
     # Delete from database (SQLAlchemy will handle cascade)
     await db.delete(proposal)
     await db.commit()
 
     # Delete PDF file from storage (best effort - don't fail if file doesn't exist)
-    if pdf_path:
+    if storage_keys:
         try:
-            if USE_S3:
-                await delete_file_from_s3(pdf_path)
-                logger.info("Deleted PDF from S3: %s", pdf_path)
-            else:
-                local_file_path = LOCAL_UPLOADS_DIR / pdf_path
-                if local_file_path.exists():
-                    local_file_path.unlink()
-                    logger.info("Deleted local PDF: %s", local_file_path)
-        except Exception as e:
-            # Log error but don't fail the request (file might already be deleted)
-            logger.warning(f"Failed to delete PDF file {pdf_path}: {e}")
+            await delete_storage_keys(storage_keys)
+        except Exception as exc:
+            logger.warning("proposal_pdf_delete_failed", error=str(exc))
 
     logger.info("Deleted proposal %s from project %s", proposal_id, project.id)
 

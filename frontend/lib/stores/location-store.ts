@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { locationsAPI } from "@/lib/api/companies";
+import { type ArchivedFilter, locationsAPI } from "@/lib/api/companies";
 import type {
 	LocationCreate,
 	LocationDetail,
@@ -21,15 +21,21 @@ interface LocationState {
 	error: string | null;
 
 	// Actions
-	loadAllLocations: () => Promise<void>;
-	loadLocationsByCompany: (companyId: string) => Promise<void>;
-	loadLocation: (id: string) => Promise<void>;
+	loadAllLocations: (archived?: ArchivedFilter) => Promise<void>;
+	loadLocationsByCompany: (
+		companyId: string,
+		archived?: ArchivedFilter,
+	) => Promise<void>;
+	loadLocation: (id: string, archived?: ArchivedFilter) => Promise<void>;
 	createLocation: (
 		companyId: string,
 		data: LocationCreate,
 	) => Promise<LocationSummary>;
 	updateLocation: (id: string, data: LocationUpdate) => Promise<LocationDetail>;
 	deleteLocation: (id: string) => Promise<void>;
+	archiveLocation: (id: string) => Promise<void>;
+	restoreLocation: (id: string) => Promise<void>;
+	purgeLocation: (id: string, confirmName: string) => Promise<void>;
 	clearError: () => void;
 	setLoading: (loading: boolean) => void;
 	resetStore: () => void;
@@ -37,7 +43,7 @@ interface LocationState {
 
 export const useLocationStore = create<LocationState>()(
 	persist(
-		immer((set, _get) => ({
+		immer((set, get) => ({
 			// Initial state
 			locations: [],
 			currentLocation: null,
@@ -45,14 +51,14 @@ export const useLocationStore = create<LocationState>()(
 			error: null,
 
 			// Load all locations (optionally cached in store)
-			loadAllLocations: async () => {
+			loadAllLocations: async (archived?: ArchivedFilter) => {
 				set((state) => {
 					state.loading = true;
 					state.error = null;
 				});
 
 				try {
-					const locations = await locationsAPI.listAll();
+					const locations = await locationsAPI.listAll(undefined, archived);
 					set((state) => {
 						state.locations = locations;
 						state.loading = false;
@@ -73,14 +79,20 @@ export const useLocationStore = create<LocationState>()(
 			},
 
 			// Load locations for a company
-			loadLocationsByCompany: async (companyId: string) => {
+			loadLocationsByCompany: async (
+				companyId: string,
+				archived?: ArchivedFilter,
+			) => {
 				set((state) => {
 					state.loading = true;
 					state.error = null;
 				});
 
 				try {
-					const locations = await locationsAPI.listByCompany(companyId);
+					const locations = await locationsAPI.listByCompany(
+						companyId,
+						archived,
+					);
 
 					set((state) => {
 						const otherCompanies = state.locations.filter(
@@ -118,14 +130,14 @@ export const useLocationStore = create<LocationState>()(
 			},
 
 			// Load single location with details
-			loadLocation: async (id: string) => {
+			loadLocation: async (id: string, archived?: ArchivedFilter) => {
 				set((state) => {
 					state.loading = true;
 					state.error = null;
 				});
 
 				try {
-					const location = await locationsAPI.get(id);
+					const location = await locationsAPI.get(id, archived);
 					set((state) => {
 						state.currentLocation = location;
 						state.loading = false;
@@ -231,6 +243,80 @@ export const useLocationStore = create<LocationState>()(
 					set((state) => {
 						state.error = message;
 						state.loading = false;
+					});
+					throw error;
+				}
+			},
+
+			// Archive location
+			archiveLocation: async (id: string) => {
+				try {
+					await locationsAPI.archiveLocation(id);
+					set((state) => {
+						state.locations = state.locations.filter((l) => l.id !== id);
+						if (state.currentLocation?.id === id) {
+							state.currentLocation = {
+								...state.currentLocation,
+								archivedAt: new Date().toISOString(),
+							};
+						}
+					});
+					logger.info(`Location archived: ${id}`, "LocationStore");
+				} catch (error) {
+					const message = getErrorMessage(error, "Failed to archive location");
+					logger.error(
+						`Failed to archive location ${id}`,
+						error,
+						"LocationStore",
+					);
+					set((state) => {
+						state.error = message;
+					});
+					throw error;
+				}
+			},
+
+			// Restore location
+			restoreLocation: async (id: string) => {
+				try {
+					await locationsAPI.restoreLocation(id);
+					// Reload location to get updated state
+					await get().loadLocation(id);
+					logger.info(`Location restored: ${id}`, "LocationStore");
+				} catch (error) {
+					const message = getErrorMessage(error, "Failed to restore location");
+					logger.error(
+						`Failed to restore location ${id}`,
+						error,
+						"LocationStore",
+					);
+					set((state) => {
+						state.error = message;
+					});
+					throw error;
+				}
+			},
+
+			// Purge location permanently
+			purgeLocation: async (id: string, confirmName: string) => {
+				try {
+					await locationsAPI.purgeLocation(id, confirmName);
+					set((state) => {
+						state.locations = state.locations.filter((l) => l.id !== id);
+						if (state.currentLocation?.id === id) {
+							state.currentLocation = null;
+						}
+					});
+					logger.info(`Location purged: ${id}`, "LocationStore");
+				} catch (error) {
+					const message = getErrorMessage(error, "Failed to purge location");
+					logger.error(
+						`Failed to purge location ${id}`,
+						error,
+						"LocationStore",
+					);
+					set((state) => {
+						state.error = message;
 					});
 					throw error;
 				}

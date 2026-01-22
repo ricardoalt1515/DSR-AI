@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { useShallow } from "zustand/react/shallow";
+import type { ArchivedFilter } from "@/lib/api/companies";
 import type { ProjectDetail, ProjectSummary } from "@/lib/project-types";
 import { getErrorMessage, logger } from "@/lib/utils/logger";
 import { type DashboardStats, projectsAPI } from "../api/projects";
@@ -21,6 +22,21 @@ const sanitizeFilters = (filters: ProjectState["filters"]) => {
 	}
 
 	return next;
+};
+
+const applyOptionalFilter = <Key extends keyof ProjectState["filters"]>(
+	current: ProjectState["filters"],
+	source: Partial<ProjectState["filters"]>,
+	key: Key,
+) => {
+	if (Object.hasOwn(source, key)) {
+		const value = source[key];
+		if (value === undefined) {
+			delete current[key];
+			return;
+		}
+		current[key] = value;
+	}
 };
 
 const mapProjectSummary = (
@@ -46,7 +62,10 @@ const mapProjectSummary = (
 		// Metadata
 		createdAt: project.createdAt,
 		updatedAt: project.updatedAt,
-		type: project.type ?? "Assessment",
+		archivedAt: project.archivedAt ?? null,
+		archivedByUserId: project.archivedByUserId ?? null,
+		archivedByParentId: project.archivedByParentId ?? null,
+		projectType: project.projectType ?? "Assessment",
 		description: project.description ?? "",
 		proposalsCount:
 			typeof summary.proposalsCount === "number"
@@ -86,6 +105,7 @@ interface ProjectState {
 		sector?: string;
 		search?: string;
 		companyId?: string;
+		archived?: ArchivedFilter;
 	};
 
 	filteredProjects: (
@@ -96,12 +116,14 @@ interface ProjectState {
 	// Actions
 	loadProjects: (page?: number, append?: boolean) => Promise<void>;
 	loadMore: () => Promise<void>;
-	setFilter: (
-		key: "status" | "sector" | "search" | "companyId",
-		value: string | undefined,
+	setFilter: <Key extends keyof ProjectState["filters"]>(
+		key: Key,
+		value: ProjectState["filters"][Key],
 	) => void;
+	setFilters: (filters: Partial<ProjectState["filters"]>) => void;
+	reloadProjects: () => Promise<void>;
 	loadProject: (id: string) => Promise<void>;
-	loadDashboardStats: () => Promise<void>;
+	loadDashboardStats: (archived?: ArchivedFilter) => Promise<void>;
 	createProject: (
 		projectData: Partial<ProjectSummary>,
 	) => Promise<ProjectSummary>;
@@ -111,6 +133,9 @@ interface ProjectState {
 	) => Promise<void>;
 	updateProjectProgress: (id: string, progress: number) => void;
 	deleteProject: (id: string) => Promise<void>;
+	archiveProject: (id: string) => Promise<void>;
+	restoreProject: (id: string) => Promise<void>;
+	purgeProject: (id: string, confirmName: string) => Promise<void>;
 
 	// Utility actions
 	clearError: () => void;
@@ -167,9 +192,10 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// Load dashboard stats from backend
-			loadDashboardStats: async () => {
+			loadDashboardStats: async (archivedOverride?: ArchivedFilter) => {
 				try {
-					const stats = await projectsAPI.getStats();
+					const archived = archivedOverride ?? get().filters.archived;
+					const stats = await projectsAPI.getStats(archived);
 					set((state) => {
 						state.dashboardStats = stats;
 					});
@@ -203,6 +229,7 @@ export const useProjectStore = create<ProjectState>()(
 						status?: string;
 						sector?: string;
 						companyId?: string;
+						archived?: ArchivedFilter;
 					} = {
 						page,
 						size: pageSize,
@@ -211,6 +238,7 @@ export const useProjectStore = create<ProjectState>()(
 					if (filters.status) params.status = filters.status;
 					if (filters.sector) params.sector = filters.sector;
 					if (filters.companyId) params.companyId = filters.companyId;
+					if (filters.archived) params.archived = filters.archived;
 
 					const response = await projectsAPI.getProjects(params);
 
@@ -239,12 +267,29 @@ export const useProjectStore = create<ProjectState>()(
 						draft.dataSource = "api";
 					});
 				} catch (error) {
+					const message = getErrorMessage(error, "Error loading projects");
+					const isRateLimited = message
+						.toLowerCase()
+						.includes("too many requests");
+					if (isRateLimited) {
+						logger.warn(
+							"Rate limit hit while loading projects",
+							"ProjectStore",
+						);
+						set({
+							projects: get().projects,
+							loading: false,
+							dataSource: "api",
+							error: message,
+						});
+						return;
+					}
 					logger.error("Failed to load projects", error, "ProjectStore");
 					set({
 						projects: append ? get().projects : [],
 						loading: false,
 						dataSource: "api",
-						error: getErrorMessage(error, "Error loading projects"),
+						error: message,
 					});
 				}
 			},
@@ -259,21 +304,40 @@ export const useProjectStore = create<ProjectState>()(
 			},
 
 			// Set filter and reload from page 1
-			setFilter: (
-				key: "status" | "sector" | "search" | "companyId",
-				value: string | undefined,
+			setFilter: <Key extends keyof ProjectState["filters"]>(
+				key: Key,
+				value: ProjectState["filters"][Key],
 			) => {
 				set((draft) => {
+					const nextFilters = { ...draft.filters };
 					if (value === undefined) {
-						delete draft.filters[key];
+						delete nextFilters[key];
 					} else {
-						draft.filters[key] = value;
+						nextFilters[key] = value;
 					}
-					draft.filters = sanitizeFilters(draft.filters);
+					draft.filters = sanitizeFilters(nextFilters);
 					draft.page = 1;
 				});
-				// Trigger reload with new filters
-				void get().loadProjects(1, false);
+			},
+			setFilters: (filters: Partial<ProjectState["filters"]>) => {
+				set((draft) => {
+					const nextFilters = { ...draft.filters };
+					const filterKeys: Array<keyof ProjectState["filters"]> = [
+						"status",
+						"sector",
+						"search",
+						"companyId",
+						"archived",
+					];
+					filterKeys.forEach((key) => {
+						applyOptionalFilter(nextFilters, filters, key);
+					});
+					draft.filters = sanitizeFilters(nextFilters);
+					draft.page = 1;
+				});
+			},
+			reloadProjects: async () => {
+				await get().loadProjects(1, false);
 			},
 
 			loadProject: async (id: string) => {
@@ -296,11 +360,15 @@ export const useProjectStore = create<ProjectState>()(
 						state.dataSource = "api";
 					});
 				} catch (error) {
-					logger.error("Failed to load project", error, "ProjectStore");
+					const message = getErrorMessage(error, "Failed to load project");
+					const isNotFound = message.toLowerCase().includes("not found");
+					if (!isNotFound) {
+						logger.error("Failed to load project", error, "ProjectStore");
+					}
 					set((state) => {
 						state.currentProject = null;
 						state.loading = false;
-						state.error = getErrorMessage(error, "Failed to load project");
+						state.error = isNotFound ? null : message;
 					});
 				}
 			},
@@ -446,6 +514,64 @@ export const useProjectStore = create<ProjectState>()(
 			// ✅ USE INSTEAD: proposalsAPI from '@/lib/api/proposals'
 			// After proposal operations, call loadProject(id) to refresh data
 
+			archiveProject: async (id: string) => {
+				try {
+					await projectsAPI.archiveProject(id);
+					// Remove from active list, update current project
+					set((state) => {
+						state.projects = state.projects.filter((p) => p.id !== id);
+						if (state.currentProject?.id === id) {
+							state.currentProject = {
+								...state.currentProject,
+								archivedAt: new Date().toISOString(),
+							};
+						}
+					});
+					logger.info(`Project archived: ${id}`, "ProjectStore");
+				} catch (error) {
+					logger.error("Failed to archive project", error, "ProjectStore");
+					set((state) => {
+						state.error = getErrorMessage(error, "Failed to archive project");
+					});
+					throw error;
+				}
+			},
+
+			restoreProject: async (id: string) => {
+				try {
+					await projectsAPI.restoreProject(id);
+					// Reload project to get updated state
+					await get().loadProject(id);
+					logger.info(`Project restored: ${id}`, "ProjectStore");
+				} catch (error) {
+					logger.error("Failed to restore project", error, "ProjectStore");
+					set((state) => {
+						state.error = getErrorMessage(error, "Failed to restore project");
+					});
+					throw error;
+				}
+			},
+
+			purgeProject: async (id: string, confirmName: string) => {
+				try {
+					await projectsAPI.purgeProject(id, confirmName);
+					// Remove from store permanently
+					set((state) => {
+						state.projects = state.projects.filter((p) => p.id !== id);
+						if (state.currentProject?.id === id) {
+							state.currentProject = null;
+						}
+					});
+					logger.info(`Project purged: ${id}`, "ProjectStore");
+				} catch (error) {
+					logger.error("Failed to purge project", error, "ProjectStore");
+					set((state) => {
+						state.error = getErrorMessage(error, "Failed to purge project");
+					});
+					throw error;
+				}
+			},
+
 			clearError: () => {
 				set((state) => {
 					state.error = null;
@@ -506,12 +632,17 @@ export const useProjectActions = () =>
 			loadProjects: state.loadProjects,
 			loadMore: state.loadMore,
 			setFilter: state.setFilter,
+			setFilters: state.setFilters,
+			reloadProjects: state.reloadProjects,
 			loadProject: state.loadProject,
 			loadDashboardStats: state.loadDashboardStats,
 			createProject: state.createProject,
 			updateProject: state.updateProject,
 			updateProjectProgress: state.updateProjectProgress,
 			deleteProject: state.deleteProject,
+			archiveProject: state.archiveProject,
+			restoreProject: state.restoreProject,
+			purgeProject: state.purgeProject,
 			clearError: state.clearError,
 			setLoading: state.setLoading,
 			filteredProjects: state.filteredProjects,
@@ -567,13 +698,11 @@ export const useProjectStatsData = () => {
 	const loadDashboardStats = useProjectStore(
 		(state) => state.loadDashboardStats,
 	);
+	const archived = useProjectStore((state) => state.filters.archived);
 
 	useEffect(() => {
-		// Load stats if not already loaded
-		if (!stats) {
-			void loadDashboardStats();
-		}
-	}, [stats, loadDashboardStats]);
+		void loadDashboardStats(archived);
+	}, [archived, loadDashboardStats]);
 
 	return stats;
 };

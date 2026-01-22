@@ -16,6 +16,8 @@ import type {
 } from "@/lib/types/company";
 import { apiClient } from "./client";
 
+export type ArchivedFilter = "active" | "archived" | "all";
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // COMPANIES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -24,8 +26,9 @@ export const companiesAPI = {
 	/**
 	 * List all companies
 	 */
-	async list(): Promise<CompanySummary[]> {
-		return apiClient.get<CompanySummary[]>("/companies");
+	async list(archived?: ArchivedFilter): Promise<CompanySummary[]> {
+		const query = archived ? `?archived=${archived}` : "";
+		return apiClient.get<CompanySummary[]>(`/companies${query}`);
 	},
 
 	/**
@@ -56,10 +59,24 @@ export const companiesAPI = {
 	},
 
 	/**
-	 * Delete company (cascade deletes locations and projects)
+	 * Delete company (archive compat)
 	 */
-	async delete(id: string): Promise<{ message: string }> {
-		return apiClient.delete(`/companies/${id}`);
+	async delete(id: string): Promise<SuccessResponse> {
+		return apiClient.delete<SuccessResponse>(`/companies/${id}`);
+	},
+
+	async archiveCompany(id: string): Promise<SuccessResponse> {
+		return apiClient.post<SuccessResponse>(`/companies/${id}/archive`);
+	},
+
+	async restoreCompany(id: string): Promise<SuccessResponse> {
+		return apiClient.post<SuccessResponse>(`/companies/${id}/restore`);
+	},
+
+	async purgeCompany(id: string, confirmName: string): Promise<void> {
+		await apiClient.post<void>(`/companies/${id}/purge`, {
+			confirm_name: confirmName,
+		});
 	},
 };
 
@@ -68,10 +85,13 @@ export const companiesAPI = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const locationsAPI = {
-	buildListUrl(companyId?: string) {
+	buildListUrl(companyId?: string, archived?: ArchivedFilter) {
 		const searchParams = new URLSearchParams();
 		if (companyId) {
 			searchParams.append("company_id", companyId);
+		}
+		if (archived) {
+			searchParams.append("archived", archived);
 		}
 
 		const query = searchParams.toString();
@@ -81,23 +101,30 @@ export const locationsAPI = {
 	/**
 	 * List all locations (optionally filtered by company)
 	 */
-	async listAll(companyId?: string): Promise<LocationSummary[]> {
-		const url = locationsAPI.buildListUrl(companyId);
+	async listAll(
+		companyId?: string,
+		archived?: ArchivedFilter,
+	): Promise<LocationSummary[]> {
+		const url = locationsAPI.buildListUrl(companyId, archived);
 		return apiClient.get<LocationSummary[]>(url);
 	},
 
 	/**
 	 * List all locations for a company
 	 */
-	async listByCompany(companyId: string): Promise<LocationSummary[]> {
-		return locationsAPI.listAll(companyId);
+	async listByCompany(
+		companyId: string,
+		archived?: ArchivedFilter,
+	): Promise<LocationSummary[]> {
+		return locationsAPI.listAll(companyId, archived);
 	},
 
 	/**
 	 * Get location details
 	 */
-	async get(id: string): Promise<LocationDetail> {
-		return apiClient.get<LocationDetail>(`/companies/locations/${id}`);
+	async get(id: string, archived?: ArchivedFilter): Promise<LocationDetail> {
+		const query = archived ? `?archived=${archived}` : "";
+		return apiClient.get<LocationDetail>(`/companies/locations/${id}${query}`);
 	},
 
 	/**
@@ -129,10 +156,28 @@ export const locationsAPI = {
 	},
 
 	/**
-	 * Delete location (cascade deletes projects)
+	 * Delete location (archive compat)
 	 */
-	async delete(id: string): Promise<{ message: string }> {
-		return apiClient.delete(`/companies/locations/${id}`);
+	async delete(id: string): Promise<SuccessResponse> {
+		return apiClient.delete<SuccessResponse>(`/companies/locations/${id}`);
+	},
+
+	async archiveLocation(id: string): Promise<SuccessResponse> {
+		return apiClient.post<SuccessResponse>(
+			`/companies/locations/${id}/archive`,
+		);
+	},
+
+	async restoreLocation(id: string): Promise<SuccessResponse> {
+		return apiClient.post<SuccessResponse>(
+			`/companies/locations/${id}/restore`,
+		);
+	},
+
+	async purgeLocation(id: string, confirmName: string): Promise<void> {
+		await apiClient.post<void>(`/companies/locations/${id}/purge`, {
+			confirm_name: confirmName,
+		});
 	},
 
 	async createContact(

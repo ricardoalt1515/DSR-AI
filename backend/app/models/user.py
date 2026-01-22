@@ -120,6 +120,7 @@ class User(SQLAlchemyBaseUserTableUUID, TimestampMixin, Base):
     projects = relationship(
         "Project",
         back_populates="user",
+        foreign_keys="Project.user_id",
         cascade="all, delete-orphan",
         lazy="dynamic",
     )

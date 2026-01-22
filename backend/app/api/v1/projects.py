@@ -2,30 +2,40 @@
 Projects CRUD endpoints.
 """
 
+from datetime import UTC, datetime
+from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response, status
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import raiseload, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import (
+    ArchivedFilter,
     AsyncDB,
     CurrentProjectCreator,
-    CurrentProjectDeleter,
     CurrentUser,
     OrganizationContext,
     PageNumber,
     PageSize,
+    ProjectArchiveActionDep,
     ProjectDep,
-    RateLimitUser60,
+    ProjectPurgeActionDep,
+    RateLimitUser10,
+    RateLimitUser300,
     SearchQuery,
     SectorFilter,
     StatusFilter,
+    apply_archived_filter,
+    require_not_archived,
 )
+from app.main import limiter
+from app.models.file import ProjectFile
 from app.models.project import Project
-from app.schemas.common import ErrorResponse, PaginatedResponse
+from app.models.proposal import Proposal
+from app.schemas.common import ErrorResponse, PaginatedResponse, SuccessResponse
 from app.schemas.project import (
     DashboardStatsResponse,
     PipelineStageStats,
@@ -34,15 +44,99 @@ from app.schemas.project import (
     ProjectSummary,
     ProjectUpdate,
 )
+from app.services.storage_delete_service import (
+    StorageDeleteError,
+    delete_storage_keys,
+    validate_storage_keys,
+)
+from app.utils.purge_utils import extract_confirm_name, extract_pdf_paths
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
-# Import limiter for rate limiting
-from typing import Annotated
 
-from app.main import limiter
+async def _collect_project_storage_paths(
+    db: AsyncDB,
+    org_id: UUID,
+    project_id: UUID,
+) -> set[str]:
+    storage_paths: set[str] = set()
+
+    file_rows = await db.execute(
+        select(ProjectFile.file_path).where(
+            ProjectFile.organization_id == org_id,
+            ProjectFile.project_id == project_id,
+        )
+    )
+    storage_paths.update({row.file_path for row in file_rows if row.file_path})
+
+    proposal_rows = await db.execute(
+        select(Proposal.pdf_path, Proposal.ai_metadata).where(
+            Proposal.organization_id == org_id,
+            Proposal.project_id == project_id,
+        )
+    )
+    for pdf_path, ai_metadata in proposal_rows:
+        if pdf_path:
+            storage_paths.add(pdf_path)
+        storage_paths.update(extract_pdf_paths(ai_metadata))
+
+    return storage_paths
+
+
+async def _lock_project_for_update(
+    db: AsyncDB,
+    org_id: UUID,
+    project_id: UUID,
+) -> Project | None:
+    result = await db.execute(
+        select(Project)
+        .where(Project.id == project_id, Project.organization_id == org_id)
+        .with_for_update()
+    )
+    return result.scalar_one_or_none()
+
+
+async def _archive_project(
+    db: AsyncDB,
+    org_id: UUID,
+    project_id: UUID,
+    user_id: UUID,
+) -> SuccessResponse:
+    project = await _lock_project_for_update(db=db, org_id=org_id, project_id=project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    if project.archived_at is not None:
+        return SuccessResponse(message=f"Project {project.name} already archived")
+
+    project.archived_at = datetime.now(UTC)
+    project.archived_by_user_id = user_id
+    project.archived_by_parent_id = None
+
+    await db.commit()
+    return SuccessResponse(message=f"Project {project.name} archived successfully")
+
+
+async def _restore_project(
+    db: AsyncDB,
+    org_id: UUID,
+    project_id: UUID,
+) -> SuccessResponse:
+    project = await _lock_project_for_update(db=db, org_id=org_id, project_id=project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    if project.archived_at is None:
+        return SuccessResponse(message=f"Project {project.name} already active")
+
+    project.archived_at = None
+    project.archived_by_user_id = None
+    project.archived_by_parent_id = None
+
+    await db.commit()
+    return SuccessResponse(message=f"Project {project.name} restored successfully")
 
 
 @router.get(
@@ -56,12 +150,13 @@ async def list_projects(
     current_user: CurrentUser,
     db: AsyncDB,
     org: OrganizationContext,
-    _rate_limit: RateLimitUser60,  # User-based rate limiting via Redis
+    _rate_limit: RateLimitUser300,  # User-based rate limiting via Redis
     page: PageNumber = 1,
     page_size: PageSize = 10,
     search: SearchQuery = None,
     status: StatusFilter = None,
     sector: SectorFilter = None,
+    archived: ArchivedFilter = "active",
     company_id: Annotated[UUID | None, Query(description="Filter by company ID")] = None,
     location_id: Annotated[UUID | None, Query(description="Filter by location ID")] = None,
 ):
@@ -90,6 +185,8 @@ async def list_projects(
     query = query.where(Project.organization_id == org.id)
     if not current_user.can_see_all_org_projects():
         query = query.where(Project.user_id == current_user.id)
+
+    query = apply_archived_filter(query, Project, archived)
 
     # Add search filter
     if search:
@@ -157,7 +254,8 @@ async def get_dashboard_stats(
     current_user: CurrentUser,
     db: AsyncDB,
     org: OrganizationContext,
-    _rate_limit: RateLimitUser60,
+    _rate_limit: RateLimitUser300,
+    archived: ArchivedFilter = "active",
 ):
     """
     Get pre-aggregated dashboard statistics.
@@ -174,6 +272,10 @@ async def get_dashboard_stats(
     conditions = [Project.organization_id == org.id]
     if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
+    if archived == "active":
+        conditions.append(Project.archived_at.is_(None))
+    elif archived == "archived":
+        conditions.append(Project.archived_at.isnot(None))
 
     stats_query = select(
         func.count(Project.id).label("total_projects"),
@@ -232,7 +334,7 @@ async def get_project(
     current_user: CurrentUser,
     db: AsyncDB,
     org: OrganizationContext,
-    _rate_limit: RateLimitUser60,
+    _rate_limit: RateLimitUser300,
     project_id: Annotated[UUID, Path(description="Project unique identifier")],
 ):
     """
@@ -316,6 +418,7 @@ async def create_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Location {project_data.location_id} not found",
         )
+    require_not_archived(location)
 
     # Validation: location must have company (fail-fast)
     if not location.company:
@@ -431,7 +534,7 @@ async def update_project(
     if not current_user.can_see_all_org_projects():
         conditions.append(Project.user_id == current_user.id)
 
-    result = await db.execute(select(Project).where(*conditions))
+    result = await db.execute(select(Project).where(*conditions).with_for_update())
     project = result.scalar_one_or_none()
 
     if not project:
@@ -439,6 +542,7 @@ async def update_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
+    require_not_archived(project)
 
     # Update fields
     update_data = project_data.model_dump(exclude_unset=True)
@@ -478,26 +582,111 @@ async def update_project(
     return ProjectDetail.model_validate(project)
 
 
+@router.post("/{project_id}/archive", response_model=SuccessResponse)
+async def archive_project(
+    project: ProjectArchiveActionDep,
+    current_user: CurrentUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+):
+    return await _archive_project(
+        db=db,
+        org_id=org.id,
+        project_id=project.id,
+        user_id=current_user.id,
+    )
+
+
+@router.post("/{project_id}/restore", response_model=SuccessResponse)
+async def restore_project(
+    project: ProjectArchiveActionDep,
+    org: OrganizationContext,
+    db: AsyncDB,
+):
+    return await _restore_project(
+        db=db,
+        org_id=org.id,
+        project_id=project.id,
+    )
+
+
+@router.post("/{project_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_project(
+    project: ProjectPurgeActionDep,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+    payload: dict[str, str] | None = None,
+):
+    confirm_name = extract_confirm_name(payload)
+    if not confirm_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="confirm_name is required"
+        )
+    if confirm_name != project.name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="confirm_name does not match"
+        )
+
+    locked_project = await _lock_project_for_update(
+        db=db,
+        org_id=org.id,
+        project_id=project.id,
+    )
+    if not locked_project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if locked_project.archived_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project must be archived before purge",
+        )
+
+    storage_paths = await _collect_project_storage_paths(
+        db=db,
+        org_id=org.id,
+        project_id=project.id,
+    )
+    try:
+        validate_storage_keys(storage_paths)
+    except StorageDeleteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    await db.delete(locked_project)
+    await db.commit()
+
+    try:
+        await delete_storage_keys(storage_paths)
+    except Exception as exc:
+        logger.warning("project_purge_storage_delete_failed", error=str(exc))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.delete(
     "/{project_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=SuccessResponse,
     summary="Delete project",
-    description="Delete a project and all related data (cascade delete)",
+    description="Archive a project (compat delete)",
     responses={404: {"model": ErrorResponse}},
 )
 @limiter.limit("10/minute")
 async def delete_project(
     request: Request,
-    project: ProjectDep,
+    project: ProjectArchiveActionDep,
     db: AsyncDB,
-    current_user: CurrentProjectDeleter,
+    current_user: CurrentUser,
 ):
-    """Delete a project (cascade deletes all related data)."""
-    project_id = project.id
-    await db.delete(project)
-    await db.commit()
-    logger.info("project_deleted", project_id=str(project_id))
-    return None
+    """Archive a project (compat delete)."""
+    response = await _archive_project(
+        db=db,
+        org_id=project.organization_id,
+        project_id=project.id,
+        user_id=current_user.id,
+    )
+    logger.info("project_archived", project_id=str(project.id))
+    return response
 
 
 @router.get(

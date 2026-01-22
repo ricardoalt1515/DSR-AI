@@ -227,9 +227,19 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 						co2Avoided={report.environment.co2Avoided}
 						esgHeadline={report.environment.esgHeadline}
 						currentHarm={report.environment.currentHarm}
-						waterSavings={report.environment.waterSavings}
-						circularityPotential={report.environment.circularityPotential}
-						circularityRationale={report.environment.circularityRationale}
+						{...(report.environment.waterSavings
+							? { waterSavings: report.environment.waterSavings }
+							: {})}
+						{...(report.environment.circularityPotential
+							? {
+									circularityPotential: report.environment.circularityPotential,
+								}
+							: {})}
+						{...(report.environment.circularityRationale
+							? {
+									circularityRationale: report.environment.circularityRationale,
+								}
+							: {})}
 					/>
 				</SectionErrorBoundary>
 			)}
@@ -238,12 +248,29 @@ export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 			{report.economicsDeepDive && (
 				<SectionErrorBoundary sectionName="Economics Analysis">
 					<EconomicsDeepDive
-						profitabilityBand={report.economicsDeepDive.profitabilityBand}
-						profitabilitySummary={report.economicsDeepDive.profitabilitySummary}
-						costBreakdown={report.economicsDeepDive.costBreakdown}
-						scenarioSummary={report.economicsDeepDive.scenarioSummary}
-						assumptions={report.economicsDeepDive.assumptions}
-						dataGaps={report.economicsDeepDive.dataGaps}
+						{...(report.economicsDeepDive.profitabilityBand
+							? {
+									profitabilityBand: report.economicsDeepDive.profitabilityBand,
+								}
+							: {})}
+						{...(report.economicsDeepDive.profitabilitySummary
+							? {
+									profitabilitySummary:
+										report.economicsDeepDive.profitabilitySummary,
+								}
+							: {})}
+						{...(report.economicsDeepDive.costBreakdown
+							? { costBreakdown: report.economicsDeepDive.costBreakdown }
+							: {})}
+						{...(report.economicsDeepDive.scenarioSummary
+							? { scenarioSummary: report.economicsDeepDive.scenarioSummary }
+							: {})}
+						{...(report.economicsDeepDive.assumptions
+							? { assumptions: report.economicsDeepDive.assumptions }
+							: {})}
+						{...(report.economicsDeepDive.dataGaps
+							? { dataGaps: report.economicsDeepDive.dataGaps }
+							: {})}
 					/>
 				</SectionErrorBoundary>
 			)}

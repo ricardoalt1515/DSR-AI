@@ -27,6 +27,7 @@ interface FileUploaderProps {
 	maxFiles?: number;
 	maxSize?: number; // in bytes
 	className?: string;
+	readOnly?: boolean;
 }
 
 // ============================================================================
@@ -60,6 +61,7 @@ export function FileUploader({
 	maxFiles = DEFAULT_MAX_FILES,
 	maxSize = DEFAULT_MAX_SIZE,
 	className,
+	readOnly = false,
 }: FileUploaderProps) {
 	const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
 	const [uploadedFiles, setUploadedFiles] = useState<ProjectFile[]>([]);
@@ -174,6 +176,11 @@ export function FileUploader({
 
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
+			if (readOnly) {
+				toast.info("Uploads are disabled for archived projects");
+				return;
+			}
+
 			const totalFiles = uploadedFiles.length + uploadingFiles.length;
 
 			if (totalFiles + acceptedFiles.length > maxFiles) {
@@ -204,6 +211,7 @@ export function FileUploader({
 		[
 			maxFiles,
 			maxSize,
+			readOnly,
 			uploadedFiles.length,
 			uploadingFiles.length,
 			uploadFile,
@@ -215,6 +223,7 @@ export function FileUploader({
 		accept: ACCEPTED_FILE_TYPES,
 		maxSize,
 		multiple: true,
+		disabled: readOnly,
 	});
 
 	// ========================================================================
@@ -222,6 +231,11 @@ export function FileUploader({
 	// ========================================================================
 
 	const deleteFile = async (fileId: string) => {
+		if (readOnly) {
+			toast.info("File deletion is disabled for archived projects");
+			return;
+		}
+
 		setIsDeleting(true);
 		try {
 			await projectsAPI.deleteFile(projectId, fileId);
@@ -329,6 +343,7 @@ export function FileUploader({
 				inputProps={getInputProps()}
 				isDragActive={isDragActive}
 				maxSize={maxSize}
+				disabled={readOnly}
 			/>
 
 			<UploadingFilesCard
@@ -344,6 +359,7 @@ export function FileUploader({
 				onDeleteClick={(file) =>
 					setFileToDelete({ id: file.id, name: file.filename })
 				}
+				readOnly={readOnly}
 			/>
 
 			<FileDetailPanel

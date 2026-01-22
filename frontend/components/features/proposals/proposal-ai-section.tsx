@@ -21,6 +21,8 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 	const report = proposal.aiMetadata?.proposal;
 	const confidence: ConfidenceLevel = report?.confidence ?? "Medium";
 	const confidenceScore = getConfidenceScore(confidence);
+	const aiInsights = report?.aiInsights ?? [];
+	const markdownContent = proposal.technicalApproach?.trim();
 
 	return (
 		<div className="space-y-6">
@@ -65,7 +67,7 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 			</Card>
 
 			{/* AI Creative Insights */}
-			{report.aiInsights && report.aiInsights.length > 0 && (
+			{aiInsights.length > 0 && (
 				<Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -78,7 +80,7 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 					</CardHeader>
 					<CardContent>
 						<ul className="space-y-3">
-							{report.aiInsights.map((insight: string) => (
+							{aiInsights.map((insight: string) => (
 								<li key={insight} className="flex items-start gap-3">
 									<div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
 										<Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -140,7 +142,7 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 			</Card>
 
 			{/* Markdown Content Preview */}
-			{report.markdownContent && (
+			{markdownContent && (
 				<Card>
 					<CardHeader>
 						<CardTitle>Full Report (Markdown)</CardTitle>
@@ -151,7 +153,7 @@ export function ProposalAISection({ proposal }: ProposalAISectionProps) {
 					<CardContent>
 						<div className="bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto">
 							<pre className="text-xs whitespace-pre-wrap font-mono">
-								{report.markdownContent}
+								{markdownContent}
 							</pre>
 						</div>
 					</CardContent>

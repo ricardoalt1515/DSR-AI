@@ -35,20 +35,20 @@ export function SimplifiedStats() {
 
 	// Map backend stats (snake_case) to component format
 	const stats = {
-		total: backendStats.total_projects ?? 0,
-		inPreparation: backendStats.in_preparation ?? 0,
+		total: backendStats.totalProjects ?? 0,
+		inPreparation: backendStats.inPreparation ?? 0,
 		generating: backendStats.generating ?? 0,
-		ready: backendStats.proposal_ready ?? 0,
+		ready: backendStats.ready ?? 0,
 		completed: backendStats.completed ?? 0,
-		avgProgress: Math.round(backendStats.avg_progress ?? 0),
+		avgProgress: Math.round(backendStats.avgProgress ?? 0),
 		activeProjects:
-			(backendStats.in_preparation ?? 0) +
+			(backendStats.inPreparation ?? 0) +
 			(backendStats.generating ?? 0) +
-			(backendStats.proposal_ready ?? 0),
+			(backendStats.ready ?? 0),
 		completionRate:
-			backendStats.total_projects && backendStats.total_projects > 0
+			backendStats.totalProjects && backendStats.totalProjects > 0
 				? Math.round(
-						((backendStats.completed ?? 0) / backendStats.total_projects) * 100,
+						((backendStats.completed ?? 0) / backendStats.totalProjects) * 100,
 					)
 				: 0,
 	};

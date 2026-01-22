@@ -20,7 +20,7 @@ type ProjectOverviewProject = Pick<
 	| "location"
 	| "status"
 	| "progress"
-	| "type"
+	| "projectType"
 	| "description"
 	| "updatedAt"
 > & { proposalCount?: number };
@@ -75,7 +75,7 @@ export function ProjectOverview({
 					icon={Building}
 					label="Client"
 					value={project.client}
-					subtitle={project.type}
+					subtitle={project.projectType}
 					variant="chart-4"
 				/>
 				<MetricCard

@@ -73,11 +73,18 @@ class Company(BaseModel):
     locked_at = Column(DateTime(timezone=True), nullable=True, comment="Catalog lock timestamp")
     locked_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     lock_reason = Column(String(255), nullable=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    archived_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Relationships
     locations = relationship(
         "Location",
         back_populates="company",
+        foreign_keys=[Location.company_id],
         cascade="all, delete-orphan",
         order_by="Location.name",
         lazy="selectin",  # Eager load locations with company
@@ -99,6 +106,7 @@ Company.location_count = column_property(
     .where(
         Location.company_id == Company.id,
         Location.organization_id == Company.organization_id,
+        Location.archived_at.is_(None),
     )
     .correlate_except(Location)
     .scalar_subquery(),

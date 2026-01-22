@@ -5,6 +5,7 @@ Represents waste assessment projects at client locations.
 
 from sqlalchemy import (
     Column,
+    DateTime,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -138,6 +139,18 @@ class Project(BaseModel):
         comment="Array of tags for categorization",
     )
 
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    archived_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    archived_by_parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # ═══════════════════════════════════════════════════════════
     # FLEXIBLE PROJECT DATA (JSONB)
     # ═══════════════════════════════════════════════════════════
@@ -150,8 +163,16 @@ class Project(BaseModel):
     )
 
     # Relationships
-    location_rel = relationship("Location", back_populates="projects")
-    user = relationship("User", back_populates="projects")
+    location_rel = relationship(
+        "Location",
+        back_populates="projects",
+        foreign_keys=[location_id],
+    )
+    user = relationship(
+        "User",
+        back_populates="projects",
+        foreign_keys=[user_id],
+    )
 
     proposals = relationship(
         "Proposal",

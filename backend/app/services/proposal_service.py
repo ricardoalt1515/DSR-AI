@@ -569,6 +569,20 @@ class ProposalService:
                     "current_step": "Saving proposal...",
                 },
             )
+            lock_result = await db.execute(
+                select(Project)
+                .where(
+                    Project.id == project_id,
+                    Project.organization_id == org_id,
+                )
+                .with_for_update()
+            )
+            locked_project = lock_result.scalar_one_or_none()
+            if not locked_project:
+                raise ValueError(f"Project not found: {project_id}")
+            if locked_project.archived_at is not None:
+                raise ValueError("Project is archived")
+
             # Get latest proposal version to determine new version
             result = await db.execute(
                 select(Proposal)
@@ -592,7 +606,7 @@ class ProposalService:
                 client_metadata=client_metadata,
                 generation_duration=generation_duration,
                 project_id=project_id,
-                project_name=project.name,
+                project_name=locked_project.name,
                 request=request,
                 new_version=new_version,
             )

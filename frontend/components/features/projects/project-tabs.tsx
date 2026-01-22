@@ -147,7 +147,7 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 			status: base.status,
 			// Keep Overview progress in sync with technical sheet completeness
 			progress: completion.percentage,
-			type: base.type,
+			projectType: base.projectType,
 			description: base.description,
 			// timeline intentionally omitted to avoid type mismatch (ProjectDetail has TimelineEvent[])
 			updatedAt: base.updatedAt,

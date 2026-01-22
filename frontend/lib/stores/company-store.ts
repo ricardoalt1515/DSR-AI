@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { companiesAPI } from "@/lib/api/companies";
+import { type ArchivedFilter, companiesAPI } from "@/lib/api/companies";
 import type {
 	CompanyCreate,
 	CompanyDetail,
@@ -19,13 +19,18 @@ interface CompanyState {
 	currentCompany: CompanyDetail | null;
 	loading: boolean;
 	error: string | null;
+	archivedFilter: ArchivedFilter;
 
 	// Actions
-	loadCompanies: () => Promise<void>;
+	loadCompanies: (archived?: ArchivedFilter) => Promise<void>;
 	loadCompany: (id: string) => Promise<void>;
 	createCompany: (data: CompanyCreate) => Promise<CompanyDetail>;
 	updateCompany: (id: string, data: CompanyUpdate) => Promise<CompanyDetail>;
 	deleteCompany: (id: string) => Promise<void>;
+	archiveCompany: (id: string) => Promise<void>;
+	restoreCompany: (id: string) => Promise<void>;
+	purgeCompany: (id: string, confirmName: string) => Promise<void>;
+	setArchivedFilter: (filter: ArchivedFilter) => void;
 	clearError: () => void;
 	setLoading: (loading: boolean) => void;
 	resetStore: () => void;
@@ -33,22 +38,24 @@ interface CompanyState {
 
 export const useCompanyStore = create<CompanyState>()(
 	persist(
-		immer((set, _get) => ({
+		immer((set, get) => ({
 			// Initial state
 			companies: [],
 			currentCompany: null,
 			loading: false,
 			error: null,
+			archivedFilter: "active",
 
 			// Load all companies
-			loadCompanies: async () => {
+			loadCompanies: async (archived?: ArchivedFilter) => {
 				set((state) => {
 					state.loading = true;
 					state.error = null;
 				});
 
 				try {
-					const companies = await companiesAPI.list();
+					const filter = archived ?? get().archivedFilter;
+					const companies = await companiesAPI.list(filter);
 					set((state) => {
 						state.companies = companies;
 						state.loading = false;
@@ -175,6 +182,84 @@ export const useCompanyStore = create<CompanyState>()(
 				}
 			},
 
+			// Archive company
+			archiveCompany: async (id: string) => {
+				try {
+					await companiesAPI.archiveCompany(id);
+					set((state) => {
+						state.companies = state.companies.filter((c) => c.id !== id);
+						if (state.currentCompany?.id === id) {
+							state.currentCompany = {
+								...state.currentCompany,
+								archivedAt: new Date().toISOString(),
+							};
+						}
+					});
+					logger.info(`Company archived: ${id}`, "CompanyStore");
+				} catch (error) {
+					const message = getErrorMessage(error, "Failed to archive company");
+					logger.error(
+						`Failed to archive company ${id}`,
+						error,
+						"CompanyStore",
+					);
+					set((state) => {
+						state.error = message;
+					});
+					throw error;
+				}
+			},
+
+			// Restore company
+			restoreCompany: async (id: string) => {
+				try {
+					await companiesAPI.restoreCompany(id);
+					// Reload company to get updated state
+					await get().loadCompany(id);
+					logger.info(`Company restored: ${id}`, "CompanyStore");
+				} catch (error) {
+					const message = getErrorMessage(error, "Failed to restore company");
+					logger.error(
+						`Failed to restore company ${id}`,
+						error,
+						"CompanyStore",
+					);
+					set((state) => {
+						state.error = message;
+					});
+					throw error;
+				}
+			},
+
+			// Purge company permanently
+			purgeCompany: async (id: string, confirmName: string) => {
+				try {
+					await companiesAPI.purgeCompany(id, confirmName);
+					set((state) => {
+						state.companies = state.companies.filter((c) => c.id !== id);
+						if (state.currentCompany?.id === id) {
+							state.currentCompany = null;
+						}
+					});
+					logger.info(`Company purged: ${id}`, "CompanyStore");
+				} catch (error) {
+					const message = getErrorMessage(error, "Failed to purge company");
+					logger.error(`Failed to purge company ${id}`, error, "CompanyStore");
+					set((state) => {
+						state.error = message;
+					});
+					throw error;
+				}
+			},
+
+			// Set archived filter and reload
+			setArchivedFilter: (filter: ArchivedFilter) => {
+				set((state) => {
+					state.archivedFilter = filter;
+				});
+				void get().loadCompanies(filter);
+			},
+
 			// Clear error
 			clearError: () =>
 				set((state) => {
@@ -193,6 +278,7 @@ export const useCompanyStore = create<CompanyState>()(
 					state.currentCompany = null;
 					state.loading = false;
 					state.error = null;
+					state.archivedFilter = "active";
 				});
 				if (typeof window !== "undefined") {
 					localStorage.removeItem("waste-company-store");
@@ -207,6 +293,7 @@ export const useCompanyStore = create<CompanyState>()(
 					: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
 				companies: state.companies,
+				archivedFilter: state.archivedFilter,
 			}),
 		},
 	),

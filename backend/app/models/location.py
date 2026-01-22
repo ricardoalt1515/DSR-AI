@@ -75,12 +75,28 @@ class Location(BaseModel):
     locked_at = Column(DateTime(timezone=True), nullable=True, comment="Catalog lock timestamp")
     locked_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     lock_reason = Column(String(255), nullable=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    archived_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    archived_by_parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Relationships
-    company = relationship("Company", back_populates="locations")
+    company = relationship(
+        "Company",
+        back_populates="locations",
+        foreign_keys=[company_id],
+    )
     projects = relationship(
         "Project",
         back_populates="location_rel",  # Fixed: must match Project.location_rel
+        foreign_keys="Project.location_id",
         cascade="all, delete-orphan",
         order_by="desc(Project.created_at)",
         lazy="selectin",  # Eager load projects

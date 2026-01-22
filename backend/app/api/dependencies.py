@@ -10,7 +10,8 @@ Best Practices:
     - Clean and minimal
 """
 
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal, Protocol, TypeVar
 
 import structlog
 from fastapi import Depends, Header, HTTPException
@@ -114,6 +115,14 @@ SectorFilter = Annotated[
     Query(description="Filter by sector", examples=["Municipal", "Industrial", "Commercial"]),
 ]
 
+ArchivedFilter = Annotated[
+    Literal["active", "archived", "all"],
+    Query(
+        description="Filter by archived status",
+        examples=["active", "archived", "all"],
+    ),
+]
+
 # ==============================================================================
 # Project Access Dependency
 # ==============================================================================
@@ -173,6 +182,27 @@ OrganizationContext = Annotated[Organization, Depends(get_organization_context)]
 def apply_organization_filter(query, model, org: Organization):
     """Filter query by organization_id."""
     return query.where(model.organization_id == org.id)
+
+
+class Archivable(Protocol):
+    archived_at: datetime | None
+
+
+ArchivableT = TypeVar("ArchivableT", bound=Archivable)
+
+
+def require_not_archived(entity: ArchivableT) -> ArchivableT:
+    if entity.archived_at is not None:
+        raise HTTPException(status_code=409, detail=f"{type(entity).__name__} is archived")
+    return entity
+
+
+def apply_archived_filter(query, model, archived: Literal["active", "archived", "all"]):
+    if archived == "active":
+        return query.where(model.archived_at.is_(None))
+    if archived == "archived":
+        return query.where(model.archived_at.isnot(None))
+    return query
 
 
 async def get_super_admin_only(
@@ -261,6 +291,24 @@ async def get_current_company_editor(
 CurrentCompanyEditor = Annotated[tuple[User, Company], Depends(get_current_company_editor)]
 
 
+async def get_active_company_editor(
+    company_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> tuple[User, Company]:
+    current_user, company = await get_current_company_editor(
+        company_id=company_id,
+        current_user=current_user,
+        org=org,
+        db=db,
+    )
+    return current_user, require_not_archived(company)
+
+
+ActiveCompanyEditor = Annotated[tuple[User, Company], Depends(get_active_company_editor)]
+
+
 async def get_current_company_deleter(
     current_user: User = Depends(current_active_user),
 ) -> User:
@@ -320,6 +368,26 @@ CurrentCompanyLocationCreator = Annotated[
 ]
 
 
+async def get_active_company_location_creator(
+    company_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> tuple[User, Company]:
+    current_user, company = await get_current_company_location_creator(
+        company_id=company_id,
+        current_user=current_user,
+        org=org,
+        db=db,
+    )
+    return current_user, require_not_archived(company)
+
+
+ActiveCompanyLocationCreator = Annotated[
+    tuple[User, Company], Depends(get_active_company_location_creator)
+]
+
+
 async def get_current_location_editor(
     location_id: UUID,
     current_user: User = Depends(current_active_user),
@@ -350,6 +418,24 @@ async def get_current_location_editor(
 
 
 CurrentLocationEditor = Annotated[tuple[User, Location], Depends(get_current_location_editor)]
+
+
+async def get_active_location_editor(
+    location_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> tuple[User, Location]:
+    current_user, location = await get_current_location_editor(
+        location_id=location_id,
+        current_user=current_user,
+        org=org,
+        db=db,
+    )
+    return current_user, require_not_archived(location)
+
+
+ActiveLocationEditor = Annotated[tuple[User, Location], Depends(get_active_location_editor)]
 
 
 async def get_current_location_deleter(
@@ -408,6 +494,148 @@ async def get_current_location_contacts_deleter(
 CurrentLocationContactsDeleter = Annotated[User, Depends(get_current_location_contacts_deleter)]
 
 
+async def get_active_location(
+    location_id: UUID,
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> Location:
+    result = await db.execute(
+        select(Location).where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
+    )
+    location = result.scalar_one_or_none()
+
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location {location_id} not found",
+        )
+
+    return require_not_archived(location)
+
+
+ActiveLocationDep = Annotated[Location, Depends(get_active_location)]
+
+
+def require_org_admin(user: User) -> None:
+    if not (user.is_superuser or user.is_org_admin()):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions for admin action",
+        )
+
+
+async def get_company_admin_action(
+    company_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> Company:
+    require_org_admin(current_user)
+
+    result = await db.execute(
+        select(Company).where(Company.id == company_id, Company.organization_id == org.id)
+    )
+    company = result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company {company_id} not found",
+        )
+
+    return company
+
+
+CompanyAdminActionDep = Annotated[Company, Depends(get_company_admin_action)]
+
+
+async def get_location_admin_action(
+    location_id: UUID,
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> Location:
+    require_org_admin(current_user)
+
+    result = await db.execute(
+        select(Location).where(
+            Location.id == location_id,
+            Location.organization_id == org.id,
+        )
+    )
+    location = result.scalar_one_or_none()
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Location {location_id} not found",
+        )
+
+    return location
+
+
+LocationAdminActionDep = Annotated[Location, Depends(get_location_admin_action)]
+
+
+async def get_project_archive_action(
+    project_id: UUID = Path(..., description="Project unique identifier"),
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> Project:
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.organization_id == org.id,
+        )
+    )
+    project = result.scalar_one_or_none()
+
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    if not (
+        current_user.is_superuser
+        or current_user.is_org_admin()
+        or project.user_id == current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to archive project",
+        )
+
+    return project
+
+
+ProjectArchiveActionDep = Annotated[Project, Depends(get_project_archive_action)]
+
+
+async def get_project_purge_action(
+    project_id: UUID = Path(..., description="Project unique identifier"),
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> Project:
+    require_org_admin(current_user)
+
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.organization_id == org.id,
+        )
+    )
+    project = result.scalar_one_or_none()
+
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    return project
+
+
+ProjectPurgeActionDep = Annotated[Project, Depends(get_project_purge_action)]
+
+
 async def get_accessible_project(
     project_id: UUID = Path(..., description="Project unique identifier"),
     current_user: User = Depends(current_active_user),
@@ -431,6 +659,25 @@ async def get_accessible_project(
             # project is guaranteed to exist and user has access
             return project.data
     """
+    project = await _load_project_with_access(
+        project_id=project_id,
+        current_user=current_user,
+        org=org,
+        db=db,
+    )
+
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    return project
+
+
+async def _load_project_with_access(
+    project_id: UUID,
+    current_user: User,
+    org: Organization,
+    db: AsyncSession,
+) -> Project | None:
     conditions = [
         Project.id == project_id,
         Project.organization_id == org.id,
@@ -439,17 +686,34 @@ async def get_accessible_project(
         conditions.append(Project.user_id == current_user.id)
 
     result = await db.execute(select(Project).where(*conditions))
-    project = result.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    return project
+    return result.scalar_one_or_none()
 
 
 # Type alias for project with access check
 # Use in routes that need a validated project from path parameter
 ProjectDep = Annotated[Project, Depends(get_accessible_project)]
+
+
+async def get_active_project(
+    project_id: UUID = Path(..., description="Project unique identifier"),
+    current_user: User = Depends(current_active_user),
+    org: Organization = Depends(get_organization_context),
+    db: AsyncSession = Depends(get_async_db),
+) -> Project:
+    project = await _load_project_with_access(
+        project_id=project_id,
+        current_user=current_user,
+        org=org,
+        db=db,
+    )
+
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    return require_not_archived(project)
+
+
+ActiveProjectDep = Annotated[Project, Depends(get_active_project)]
 
 # ==============================================================================
 # Usage Examples
@@ -576,7 +840,8 @@ def rate_limit_user(limit: str = "60/minute") -> Callable:
 
 
 # Type aliases for rate-limited dependencies (DRY: reuse in endpoint signatures)
-# Reads: 60/min, Writes: 30/min, Expensive: 10/min
+# Reads: 300/min, Writes: 30/min, Expensive: 10/min
+RateLimitUser300 = Annotated[None, Depends(rate_limit_user("300/minute"))]
 RateLimitUser60 = Annotated[None, Depends(rate_limit_user("60/minute"))]
 RateLimitUser30 = Annotated[None, Depends(rate_limit_user("30/minute"))]
 RateLimitUser10 = Annotated[None, Depends(rate_limit_user("10/minute"))]
