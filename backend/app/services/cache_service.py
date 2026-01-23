@@ -3,7 +3,7 @@ Cache service using Redis for storing job status and temporary data.
 """
 
 import json
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 import redis.asyncio as aioredis
@@ -14,6 +14,26 @@ from app.core.config import settings
 logger = structlog.get_logger(__name__)
 
 
+class RedisClient(Protocol):
+    async def setex(self, name: str, time: int, value: str) -> object: ...
+
+    async def get(self, name: str) -> str | bytes | bytearray | None: ...
+
+    async def set(self, name: str, value: str) -> object: ...
+
+    async def delete(self, *names: str) -> int: ...
+
+    async def exists(self, *names: str) -> int: ...
+
+    async def incr(self, name: str) -> int: ...
+
+    async def expire(self, name: str, time: int) -> object: ...
+
+    async def ping(self) -> object: ...
+
+    async def close(self) -> None: ...
+
+
 class CacheService:
     """
     Service for caching data in Redis.
@@ -21,7 +41,7 @@ class CacheService:
     """
 
     def __init__(self):
-        self._redis: aioredis.Redis | None = None
+        self._redis: aioredis.Redis | RedisClient | None = None
 
     async def connect(self) -> None:
         """Connect to Redis."""
@@ -32,7 +52,10 @@ class CacheService:
                 decode_responses=True,
             )
             # Test connection
-            await self._redis.ping()
+            redis_client = self._redis
+            if redis_client is None:
+                return
+            await redis_client.ping()
             logger.info("✅ Redis connected successfully")
         except Exception as e:
             logger.error(f"❌ Error connecting to Redis: {e}")
@@ -94,7 +117,9 @@ class CacheService:
                 return None
 
             # Deserialize from JSON
-            return json.loads(value)
+            if isinstance(value, (str, bytes, bytearray)):
+                return json.loads(value)
+            return None
         except Exception as e:
             logger.error(f"Error getting cache key {key}: {e}")
             return None
@@ -134,7 +159,8 @@ class CacheService:
             return False
 
         try:
-            return await self._redis.exists(key) > 0
+            exists_result = await self._redis.exists(key)
+            return exists_result > 0
         except Exception as e:
             logger.error(f"Error checking cache key {key}: {e}")
             return False
@@ -174,6 +200,8 @@ class CacheService:
         key = f"job:{org_id}:{user_id}:{job_id}"
         data = await self._redis.get(key)
         if not data:
+            return None
+        if not isinstance(data, (str, bytes, bytearray)):
             return None
         status = json.loads(data)
         if status.get("organization_id") != str(org_id):

@@ -43,7 +43,7 @@ class BaseSchema(BaseModel):
         alias_generator=to_camel_case,
         populate_by_name=True,
         from_attributes=True,
-        ser_json_by_alias=True,  # Always serialize with camelCase
+        serialize_by_alias=True,  # Always serialize with camelCase
     )
 
 

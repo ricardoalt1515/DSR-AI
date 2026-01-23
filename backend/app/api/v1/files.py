@@ -152,6 +152,11 @@ async def upload_file(
         # Generate unique filename
         import uuid
 
+        if not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File must include a filename",
+            )
         file_ext = Path(file.filename).suffix.lower()
 
         # AI processing is only supported for image files (JPG, JPEG, PNG)
@@ -262,7 +267,7 @@ async def upload_file(
             id=project_file.id,
             filename=project_file.filename,
             file_size=file_size,
-            file_type=project_file.file_type,
+            file_type=project_file.file_type or file_ext.lstrip("."),
             category=category,
             processing_status=processing_status,
             uploaded_at=project_file.created_at,
@@ -302,12 +307,13 @@ async def list_files(
         has_text = f.processed_text is not None
         has_ai = f.ai_analysis is not None
         processing_status = "completed" if (has_text or has_ai) else "not_processed"
+        inferred_file_type = f.file_type or Path(f.filename or "").suffix.lower().lstrip(".")
         file_list.append(
             {
                 "id": f.id,
                 "filename": f.filename,
-                "file_size": f.file_size,
-                "file_type": f.file_type,
+                "file_size": f.file_size or 0,
+                "file_type": inferred_file_type,
                 "category": f.category,
                 "uploaded_at": f.created_at,
                 "processed_text": has_text,
@@ -362,8 +368,8 @@ async def get_file_detail(
         id=file.id,
         project_id=file.project_id,
         filename=file.filename,
-        file_size=file.file_size,
-        file_type=file.file_type,
+        file_size=file.file_size or 0,
+        file_type=file.file_type or Path(file.filename or "").suffix.lower().lstrip("."),
         category=file.category,
         uploaded_at=file.created_at,
         processed_text=file.processed_text,

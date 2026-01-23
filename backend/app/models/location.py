@@ -3,8 +3,10 @@ Location model - represents physical sites within a company.
 Each location can have multiple waste assessment projects.
 """
 
+from datetime import datetime
+from uuid import UUID
+
 from sqlalchemy import (
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -13,8 +15,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
 
@@ -39,50 +40,56 @@ class Location(BaseModel):
         Index("ix_locations_company_org", "company_id", "organization_id"),
     )
 
-    organization_id = Column(
-        UUID(as_uuid=True),
+    organization_id: Mapped[UUID] = mapped_column(
         ForeignKey("organizations.id"),
         nullable=False,
         index=True,
     )
 
     # Relationship to company
-    company_id = Column(
-        UUID(as_uuid=True),
+    company_id: Mapped[UUID] = mapped_column(
         nullable=False,
         index=True,
     )
 
     # Location info
-    name = Column(String(255), nullable=False, comment="Plant name or identifier")
-    city = Column(String(100), nullable=False, index=True)
-    state = Column(String(100), nullable=False, index=True)
-    address = Column(String(500), nullable=True)
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Plant name or identifier",
+    )
+    city: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Coordinates for mapping (optional)
-    latitude = Column(Float, nullable=True)
-    longitude = Column(Float, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Additional info
-    notes = Column(String(1000), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
-    created_by_user_id = Column(
-        UUID(as_uuid=True),
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id"),
         nullable=True,
         index=True,
     )
-    locked_at = Column(DateTime(timezone=True), nullable=True, comment="Catalog lock timestamp")
-    locked_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    lock_reason = Column(String(255), nullable=True)
-    archived_at = Column(DateTime(timezone=True), nullable=True)
-    archived_by_user_id = Column(
-        UUID(as_uuid=True),
+    locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Catalog lock timestamp",
+    )
+    locked_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    lock_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_by_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    archived_by_parent_id = Column(
-        UUID(as_uuid=True),
+    archived_by_parent_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("companies.id", ondelete="SET NULL"),
         nullable=True,
     )

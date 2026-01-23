@@ -518,10 +518,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 						onRemoveField={handleRemoveField}
 						autoSave
 						focusSectionId={focusSectionId}
-						onFocusSectionFromSummary={(sectionId) => {
-							setIsTableView(false);
-							setFocusSectionId(sectionId);
-						}}
+						disabled={isArchived}
 					/>
 				</div>
 			)}

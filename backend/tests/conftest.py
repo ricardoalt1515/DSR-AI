@@ -27,26 +27,48 @@ from app.models.project import Project
 from app.models.proposal import Proposal
 from app.models.timeline import TimelineEvent
 from app.models.user import User
+from app.services.cache_service import RedisClient
 
 
-class FakeRedis:
+class FakeRedis(RedisClient):
     """In-memory Redis mock for testing cache operations."""
 
     def __init__(self) -> None:
         self.store: dict[str, str] = {}
 
-    async def setex(self, key: str, _ttl: int, value: str) -> None:
-        self.store[key] = value
+    async def setex(self, name: str, time: int, value: str) -> object:
+        self.store[name] = value
+        return True
 
-    async def get(self, key: str) -> str | None:
-        return self.store.get(key)
+    async def get(self, name: str) -> str | None:
+        return self.store.get(name)
 
-    async def incr(self, key: str) -> int:
-        value = int(self.store.get(key, "0")) + 1
-        self.store[key] = str(value)
+    async def set(self, name: str, value: str) -> object:
+        self.store[name] = value
+        return True
+
+    async def delete(self, *names: str) -> int:
+        removed = 0
+        for name in names:
+            if self.store.pop(name, None) is not None:
+                removed += 1
+        return removed
+
+    async def exists(self, *names: str) -> int:
+        return sum(1 for name in names if name in self.store)
+
+    async def incr(self, name: str) -> int:
+        value = int(self.store.get(name, "0")) + 1
+        self.store[name] = str(value)
         return value
 
-    async def expire(self, _key: str, _ttl: int) -> None:
+    async def expire(self, name: str, time: int) -> object:
+        return True
+
+    async def ping(self) -> object:
+        return True
+
+    async def close(self) -> None:
         return None
 
 

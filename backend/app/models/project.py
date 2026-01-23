@@ -3,8 +3,10 @@ Project model.
 Represents waste assessment projects at client locations.
 """
 
+from datetime import datetime
+from uuid import UUID
+
 from sqlalchemy import (
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -18,8 +20,8 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
-from sqlalchemy.orm import column_property, relationship
+from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.models.base import BaseModel
 
@@ -62,8 +64,7 @@ class Project(BaseModel):
         Index("ix_projects_location_org", "location_id", "organization_id"),
     )
 
-    organization_id = Column(
-        UUID(as_uuid=True),
+    organization_id: Mapped[UUID] = mapped_column(
         ForeignKey("organizations.id"),
         nullable=False,
         index=True,
@@ -72,60 +73,70 @@ class Project(BaseModel):
     # ═══════════════════════════════════════════════════════════
     # NEW: LOCATION RELATIONSHIP
     # ═══════════════════════════════════════════════════════════
-    location_id = Column(
-        UUID(as_uuid=True),
+    location_id: Mapped[UUID | None] = mapped_column(
         nullable=True,  # Nullable during migration, will be required later
         index=True,
         comment="FK to Location - company site where waste is generated",
     )
 
     # Ownership
-    user_id = Column(
-        UUID(as_uuid=True),
+    user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     # Basic Information
-    name = Column(String(255), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
 
     # LEGACY: Keep for backward compatibility (will be deprecated)
-    client = Column(String(255), nullable=True, comment="LEGACY - use location.company.name")
-    location = Column(String(255), nullable=True, comment="LEGACY - use location.name")
+    client: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="LEGACY - use location.company.name",
+    )
+    location: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="LEGACY - use location.name",
+    )
 
-    sector = Column(
+    sector: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
         comment="Municipal, Industrial, Commercial, Residential",
     )
-    subsector = Column(String(100), nullable=True)
-    project_type = Column(
+    subsector: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    project_type: Mapped[str] = mapped_column(
         String(100),
         default="To be defined",
         comment="Type of treatment system",
     )
-    description = Column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Financial
-    budget = Column(Float, default=0.0, comment="Estimated budget in USD")
+    budget: Mapped[float] = mapped_column(
+        Float,
+        default=0.0,
+        comment="Estimated budget in USD",
+    )
 
     # Schedule
-    schedule_summary = Column(
+    schedule_summary: Mapped[str] = mapped_column(
         String(255),
         default="To be defined",
         comment="High-level schedule summary",
     )
 
     # Status and Progress
-    status = Column(
+    status: Mapped[str] = mapped_column(
         String(50),
         default="In Preparation",
         nullable=False,
         index=True,
         comment="Project status matching frontend enum",
     )
-    progress = Column(
+    progress: Mapped[int] = mapped_column(
         Integer,
         default=0,
         nullable=False,
@@ -133,20 +144,18 @@ class Project(BaseModel):
     )
 
     # Metadata
-    tags = Column(
+    tags: Mapped[list[str]] = mapped_column(
         JSON,
         default=list,
         comment="Array of tags for categorization",
     )
 
-    archived_at = Column(DateTime(timezone=True), nullable=True)
-    archived_by_user_id = Column(
-        UUID(as_uuid=True),
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_by_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    archived_by_parent_id = Column(
-        UUID(as_uuid=True),
+    archived_by_parent_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("locations.id", ondelete="SET NULL"),
         nullable=True,
     )
@@ -154,7 +163,7 @@ class Project(BaseModel):
     # ═══════════════════════════════════════════════════════════
     # FLEXIBLE PROJECT DATA (JSONB)
     # ═══════════════════════════════════════════════════════════
-    project_data = Column(
+    project_data: Mapped[dict[str, object]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

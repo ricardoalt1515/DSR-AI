@@ -1,5 +1,6 @@
 "use client";
 
+import { IntakePanel } from "@/components/features/projects/intake-panel";
 import { Card } from "@/components/ui/card";
 import {
 	ResizableHandle,
@@ -8,7 +9,6 @@ import {
 } from "@/components/ui/resizable";
 import type { TableField, TableSection } from "@/lib/types/technical-data";
 import { FlexibleDataCapture } from "./flexible-data-capture";
-import { TechnicalDataSummary } from "./technical-data-summary";
 
 interface ResizableDataLayoutProps {
 	sections: TableSection[];
@@ -23,14 +23,15 @@ interface ResizableDataLayoutProps {
 	onSave?: () => void;
 	autoSave?: boolean;
 	focusSectionId?: string | null;
-	onFocusSectionFromSummary?: (sectionId: string) => void;
-	onFocusFieldFromSummary?: (sectionId: string, fieldId: string) => void;
 	onUpdateSectionNotes?: (sectionId: string, notes: string) => void;
 	// Section/field CRUD operations (passed through to FlexibleDataCapture)
 	onAddSection?: (section: Omit<TableSection, "id">) => void;
 	onRemoveSection?: (sectionId: string) => void;
 	onAddField?: (sectionId: string, field: Omit<TableField, "id">) => void;
 	onRemoveField?: (sectionId: string, fieldId: string) => void;
+	// Intake panel props
+	disabled?: boolean;
+	onUploadComplete?: () => void;
 }
 
 export function ResizableDataLayout({
@@ -40,9 +41,9 @@ export function ResizableDataLayout({
 	onSave,
 	autoSave = true,
 	focusSectionId,
-	onFocusSectionFromSummary,
-	onFocusFieldFromSummary,
 	onUpdateSectionNotes,
+	disabled = false,
+	onUploadComplete,
 }: ResizableDataLayoutProps) {
 	return (
 		<Card className="h-full overflow-hidden rounded-3xl border-none bg-card/80 shadow-sm">
@@ -65,17 +66,20 @@ export function ResizableDataLayout({
 					minSize={28}
 					className="hidden min-w-[280px] lg:block"
 				>
-					<div className="h-full overflow-y-auto px-5 py-5 surface-muted">
-						<TechnicalDataSummary
+					{projectId ? (
+						<IntakePanel
+							projectId={projectId}
 							sections={sections}
-							{...(onFocusSectionFromSummary
-								? { onFocusSection: onFocusSectionFromSummary }
-								: {})}
-							{...(onFocusFieldFromSummary
-								? { onFocusField: onFocusFieldFromSummary }
-								: {})}
+							disabled={disabled}
+							{...(onUploadComplete ? { onUploadComplete } : {})}
 						/>
-					</div>
+					) : (
+						<div className="h-full overflow-y-auto px-5 py-5 surface-muted">
+							<p className="text-sm text-muted-foreground">
+								Save the project to enable AI suggestions.
+							</p>
+						</div>
+					)}
 				</ResizablePanel>
 			</ResizablePanelGroup>
 		</Card>

@@ -180,7 +180,7 @@ async def generate_proposal(
         if usage := result.usage():
             logger.info(f"Proposal generated ({usage.total_tokens:,} tokens)")
 
-        return result.output
+        return ProposalOutput.model_validate(result.output)
 
     except Exception as e:
         logger.error(f"Proposal generation failed: {e}")

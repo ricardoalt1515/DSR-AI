@@ -143,7 +143,7 @@ async def analyze_image(
             logger.info(f"📊 Token usage: {usage.total_tokens:,} tokens")
 
         # Log key findings
-        output = result.output
+        output = ImageAnalysisOutput.model_validate(result.output)
         logger.info(
             f"📋 Material: {output.material_type} | "
             f"Quality: {output.quality_grade} | "

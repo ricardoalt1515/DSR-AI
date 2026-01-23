@@ -3,9 +3,11 @@ Proposal model.
 Represents AI-generated technical proposals for projects.
 """
 
-from sqlalchemy import Column, Float, ForeignKey, ForeignKeyConstraint, Index, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
+from uuid import UUID
+
+from sqlalchemy import Float, ForeignKey, ForeignKeyConstraint, Index, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
 
@@ -67,73 +69,71 @@ class Proposal(BaseModel):
         Index("ix_proposals_project_org", "project_id", "organization_id"),
     )
 
-    organization_id = Column(
-        UUID(as_uuid=True),
+    organization_id: Mapped[UUID] = mapped_column(
         ForeignKey("organizations.id"),
         nullable=False,
         index=True,
     )
 
-    project_id = Column(
-        UUID(as_uuid=True),
+    project_id: Mapped[UUID] = mapped_column(
         nullable=False,
         index=True,
     )
 
     # Metadata
-    version = Column(
+    version: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         comment="Proposal version (e.g., v1.0, v2.1)",
     )
 
-    title = Column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    proposal_type = Column(
+    proposal_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
         comment="Conceptual, Technical, or Detailed",
     )
 
-    status = Column(
+    status: Mapped[str] = mapped_column(
         String(50),
         default="Draft",
         nullable=False,
         comment="Draft, Current, or Archived",
     )
 
-    author = Column(
+    author: Mapped[str] = mapped_column(
         String(255),
         default="H2O Allegiant AI",
         nullable=False,
     )
 
     # Financial Summary
-    capex = Column(
+    capex: Mapped[float] = mapped_column(
         Float,
         default=0.0,
         comment="Capital expenditure estimate in USD",
     )
 
-    opex = Column(
+    opex: Mapped[float] = mapped_column(
         Float,
         default=0.0,
         comment="Annual operational expenditure estimate in USD",
     )
 
     # Content Sections (kept for summary/display)
-    executive_summary = Column(Text, nullable=True)
-    technical_approach = Column(Text, nullable=True)
+    executive_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    technical_approach: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Generated Files
-    pdf_path = Column(
+    pdf_path: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
         comment="Path to generated PDF file (S3 URL or local path)",
     )
 
     # Single source of truth for all technical data ✅
-    ai_metadata = Column(
+    ai_metadata: Mapped[dict[str, object] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="Complete AI output + transparency: {proposal: {technicalData, markdownContent, confidenceLevel}, transparency: {provenCases, generatedAt, generationTimeSeconds}}",

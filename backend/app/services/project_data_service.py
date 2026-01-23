@@ -131,7 +131,15 @@ class ProjectDataService:
 
         should_update_progress = not merge or "technical_sections" in updates
         if should_update_progress:
-            sections = project.project_data.get("technical_sections", [])
+            raw_sections = project.project_data.get("technical_sections")
+            if isinstance(raw_sections, list):
+                sections: list[dict[str, Any]] = [
+                    {str(key): value for key, value in section.items()}
+                    for section in raw_sections
+                    if isinstance(section, dict)
+                ]
+            else:
+                sections = []
             project.progress = ProjectDataService.calculate_progress(sections)
 
         project.updated_at = datetime.now(UTC)
@@ -147,15 +155,35 @@ class ProjectDataService:
         Convert flexible project_data to structured AI input.
         Extracts known fields and preserves custom sections.
         """
-        data = project.project_data or {}
+        data = {str(key): value for key, value in (project.project_data or {}).items()}
 
         # Extract structured sections
-        basic_info = data.get("basic_info", {})
-        consumption = data.get("consumption", {})
-        quality = data.get("quality", {})
-        requirements = data.get("requirements", {})
-        objectives = data.get("objectives", [])
-        custom_sections = data.get("sections", [])
+        def _get_dict(key: str) -> dict[str, Any]:
+            value = data.get(key)
+            if not isinstance(value, dict):
+                return {}
+            return {str(inner_key): inner_value for inner_key, inner_value in value.items()}
+
+        basic_info = _get_dict("basic_info")
+        consumption = _get_dict("consumption")
+        quality = _get_dict("quality")
+        requirements = _get_dict("requirements")
+
+        raw_objectives = data.get("objectives")
+        if isinstance(raw_objectives, list):
+            objectives = [item for item in raw_objectives if isinstance(item, str)]
+        else:
+            objectives = []
+
+        raw_sections = data.get("sections")
+        if isinstance(raw_sections, list):
+            custom_sections = [
+                {str(key): value for key, value in section.items()}
+                for section in raw_sections
+                if isinstance(section, dict)
+            ]
+        else:
+            custom_sections = []
 
         # Build water quality analysis dict
         water_quality_analysis = {}

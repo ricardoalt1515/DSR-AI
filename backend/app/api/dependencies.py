@@ -806,17 +806,18 @@ def rate_limit_user(limit: str = "60/minute") -> Callable:
         if cache_service._redis:
             try:
                 current_count = await cache_service._redis.incr(cache_key)
+                current_count_value = int(current_count)
 
                 # Set TTL on first request
-                if current_count == 1:
+                if current_count_value == 1:
                     await cache_service._redis.expire(cache_key, ttl_seconds)
 
-                if current_count > max_requests:
+                if current_count_value > max_requests:
                     logger.warning(
                         "User rate limit exceeded",
                         user_id=str(current_user.id),
                         path=route_template,
-                        count=current_count,
+                        count=current_count_value,
                         limit=max_requests,
                     )
                     raise HTTPException(

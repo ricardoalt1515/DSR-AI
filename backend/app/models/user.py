@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -87,7 +86,6 @@ class User(SQLAlchemyBaseUserTableUUID, TimestampMixin, Base):
     )
 
     organization_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
         ForeignKey("organizations.id"),
         nullable=True,
         index=True,

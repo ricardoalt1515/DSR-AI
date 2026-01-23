@@ -223,6 +223,28 @@ Actions per suggestion:
 
 ---
 
+## Operational UX Decisions (Final)
+
+### A) Suggestions visible in the panel
+- Show **max 20** most recent suggestions.
+- Provide **“View all”** link to open a modal/drawer with full history and filters.
+
+### B) File role and history
+- **Files tab is the source of truth** (full repository and audit trail).
+- Intake panel is a **shortcut** + suggestions preview.
+- In Files tab, show badge “AI suggestions pending” per file.
+
+### C) Many documents at once
+- Use async queue; show per-file status.
+- Do not block data entry; allow agents to keep filling the questionnaire.
+
+### D) User pastes all info in text
+- Always accept free text.
+- Extract suggestions from notes.
+- Anything not mapped goes to **Unmapped Notes**, not Additional Info.
+
+---
+
 ## Acceptance Criteria (Mapped)
 - Stats panel replaced by Intake Panel.
 - Intake supports free text + file uploads.

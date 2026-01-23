@@ -226,7 +226,7 @@ def validate_template(template_dict: "TemplateDict") -> TemplateConfig:
         >>> validated = validate_template(template)
         >>> print(validated.get_field_count())
     """
-    return TemplateConfig(**template_dict)
+    return TemplateConfig.model_validate(template_dict)
 
 
 def validate_all_templates(

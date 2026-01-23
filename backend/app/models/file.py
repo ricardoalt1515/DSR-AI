@@ -3,9 +3,11 @@ Project file model.
 Represents uploaded files associated with projects.
 """
 
-from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSON, UUID
-from sqlalchemy.orm import relationship
+from uuid import UUID
+
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
 
@@ -41,77 +43,74 @@ class ProjectFile(BaseModel):
         Index("ix_project_files_project_org", "project_id", "organization_id"),
     )
 
-    organization_id = Column(
-        UUID(as_uuid=True),
+    organization_id: Mapped[UUID] = mapped_column(
         ForeignKey("organizations.id"),
         nullable=False,
         index=True,
     )
 
-    project_id = Column(
-        UUID(as_uuid=True),
+    project_id: Mapped[UUID] = mapped_column(
         nullable=False,
         index=True,
     )
 
     # File Information
-    filename = Column(String(255), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    file_path = Column(
+    file_path: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
         comment="Storage path (S3 key or local path)",
     )
 
-    file_size = Column(
+    file_size: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
         comment="File size in bytes",
     )
 
-    file_type = Column(
+    file_type: Mapped[str | None] = mapped_column(
         String(20),
         nullable=True,
         comment="File extension without dot (pdf, docx, xlsx)",
     )
 
-    mime_type = Column(
+    mime_type: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
         comment="MIME type (e.g., application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document)",
     )
 
-    uploaded_by = Column(
-        UUID(as_uuid=True),
+    uploaded_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         comment="User who uploaded the file",
     )
 
     # Classification
-    category = Column(
+    category: Mapped[str] = mapped_column(
         String(50),
         default="other",
         comment="technical, regulatory, financial, other",
     )
 
-    description = Column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Processing Results
-    processed_text = Column(
+    processed_text: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="Extracted text content from document",
     )
 
-    ai_analysis = Column(
+    ai_analysis: Mapped[dict[str, object] | None] = mapped_column(
         JSON,
         nullable=True,
         comment="AI analysis results and insights",
     )
 
     # Metadata (renamed to avoid SQLAlchemy reserved name conflict)
-    file_metadata = Column(
+    file_metadata: Mapped[dict[str, object] | None] = mapped_column(
         JSON,
         nullable=True,
         comment="Additional metadata (page count, dimensions, etc.)",

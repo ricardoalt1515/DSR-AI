@@ -290,33 +290,54 @@ async def get_proposal(
 
     # Regenerate fresh image URLs for photo insights (presigned URLs expire)
     try:
-        ai_meta = proposal.ai_metadata or {}
-        transparency = ai_meta.get("transparency")
-        if isinstance(transparency, dict):
-            client_meta = transparency.get("clientMetadata")
-            if isinstance(client_meta, dict):
-                attachments = client_meta.get("attachmentsSummary")
-                if isinstance(attachments, dict):
-                    photo_insights = attachments.get("photoInsights")
-                    if isinstance(photo_insights, list):
-                        for insight in photo_insights:
+        ai_meta = proposal.ai_metadata
+        if not isinstance(ai_meta, dict):
+            ai_meta = {}
+
+        def _coerce_dict(value: object) -> dict[str, object]:
+            if not isinstance(value, dict):
+                return {}
+            return {str(key): item for key, item in value.items()}
+
+        transparency = _coerce_dict(ai_meta.get("transparency"))
+        if transparency:
+            client_meta = _coerce_dict(transparency.get("clientMetadata"))
+            if client_meta:
+                attachments = _coerce_dict(client_meta.get("attachmentsSummary"))
+                if attachments:
+                    photo_insights_value = attachments.get("photoInsights")
+                    if isinstance(photo_insights_value, list):
+                        refreshed_insights: list[dict[str, object]] = []
+                        for insight in photo_insights_value:
                             if not isinstance(insight, dict):
                                 continue
-                            file_id = insight.get("fileId")
+                            insight_data = {str(key): value for key, value in insight.items()}
+                            file_id = insight_data.get("fileId")
                             if not file_id:
+                                refreshed_insights.append(insight_data)
                                 continue
                             try:
                                 file_uuid = UUID(str(file_id))
                             except Exception:
+                                refreshed_insights.append(insight_data)
                                 continue
                             file = await db.get(ProjectFile, file_uuid)
                             if not file:
+                                refreshed_insights.append(insight_data)
                                 continue
                             if file.organization_id != project.organization_id:
+                                refreshed_insights.append(insight_data)
                                 continue
                             image_url = await get_presigned_url(file.file_path, expires=86400)
                             if image_url:
-                                insight["imageUrl"] = image_url
+                                insight_data["imageUrl"] = image_url
+                            refreshed_insights.append(insight_data)
+                        if refreshed_insights:
+                            attachments["photoInsights"] = refreshed_insights
+                            client_meta["attachmentsSummary"] = attachments
+                            transparency["clientMetadata"] = client_meta
+                            ai_meta["transparency"] = transparency
+                            proposal.ai_metadata = ai_meta
     except Exception as exc:  # Best-effort refresh; do not block response
         logger.warning("photo_insight_refresh_failed", exc_info=True, error=str(exc))
 
@@ -381,9 +402,16 @@ async def get_proposal_pdf(
 
     try:
         ai_metadata = proposal.ai_metadata if isinstance(proposal.ai_metadata, dict) else {}
-        pdf_paths = ai_metadata.get("pdfPaths") if isinstance(ai_metadata, dict) else None
-        if not isinstance(pdf_paths, dict):
-            pdf_paths = {}
+        pdf_paths_value = ai_metadata.get("pdfPaths")
+        pdf_paths = (
+            {
+                key: value
+                for key, value in pdf_paths_value.items()
+                if isinstance(key, str) and isinstance(value, str)
+            }
+            if isinstance(pdf_paths_value, dict)
+            else {}
+        )
 
         cached_pdf_path = proposal.pdf_path if audience == "internal" else pdf_paths.get("external")
         is_archived = project.archived_at is not None
@@ -427,18 +455,28 @@ async def get_proposal_pdf(
 
         # Prepare metadata for PDF generator.
         # metadata["proposal"] uses audience-specific data when available.
-        proposal_data = None
-        markdown_content = ""
+        markdown_content: str = ""
+
+        def _coerce_dict(value: object) -> dict[str, Any]:
+            if not isinstance(value, dict):
+                return {}
+            return {str(key): item for key, item in value.items()}
+
         internal_data: dict[str, Any] = {}
+        proposal_data: dict[str, Any] | None = None
 
         if ai_metadata:
-            internal_data = ai_metadata.get("proposal") or {}
-            proposal_data = (
-                internal_data if audience == "internal" else ai_metadata.get("proposalExternal")
-            )
+            internal_data = _coerce_dict(ai_metadata.get("proposal"))
+            external_data = _coerce_dict(ai_metadata.get("proposalExternal"))
+            if audience == "internal":
+                proposal_data = internal_data
+            elif external_data:
+                proposal_data = external_data
 
             markdown_key = "markdownExternal" if audience == "external" else "markdownInternal"
-            markdown_content = ai_metadata.get(markdown_key) or ""
+            markdown_value = ai_metadata.get(markdown_key)
+            if isinstance(markdown_value, str):
+                markdown_content = markdown_value
 
         if audience == "external":
             if not proposal_data:
@@ -446,7 +484,7 @@ async def get_proposal_pdf(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="External report not available for this proposal.",
                 )
-            if not markdown_content:
+            if not markdown_content and proposal_data is not None:
                 markdown_content = build_external_markdown_from_data(proposal_data)
                 ai_metadata["markdownExternal"] = markdown_content
                 proposal.ai_metadata = ai_metadata
@@ -455,23 +493,22 @@ async def get_proposal_pdf(
                 markdown_content = proposal.technical_approach or ""
 
         legacy_technical = getattr(proposal, "technical_data", None)
-        context = {}
+        context: dict[str, object] = {}
         if audience == "external" and internal_data:
             # Basic context fields
-            context = {
-                "material": sanitize_external_text(internal_data.get("material")),
-                "volume": sanitize_external_text(internal_data.get("volume")),
-                "location": sanitize_external_text(
-                    internal_data.get("location") or project.location
-                ),
-                "facilityType": sanitize_external_text(
-                    internal_data.get("facilityType") or project.sector
-                ),
-            }
+            context["material"] = sanitize_external_text(internal_data.get("material"))
+            context["volume"] = sanitize_external_text(internal_data.get("volume"))
+            context["location"] = sanitize_external_text(
+                internal_data.get("location") or project.location
+            )
+            context["facilityType"] = sanitize_external_text(
+                internal_data.get("facilityType") or project.sector
+            )
 
             # Enrichment: sanitized pathway data for Valorization/ESG sections
-            pathways = internal_data.get("pathways") or []
-            if pathways:
+            pathways_value = internal_data.get("pathways")
+            if isinstance(pathways_value, list) and pathways_value:
+                pathways = [p for p in pathways_value if isinstance(p, dict)]
                 # Valorization options: action + why_it_works (no prices)
                 valorization = []
                 for p in pathways[:3]:
@@ -539,8 +576,9 @@ async def get_proposal_pdf(
             )
 
         # Generate PDF with charts (returns relative filename: "proposals/file.pdf")
+        markdown_text = markdown_content if isinstance(markdown_content, str) else ""
         pdf_filename = await pdf_generator.create_pdf(
-            markdown_content=markdown_content,
+            markdown_content=markdown_text,
             metadata=metadata,
             charts=charts,
             conversation_id=str(proposal_id),
@@ -804,16 +842,18 @@ async def get_proposal_ai_metadata(
     # Get AI metadata directly from PostgreSQL (single source of truth)
     ai_metadata = proposal.ai_metadata
 
-    if not ai_metadata:
+    if not isinstance(ai_metadata, dict) or not ai_metadata:
         logger.warning("No AI metadata found for proposal %s", proposal_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No AI metadata available for this proposal.",
         )
 
+    ai_metadata_data = {str(key): value for key, value in ai_metadata.items()}
+
     try:
         # Validate with Pydantic (catches corrupted data)
-        validated_metadata = AIMetadataResponse(**ai_metadata)
+        validated_metadata = AIMetadataResponse.model_validate(ai_metadata_data)
         logger.info(
             "Returning validated AI metadata",
             extra={
