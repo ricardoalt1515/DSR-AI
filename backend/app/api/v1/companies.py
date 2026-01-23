@@ -58,7 +58,10 @@ from app.services.storage_delete_service import (
     delete_storage_keys,
     validate_storage_keys,
 )
-from app.utils.purge_utils import extract_confirm_name, extract_pdf_paths
+from app.utils.purge_utils import (
+    extract_confirm_name,
+    extract_pdf_paths,
+)
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
@@ -94,35 +97,6 @@ async def _get_project_counts_by_location(
         .group_by(Project.location_id)
     )
     return {row.location_id: row.project_count for row in counts_result}
-
-
-async def _collect_project_storage_paths(
-    db: AsyncDB,
-    org_id: UUID,
-    project_id: UUID,
-) -> set[str]:
-    storage_paths: set[str] = set()
-
-    file_rows = await db.execute(
-        select(ProjectFile.file_path).where(
-            ProjectFile.organization_id == org_id,
-            ProjectFile.project_id == project_id,
-        )
-    )
-    storage_paths.update({row.file_path for row in file_rows if row.file_path})
-
-    proposal_rows = await db.execute(
-        select(Proposal.pdf_path, Proposal.ai_metadata).where(
-            Proposal.organization_id == org_id,
-            Proposal.project_id == project_id,
-        )
-    )
-    for pdf_path, ai_metadata in proposal_rows:
-        if pdf_path:
-            storage_paths.add(pdf_path)
-        storage_paths.update(extract_pdf_paths(ai_metadata))
-
-    return storage_paths
 
 
 async def _collect_location_storage_paths(

@@ -37,17 +37,28 @@ try:
         RateLimitError,
     )
 except ImportError:
-    # Fallback for older openai versions
-    APIError = Exception
-    RateLimitError = Exception
-    APITimeoutError = Exception
-    APIConnectionError = Exception
+
+    class APIError(Exception):
+        pass
+
+    class RateLimitError(Exception):
+        pass
+
+    class APITimeoutError(Exception):
+        pass
+
+    class APIConnectionError(Exception):
+        pass
+
 
 from app.agents.proposal_agent import (
     ProposalGenerationError,
     generate_enhanced_proposal,
 )
 from app.models.external_opportunity_report import (
+    AnnualImpactBasis,
+    AnnualImpactConfidence,
+    AnnualImpactMagnitudeBand,
     CircularityIndicator,
     ExternalOpportunityReport,
     SustainabilityMetric,
@@ -175,9 +186,13 @@ class ProposalService:
             >>> print(water_data.count_filled_fields())  # All user fields
         """
         # Load from JSONB data (frontend's dynamic structure)
-        jsonb_sections = (
+        raw_sections = (
             project.project_data.get("technical_sections") if project.project_data else None
         )
+        if isinstance(raw_sections, list):
+            jsonb_sections: list[object] | None = list(raw_sections)
+        else:
+            jsonb_sections = None
 
         if jsonb_sections:
             # User has entered dynamic data in frontend
@@ -217,9 +232,9 @@ class ProposalService:
         )
         return FlexibleWaterProjectData(
             project_name=project.name,
-            client=project.client,
+            client=project.client or "",
             sector=project.sector,
-            location=project.location,
+            location=project.location or "",
             budget=project.budget,
             technical_sections=[],  # Empty
         )
@@ -612,10 +627,18 @@ class ProposalService:
             )
             proposal.organization_id = org_id
 
+            confidence_level = "Medium"
+            if isinstance(proposal.ai_metadata, dict):
+                proposal_meta_value = proposal.ai_metadata.get("proposal")
+                if isinstance(proposal_meta_value, dict):
+                    proposal_meta = {str(key): value for key, value in proposal_meta_value.items()}
+                    confidence_value = proposal_meta.get("confidence")
+                    if isinstance(confidence_value, str):
+                        confidence_level = confidence_value
             logger.info(
                 "waste_report_created",
                 project_id=str(project_id),
-                confidence_level=proposal.ai_metadata["proposal"].get("confidence", "Medium"),
+                confidence_level=confidence_level,
             )
 
             db.add(proposal)
@@ -873,7 +896,7 @@ _BUYER_CLAIMS_PREFIXES = (
     "buyer claim:",
 )
 
-_ANNUAL_IMPACT_BANDS = (
+_ANNUAL_IMPACT_BANDS: tuple[tuple[AnnualImpactMagnitudeBand, int], ...] = (
     ("Seven figures+", 1_000_000),
     ("Six figures", 100_000),
     ("Five figures", 10_000),
@@ -1062,16 +1085,19 @@ def _parse_annual_amounts(value: str | None) -> list[float]:
     return amounts
 
 
-def _annual_impact_band(amount: float | None) -> str:
+def _annual_impact_band(amount: float | None) -> AnnualImpactMagnitudeBand:
     if not amount:
         return "Unknown"
     for label, threshold in _ANNUAL_IMPACT_BANDS:
+        label_value: AnnualImpactMagnitudeBand = label
         if amount >= threshold:
-            return label
+            return label_value
     return "Unknown"
 
 
-def _derive_annual_impact(internal: ProposalOutput) -> tuple[str, str, str, list[str]]:
+def _derive_annual_impact(
+    internal: ProposalOutput,
+) -> tuple[AnnualImpactMagnitudeBand, AnnualImpactBasis, AnnualImpactConfidence, list[str]]:
     pathway_amounts: list[float] = []
     for pathway in internal.pathways:
         pathway_amounts.extend(_parse_annual_amounts(pathway.annual_value))
@@ -1090,8 +1116,8 @@ def _derive_annual_impact(internal: ProposalOutput) -> tuple[str, str, str, list
 
     max_amount = max(all_amounts)
     if pathway_amounts and cost_amounts:
-        basis = "Mixed"
-        confidence = "High"
+        basis: AnnualImpactBasis = "Mixed"
+        confidence: AnnualImpactConfidence = "High"
     elif pathway_amounts:
         basis = "Revenue potential"
         confidence = "Medium"
@@ -1151,6 +1177,9 @@ def derive_external_report(internal: ProposalOutput) -> ExternalOpportunityRepor
     )
 
     band = internal.economics_deep_dive.profitability_band
+    annual_band: AnnualImpactMagnitudeBand
+    annual_basis: AnnualImpactBasis
+    annual_confidence: AnnualImpactConfidence
     annual_band, annual_basis, annual_confidence, annual_notes = _derive_annual_impact(internal)
     profitability_statement = sanitize_external_text(
         _derive_profitability_statement(band, internal.roi_summary)

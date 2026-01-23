@@ -9,7 +9,6 @@ from pathlib import Path
 import structlog
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_users.password import PasswordHelper
@@ -18,6 +17,9 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, close_db
@@ -208,6 +210,16 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_PREFIX}/redoc",
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
     lifespan=lifespan,
+    middleware=[
+        Middleware(
+            CORSMiddleware,  # ty: ignore[invalid-argument-type]
+            allow_origins=settings.cors_origins_list,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-Organization-Id"],
+            expose_headers=["Content-Disposition"],
+        )
+    ],
     # Note: response_model_by_alias removed - FastAPI Users doesn't use aliases
     # Frontend transforms snake_case to camelCase in auth.ts
     # response_model_by_alias=True,  # ← Removed: causes Content-Length mismatch
@@ -219,12 +231,13 @@ app.state.limiter = limiter
 
 # Custom RateLimitExceeded handler (replaces slowapi default)
 # Ensures all 429 responses use our ErrorResponse format
-async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> Response:
     """Handle rate limit exceeded with consistent ErrorResponse format."""
+    limit = str(exc.detail) if isinstance(exc, RateLimitExceeded) else "unknown"
     logger.warning(
         "Rate limit exceeded",
         path=request.url.path,
-        limit=str(exc.detail),
+        limit=limit,
     )
     error_response = ErrorResponse(
         error=APIError(
@@ -240,16 +253,6 @@ async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) 
 
 
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Organization-Id"],
-    expose_headers=["Content-Disposition"],
-)
 
 
 # ============================================================================
@@ -304,15 +307,16 @@ async def granular_rate_limit_middleware(request: Request, call_next):
             if cache_service._redis:
                 # Increment counter in Redis
                 current_count = await cache_service._redis.incr(cache_key)
+                current_count_value = int(current_count)
 
                 # Set expiration on first request (60 seconds for "per minute")
-                if current_count == 1:
+                if current_count_value == 1:
                     await cache_service._redis.expire(cache_key, 60)
 
                 # Check if limit exceeded
-                if current_count > count:
+                if current_count_value > count:
                     logger.warning(
-                        f"Rate limit exceeded: {path} from {client_ip} ({current_count}/{count})"
+                        f"Rate limit exceeded: {path} from {client_ip} ({current_count_value}/{count})"
                     )
                     return JSONResponse(
                         status_code=429,

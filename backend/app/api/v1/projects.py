@@ -32,9 +32,7 @@ from app.api.dependencies import (
     require_not_archived,
 )
 from app.main import limiter
-from app.models.file import ProjectFile
 from app.models.project import Project
-from app.models.proposal import Proposal
 from app.schemas.common import ErrorResponse, PaginatedResponse, SuccessResponse
 from app.schemas.project import (
     DashboardStatsResponse,
@@ -49,40 +47,11 @@ from app.services.storage_delete_service import (
     delete_storage_keys,
     validate_storage_keys,
 )
-from app.utils.purge_utils import extract_confirm_name, extract_pdf_paths
+from app.utils.purge_utils import collect_project_storage_paths, extract_confirm_name
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
-
-
-async def _collect_project_storage_paths(
-    db: AsyncDB,
-    org_id: UUID,
-    project_id: UUID,
-) -> set[str]:
-    storage_paths: set[str] = set()
-
-    file_rows = await db.execute(
-        select(ProjectFile.file_path).where(
-            ProjectFile.organization_id == org_id,
-            ProjectFile.project_id == project_id,
-        )
-    )
-    storage_paths.update({row.file_path for row in file_rows if row.file_path})
-
-    proposal_rows = await db.execute(
-        select(Proposal.pdf_path, Proposal.ai_metadata).where(
-            Proposal.organization_id == org_id,
-            Proposal.project_id == project_id,
-        )
-    )
-    for pdf_path, ai_metadata in proposal_rows:
-        if pdf_path:
-            storage_paths.add(pdf_path)
-        storage_paths.update(extract_pdf_paths(ai_metadata))
-
-    return storage_paths
 
 
 async def _lock_project_for_update(
@@ -218,7 +187,7 @@ async def list_projects(
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
-    total = total_result.scalar()
+    total: int = int(total_result.scalar_one() or 0)
 
     # Apply pagination
     query = query.order_by(Project.updated_at.desc())
@@ -233,14 +202,14 @@ async def list_projects(
     items = [ProjectSummary.model_validate(p, from_attributes=True) for p in projects]
 
     # Calculate total pages
-    pages = (total + page_size - 1) // page_size if total > 0 else 1
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
 
     return PaginatedResponse(
         items=items,
         total=total,
         page=page,
         size=page_size,
-        pages=pages,
+        pages=total_pages,
     )
 
 
@@ -295,7 +264,7 @@ async def get_dashboard_stats(
     pipeline_query = (
         select(
             Project.status,
-            func.count(Project.id).label("count"),
+            func.count(Project.id).label("project_count"),
             func.avg(Project.progress).label("avg_progress"),
         )
         .where(*conditions)
@@ -303,10 +272,19 @@ async def get_dashboard_stats(
     )
 
     pipeline_result = await db.execute(pipeline_query)
-    pipeline_stages = {
-        row.status: PipelineStageStats(count=row.count, avg_progress=round(row.avg_progress or 0))
-        for row in pipeline_result
-    }
+    pipeline_rows = pipeline_result.mappings().all()
+    pipeline_stages = {}
+    for row in pipeline_rows:
+        status_value = row.get("status")
+        if not isinstance(status_value, str):
+            continue
+        raw_count = row.get("project_count")
+        count_value = int(raw_count) if isinstance(raw_count, int | float) else 0
+        avg_value = row.get("avg_progress") or 0
+        pipeline_stages[status_value] = PipelineStageStats(
+            count=count_value,
+            avg_progress=round(avg_value),
+        )
 
     logger.info("Dashboard stats generated for user %s", current_user.id)
 
@@ -641,7 +619,7 @@ async def purge_project(
             detail="Project must be archived before purge",
         )
 
-    storage_paths = await _collect_project_storage_paths(
+    storage_paths = await collect_project_storage_paths(
         db=db,
         org_id=org.id,
         project_id=project.id,

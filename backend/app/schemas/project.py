@@ -88,6 +88,7 @@ class ProjectSummary(BaseSchema):
 
     # Core fields
     id: UUID
+    user_id: UUID = Field(..., description="Owner of the project")
     name: Annotated[str, Field(max_length=255)]
     sector: str
     subsector: str | None = None

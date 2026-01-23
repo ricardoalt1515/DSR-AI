@@ -73,7 +73,7 @@ async def health_check():
     # Check Redis
     try:
         if cache_service._redis:
-            await cache_service._redis.ping()
+            await cache_service._redis.ping()  # ty: ignore[invalid-await]
             health_status["redis"] = "healthy"
             logger.debug("✅ Redis health check passed")
         else:
