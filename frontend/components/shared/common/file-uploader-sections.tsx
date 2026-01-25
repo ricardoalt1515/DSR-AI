@@ -109,7 +109,6 @@ const PROCESSING_STATUS_CONFIG = {
 		iconClassName: "",
 		style: "bg-rose-500/15 text-rose-400 border-rose-500/30",
 	},
-	not_processed: null,
 } as const;
 
 const QUALITY_BADGE_STYLES = {

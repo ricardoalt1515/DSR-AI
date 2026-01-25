@@ -1,4 +1,5 @@
 import type { User, UserRole } from "@/lib/types/user";
+import { logger } from "@/lib/utils/logger";
 import { apiClient } from "./client";
 
 interface LoginRequest {
@@ -138,7 +139,8 @@ export const authAPI = {
 			await apiClient.post("/auth/jwt/logout", undefined, {
 				Authorization: `Bearer ${token}`,
 			});
-		} catch (_error) {
+		} catch (error) {
+			logger.error("Logout request failed", error, "Auth");
 			return;
 		}
 	},
@@ -223,7 +225,8 @@ export const authAPI = {
 			const user = await authAPI.getCurrentUser();
 
 			return { valid: true, user };
-		} catch (_error) {
+		} catch (error) {
+			logger.error("Session validation failed", error, "Auth");
 			return { valid: false };
 		}
 	},

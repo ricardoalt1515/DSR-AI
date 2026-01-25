@@ -2,22 +2,15 @@
 File upload and management endpoints.
 """
 
+import asyncio
+import tempfile
 from pathlib import Path
+from typing import IO
 from uuid import UUID
 
 import aiofiles
 import structlog
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    Request,
-    UploadFile,
-    status,
-)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,13 +23,13 @@ from app.api.dependencies import (
     require_not_archived,
 )
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal, get_async_db
+from app.core.database import get_async_db
 from app.models.file import ProjectFile
 from app.models.project import Project
 from app.models.timeline import TimelineEvent
 from app.schemas.common import ErrorResponse
 from app.schemas.file import FileDetailResponse, FileListResponse, FileUploadResponse
-from app.services.document_processor import DocumentProcessor
+from app.services.intake_ingestion_service import IntakeIngestionService
 from app.services.s3_service import USE_S3, get_presigned_url, upload_file_to_s3
 from app.services.storage_delete_service import (
     StorageDeleteError,
@@ -58,6 +51,24 @@ ALLOWED_EXTENSIONS = {
     (ext if ext.startswith(".") else f".{ext}").lower() for ext in settings.allowed_extensions_list
 }
 MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE
+EXTENSION_TO_MIME: dict[str, set[str]] = {
+    ".pdf": {"application/pdf"},
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".png": {"image/png"},
+}
+STREAM_CHUNK_SIZE = 1024 * 1024
+
+
+def validate_mime_type(file_ext: str, content_type: str | None) -> None:
+    if not content_type or content_type == "application/octet-stream":
+        return
+    expected = EXTENSION_TO_MIME.get(file_ext)
+    if expected and content_type not in expected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Content-Type mismatch: {content_type} vs {file_ext}",
+        )
 
 
 def validate_file(upload_file: UploadFile) -> None:
@@ -79,6 +90,41 @@ def validate_file(upload_file: UploadFile) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file type: {file_ext or 'unknown'}",
         )
+    validate_mime_type(file_ext, upload_file.content_type)
+
+
+async def stream_file_to_path_and_hash(
+    upload_file: UploadFile, destination: Path
+) -> tuple[int, str]:
+    import hashlib
+
+    size = 0
+    hasher = hashlib.sha256()
+    async with aiofiles.open(destination, "wb") as out:
+        while True:
+            chunk = await upload_file.read(STREAM_CHUNK_SIZE)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > MAX_FILE_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024} MB",
+                )
+            hasher.update(chunk)
+            await out.write(chunk)
+    return size, hasher.hexdigest()
+
+
+def safe_unlink(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return
+
+
+def open_binary(path: Path) -> IO[bytes]:
+    return path.open("rb")
 
 
 @router.post(
@@ -95,7 +141,6 @@ async def upload_file(
     project: ActiveProjectDep,
     current_user: CurrentUser,
     file: Annotated[UploadFile, File()],
-    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_async_db)],
     category: Annotated[str, Form()] = "general",
     process_with_ai: Annotated[bool, Form()] = False,
@@ -116,10 +161,8 @@ async def upload_file(
     - `photos` - Site photos
 
     **Processing:**
-    - If `process_with_ai=true`, extracts text and analyzes content
-    - PDF: Extracts text and tables
-    - Excel: Reads data and can import to technical fields
-    - Images: OCR (optical character recognition)
+    - If `process_with_ai=true`, queues ingestion for PDFs and images
+    - Other types are stored only (no AI processing in MVP)
 
     **Storage:**
     - Local: `./storage/projects/{project_id}/`
@@ -138,17 +181,6 @@ async def upload_file(
     validate_file(file)
 
     try:
-        # Read file content
-        file_content = await file.read()
-        file_size = len(file_content)
-
-        # Check size
-        if file_size > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024} MB",
-            )
-
         # Generate unique filename
         import uuid
 
@@ -159,34 +191,44 @@ async def upload_file(
             )
         file_ext = Path(file.filename).suffix.lower()
 
-        # AI processing is only supported for image files (JPG, JPEG, PNG)
+        # AI processing is supported for PDFs and images in MVP
         is_image = file_ext in {".jpg", ".jpeg", ".png"}
-        if process_with_ai and not is_image:
+        is_pdf = file_ext == ".pdf"
+        if process_with_ai and not (is_image or is_pdf):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="AI processing is only supported for image files (JPG, JPEG, PNG)",
+                detail="AI processing is only supported for PDF or image files in MVP",
             )
 
         unique_filename = f"{uuid.uuid4()}{file_ext}"
 
+        file_size = 0
+        file_hash = ""
+
         # Store file
         if USE_S3:
-            # Upload to S3
             s3_key = f"projects/{project.id}/files/{unique_filename}"
-            from io import BytesIO
-
-            file_buffer = BytesIO(file_content)
-            await upload_file_to_s3(file_buffer, s3_key, file.content_type)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
+                tmp_path = Path(tmp_file.name)
+            try:
+                file_size, file_hash = await stream_file_to_path_and_hash(file, tmp_path)
+                file_buffer = await asyncio.to_thread(open_binary, tmp_path)
+                try:
+                    await upload_file_to_s3(file_buffer, s3_key, file.content_type)
+                finally:
+                    file_buffer.close()
+            finally:
+                safe_unlink(tmp_path)
             file_path = s3_key
         else:
-            # Store locally using relative storage key
             storage_key = f"projects/{project.id}/files/{unique_filename}"
             storage_path = Path(settings.LOCAL_STORAGE_PATH) / storage_key
             storage_path.parent.mkdir(parents=True, exist_ok=True)
-
-            async with aiofiles.open(storage_path, "wb") as f:
-                await f.write(file_content)
-
+            try:
+                file_size, file_hash = await stream_file_to_path_and_hash(file, storage_path)
+            except Exception:
+                safe_unlink(storage_path)
+                raise
             file_path = storage_key
 
         # Re-check archive state with lock before DB mutation
@@ -213,6 +255,13 @@ async def upload_file(
                 logger.warning("uploaded_file_cleanup_failed", path=file_path, error=str(exc))
             raise
 
+        # Determine processing defaults
+        from datetime import UTC, datetime
+
+        should_process = process_with_ai and (is_image or is_pdf)
+        initial_status = "queued" if should_process else "completed"
+        processed_at = None if should_process else datetime.now(UTC)
+
         # Create database record
         project_file = ProjectFile(
             project_id=project.id,
@@ -224,22 +273,22 @@ async def upload_file(
             mime_type=file.content_type or "application/octet-stream",
             category=category,
             uploaded_by=current_user.id,
+            file_hash=file_hash,
+            processing_status=initial_status,
+            processing_attempts=0,
+            processed_at=processed_at,
         )
 
         db.add(project_file)
         await db.flush()  # Get the ID
 
-        # Process with AI if requested
-        if process_with_ai:
-            background_tasks.add_task(
-                process_file_with_ai,
-                file_id=project_file.id,
-                file_path=file_path,
-                file_type=file_ext,
-            )
+        # Queue ingestion if requested and supported
+        if should_process:
+            ingestion_service = IntakeIngestionService()
+            await ingestion_service.enqueue_ingestion(db, project_file)
             processing_status = "queued"
         else:
-            processing_status = "not_processed"
+            processing_status = "completed"
 
         # Create timeline event
         event = TimelineEvent(
@@ -306,7 +355,7 @@ async def list_files(
     for f in files:
         has_text = f.processed_text is not None
         has_ai = f.ai_analysis is not None
-        processing_status = "completed" if (has_text or has_ai) else "not_processed"
+        processing_status = f.processing_status
         inferred_file_type = f.file_type or Path(f.filename or "").suffix.lower().lstrip(".")
         file_list.append(
             {
@@ -514,104 +563,3 @@ async def delete_file(
     logger.info("File deleted", filename=filename, project_id=str(project.id))
 
     return None
-
-
-# Background task for AI processing
-async def process_file_with_ai(
-    file_id: UUID,
-    file_path: str,
-    file_type: str,
-):
-    """Process file with AI in background using its own DB session.
-
-    Loads project context (sector/subsector) to provide industry-specific
-    analysis for waste materials.
-    """
-    try:
-        logger.info("Processing file with AI", file_id=str(file_id))
-
-        # Load file and project context for industry-specific analysis
-        async with AsyncSessionLocal() as db:
-            result_db = await db.execute(
-                select(ProjectFile, Project)
-                .join(Project, ProjectFile.project_id == Project.id)
-                .where(ProjectFile.id == file_id)
-            )
-            row = result_db.one_or_none()
-
-            if not row:
-                logger.error(f"File {file_id} not found")
-                return
-
-            _project_file, project = row
-
-            if project.archived_at is not None:
-                logger.info(
-                    "file_ai_processing_skipped_project_archived",
-                    file_id=str(file_id),
-                    project_id=str(project.id),
-                )
-                return
-
-            project_sector = project.sector
-            project_subsector = project.subsector
-
-        # Create document processor and process file with context
-        processor = DocumentProcessor()
-
-        # Unified file reading: works for both S3 keys and local paths (DRY)
-        from io import BytesIO
-
-        from app.services.s3_service import download_file_content
-
-        file_bytes = await download_file_content(file_path)
-        file_content = BytesIO(file_bytes)
-
-        try:
-            result = await processor.process(
-                file_content=file_content,
-                filename=Path(file_path).name,
-                file_type=file_type,
-                project_sector=project_sector,
-                project_subsector=project_subsector,
-            )
-        finally:
-            file_content.close()
-
-        # Update file record in its own async DB session
-        async with AsyncSessionLocal() as db:
-            try:
-                result_db = await db.execute(
-                    select(ProjectFile, Project)
-                    .join(Project, ProjectFile.project_id == Project.id)
-                    .where(ProjectFile.id == file_id)
-                    .with_for_update()
-                )
-                row = result_db.one_or_none()
-
-                if not row:
-                    return
-
-                file, project = row
-                if project.archived_at is not None:
-                    logger.info(
-                        "file_ai_result_discarded_project_archived",
-                        file_id=str(file_id),
-                        project_id=str(project.id),
-                    )
-                    return
-
-                file.processed_text = result.get("text")
-                file.ai_analysis = result.get("analysis")
-                await db.commit()
-                logger.info(
-                    "File processed successfully",
-                    file_id=str(file_id),
-                    sector=project_sector,
-                )
-            except Exception:
-                await db.rollback()
-                raise
-
-    except Exception as e:
-        logger.error(f"Error processing file {file_id}: {e}", exc_info=True)

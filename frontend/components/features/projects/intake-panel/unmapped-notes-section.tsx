@@ -29,7 +29,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { useUnmappedNotesCount } from "@/lib/stores/intake-store";
 import type { UnmappedNote } from "@/lib/types/intake";
 import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
@@ -37,6 +36,7 @@ import { ConfidenceBadge } from "./confidence-badge";
 
 interface UnmappedNotesSectionProps {
 	notes: UnmappedNote[];
+	totalCount: number;
 	sections: TableSection[];
 	onMapToField: (
 		noteId: string,
@@ -44,8 +44,11 @@ interface UnmappedNotesSectionProps {
 		sectionId: string,
 		fieldLabel: string,
 		sectionTitle: string,
-	) => void;
-	onDismiss: (noteId: string) => void;
+	) => Promise<void>;
+	onDismiss: (noteId: string) => Promise<void>;
+	onDismissAll: () => void;
+	onDismissLowConfidence: () => void;
+	onDismissByFile: (sourceFileId: string | null) => void;
 	disabled?: boolean;
 }
 
@@ -58,13 +61,17 @@ interface FieldOption {
 
 export function UnmappedNotesSection({
 	notes,
+	totalCount,
 	sections,
 	onMapToField,
 	onDismiss,
+	onDismissAll,
+	onDismissLowConfidence,
+	onDismissByFile,
 	disabled = false,
 }: UnmappedNotesSectionProps) {
-	const count = useUnmappedNotesCount();
 	const [isOpen, setIsOpen] = useState(false);
+	const [filePopoverOpen, setFilePopoverOpen] = useState(false);
 
 	// Build grouped field options - memoized to avoid recreation on every render
 	const groupedOptions = useMemo(
@@ -81,6 +88,18 @@ export function UnmappedNotesSection({
 		[sections],
 	);
 
+	const fileOptions = useMemo(() => {
+		const options = new Map<string, { id: string | null; label: string }>();
+		for (const note of notes) {
+			const id = note.sourceFileId ?? null;
+			const label = note.sourceFile ?? "Notes (sin archivo)";
+			options.set(id ?? "notes", { id, label });
+		}
+		return Array.from(options.values()).sort((a, b) =>
+			a.label.localeCompare(b.label),
+		);
+	}, [notes]);
+
 	if (notes.length === 0) {
 		return null;
 	}
@@ -95,7 +114,7 @@ export function UnmappedNotesSection({
 								<AlertTriangle className="h-4 w-4 text-warning" />
 								Unmapped Notes
 								<Badge variant="secondary" className="ml-1 text-[10px]">
-									{count}
+									{totalCount}
 								</Badge>
 							</CardTitle>
 							<ChevronDown
@@ -112,6 +131,71 @@ export function UnmappedNotesSection({
 				</CollapsibleTrigger>
 				<CollapsibleContent>
 					<CardContent className="space-y-3 pt-0">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<span className="text-xs text-muted-foreground">
+								Showing {notes.length} of {totalCount}
+							</span>
+							<div className="flex flex-wrap items-center gap-2">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 rounded-xl text-xs"
+									onClick={onDismissLowConfidence}
+									disabled={disabled}
+								>
+									Dismiss low-confidence
+								</Button>
+								<Popover
+									open={filePopoverOpen}
+									onOpenChange={setFilePopoverOpen}
+								>
+									<PopoverTrigger asChild>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 rounded-xl text-xs"
+											disabled={disabled}
+										>
+											Dismiss by file
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-[240px] p-0" align="end">
+										<Command>
+											<CommandInput placeholder="Search files..." />
+											<CommandList>
+												<CommandEmpty>No files found.</CommandEmpty>
+												<CommandGroup heading="Sources">
+													{fileOptions.map((option) => (
+														<CommandItem
+															key={option.id ?? "notes"}
+															onSelect={() => {
+																onDismissByFile(option.id);
+																setFilePopoverOpen(false);
+															}}
+															className="cursor-pointer"
+														>
+															{option.label}
+														</CommandItem>
+													))}
+												</CommandGroup>
+											</CommandList>
+										</Command>
+									</PopoverContent>
+								</Popover>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 rounded-xl text-xs text-destructive"
+									onClick={onDismissAll}
+									disabled={disabled}
+								>
+									Dismiss all
+								</Button>
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Estos no se pueden mapear a campos existentes.
+						</p>
 						{notes.map((note) => (
 							<UnmappedNoteCard
 								key={note.id}
@@ -138,8 +222,8 @@ interface UnmappedNoteCardProps {
 		sectionId: string,
 		fieldLabel: string,
 		sectionTitle: string,
-	) => void;
-	onDismiss: (noteId: string) => void;
+	) => Promise<void>;
+	onDismiss: (noteId: string) => Promise<void>;
 	disabled?: boolean;
 }
 
@@ -153,7 +237,7 @@ function UnmappedNoteCard({
 	const [popoverOpen, setPopoverOpen] = useState(false);
 
 	const handleSelectField = (option: FieldOption) => {
-		onMapToField(
+		void onMapToField(
 			note.id,
 			option.fieldId,
 			option.sectionId,
@@ -174,7 +258,9 @@ function UnmappedNoteCard({
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 					<FileText className="h-3 w-3" />
-					<span className="truncate max-w-[150px]">{note.sourceFile}</span>
+					<span className="truncate max-w-[150px]">
+						{note.sourceFile ?? "Notes"}
+					</span>
 				</div>
 				<ConfidenceBadge confidence={note.confidence} />
 			</div>
@@ -223,7 +309,7 @@ function UnmappedNoteCard({
 					variant="ghost"
 					size="sm"
 					className="h-7 w-7 p-0 rounded-xl hover:text-destructive"
-					onClick={() => onDismiss(note.id)}
+					onClick={() => void onDismiss(note.id)}
 					disabled={disabled}
 					aria-label="Dismiss note"
 				>

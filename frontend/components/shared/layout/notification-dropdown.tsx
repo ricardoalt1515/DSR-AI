@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Bell, CheckCircle } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/lib/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,8 @@ const SECTION_CONFIG = {
 
 export function NotificationDropdown() {
 	const router = useRouter();
-	const { notifications, actionCount, hasNotifications } = useNotifications();
+	const { notifications, actionCount, hasNotifications, isLoading } =
+		useNotifications();
 	const [open, setOpen] = useState(false);
 
 	const handleProjectClick = (route: string) => {
@@ -44,14 +46,21 @@ export function NotificationDropdown() {
 					variant="ghost"
 					size="icon"
 					className="relative h-9 w-9 rounded-full border border-border/40 bg-card/60 text-foreground transition-colors duration-300 hover:bg-card/80"
+					aria-label={
+						actionCount > 0
+							? `Notifications, ${actionCount} pending ${actionCount === 1 ? "action" : "actions"}`
+							: "Notifications"
+					}
 				>
-					<Bell className="h-4 w-4" />
+					<Bell className="h-4 w-4" aria-hidden="true" />
 					{actionCount > 0 && (
-						<span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+						<span
+							className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
+							aria-hidden="true"
+						>
 							{actionCount}
 						</span>
 					)}
-					<span className="sr-only">Notifications</span>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-80 p-0" sideOffset={8}>
@@ -65,7 +74,18 @@ export function NotificationDropdown() {
 				</div>
 
 				<div className="max-h-[400px] overflow-y-auto">
-					{!hasNotifications ? (
+					{isLoading ? (
+						<div className="py-4 px-4 space-y-3">
+							<div className="flex items-center gap-3">
+								<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+								<span className="text-sm text-muted-foreground">
+									Loading notifications...
+								</span>
+							</div>
+							<Skeleton className="h-10 w-full" />
+							<Skeleton className="h-10 w-full" />
+						</div>
+					) : !hasNotifications ? (
 						<div className="flex flex-col items-center justify-center py-8 text-center">
 							<CheckCircle className="h-8 w-8 text-success mb-2" />
 							<p className="text-sm font-medium">All caught up</p>

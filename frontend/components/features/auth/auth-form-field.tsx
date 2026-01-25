@@ -19,7 +19,13 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
-import type * as React from "react";
+import {
+	Children,
+	cloneElement,
+	isValidElement,
+	type ReactElement,
+	type ReactNode,
+} from "react";
 import type { FieldError } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -38,7 +44,7 @@ export interface AuthFormFieldProps {
 	/** Additional CSS classes for the container */
 	className?: string;
 	/** The input element to render */
-	children: React.ReactNode;
+	children: ReactNode;
 }
 
 export function AuthFormField({
@@ -52,6 +58,28 @@ export function AuthFormField({
 }: AuthFormFieldProps) {
 	// Handle both FieldError objects and string errors
 	const errorMessage = typeof error === "string" ? error : error?.message;
+	const hasError = Boolean(errorMessage);
+	const errorId = htmlFor ? `${htmlFor}-error` : undefined;
+	const descriptionId = htmlFor ? `${htmlFor}-description` : undefined;
+
+	// Add accessibility attributes to the child input element
+	const enhancedChildren = Children.map(children, (child) => {
+		if (isValidElement(child)) {
+			const ariaDescribedBy =
+				[
+					hasError ? errorId : null,
+					helperText && !hasError ? descriptionId : null,
+				]
+					.filter(Boolean)
+					.join(" ") || undefined;
+
+			return cloneElement(child as ReactElement<Record<string, unknown>>, {
+				"aria-invalid": hasError || undefined,
+				"aria-describedby": ariaDescribedBy,
+			});
+		}
+		return child;
+	});
 
 	return (
 		<div className={cn("space-y-2", className)}>
@@ -73,12 +101,13 @@ export function AuthFormField({
 			</Label>
 
 			{/* Input Element */}
-			<div className="relative">{children}</div>
+			<div className="relative">{enhancedChildren}</div>
 
 			{/* Error Message with Animation */}
 			<AnimatePresence mode="wait">
 				{errorMessage && (
 					<motion.div
+						id={errorId}
 						initial={{ opacity: 0, y: -10, height: 0 }}
 						animate={{ opacity: 1, y: 0, height: "auto" }}
 						exit={{ opacity: 0, y: -10, height: 0 }}
@@ -98,10 +127,7 @@ export function AuthFormField({
 
 			{/* Helper Text (only show if no error) */}
 			{helperText && !errorMessage && (
-				<p
-					className="text-xs text-muted-foreground"
-					id={`${htmlFor}-description`}
-				>
+				<p className="text-xs text-muted-foreground" id={descriptionId}>
 					{helperText}
 				</p>
 			)}
@@ -123,6 +149,28 @@ export function SimpleFormField({
 	children,
 }: AuthFormFieldProps) {
 	const errorMessage = typeof error === "string" ? error : error?.message;
+	const hasError = Boolean(errorMessage);
+	const errorId = htmlFor ? `${htmlFor}-error` : undefined;
+	const descriptionId = htmlFor ? `${htmlFor}-description` : undefined;
+
+	// Add accessibility attributes to the child input element
+	const enhancedChildren = Children.map(children, (child) => {
+		if (isValidElement(child)) {
+			const ariaDescribedBy =
+				[
+					hasError ? errorId : null,
+					helperText && !hasError ? descriptionId : null,
+				]
+					.filter(Boolean)
+					.join(" ") || undefined;
+
+			return cloneElement(child as ReactElement<Record<string, unknown>>, {
+				"aria-invalid": hasError || undefined,
+				"aria-describedby": ariaDescribedBy,
+			});
+		}
+		return child;
+	});
 
 	return (
 		<div className={cn("space-y-2", className)}>
@@ -131,20 +179,23 @@ export function SimpleFormField({
 				{required && <span className="text-destructive ml-1">*</span>}
 			</Label>
 
-			{children}
+			{enhancedChildren}
 
 			{errorMessage && (
 				<p
+					id={errorId}
 					className="text-sm text-destructive flex items-center gap-1.5"
 					role="alert"
 				>
-					<AlertCircle className="h-4 w-4" />
+					<AlertCircle className="h-4 w-4" aria-hidden="true" />
 					{errorMessage}
 				</p>
 			)}
 
 			{helperText && !errorMessage && (
-				<p className="text-xs text-muted-foreground">{helperText}</p>
+				<p id={descriptionId} className="text-xs text-muted-foreground">
+					{helperText}
+				</p>
 			)}
 		</div>
 	);

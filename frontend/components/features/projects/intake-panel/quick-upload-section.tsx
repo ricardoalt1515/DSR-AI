@@ -13,6 +13,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { FILE_UPLOAD } from "@/lib/constants";
 import { formatFileSize } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -28,12 +35,15 @@ interface UploadingFile {
 interface QuickUploadSectionProps {
 	projectId: string;
 	disabled?: boolean;
-	onUpload?: (file: File) => Promise<void>;
+	onUpload?: (file: File, category: string) => Promise<void>;
 	maxSize?: number;
 }
 
 const ACCEPTED_FILE_TYPES = {
 	"application/pdf": [".pdf"],
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+		".docx",
+	],
 	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
 		".xlsx",
 	],
@@ -52,12 +62,14 @@ export function QuickUploadSection({
 	maxSize = DEFAULT_MAX_SIZE,
 }: QuickUploadSectionProps) {
 	const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+	const [category, setCategory] = useState("general");
 
 	const uploadFile = useCallback(
 		async (file: File, fileId: string) => {
+			let progressInterval: ReturnType<typeof setInterval> | null = null;
 			try {
 				// Simulate progress
-				const progressInterval = setInterval(() => {
+				progressInterval = setInterval(() => {
 					setUploadingFiles((prev) =>
 						prev.map((f) =>
 							f.id === fileId && f.progress < 90
@@ -68,10 +80,8 @@ export function QuickUploadSection({
 				}, 150);
 
 				if (onUpload) {
-					await onUpload(file);
+					await onUpload(file, category);
 				}
-
-				clearInterval(progressInterval);
 
 				// Mark as complete
 				setUploadingFiles((prev) =>
@@ -102,9 +112,13 @@ export function QuickUploadSection({
 					),
 				);
 				toast.error(`Failed to upload ${file.name}`);
+			} finally {
+				if (progressInterval) {
+					clearInterval(progressInterval);
+				}
 			}
 		},
-		[onUpload],
+		[category, onUpload],
 	);
 
 	const onDrop = useCallback(
@@ -160,6 +174,25 @@ export function QuickUploadSection({
 				<CardDescription>Upload documents for AI analysis.</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-3">
+				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+					<span className="text-xs font-medium text-foreground">Tag as</span>
+					<Select
+						value={category}
+						onValueChange={setCategory}
+						disabled={disabled}
+					>
+						<SelectTrigger className="h-8 w-[180px] rounded-xl text-xs">
+							<SelectValue placeholder="Select type" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="general">General document</SelectItem>
+							<SelectItem value="analysis">Lab report</SelectItem>
+							<SelectItem value="regulatory">SDS</SelectItem>
+							<SelectItem value="photos">Photo</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+
 				{/* Compact dropzone */}
 				<div
 					{...getRootProps()}
@@ -190,7 +223,7 @@ export function QuickUploadSection({
 									: "Drop or click to upload"}
 							</p>
 							<p className="text-xs text-muted-foreground">
-								PDF, Excel, Images (max {formatFileSize(maxSize)})
+								PDF, DOCX, Excel, Images (max {formatFileSize(maxSize)})
 							</p>
 						</div>
 					</div>

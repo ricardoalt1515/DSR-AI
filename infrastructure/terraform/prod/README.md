@@ -11,16 +11,21 @@ Internet
    ↓
 Application Load Balancer (Public Subnets)
    ↓ (Port 8000)
-ECS Fargate Tasks (Private Subnets) ← Auto-scaling: 1-3 tasks
+ECS Fargate Backend Service (Private Subnets) ← Auto-scaling: 1-3 tasks
    ├→ RDS PostgreSQL (db.t4g.micro, Multi-AZ)
    ├→ ElastiCache Redis (cache.t4g.micro)
+   └→ S3 (PDF Storage)
+
+ECS Fargate Intake Worker Service (Private Subnets) ← Fixed count (1 task)
+   ├→ RDS PostgreSQL
+   ├→ ElastiCache Redis
    └→ S3 (PDF Storage)
 ```
 
 ### Resources Created (~30)
 
 - **Networking**: VPC, 4 subnets, 2 NAT gateways, IGW, route tables
-- **Compute**: ECS cluster, task definition, service, auto-scaling
+- **Compute**: ECS cluster, backend service + intake worker service, auto-scaling
 - **Database**: RDS PostgreSQL 14 with Multi-AZ backup
 - **Cache**: ElastiCache Redis 6.2
 - **Storage**: S3 bucket (encrypted, versioned), ECR repository
@@ -32,16 +37,16 @@ ECS Fargate Tasks (Private Subnets) ← Auto-scaling: 1-3 tasks
 
 | Component | Cost |
 |-----------|------|
-| **ECS Fargate** (2 tasks, 1vCPU, 2GB) | $60 |
+| **ECS Fargate** (2 backend + 1 worker, 1vCPU, 2GB) | $90 |
 | **RDS PostgreSQL** (db.t4g.micro, Multi-AZ) | $32 |
 | **ElastiCache Redis** (cache.t4g.micro) | $12 |
 | **ALB** | $21 |
 | **NAT Gateways** (2 AZs) | $64 |
 | **S3 + ECR** | $5 |
 | **CloudWatch + Secrets** | $5 |
-| **Total Infrastructure** | **~$199/month** |
+| **Total Infrastructure** | **~$229/month** |
 | **OpenAI API** (variable) | ~$50-200/month |
-| **Total** | **~$249-399/month** |
+| **Total** | **~$279-429/month** |
 
 ## Prerequisites
 
@@ -267,13 +272,15 @@ BACKEND_URL=http://<ALB DNS>
 
 ### Auto-Scaling
 
-ECS service auto-scales based on:
+Backend ECS service auto-scales based on:
 - **CPU Utilization**: Target 70%
 - **Memory Utilization**: Target 80%
 - **Min Tasks**: 1
 - **Max Tasks**: 3
 - **Scale-up Time**: ~3 minutes
 - **Scale-down Time**: ~15 minutes
+
+Intake worker runs as a separate ECS service with a fixed desired count.
 
 ### Monitoring & Alarms
 

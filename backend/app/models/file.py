@@ -3,9 +3,19 @@ Project file model.
 Represents uploaded files associated with projects.
 """
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +49,10 @@ class ProjectFile(BaseModel):
             ["projects.id", "projects.organization_id"],
             name="fk_file_project_org",
             ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "processing_status IN ('queued', 'processing', 'completed', 'failed')",
+            name="ck_project_files_processing_status",
         ),
         Index("ix_project_files_project_org", "project_id", "organization_id"),
     )
@@ -101,6 +115,34 @@ class ProjectFile(BaseModel):
         Text,
         nullable=True,
         comment="Extracted text content from document",
+    )
+
+    processing_status: Mapped[str] = mapped_column(
+        String(20),
+        comment="queued, processing, completed, failed",
+    )
+
+    processing_error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Processing error message if failed",
+    )
+
+    processed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when processing completed",
+    )
+
+    processing_attempts: Mapped[int] = mapped_column(
+        Integer,
+        comment="Number of processing attempts",
+    )
+
+    file_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 hash of stored file bytes",
     )
 
     ai_analysis: Mapped[dict[str, object] | None] = mapped_column(

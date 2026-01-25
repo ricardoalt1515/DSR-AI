@@ -12,6 +12,7 @@ import dynamic from "next/dynamic";
 import React, { memo, useCallback, useEffect, useMemo } from "react";
 import { DashboardHero } from "@/components/features/dashboard";
 import { ProjectCard } from "@/components/features/dashboard/components/project-card";
+import { SectionErrorBoundary } from "@/components/features/proposals/overview/section-error-boundary";
 import ClientOnly from "@/components/shared/common/client-only";
 
 const PremiumProjectWizard = dynamic(
@@ -520,8 +521,10 @@ function DashboardSkeleton() {
 // Main Dashboard Page Component
 export default function DashboardPage() {
 	return (
-		<ClientOnly fallback={<DashboardSkeleton />}>
-			<DashboardContent />
-		</ClientOnly>
+		<SectionErrorBoundary sectionName="Dashboard">
+			<ClientOnly fallback={<DashboardSkeleton />}>
+				<DashboardContent />
+			</ClientOnly>
+		</SectionErrorBoundary>
 	);
 }

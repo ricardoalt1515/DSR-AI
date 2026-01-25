@@ -328,11 +328,11 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 			 * - Single responsibility: Only loads data
 			 * - Proper error handling: Catches and logs errors
 			 */
-			loadTechnicalData: async (projectId: string) => {
+			loadTechnicalData: async (projectId: string, force = false) => {
 				const currentState = get();
 
 				// Fail fast: Prevent concurrent loads
-				if (currentState.loading) {
+				if (currentState.loading && !force) {
 					logger.debug(
 						"Load already in progress, skipping",
 						"TechnicalDataStore",

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { ProjectSummary } from "@/lib/project-types";
 import { useProjects } from "@/lib/stores/project-store";
 import type { CompanySummary } from "@/lib/types/company";
 import { CreateCompanyDialog } from "./create-company-dialog";
@@ -37,22 +36,21 @@ interface CompanyCardProps {
 export function CompanyCard({ company, onDelete }: CompanyCardProps) {
 	const router = useRouter();
 	const allProjects = useProjects();
-	const [recentAssessments, setRecentAssessments] = useState<ProjectSummary[]>(
-		[],
-	);
 	const [editDialogOpen, setEditDialogOpen] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
 
-	useEffect(() => {
-		const companyAssessments = allProjects
-			.filter((p) => p.client === company.name)
-			.sort(
-				(a, b) =>
-					new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-			)
-			.slice(0, 2);
-		setRecentAssessments(companyAssessments);
-	}, [allProjects, company.name]);
+	// Memoized to avoid O(n) filter on every render
+	const recentAssessments = useMemo(
+		() =>
+			allProjects
+				.filter((p) => p.client === company.name)
+				.sort(
+					(a, b) =>
+						new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+				)
+				.slice(0, 2),
+		[allProjects, company.name],
+	);
 
 	return (
 		<Card className="transition-shadow hover:shadow-md hover:border-primary/50">

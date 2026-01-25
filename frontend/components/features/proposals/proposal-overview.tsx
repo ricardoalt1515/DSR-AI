@@ -2,6 +2,7 @@
 
 import { MapPin } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AIBadge } from "./overview/ai-badge";
@@ -149,8 +150,10 @@ function parsePhotoInsights(clientMetadata: unknown): ResourceInsight[] {
 export function ProposalOverview({ proposal }: ProposalOverviewProps) {
 	const report = proposal.aiMetadata.proposal;
 
-	const resourceInsights = parsePhotoInsights(
-		proposal.aiMetadata.transparency.clientMetadata,
+	// Memoize expensive parsing operation to avoid recalculation on every render
+	const resourceInsights = useMemo(
+		() => parsePhotoInsights(proposal.aiMetadata.transparency.clientMetadata),
+		[proposal.aiMetadata.transparency.clientMetadata],
 	);
 
 	return (

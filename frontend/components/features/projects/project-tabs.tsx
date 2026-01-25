@@ -9,6 +9,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
 	lazy,
+	memo,
 	Suspense,
 	useCallback,
 	useEffect,
@@ -54,7 +55,9 @@ interface ProjectTabsProps {
 	project: ProjectTabsInput;
 }
 
-export function ProjectTabs({ project }: ProjectTabsProps) {
+export const ProjectTabs = memo(function ProjectTabs({
+	project,
+}: ProjectTabsProps) {
 	const storeProject = useCurrentProject();
 	const loadProject = useLoadProjectAction();
 	const router = useRouter();
@@ -269,4 +272,4 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 			</Tabs>
 		</div>
 	);
-}
+});

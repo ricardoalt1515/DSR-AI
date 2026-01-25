@@ -144,7 +144,7 @@ infrastructure/
 ### 1. Initialize Terraform
 
 ```bash
-cd infrastructure/terraform/environments/prod
+cd infrastructure/terraform/prod
 terraform init
 ```
 

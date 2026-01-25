@@ -60,7 +60,9 @@ export function IntakeNotesSection({
 				}
 
 				setNotesSaveStatus("saved");
-				setNotesLastSaved(new Date());
+				if (!onSave) {
+					setNotesLastSaved(new Date());
+				}
 			} catch {
 				setNotesSaveStatus("error");
 			}

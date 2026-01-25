@@ -84,6 +84,12 @@ variable "ecs_desired_count" {
   default     = 2
 }
 
+variable "ecs_intake_worker_desired_count" {
+  description = "Desired number of intake worker tasks"
+  type        = number
+  default     = 1
+}
+
 variable "ecs_min_capacity" {
   description = "Minimum number of ECS tasks (auto-scaling)"
   type        = number

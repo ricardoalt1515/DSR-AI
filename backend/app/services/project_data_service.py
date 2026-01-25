@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import require_not_archived
@@ -95,6 +96,7 @@ class ProjectDataService:
         org_id: UUID,
         updates: dict[str, Any],
         merge: bool = True,
+        commit: bool = True,
     ) -> Project:
         """
         Update project data.
@@ -129,6 +131,8 @@ class ProjectDataService:
             # Complete replacement
             project.project_data = updates
 
+        flag_modified(project, "project_data")
+
         should_update_progress = not merge or "technical_sections" in updates
         if should_update_progress:
             raw_sections = project.project_data.get("technical_sections")
@@ -144,8 +148,9 @@ class ProjectDataService:
 
         project.updated_at = datetime.now(UTC)
 
-        await db.commit()
-        await db.refresh(project)
+        if commit:
+            await db.commit()
+            await db.refresh(project)
 
         return project
 

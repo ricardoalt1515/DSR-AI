@@ -9,11 +9,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { AISuggestion } from "@/lib/types/intake";
 import { cn } from "@/lib/utils";
 import { ConfidenceBadge } from "./confidence-badge";
+import { formatSuggestionValue } from "./format-suggestion-value";
 
 interface ConflictCardProps {
 	fieldLabel: string;
 	suggestions: AISuggestion[];
-	onResolve: (fieldId: string, selectedId: string) => Promise<void>;
+	onResolve: (conflictKey: string, selectedId: string) => Promise<void>;
 	disabled?: boolean;
 }
 
@@ -29,12 +30,13 @@ export function ConflictCard({
 	const handleResolve = async () => {
 		if (!selectedId || disabled || isResolving) return;
 
+		const sectionId = suggestions[0]?.sectionId;
 		const fieldId = suggestions[0]?.fieldId;
-		if (!fieldId) return;
+		if (!sectionId || !fieldId) return;
 
 		setIsResolving(true);
 		try {
-			await onResolve(fieldId, selectedId);
+			await onResolve(`${sectionId}:${fieldId}`, selectedId);
 			toast.success(`${fieldLabel} resolved`);
 		} catch {
 			toast.error(`Failed to resolve ${fieldLabel}`);
@@ -43,17 +45,8 @@ export function ConflictCard({
 		}
 	};
 
-	const formatValue = (suggestion: AISuggestion) => {
-		if (typeof suggestion.value === "number") {
-			const formatted = new Intl.NumberFormat("en-US", {
-				maximumFractionDigits: 2,
-			}).format(suggestion.value);
-			return suggestion.unit ? `${formatted} ${suggestion.unit}` : formatted;
-		}
-		return suggestion.unit
-			? `${suggestion.value} ${suggestion.unit}`
-			: String(suggestion.value);
-	};
+	const formatValue = (suggestion: AISuggestion) =>
+		formatSuggestionValue(suggestion.value, suggestion.unit);
 
 	return (
 		<div className="rounded-2xl border-2 border-warning/50 bg-warning/10 p-3 space-y-3">
@@ -100,7 +93,7 @@ export function ConflictCard({
 								<ConfidenceBadge confidence={suggestion.confidence} />
 							</div>
 							<p className="text-xs text-muted-foreground">
-								from {suggestion.evidence.filename}
+								from {suggestion.evidence?.filename ?? "Notes"}
 							</p>
 						</Label>
 					</div>

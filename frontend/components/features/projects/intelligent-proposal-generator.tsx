@@ -33,6 +33,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { proposalsAPI } from "@/lib/api/proposals";
 import type { ProjectDetail } from "@/lib/project-types";
 import { useCurrentProject } from "@/lib/stores/project-store";
@@ -255,20 +260,43 @@ export function IntelligentProposalGeneratorComponent({
 					</Alert>
 				)}
 
-				{/* Generate Button */}
-				<Button
-					onClick={handleStartGeneration}
-					disabled={isGenerating || isStarting || !canGenerate}
-					size="lg"
-					className={
-						canGenerate
-							? "w-full bg-gradient-to-r from-success/85 via-success to-success text-success-foreground shadow-lg hover:shadow-xl hover:scale-[1.01] transition-[box-shadow,transform] duration-300 text-base font-semibold"
-							: "w-full bg-muted text-muted-foreground cursor-not-allowed"
-					}
-				>
-					<Zap className="mr-2 h-5 w-5" />
-					Generate AI Report
-				</Button>
+				{/* Generate Button - Wrapped in Tooltip when disabled */}
+				{canGenerate ? (
+					<Button
+						onClick={handleStartGeneration}
+						disabled={isGenerating || isStarting}
+						size="lg"
+						className="w-full bg-gradient-to-r from-success/85 via-success to-success text-success-foreground shadow-lg hover:shadow-xl hover:scale-[1.01] transition-[box-shadow,transform] duration-300 text-base font-semibold"
+					>
+						<Zap className="mr-2 h-5 w-5" />
+						Generate AI Report
+					</Button>
+				) : (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<div className="w-full">
+								<Button
+									size="lg"
+									disabled
+									className="w-full bg-muted text-muted-foreground cursor-not-allowed pointer-events-none"
+									aria-describedby="generate-disabled-reason"
+								>
+									<Zap className="mr-2 h-5 w-5" />
+									Generate AI Report
+								</Button>
+							</div>
+						</TooltipTrigger>
+						<TooltipContent
+							id="generate-disabled-reason"
+							side="top"
+							className="max-w-xs"
+						>
+							Complete at least {PROPOSAL_READINESS_THRESHOLD}% of the technical
+							data to enable AI report generation. Currently at{" "}
+							{completeness.percentage}%.
+						</TooltipContent>
+					</Tooltip>
+				)}
 			</CardContent>
 		</Card>
 	);

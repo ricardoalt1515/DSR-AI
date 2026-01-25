@@ -68,8 +68,9 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 		setLoadState("loading");
 		await loadOrganizations();
 
-		const storedOrgId = selectedOrgId;
-		const orgs = useOrganizationStore.getState().organizations;
+		// Read selectedOrgId from store state to avoid circular dependency
+		const { organizations: orgs, selectedOrgId: storedOrgId } =
+			useOrganizationStore.getState();
 		const foundOrg = orgs.find((org) => org.id === storedOrgId);
 
 		if (storedOrgId && !foundOrg) {
@@ -84,7 +85,7 @@ export function OrgSwitcher({ onCreateNew }: OrgSwitcherProps) {
 		} else {
 			setLoadState("loaded");
 		}
-	}, [loadOrganizations, selectedOrgId, upsertOrganization]);
+	}, [loadOrganizations, upsertOrganization]);
 
 	useEffect(() => {
 		fetchOrganizations();

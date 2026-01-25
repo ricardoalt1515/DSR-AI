@@ -31,6 +31,7 @@ enable_nat_gateway = true
 ecs_task_cpu      = 1024  # 1 vCPU (same as local development)
 ecs_task_memory   = 2048  # 2 GB (same as local development)
 ecs_desired_count = 2
+ecs_intake_worker_desired_count = 1
 ecs_min_capacity  = 1
 ecs_max_capacity  = 3
 

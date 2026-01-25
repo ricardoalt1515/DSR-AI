@@ -7,13 +7,14 @@ import type { AISuggestion } from "@/lib/types/intake";
 import { cn } from "@/lib/utils";
 import { ConfidenceBadge } from "./confidence-badge";
 import { EvidenceDrawer } from "./evidence-drawer";
+import { formatSuggestionValue } from "./format-suggestion-value";
 
 interface SuggestionCardProps {
 	suggestion: AISuggestion;
 	onApply: (id: string) => Promise<void>;
-	onEdit?: (id: string) => void;
+	onEdit?: ((id: string) => void) | undefined;
 	onReject: (id: string) => Promise<void>;
-	disabled?: boolean;
+	disabled?: boolean | undefined;
 }
 
 export function SuggestionCard({
@@ -25,8 +26,6 @@ export function SuggestionCard({
 }: SuggestionCardProps) {
 	const [isApplying, setIsApplying] = useState(false);
 	const [isRejecting, setIsRejecting] = useState(false);
-	const [isApplied, setIsApplied] = useState(false);
-	const [isRejected, setIsRejected] = useState(false);
 
 	const handleApply = async () => {
 		if (disabled || isApplying || isRejecting) return;
@@ -34,7 +33,6 @@ export function SuggestionCard({
 		setIsApplying(true);
 		try {
 			await onApply(suggestion.id);
-			setIsApplied(true);
 		} finally {
 			setIsApplying(false);
 		}
@@ -46,38 +44,13 @@ export function SuggestionCard({
 		setIsRejecting(true);
 		try {
 			await onReject(suggestion.id);
-			setIsRejected(true);
 		} finally {
 			setIsRejecting(false);
 		}
 	};
 
-	const formatValue = () => {
-		if (typeof suggestion.value === "number") {
-			const formatted = new Intl.NumberFormat("en-US", {
-				maximumFractionDigits: 2,
-			}).format(suggestion.value);
-			return suggestion.unit ? `${formatted} ${suggestion.unit}` : formatted;
-		}
-		return suggestion.unit
-			? `${suggestion.value} ${suggestion.unit}`
-			: String(suggestion.value);
-	};
-
-	// Animate out when applied/rejected
-	if (isApplied || isRejected) {
-		return (
-			<div
-				className={cn(
-					"rounded-2xl border border-transparent p-3",
-					isApplied && "bg-success/10",
-					isRejected && "opacity-50",
-					"animate-out fade-out-0 zoom-out-95 slide-out-to-right-2 duration-300 fill-mode-forwards",
-				)}
-				aria-hidden
-			/>
-		);
-	}
+	const formatValue = () =>
+		formatSuggestionValue(suggestion.value, suggestion.unit);
 
 	const isProcessing = isApplying || isRejecting;
 
@@ -155,7 +128,7 @@ export function SuggestionCard({
 			</div>
 
 			{/* Evidence drawer */}
-			<EvidenceDrawer evidence={suggestion.evidence} />
+			<EvidenceDrawer evidence={suggestion.evidence ?? null} />
 		</div>
 	);
 }

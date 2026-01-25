@@ -26,7 +26,8 @@ export interface AISuggestion {
 	unit?: string;
 	confidence: number;
 	status: SuggestionStatus;
-	evidence: SuggestionEvidence;
+	sourceFileId?: string | null;
+	evidence?: SuggestionEvidence | null;
 	conflictsWith?: string[];
 }
 
@@ -34,8 +35,8 @@ export interface UnmappedNote {
 	id: string;
 	extractedText: string;
 	confidence: number;
-	sourceFile: string;
-	sourceFileId: string;
+	sourceFile?: string | null;
+	sourceFileId?: string | null;
 }
 
 export interface IntakeNote {

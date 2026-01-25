@@ -42,9 +42,19 @@ output "ecs_service_name" {
   value       = aws_ecs_service.backend.name
 }
 
+output "ecs_intake_worker_service_name" {
+  description = "ECS intake worker service name"
+  value       = aws_ecs_service.intake_worker.name
+}
+
 output "ecs_task_definition_family" {
   description = "ECS task definition family"
   value       = aws_ecs_task_definition.backend.family
+}
+
+output "ecs_intake_worker_task_definition_family" {
+  description = "ECS intake worker task definition family"
+  value       = aws_ecs_task_definition.intake_worker.family
 }
 
 # -----------------------------------------------------------------------------

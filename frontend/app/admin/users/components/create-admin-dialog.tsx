@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCcw, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +48,7 @@ export function CreateAdminDialog({
 	onOpenChange,
 	onUserCreated,
 }: CreateAdminDialogProps) {
+	const emailInputRef = useRef<HTMLInputElement>(null);
 	const [form, setForm] = useState<FormState>(INITIAL_FORM);
 	const [submitting, setSubmitting] = useState(false);
 
@@ -97,7 +98,12 @@ export function CreateAdminDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent
+				onOpenAutoFocus={(e) => {
+					e.preventDefault();
+					emailInputRef.current?.focus();
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>Create Platform Admin</DialogTitle>
 					<DialogDescription>
@@ -108,6 +114,7 @@ export function CreateAdminDialog({
 					<div className="grid gap-2">
 						<Label htmlFor="create-email">Email</Label>
 						<Input
+							ref={emailInputRef}
 							id="create-email"
 							name="email"
 							type="email"

@@ -112,7 +112,11 @@ export function ResetPasswordDialog({
 					<Button variant="outline" onClick={handleClose}>
 						Cancel
 					</Button>
-					<Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+					<Button
+						onClick={handleSubmit}
+						disabled={!canSubmit || submitting}
+						aria-busy={submitting}
+					>
 						{submitting ? (
 							<RefreshCcw
 								className="mr-2 h-4 w-4 animate-spin"

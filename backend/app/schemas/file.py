@@ -17,7 +17,7 @@ class FileUploadResponse(BaseModel):
     file_size: int = Field(description="File size in bytes")
     file_type: str = Field(description="File extension without dot")
     category: str
-    processing_status: str = Field(description="queued, processing, completed, not_processed")
+    processing_status: str = Field(description="queued, processing, completed, failed")
     uploaded_at: datetime
     message: str = "File uploaded successfully"
 
@@ -48,7 +48,7 @@ class FileInfo(BaseModel):
     processed_text: bool = Field(description="Whether text has been extracted")
     ai_analysis: bool = Field(description="Whether AI analysis is available")
     processing_status: str = Field(
-        description="Processing state: queued, processing, completed, not_processed",
+        description="Processing state: queued, processing, completed, failed"
     )
 
 

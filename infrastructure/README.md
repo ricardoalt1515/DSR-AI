@@ -102,7 +102,7 @@ curl http://$ALB_DNS/health
 
 ### AWS Services
 
-- **ECS Fargate**: Container orchestration (1-3 tasks)
+- **ECS Fargate**: Backend service + intake worker service (separate tasks)
 - **RDS PostgreSQL**: Managed relational database
 - **ElastiCache Redis**: In-memory cache for sessions
 - **S3**: File storage for PDFs and assets
@@ -115,15 +115,15 @@ curl http://$ALB_DNS/health
 ### High Availability
 
 - **Multi-AZ**: Spread across 2 availability zones
-- **Auto-scaling**: ECS scales 1-3 tasks based on CPU/memory
+- **Auto-scaling**: Backend ECS scales 1-3 tasks based on CPU/memory
 - **Health Checks**: ALB health checks + ECS health checks
 - **Circuit Breaker**: Automatic rollback on deployment failure
 - **Backups**: RDS automated backups (7 days)
 
 ## Cost
 
-**Infrastructure**: ~$199/month
-- ECS Fargate: $60
+**Infrastructure**: ~$229/month
+- ECS Fargate (backend + worker): $90
 - RDS PostgreSQL: $32
 - ElastiCache Redis: $12
 - ALB + NAT: $85
@@ -132,7 +132,7 @@ curl http://$ALB_DNS/health
 **Application**: ~$50-200/month
 - OpenAI API usage (variable)
 
-**Total**: ~$249-399/month
+**Total**: ~$279-429/month
 
 ## Prerequisites
 

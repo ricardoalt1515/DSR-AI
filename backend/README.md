@@ -41,7 +41,7 @@ backend-h2o/
 # 1. Agregar tu OpenAI API key
 echo "OPENAI_API_KEY=sk-tu-api-key-aqui" > .env
 
-# 2. Iniciar todo con Docker Compose
+# 2. Iniciar todo con Docker Compose (incluye intake worker)
 docker-compose up --build
 
 # 3. En otra terminal, ejecutar migraciones
@@ -260,7 +260,7 @@ alembic history
 ## 🐳 Docker (Coming Soon)
 
 ```bash
-# Build and run
+# Build and run (incluye intake worker)
 docker-compose up -d
 
 # View logs

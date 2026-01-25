@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Download, FileText, ListChecks } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
 import { ExternalReportView } from "./external-report-view";
+import { SectionErrorBoundary } from "./overview/section-error-boundary";
 import { ProposalOverview } from "./proposal-overview";
 import {
 	type ReportAudience,
@@ -46,7 +47,7 @@ const STATUS_BADGE_VARIANT: Record<
 	Archived: "secondary",
 };
 
-export function ProposalPage({
+export const ProposalPage = memo(function ProposalPage({
 	proposal,
 	project,
 	isLoading = false,
@@ -165,15 +166,17 @@ export function ProposalPage({
 
 			{/* Main Content - Conditional View */}
 			<main className="container mx-auto px-4 py-6 lg:py-8">
-				{audience === "internal" ? (
-					<ProposalOverview proposal={proposal} />
-				) : (
-					<ExternalReportView proposal={proposal} />
-				)}
+				<SectionErrorBoundary sectionName="Proposal Content">
+					{audience === "internal" ? (
+						<ProposalOverview proposal={proposal} />
+					) : (
+						<ExternalReportView proposal={proposal} />
+					)}
+				</SectionErrorBoundary>
 			</main>
 		</div>
 	);
-}
+});
 
 /**
  * Loading skeleton for proposal page

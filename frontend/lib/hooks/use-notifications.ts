@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { DASHBOARD_THRESHOLDS } from "@/lib/project-status";
 import type { ProjectSummary } from "@/lib/project-types";
 import { routes } from "@/lib/routes";
-import { useProjects } from "@/lib/stores/project-store";
+import { useProjectLoading, useProjects } from "@/lib/stores/project-store";
 
 export interface GroupedNotification {
 	id: string;
@@ -16,6 +16,7 @@ export interface GroupedNotification {
 
 export function useNotifications() {
 	const projects = useProjects();
+	const isLoading = useProjectLoading();
 
 	const notifications = useMemo(() => {
 		const alerts: GroupedNotification[] = [];
@@ -102,5 +103,6 @@ export function useNotifications() {
 		actionCount,
 		totalCount,
 		hasNotifications: notifications.length > 0,
+		isLoading,
 	};
 }

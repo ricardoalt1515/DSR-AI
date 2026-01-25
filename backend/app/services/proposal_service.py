@@ -109,6 +109,7 @@ async def _generate_with_retry(
     client_metadata: dict,
     job_id: str,
     photo_insights: list[dict] | None = None,
+    document_insights: list[dict] | None = None,
 ) -> Any:
     """
     Generate proposal with automatic retry on transient failures.
@@ -126,6 +127,7 @@ async def _generate_with_retry(
         client_metadata: Client and project metadata
         job_id: Unique job identifier for tracking
         photo_insights: Optional photo analysis from images
+        document_insights: Optional document analysis summaries/key facts
 
     Returns:
         ProposalOutput from AI agent
@@ -143,6 +145,7 @@ async def _generate_with_retry(
                 project_data=project_data,
                 client_metadata=client_metadata,
                 photo_insights=photo_insights,
+                document_insights=document_insights,
             ),
             timeout=480,  # 8 minutes (fail before frontend 10min timeout)
         )
@@ -244,7 +247,7 @@ class ProposalService:
         db: AsyncSession,
         project_id: UUID,
     ) -> dict[str, Any] | None:
-        """Load summary of AI-processed project files (photos) for agent context."""
+        """Load summary of AI-processed project files for agent context."""
         try:
             result = await db.execute(
                 select(ProjectFile)
@@ -257,9 +260,6 @@ class ProposalService:
                 .limit(5)
             )
             files = result.scalars().all()
-
-            if not files:
-                return None
 
             photo_insights: list[dict[str, Any]] = []
 
@@ -283,10 +283,48 @@ class ProposalService:
                     }
                 )
 
-            if not photo_insights:
+            document_result = await db.execute(
+                select(ProjectFile)
+                .where(
+                    ProjectFile.project_id == project_id,
+                    ProjectFile.category != "photos",
+                    ProjectFile.ai_analysis.isnot(None),
+                )
+                .order_by(ProjectFile.created_at.desc())
+                .limit(5)
+            )
+            document_files = document_result.scalars().all()
+            document_insights: list[dict[str, Any]] = []
+            for project_file in document_files:
+                analysis = project_file.ai_analysis
+                if not isinstance(analysis, dict):
+                    continue
+                key_facts = analysis.get("key_facts")
+                summary = analysis.get("summary")
+                if not summary and not key_facts:
+                    continue
+                document_insights.append(
+                    {
+                        "fileId": str(project_file.id),
+                        "filename": project_file.filename,
+                        "uploadedAt": project_file.created_at.isoformat()
+                        if project_file.created_at
+                        else None,
+                        "docType": analysis.get("doc_type"),
+                        "summary": summary,
+                        "keyFacts": key_facts,
+                    }
+                )
+
+            if not photo_insights and not document_insights:
                 return None
 
-            return {"photoInsights": photo_insights}
+            summary_payload: dict[str, Any] = {}
+            if photo_insights:
+                summary_payload["photoInsights"] = photo_insights
+            if document_insights:
+                summary_payload["documentInsights"] = document_insights
+            return summary_payload
 
         except Exception as exc:
             logger.error(
@@ -502,11 +540,25 @@ class ProposalService:
                             materials=[i.get("material_type", "unknown") for i in photo_insights],
                         )
 
+                document_insights = None
+                if attachments_summary and "documentInsights" in attachments_summary:
+                    document_insights = [
+                        insight
+                        for insight in attachments_summary["documentInsights"]
+                        if isinstance(insight, dict)
+                    ]
+                    if document_insights:
+                        logger.info(
+                            "document_insights_extracted",
+                            count=len(document_insights),
+                        )
+
                 proposal_output = await _generate_with_retry(
                     project_data=technical_data,
                     client_metadata=client_metadata,
                     job_id=job_id,
                     photo_insights=photo_insights,
+                    document_insights=document_insights,
                 )
                 generation_duration = time.time() - start_time
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +13,14 @@ import {
 	DrawerTrigger,
 } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { usePendingSuggestionsCount } from "@/lib/stores/intake-store";
+import { intakeAPI } from "@/lib/api/intake";
+import {
+	useIntakePanelStore,
+	usePendingSuggestionsCount,
+} from "@/lib/stores/intake-store";
 import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/utils/logger";
 import { IntakePanelContent } from "./intake-panel-content";
 
 interface IntakePanelProps {
@@ -38,6 +45,92 @@ export function IntakePanel({
 	className,
 }: IntakePanelProps) {
 	const pendingCount = usePendingSuggestionsCount();
+	const setIntakeNotes = useIntakePanelStore((state) => state.setIntakeNotes);
+	const setNotesLastSaved = useIntakePanelStore(
+		(state) => state.setNotesLastSaved,
+	);
+	const setSuggestions = useIntakePanelStore((state) => state.setSuggestions);
+	const setUnmappedNotes = useIntakePanelStore(
+		(state) => state.setUnmappedNotes,
+	);
+	const setUnmappedNotesCount = useIntakePanelStore(
+		(state) => state.setUnmappedNotesCount,
+	);
+	const setIsLoadingSuggestions = useIntakePanelStore(
+		(state) => state.setIsLoadingSuggestions,
+	);
+	const setIsProcessingDocuments = useIntakePanelStore(
+		(state) => state.setIsProcessingDocuments,
+	);
+	const reset = useIntakePanelStore((state) => state.reset);
+	const processingDocumentsCount = useIntakePanelStore(
+		(state) => state.processingDocumentsCount,
+	);
+	const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const initializedRef = useRef(false);
+
+	const hydrateIntake = useCallback(async () => {
+		setIsLoadingSuggestions(true);
+		try {
+			const response = await intakeAPI.hydrate(projectId);
+			setIntakeNotes(response.intakeNotes ?? "");
+			setNotesLastSaved(
+				response.notesUpdatedAt ? new Date(response.notesUpdatedAt) : null,
+			);
+			setSuggestions(response.suggestions ?? []);
+			setUnmappedNotes(response.unmappedNotes ?? []);
+			setUnmappedNotesCount(response.unmappedNotesCount ?? 0);
+			setIsProcessingDocuments(
+				response.processingDocumentsCount > 0,
+				response.processingDocumentsCount,
+			);
+		} catch (error) {
+			logger.error("Failed to hydrate intake panel", error, "IntakePanel");
+			toast.error("Failed to load intake data. Please retry.");
+		} finally {
+			setIsLoadingSuggestions(false);
+		}
+	}, [
+		projectId,
+		setIntakeNotes,
+		setIsLoadingSuggestions,
+		setIsProcessingDocuments,
+		setNotesLastSaved,
+		setSuggestions,
+		setUnmappedNotes,
+		setUnmappedNotesCount,
+	]);
+
+	useEffect(() => {
+		if (initializedRef.current) return;
+		initializedRef.current = true;
+		reset();
+		void hydrateIntake();
+	}, [hydrateIntake, reset]);
+
+	useEffect(() => {
+		if (processingDocumentsCount > 0) {
+			if (!pollingRef.current) {
+				pollingRef.current = setInterval(() => {
+					void hydrateIntake();
+				}, 5000);
+			}
+		} else if (pollingRef.current) {
+			clearInterval(pollingRef.current);
+			pollingRef.current = null;
+		}
+		return () => {
+			if (pollingRef.current) {
+				clearInterval(pollingRef.current);
+				pollingRef.current = null;
+			}
+		};
+	}, [hydrateIntake, processingDocumentsCount]);
+
+	const handleUploadComplete = useCallback(() => {
+		void hydrateIntake();
+		onUploadComplete?.();
+	}, [hydrateIntake, onUploadComplete]);
 
 	return (
 		<>
@@ -49,7 +142,8 @@ export function IntakePanel({
 							projectId={projectId}
 							sections={sections}
 							disabled={disabled}
-							{...(onUploadComplete ? { onUploadComplete } : {})}
+							onUploadComplete={handleUploadComplete}
+							onHydrate={hydrateIntake}
 						/>
 					</div>
 				</ScrollArea>
@@ -97,7 +191,8 @@ export function IntakePanel({
 									projectId={projectId}
 									sections={sections}
 									disabled={disabled}
-									{...(onUploadComplete ? { onUploadComplete } : {})}
+									onUploadComplete={handleUploadComplete}
+									onHydrate={hydrateIntake}
 								/>
 							</div>
 						</ScrollArea>

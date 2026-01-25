@@ -1,3 +1,4 @@
+import hashlib
 import io
 import uuid
 
@@ -54,6 +55,11 @@ async def test_upload_file_success(client: AsyncClient, db_session, set_current_
     assert resp_data["filename"] == "test.pdf"
     assert "id" in resp_data
 
+    stored_file = await db_session.get(ProjectFile, uuid.UUID(resp_data["id"]))
+    assert stored_file is not None
+    assert stored_file.file_size == len(file_content)
+    assert stored_file.file_hash == hashlib.sha256(file_content).hexdigest()
+
 
 @pytest.mark.asyncio
 async def test_upload_file_invalid_type(client: AsyncClient, db_session, set_current_user):
@@ -83,6 +89,48 @@ async def test_upload_file_invalid_type(client: AsyncClient, db_session, set_cur
     file_content = b"malicious executable"
     files = {"file": ("virus.exe", io.BytesIO(file_content), "application/octet-stream")}
     data = {"category": "general"}
+
+    response = await client.post(
+        f"/api/v1/projects/{project.id}/files",
+        files=files,
+        data=data,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_upload_file_too_large(
+    client: AsyncClient, db_session, set_current_user, monkeypatch
+):
+    import app.api.v1.files as files_module
+
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Too Large", "org-too-large")
+    user = await create_user(
+        db_session,
+        email=f"toolarge-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Too Large Co")
+    location = await create_location(
+        db_session, org_id=org.id, company_id=company.id, name="Too Large Loc"
+    )
+    project = await create_project(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        location_id=location.id,
+        name="Too Large Project",
+    )
+
+    set_current_user(user)
+
+    monkeypatch.setattr(files_module, "MAX_FILE_SIZE", 8)
+    file_content = b"123456789"
+    files = {"file": ("big.pdf", io.BytesIO(file_content), "application/pdf")}
+    data = {"category": "general", "process_with_ai": "false"}
 
     response = await client.post(
         f"/api/v1/projects/{project.id}/files",
@@ -124,6 +172,8 @@ async def test_list_project_files(client: AsyncClient, db_session, set_current_u
         mime_type="application/pdf",
         file_type="pdf",
         category="general",
+        processing_status="completed",
+        processing_attempts=0,
     )
     file2 = ProjectFile(
         organization_id=org.id,
@@ -134,6 +184,8 @@ async def test_list_project_files(client: AsyncClient, db_session, set_current_u
         mime_type="application/pdf",
         file_type="pdf",
         category="general",
+        processing_status="completed",
+        processing_attempts=0,
     )
     db_session.add(file1)
     db_session.add(file2)
@@ -179,6 +231,8 @@ async def test_get_file_download_url(client: AsyncClient, db_session, set_curren
         mime_type="application/pdf",
         file_type="pdf",
         category="general",
+        processing_status="completed",
+        processing_attempts=0,
     )
     db_session.add(file)
     await db_session.commit()
@@ -223,6 +277,8 @@ async def test_delete_file(client: AsyncClient, db_session, set_current_user):
         mime_type="application/pdf",
         file_type="pdf",
         category="general",
+        processing_status="completed",
+        processing_attempts=0,
     )
     db_session.add(file)
     await db_session.commit()

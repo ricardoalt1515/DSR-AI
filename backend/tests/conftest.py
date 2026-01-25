@@ -21,6 +21,9 @@ from app.core.fastapi_users_instance import current_active_user
 from app.main import app
 from app.models.company import Company
 from app.models.file import ProjectFile
+from app.models.intake_note import IntakeNote
+from app.models.intake_suggestion import IntakeSuggestion
+from app.models.intake_unmapped_note import IntakeUnmappedNote
 from app.models.location import Location
 from app.models.organization import Organization
 from app.models.project import Project
@@ -289,6 +292,13 @@ async def create_project(
 async def cleanup_org(session: AsyncSession, org_id: uuid.UUID) -> None:
     """Clean up all data for an organization (use at end of tests)."""
     await session.execute(delete(TimelineEvent).where(TimelineEvent.organization_id == org_id))
+    await session.execute(
+        delete(IntakeSuggestion).where(IntakeSuggestion.organization_id == org_id)
+    )
+    await session.execute(
+        delete(IntakeUnmappedNote).where(IntakeUnmappedNote.organization_id == org_id)
+    )
+    await session.execute(delete(IntakeNote).where(IntakeNote.organization_id == org_id))
     await session.execute(delete(ProjectFile).where(ProjectFile.organization_id == org_id))
     await session.execute(delete(Proposal).where(Proposal.organization_id == org_id))
     await session.execute(delete(Project).where(Project.organization_id == org_id))

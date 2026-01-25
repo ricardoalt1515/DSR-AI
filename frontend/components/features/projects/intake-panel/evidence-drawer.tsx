@@ -11,21 +11,19 @@ import type { SuggestionEvidence } from "@/lib/types/intake";
 import { cn } from "@/lib/utils";
 
 interface EvidenceDrawerProps {
-	evidence: SuggestionEvidence;
+	evidence?: SuggestionEvidence | null;
 	className?: string;
 }
 
 export function EvidenceDrawer({ evidence, className }: EvidenceDrawerProps) {
-	const hasContent = evidence.excerpt || evidence.thumbnailUrl;
-
-	if (!hasContent) {
+	if (!evidence || (!evidence.excerpt && !evidence.thumbnailUrl)) {
 		return null;
 	}
 
 	return (
 		<Collapsible className={cn("mt-2", className)}>
-			<CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-				<ChevronDown className="h-3 w-3 transition-transform duration-200 [[data-state=open]>svg:first-child]:rotate-180" />
+			<CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors data-[state=open]:text-foreground [&>svg]:data-[state=open]:rotate-180">
+				<ChevronDown className="h-3 w-3 transition-transform duration-200" />
 				View source
 			</CollapsibleTrigger>
 			<CollapsibleContent>

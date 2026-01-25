@@ -38,6 +38,7 @@ class ProposalContext:
     project_data: FlexibleWaterProjectData
     client_metadata: dict[str, Any]
     photo_insights: list[dict[str, Any]] | None = None
+    document_insights: list[dict[str, Any]] | None = None
 
 
 def _ensure_api_key() -> None:
@@ -78,6 +79,7 @@ def inject_context(ctx: RunContext[ProposalContext]) -> str:
     meta = ctx.deps.client_metadata
     data = ctx.deps.project_data
     photos = ctx.deps.photo_insights
+    documents = ctx.deps.document_insights
 
     # Build context sections
     sections = []
@@ -134,6 +136,26 @@ PHOTO ANALYSIS (use CO₂ data for environmental sections, generate your own pri
 {"".join(photo_sections)}
 """)
 
+    if documents:
+        doc_sections = []
+        for i, doc in enumerate(documents, 1):
+            summary = doc.get("summary") or "N/A"
+            key_facts = doc.get("keyFacts") or []
+            if isinstance(key_facts, list):
+                facts_text = "; ".join(str(fact) for fact in key_facts if fact)
+            else:
+                facts_text = str(key_facts)
+            doc_sections.append(f"""
+DOCUMENT {i}:
+- Summary: {summary}
+- Key facts: {facts_text if facts_text else "N/A"}
+""")
+
+        sections.append(f"""
+DOCUMENT INSIGHTS (use for compliance, handling, and pricing context):
+{"".join(doc_sections)}
+""")
+
     return "".join(sections)
 
 
@@ -141,6 +163,7 @@ async def generate_proposal(
     project_data: FlexibleWaterProjectData,
     client_metadata: dict[str, Any] | None = None,
     photo_insights: list[dict[str, Any]] | None = None,
+    document_insights: list[dict[str, Any]] | None = None,
 ) -> ProposalOutput:
     """
     Generate waste upcycling feasibility report.
@@ -149,6 +172,7 @@ async def generate_proposal(
         project_data: Waste assessment questionnaire data
         client_metadata: Client info (company, sector, location)
         photo_insights: Optional photo analysis from image_analysis_agent
+        document_insights: Optional document analysis summaries/key facts
 
     Returns:
         ProposalOutput with GO/NO-GO decision and analysis
@@ -162,6 +186,7 @@ async def generate_proposal(
         project_data=project_data,
         client_metadata=client_metadata or {},
         photo_insights=photo_insights,
+        document_insights=document_insights,
     )
 
     try:

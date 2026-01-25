@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
 	EngineeringDataTable,
 	ResizableDataLayout,
@@ -71,12 +72,19 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const sections = useTechnicalSections(projectId);
-	const loading = useTechnicalDataStore((state) => state.loading);
-	const saving = useTechnicalDataStore((state) => state.saving);
-	const lastSaved = useTechnicalDataStore((state) => state.lastSaved);
-	const error = useTechnicalDataStore((state) => state.error);
-	const syncError = useTechnicalDataStore((state) => state.syncError);
-	const pendingChanges = useTechnicalDataStore((state) => state.pendingChanges);
+
+	// Combine state selectors with useShallow to prevent unnecessary re-renders
+	const { loading, saving, lastSaved, error, syncError, pendingChanges } =
+		useTechnicalDataStore(
+			useShallow((state) => ({
+				loading: state.loading,
+				saving: state.saving,
+				lastSaved: state.lastSaved,
+				error: state.error,
+				syncError: state.syncError,
+				pendingChanges: state.pendingChanges,
+			})),
+		);
 
 	// Get project timeline for activity tab
 	const currentProject = useProjectStore((state) => state.currentProject);

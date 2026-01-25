@@ -25,6 +25,8 @@ AI waste-opportunity platform: opportunities -> AI proposals -> compliance gates
 - Long-running or blocking tasks where a worker can run independently.
 Isolation for risky changes or checks
 
+ALWAYS check the Context7 API/skills when working with any framework or library.
+
 ## Before starting
 
 Read the relevant doc in `docs/agents/`:

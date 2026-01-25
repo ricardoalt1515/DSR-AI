@@ -32,4 +32,4 @@ User ──1:N──> Project ──1:N──> Proposal
 ### Key files
 - **Backend**: `backend/app/core/config.py`, `backend/app/models/project.py`, `backend/app/agents/proposal_agent.py`, `backend/app/services/proposal_service.py`, `backend/app/api/v1/`
 - **Frontend**: `frontend/lib/api/client.ts`, `frontend/lib/stores/project-store.ts`, `frontend/lib/stores/technical-data-store.ts`, `frontend/app/`, `frontend/components/features/`
-- **Infra**: `infrastructure/terraform/environments/prod/main.tf`, `backend/docker-compose.yml`
+- **Infra**: `infrastructure/terraform/prod/main.tf`, `backend/docker-compose.yml`

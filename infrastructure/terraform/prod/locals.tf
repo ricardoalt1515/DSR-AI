@@ -87,6 +87,10 @@ locals {
       name  = "BACKEND_URL"
       value = var.enable_https && var.acm_certificate_arn != "" ? "https://${aws_lb.main.dns_name}" : "http://${aws_lb.main.dns_name}"
     },
+    {
+      name  = "PYTHONPATH"
+      value = "/app"
+    },
   ]
 
   # Container secrets (from Secrets Manager)

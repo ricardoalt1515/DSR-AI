@@ -157,22 +157,20 @@ export default function ProposalDetailPage({ params }: PageProps) {
 		}
 	}, [projectId, proposalId, startProposalRequest, isLatestProposalRequest]);
 
-	// Initial data load
+	// Initial data load - fetch project and proposal in parallel
 	useEffect(() => {
-		void loadProjectData();
+		void Promise.all([loadProjectData(), loadProposalData()]);
 		return () => {
-			// Invalidate any in-flight request to avoid setState after unmount
+			// Invalidate any in-flight requests to avoid setState after unmount
 			invalidateProjectRequest();
-		};
-	}, [invalidateProjectRequest, loadProjectData]);
-
-	useEffect(() => {
-		void loadProposalData();
-		return () => {
-			// Invalidate any in-flight request to avoid setState after unmount
 			invalidateProposalRequest();
 		};
-	}, [invalidateProposalRequest, loadProposalData]);
+	}, [
+		invalidateProjectRequest,
+		invalidateProposalRequest,
+		loadProjectData,
+		loadProposalData,
+	]);
 
 	// --- Render states ---
 

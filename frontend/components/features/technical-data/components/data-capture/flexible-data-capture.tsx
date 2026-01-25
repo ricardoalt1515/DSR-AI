@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
+import { SectionErrorBoundary } from "@/components/features/proposals/overview/section-error-boundary";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +27,7 @@ interface FlexibleDataCaptureProps {
 	onUpdateSectionNotes?: (sectionId: string, notes: string) => void;
 }
 
-export function FlexibleDataCapture({
+export const FlexibleDataCapture = memo(function FlexibleDataCapture({
 	sections,
 	onFieldChange,
 	className,
@@ -156,15 +157,19 @@ export function FlexibleDataCapture({
 					>
 						{/* Render sections in original order (sorted by backend order field) */}
 						{sections.map((section) => (
-							<SectionAccordionItem
+							<SectionErrorBoundary
 								key={section.id}
-								section={section}
-								onFieldChange={onFieldChange}
-							/>
+								sectionName={section.title}
+							>
+								<SectionAccordionItem
+									section={section}
+									onFieldChange={onFieldChange}
+								/>
+							</SectionErrorBoundary>
 						))}
 					</Accordion>
 				</>
 			)}
 		</div>
 	);
-}
+});

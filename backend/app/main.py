@@ -472,6 +472,7 @@ from app.api.v1 import (
     companies,
     files,
     health,
+    intake,
     organizations,
     project_data,
     projects,
@@ -506,6 +507,12 @@ app.include_router(
     files.router,
     prefix=f"{settings.API_V1_PREFIX}/projects",
     tags=["Files"],
+)
+
+app.include_router(
+    intake.router,
+    prefix=f"{settings.API_V1_PREFIX}/projects",
+    tags=["Intake"],
 )
 
 app.include_router(

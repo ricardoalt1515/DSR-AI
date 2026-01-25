@@ -21,6 +21,7 @@ services:
       - REDIS_HOST=redis          # Docker service name
       - LOCAL_STORAGE_PATH=/app/storage  # Container path
       - LOG_FILE=/app/logs/app.log       # Container path
+      - PYTHONPATH=/app
     
     depends_on:
       postgres:
@@ -36,6 +37,49 @@ services:
       - --reload
       - --log-level=debug
       - --timeout=120
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  intake-worker:
+    container_name: waste-platform-intake-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+
+    # ✅ Load all variables from .env file
+    env_file:
+      - .env
+
+    # Override only Docker-specific values
+    environment:
+      - POSTGRES_SERVER=postgres  # Docker service name
+      - REDIS_HOST=redis          # Docker service name
+      - LOCAL_STORAGE_PATH=/app/storage  # Container path
+      - LOG_FILE=/app/logs/app.log       # Container path
+      - PYTHONPATH=/app
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - python
+      - /app/scripts/intake_ingestion_worker.py
+    healthcheck:
+      test: ["CMD", "python", "/app/scripts/healthcheck_intake_worker.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   postgres:
     container_name: waste-platform-postgres

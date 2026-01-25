@@ -3,7 +3,7 @@
 Prefer these references instead of copying commands into `AGENTS.md`.
 
 ### Full stack
-- Start backend services (FastAPI + PostgreSQL + Redis): `cd backend && docker-compose up`
+- Start backend services (FastAPI + PostgreSQL + Redis + intake worker): `cd backend && docker-compose up`
 - Start frontend dev server (Turbopack hot reload): `cd frontend && bun run dev`
 - Run database migrations: `cd backend && docker-compose exec app alembic upgrade head`
 
@@ -32,7 +32,7 @@ Tooling stack:
 - Production build: `cd frontend && bun run build`
 
 ### Infrastructure
-- Work from `infrastructure/terraform/environments/prod`
+- Work from `infrastructure/terraform/prod`
 - Plan: `terraform plan`
 - Apply: `terraform apply`
 - Show state: `terraform show`

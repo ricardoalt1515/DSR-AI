@@ -22,10 +22,10 @@ Field agents collect messy inputs (notes, lab PDFs, photos, SDS). Today they mus
 1) **Free‑form input** (text area)
 2) **Quick upload** (drag & drop) for images/PDFs/docs
 3) **AI Suggestions** list with Apply / Edit / Reject controls
-4) **Evidence drawer** for each suggestion (source file + excerpt + thumbnail)
-5) **Unmapped Notes** (low‑confidence leftovers)
+4) **Evidence drawer** for each suggestion (source file + excerpt + thumbnail when available)
+5) **Unmapped Notes** (low‑confidence leftovers, bulk actions)
 
-The Files tab remains the master repository for all uploads.
+The Files tab remains the master repository for all uploads, but **mapping only happens in Intake Panel**.
 
 ---
 
@@ -89,6 +89,7 @@ The Files tab remains the master repository for all uploads.
 
 6) **Proposal generation**
    - Proposal agent consumes the validated questionnaire + additional info + photo insights.
+   - Document `key_facts` are included as proposal context alongside photo insights.
 
 ---
 
@@ -103,6 +104,7 @@ The Files tab remains the master repository for all uploads.
 ### 2) Intake Upload
 - Drag & drop / Browse.
 - Supported types: JPG/PNG, PDF, DOCX, CSV/XLSX.
+  - **MVP AI processing**: only JPG/PNG + PDF generate suggestions; other types are stored only.
 - Files are stored in standard `ProjectFile` storage (so they appear in Files tab).
 - User can tag an upload as “lab report”, “SDS”, or “photo” to guide parsing.
 
@@ -119,10 +121,18 @@ Actions per suggestion:
 - **Edit** → opens inline edit before apply
 - **Reject** → dismiss suggestion
 
-### 4) Conflict Handling
+### 4) Unmapped Notes
+- Shows **top 10** open items with a total count (e.g., “Showing 10 of 42”).
+- Bulk actions:
+  - **Dismiss all**
+  - **Dismiss low‑confidence** (threshold 70)
+  - **Dismiss by file** (includes “Notes (sin archivo)” for items with no source file)
+- Warning text: “Estos no se pueden mapear a campos existentes.”
+
+### 5) Conflict Handling
 - If multiple values map to the same field, show both and require manual selection.
 
-### 5) Additional Info (Final Question)
+### 6) Additional Info (Final Question)
 - Add fixed question at end of questionnaire:
   - Label: **“Additional Info”**
   - Free‑text field (multiline)
@@ -135,29 +145,29 @@ Actions per suggestion:
 ## Data Model (Proposed)
 
 ### A) Intake Notes
-- Store in `project.project_data.intake_notes` (list of entries):
-  - `id`, `text`, `created_at`, `created_by`
+- Store in dedicated table `intake_notes` (single editable row per project):
+  - `id`, `project_id`, `organization_id`, `text`, `created_at`, `updated_at`
 
 ### B) Field Suggestions
-- New entity (or JSONB in project_data):
-  - `id`, `field_id`, `value`, `unit`, `confidence`, `source`
-  - `source` contains: file_id, page/line, excerpt
+- Store in dedicated table `intake_suggestions`:
+  - `id`, `project_id`, `organization_id`, `section_id`, `field_id`, `value`, `unit`,
+    `confidence`, `status`, `source`, `source_file_id`, `evidence`
 
 ### C) Evidence Linking
 - Each suggestion references:
   - `ProjectFile.id`
   - `page` (for PDFs)
   - `snippet` (text excerpt)
-  - `thumbnail` (page preview or image crop)
+  - `thumbnail` (page preview or image crop, **future**)
 
 ---
 
 ## AI Ingestion Pipeline (Recommended)
 
 **Step 1: Extraction**
-- Images → OCR + multimodal model for visible hazards/materials
-- PDFs → table extraction (lab reports)
-- Text input → NLP entity extraction
+- Images → multimodal model (LLM-only MVP)
+- PDFs → LLM-only MVP (no OCR/table extraction yet)
+- Text input → optional LLM extraction (MVP)
 
 **Step 2: Normalization**
 - Units converted to canonical units
@@ -245,6 +255,14 @@ Actions per suggestion:
 
 ---
 
+## Clarification: Photos in Intake (MVP)
+- Intake panel allows **quick photo upload** for convenience.
+- **Photos do not generate suggestions** in MVP.
+- Image analysis outputs are stored on the file and visible in **Files tab** only.
+- Showing photo analysis outputs inside the Intake Panel is **future work**.
+
+---
+
 ## Acceptance Criteria (Mapped)
 - Stats panel replaced by Intake Panel.
 - Intake supports free text + file uploads.
@@ -260,6 +278,116 @@ Actions per suggestion:
 - Multiple conflicting values → show both, force user pick.
 - Large PDF → queue processing, show status.
 - No suggestions → show “No mappable data detected.”
+
+---
+
+## Future Improvement: Wastewater Characterization Section (Post‑MVP)
+Purpose: capture lab/SDS data without inflating the questionnaire. This section is **not** in MVP.
+
+### Minimal Essential Fields (recommended)
+Add a new section **"3. Wastewater Stream Characterization"** with **8 fields**:
+1. `stream-description` (textarea) — brief description of stream/process origin.
+2. `ph-range` (text) — pH min/avg/max in a single field.
+3. `flow-rate` (text) — avg/peak flow with units.
+4. `key-metals` (textarea) — list of metals + concentrations + units.
+5. `key-organics` (textarea) — organics/solvents + concentrations + units.
+6. `general-water-quality` (textarea) — COD/BOD/TSS/TDS + units.
+7. `current-treatment` (textarea) — existing treatment steps.
+8. `discharge-pathway` (textarea) — sewer/POTW/direct discharge + permit limits.
+
+These 8 fields are the minimum needed for ROI/compliance reasoning without over‑structuring.
+
+### Full Section Definition (exact spec)
+```
+{
+  "id": "wastewater-characterization",
+  "order": 3,
+  "title": "3. Wastewater Stream Characterization",
+  "description": "Key lab/SDS details for wastewater streams",
+  "fields": [
+    {
+      "id": "stream-description",
+      "label": "Describe the wastewater stream and its origin",
+      "value": "",
+      "type": "textarea",
+      "multiline": true,
+      "placeholder": "Example: Acidic nickel-bearing rinse water from plating line...",
+      "source": "manual"
+    },
+    {
+      "id": "ph-range",
+      "label": "pH range (min / avg / max)",
+      "value": "",
+      "type": "text",
+      "placeholder": "Example: min 2.1, avg 2.4, max 2.7",
+      "source": "manual"
+    },
+    {
+      "id": "flow-rate",
+      "label": "Flow rate (avg / peak + units)",
+      "value": "",
+      "type": "text",
+      "placeholder": "Example: avg 340,000 gal/yr; peak 1,200 gal/day",
+      "source": "manual"
+    },
+    {
+      "id": "key-metals",
+      "label": "Key metals + concentrations (with units)",
+      "value": "",
+      "type": "textarea",
+      "multiline": true,
+      "placeholder": "Example: Nickel 11,400,000 ug/L; Cobalt 5,040 ug/L",
+      "source": "manual"
+    },
+    {
+      "id": "key-organics",
+      "label": "Key organics/solvents + concentrations (with units)",
+      "value": "",
+      "type": "textarea",
+      "multiline": true,
+      "placeholder": "Example: Acetone 400 mg/L; 2-Butanone 35 mg/L",
+      "source": "manual"
+    },
+    {
+      "id": "general-water-quality",
+      "label": "General water quality metrics (COD/BOD/TSS/TDS)",
+      "value": "",
+      "type": "textarea",
+      "multiline": true,
+      "placeholder": "Example: COD 1,200 mg/L; TSS 300 mg/L",
+      "source": "manual"
+    },
+    {
+      "id": "current-treatment",
+      "label": "Current treatment steps",
+      "value": "",
+      "type": "textarea",
+      "multiline": true,
+      "placeholder": "Example: Neutralization + filtration + holding tank",
+      "source": "manual"
+    },
+    {
+      "id": "discharge-pathway",
+      "label": "Discharge pathway / permit limits",
+      "value": "",
+      "type": "textarea",
+      "multiline": true,
+      "placeholder": "Example: POTW discharge, permit pH 6-9, Ni < 2 mg/L",
+      "source": "manual"
+    }
+  ]
+}
+```
+
+### AI Mapping Rules (for later)
+- pH values -> `ph-range` (if only one value, store as avg).
+- Flow/volume -> `flow-rate`.
+- Metals list -> `key-metals` (single field, newline‑separated).
+- Organics/solvents -> `key-organics`.
+- COD/BOD/TSS/TDS -> `general-water-quality`.
+- Treatment steps -> `current-treatment`.
+- Discharge/permit -> `discharge-pathway`.
+- If data does not map cleanly, route to **Unmapped Notes** instead of creating new fields.
 
 ---
 

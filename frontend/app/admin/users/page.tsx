@@ -350,10 +350,13 @@ export default function AdminUsersPage() {
 
 								{/* Pagination */}
 								<div className="flex items-center justify-between">
-									<p className="text-sm text-muted-foreground tabular-nums">
+									<output
+										className="text-sm text-muted-foreground tabular-nums"
+										aria-live="polite"
+									>
 										Showing {table.getRowModel().rows.length} of{" "}
 										{table.getFilteredRowModel().rows.length} administrators
-									</p>
+									</output>
 									<div className="flex items-center gap-2">
 										<Button
 											variant="outline"
