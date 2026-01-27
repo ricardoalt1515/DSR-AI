@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, FileText, RefreshCw, X } from "lucide-react";
 import { useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -287,18 +288,29 @@ export function SuggestionRow({
 				/>
 			</div>
 
-			{/* Row 4: Source file (optional) */}
-			{suggestion.evidence && (
+			{/* Row 4: Source (notes or file) */}
+			{(suggestion.source === "notes" || suggestion.evidence) && (
 				<div className="ml-7 mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-					<FileText className="h-3 w-3 shrink-0" aria-hidden />
-					<span
-						className="min-w-0 flex-1 truncate"
-						title={suggestion.evidence.filename}
-					>
-						{suggestion.evidence.filename}
-					</span>
-					{suggestion.evidence.page && (
-						<span className="shrink-0">p. {suggestion.evidence.page}</span>
+					{suggestion.source === "notes" && (
+						<Badge variant="outline" className="text-xs">
+							Notes
+						</Badge>
+					)}
+					{suggestion.evidence && (
+						<>
+							<FileText className="h-3 w-3 shrink-0" aria-hidden />
+							<span
+								className="min-w-0 flex-1 truncate"
+								title={suggestion.evidence.filename}
+							>
+								{suggestion.evidence.filename}
+							</span>
+							{suggestion.evidence.page && (
+								<span className="shrink-0">
+									p. {suggestion.evidence.page}
+								</span>
+							)}
+						</>
 					)}
 				</div>
 			)}

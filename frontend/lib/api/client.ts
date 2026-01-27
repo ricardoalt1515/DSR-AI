@@ -51,6 +51,7 @@ interface RequestConfig {
 	headers?: Record<string, string>;
 	body?: BodyInit | JsonLike;
 	timeout?: number;
+	signal?: AbortSignal;
 }
 
 interface RetryOptions {
@@ -130,6 +131,7 @@ class APIClient {
 			headers = {},
 			body,
 			timeout = API_TIMEOUT.DEFAULT,
+			signal: externalSignal,
 		} = config;
 
 		return withRetry(
@@ -153,10 +155,15 @@ class APIClient {
 					delete mergedHeaders["Content-Type"];
 				}
 
+				const timeoutSignal = AbortSignal.timeout(timeout);
+				const signal = externalSignal
+					? AbortSignal.any([externalSignal, timeoutSignal])
+					: timeoutSignal;
+
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,
-					signal: AbortSignal.timeout(timeout),
+					signal,
 				};
 
 				const shouldAttachBody = body !== undefined && method !== "GET";
@@ -326,6 +333,7 @@ class APIClient {
 			method = "GET",
 			headers = {},
 			timeout = API_TIMEOUT.DEFAULT,
+			signal: externalSignal,
 		} = config;
 
 		return withRetry(
@@ -341,10 +349,15 @@ class APIClient {
 						mergedHeaders["X-Organization-Id"] = selectedOrgId;
 					}
 				}
+				const timeoutSignal = AbortSignal.timeout(timeout);
+				const signal = externalSignal
+					? AbortSignal.any([externalSignal, timeoutSignal])
+					: timeoutSignal;
+
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,
-					signal: AbortSignal.timeout(timeout),
+					signal,
 				};
 
 				const response = await fetch(url, requestConfig);

@@ -26,6 +26,7 @@ export interface AISuggestion {
 	unit?: string;
 	confidence: number;
 	status: SuggestionStatus;
+	source: "notes" | "file" | "image" | "sds" | "lab";
 	sourceFileId?: string | null;
 	evidence?: SuggestionEvidence | null;
 	conflictsWith?: string[];

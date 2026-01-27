@@ -30,7 +30,7 @@ interface IntakePanelState {
 	// Notes
 	intakeNotes: string;
 	notesSaveStatus: NotesSaveStatus;
-	notesLastSaved: Date | null;
+	notesLastSavedISO: string | null;
 
 	// Suggestions
 	suggestions: AISuggestion[];
@@ -52,7 +52,7 @@ interface IntakePanelState {
 	// Basic setters
 	setIntakeNotes: (notes: string) => void;
 	setNotesSaveStatus: (status: NotesSaveStatus) => void;
-	setNotesLastSaved: (date: Date | null) => void;
+	setNotesLastSavedISO: (isoString: string | null) => void;
 	setSuggestions: (suggestions: AISuggestion[]) => void;
 	setUnmappedNotes: (notes: UnmappedNote[]) => void;
 	setUnmappedNotesCount: (count: number) => void;
@@ -121,7 +121,7 @@ interface IntakePanelState {
 const initialState = {
 	intakeNotes: "",
 	notesSaveStatus: "idle" as NotesSaveStatus,
-	notesLastSaved: null,
+	notesLastSavedISO: null,
 	suggestions: [],
 	unmappedNotes: [],
 	unmappedNotesCount: 0,
@@ -152,9 +152,9 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 			});
 		},
 
-		setNotesLastSaved: (date) => {
+		setNotesLastSavedISO: (isoString) => {
 			set((state) => {
-				state.notesLastSaved = date;
+				state.notesLastSavedISO = isoString;
 			});
 		},
 

@@ -53,6 +53,12 @@ export interface IntakeDismissUnmappedBulkResponse {
 	dismissedCount: number;
 }
 
+export interface AnalyzeNotesResponse {
+	suggestionsCount: number;
+	unmappedCount: number;
+	staleIgnored: boolean;
+}
+
 // Batch suggestion operations
 export type IntakeSuggestionBatchStatus = "applied" | "rejected";
 
@@ -143,6 +149,22 @@ export const intakeAPI = {
 			{
 				suggestion_ids: suggestionIds,
 				status,
+			},
+		);
+	},
+
+	async analyzeNotes(
+		projectId: string,
+		text: string,
+		notesUpdatedAt: string,
+		signal?: AbortSignal,
+	): Promise<AnalyzeNotesResponse> {
+		return apiClient.request<AnalyzeNotesResponse>(
+			`/projects/${projectId}/intake/notes/analyze`,
+			{
+				method: "POST",
+				body: { text, notesUpdatedAt },
+				signal,
 			},
 		);
 	},

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { SectionErrorBoundary } from "@/components/features/proposals/overview/section-error-boundary";
@@ -31,7 +31,7 @@ interface IntakePanelContentProps {
 	disabled?: boolean | undefined;
 	onOpenSection?: ((sectionId: string) => void) | undefined;
 	onUploadComplete?: (() => void) | undefined;
-	onHydrate: () => Promise<void>;
+	onHydrate: () => Promise<boolean>;
 	className?: string | undefined;
 }
 
@@ -115,8 +115,11 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	const dismissUnmappedNotes = useIntakePanelStore(
 		(state) => state.dismissUnmappedNotes,
 	);
-	const setNotesLastSaved = useIntakePanelStore(
-		(state) => state.setNotesLastSaved,
+	const setNotesLastSavedISO = useIntakePanelStore(
+		(state) => state.setNotesLastSavedISO,
+	);
+	const notesLastSavedISO = useIntakePanelStore(
+		(state) => state.notesLastSavedISO,
 	);
 	const hydrateIntake = onHydrate;
 
@@ -131,6 +134,11 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 		currentValue: string;
 		newValue: string;
 	} | null>(null);
+	const analyzeAbortRef = useRef<AbortController | null>(null);
+
+	useEffect(() => {
+		return () => analyzeAbortRef.current?.abort();
+	}, []);
 	const [confirmBatch, setConfirmBatch] = useState<{
 		ids: string[];
 		items: {
@@ -412,9 +420,49 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	const handleSaveNotes = useCallback(
 		async (notes: string) => {
 			const response = await intakeAPI.saveNotes(projectId, notes);
-			setNotesLastSaved(new Date(response.updatedAt));
+			setNotesLastSavedISO(response.updatedAt);
 		},
-		[projectId, setNotesLastSaved],
+		[projectId, setNotesLastSavedISO],
+	);
+
+	const handleAnalyzeNotes = useCallback(
+		async (text: string) => {
+			if (!notesLastSavedISO) return;
+
+			analyzeAbortRef.current?.abort();
+			analyzeAbortRef.current = new AbortController();
+			const signal = analyzeAbortRef.current.signal;
+
+			try {
+				const result = await intakeAPI.analyzeNotes(
+					projectId,
+					text,
+					notesLastSavedISO,
+					signal,
+				);
+
+				if (signal.aborted) return;
+				if (result.staleIgnored) {
+					toast.warning("Notes changed during analysis. Try again.");
+					return;
+				}
+
+				const hydratedOk = await hydrateIntake();
+				if (signal.aborted) return;
+
+				if (hydratedOk) {
+					toast.success(
+						`Analysis complete: ${result.suggestionsCount} suggestions`,
+					);
+				} else {
+					toast.error("Failed to refresh suggestions");
+				}
+			} catch (_error) {
+				if (signal.aborted) return;
+				toast.error("Failed to analyze notes");
+			}
+		},
+		[hydrateIntake, notesLastSavedISO, projectId],
 	);
 
 	// Handle file upload
@@ -608,6 +656,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 						projectId={projectId}
 						disabled={disabled}
 						onSave={handleSaveNotes}
+						onAnalyze={handleAnalyzeNotes}
 					/>
 				</SectionErrorBoundary>
 

@@ -2,7 +2,6 @@
 
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,8 +47,8 @@ export function IntakePanel({
 }: IntakePanelProps) {
 	const pendingCount = usePendingSuggestionsCount();
 	const setIntakeNotes = useIntakePanelStore((state) => state.setIntakeNotes);
-	const setNotesLastSaved = useIntakePanelStore(
-		(state) => state.setNotesLastSaved,
+	const setNotesLastSavedISO = useIntakePanelStore(
+		(state) => state.setNotesLastSavedISO,
 	);
 	const setSuggestions = useIntakePanelStore((state) => state.setSuggestions);
 	const setUnmappedNotes = useIntakePanelStore(
@@ -71,14 +70,12 @@ export function IntakePanel({
 	const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const initializedRef = useRef(false);
 
-	const hydrateIntake = useCallback(async () => {
+	const hydrateIntake = useCallback(async (): Promise<boolean> => {
 		setIsLoadingSuggestions(true);
 		try {
 			const response = await intakeAPI.hydrate(projectId);
 			setIntakeNotes(response.intakeNotes ?? "");
-			setNotesLastSaved(
-				response.notesUpdatedAt ? new Date(response.notesUpdatedAt) : null,
-			);
+			setNotesLastSavedISO(response.notesUpdatedAt ?? null);
 			setSuggestions(response.suggestions ?? []);
 			setUnmappedNotes(response.unmappedNotes ?? []);
 			setUnmappedNotesCount(response.unmappedNotesCount ?? 0);
@@ -86,9 +83,10 @@ export function IntakePanel({
 				response.processingDocumentsCount > 0,
 				response.processingDocumentsCount,
 			);
+			return true;
 		} catch (error) {
 			logger.error("Failed to hydrate intake panel", error, "IntakePanel");
-			toast.error("Failed to load intake data. Please retry.");
+			return false;
 		} finally {
 			setIsLoadingSuggestions(false);
 		}
@@ -97,7 +95,7 @@ export function IntakePanel({
 		setIntakeNotes,
 		setIsLoadingSuggestions,
 		setIsProcessingDocuments,
-		setNotesLastSaved,
+		setNotesLastSavedISO,
 		setSuggestions,
 		setUnmappedNotes,
 		setUnmappedNotesCount,
