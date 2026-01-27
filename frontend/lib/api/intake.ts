@@ -1,4 +1,5 @@
 import type { AISuggestion, UnmappedNote } from "@/lib/types/intake";
+import { API_TIMEOUT } from "@/lib/constants/timings";
 import { apiClient } from "./client";
 
 export interface IntakeHydrateResponse {
@@ -155,15 +156,18 @@ export const intakeAPI = {
 
 	async analyzeNotes(
 		projectId: string,
-		text: string,
 		notesUpdatedAt: string,
 		signal?: AbortSignal,
 	): Promise<AnalyzeNotesResponse> {
+		if (typeof notesUpdatedAt !== "string" || notesUpdatedAt.length === 0) {
+			throw new Error("notesUpdatedAt must be an ISO string");
+		}
 		return apiClient.request<AnalyzeNotesResponse>(
 			`/projects/${projectId}/intake/notes/analyze`,
 			{
 				method: "POST",
-				body: { text, notesUpdatedAt },
+				body: { notesUpdatedAt },
+				timeout: 120000,
 				signal,
 			},
 		);

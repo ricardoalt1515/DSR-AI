@@ -118,7 +118,7 @@ interface IntakePanelState {
 	reset: () => void;
 }
 
-const initialState = {
+const createInitialState = () => ({
 	intakeNotes: "",
 	notesSaveStatus: "idle" as NotesSaveStatus,
 	notesLastSavedISO: null,
@@ -134,11 +134,11 @@ const initialState = {
 	sectionFilter: null,
 	sourceFileFilter: null,
 	undoStack: [] as UndoEntry[],
-};
+});
 
 export const useIntakePanelStore = create<IntakePanelState>()(
 	immer((set, _get) => ({
-		...initialState,
+		...createInitialState(),
 
 		setIntakeNotes: (notes) => {
 			set((state) => {
@@ -630,7 +630,7 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 		},
 
 		reset: () => {
-			set(initialState);
+			set(createInitialState());
 		},
 	})),
 );

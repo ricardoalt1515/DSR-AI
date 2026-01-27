@@ -1,7 +1,9 @@
 "use client";
 
 import { Loader2, NotebookPen, Sparkles } from "lucide-react";
+import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
 	Card,
 	CardContent,
@@ -19,7 +21,7 @@ interface IntakeNotesSectionProps {
 	projectId: string;
 	disabled?: boolean;
 	onSave?: (notes: string) => Promise<void>;
-	onAnalyze?: (notes: string) => Promise<void>;
+	onAnalyze?: () => Promise<void>;
 }
 
 export function IntakeNotesSection({
@@ -43,6 +45,8 @@ export function IntakeNotesSection({
 
 	const [localValue, setLocalValue] = useState(intakeNotes);
 	const [isAnalyzing, setIsAnalyzing] = useState(false);
+	const saveSeqRef = useRef(0);
+	const lastProjectIdRef = useRef(_projectId);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const notesLastSavedDate = notesLastSavedISO
 		? new Date(notesLastSavedISO)
@@ -55,7 +59,9 @@ export function IntakeNotesSection({
 
 	const handleSave = useCallback(
 		async (value: string) => {
-			if (disabled) return;
+			if (disabled) return false;
+			const seq = saveSeqRef.current + 1;
+			saveSeqRef.current = seq;
 
 			setNotesSaveStatus("saving");
 
@@ -68,19 +74,25 @@ export function IntakeNotesSection({
 					await onSave(value);
 				}
 
-			setNotesSaveStatus("saved");
-			if (!onSave) {
-				setNotesLastSavedISO(new Date().toISOString());
+			if (saveSeqRef.current === seq) {
+				setNotesSaveStatus("saved");
+				if (!onSave) {
+					setNotesLastSavedISO(new Date().toISOString());
+				}
 			}
+			return saveSeqRef.current === seq;
 		} catch {
-			setNotesSaveStatus("error");
+			if (saveSeqRef.current === seq) {
+				setNotesSaveStatus("error");
+			}
+			return false;
 		}
 	},
 	[disabled, onSave, setIntakeNotes, setNotesSaveStatus, setNotesLastSavedISO],
 	);
 
 	const handleChange = useCallback(
-		(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+		(e: ChangeEvent<HTMLTextAreaElement>) => {
 			const value = e.target.value;
 			setLocalValue(value);
 
@@ -106,6 +118,15 @@ export function IntakeNotesSection({
 		};
 	}, []);
 
+	useEffect(() => {
+		if (lastProjectIdRef.current === _projectId) return;
+		lastProjectIdRef.current = _projectId;
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
+	}, [_projectId]);
+
 	const formatLastSaved = () => {
 		if (!notesLastSavedDate) return null;
 
@@ -129,20 +150,31 @@ export function IntakeNotesSection({
 		Boolean(onAnalyze) &&
 		!disabled &&
 		!isAnalyzing &&
+		notesSaveStatus === "saved" &&
 		localValue.trim().length >= 20 &&
-		notesLastSavedISO !== null;
+		typeof notesLastSavedISO === "string" &&
+		notesLastSavedISO.length > 0;
 
 	const handleAnalyze = useCallback(async () => {
 		if (!onAnalyze) return;
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
 		setIsAnalyzing(true);
 		try {
-			await onAnalyze(localValue);
+			const saved = await handleSave(localValue);
+			if (!saved) {
+				toast.error("Failed to save notes before analysis");
+				return;
+			}
+			await onAnalyze();
 		} catch (error) {
 			if (error instanceof Error && error.name === "AbortError") return;
 		} finally {
 			setIsAnalyzing(false);
 		}
-	}, [localValue, onAnalyze]);
+	}, [handleSave, localValue, onAnalyze]);
 
 	return (
 		<Card className="rounded-3xl border-none bg-card/80">
@@ -166,7 +198,7 @@ export function IntakeNotesSection({
 							"focus:border-primary/30 focus:ring-1 focus:ring-primary/20",
 							disabled && "cursor-not-allowed opacity-60",
 						)}
-					disabled={disabled}
+					disabled={disabled || isAnalyzing}
 					aria-label="Intake notes"
 				/>
 			</div>

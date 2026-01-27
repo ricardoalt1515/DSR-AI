@@ -173,7 +173,6 @@ class IntakeSuggestionBatchResponse(BaseSchema):
 
 
 class AnalyzeNotesRequest(BaseSchema):
-    text: str = Field(min_length=20, max_length=10000)
     notes_updated_at: datetime
 
     @field_validator("notes_updated_at")
@@ -181,7 +180,7 @@ class AnalyzeNotesRequest(BaseSchema):
     def validate_notes_updated_at(cls, value: datetime) -> datetime:
         if value.tzinfo is None:
             raise ValueError("notes_updated_at must be timezone-aware")
-        return value
+        return value.astimezone(timezone.utc)
 
 
 class AnalyzeNotesResponse(BaseSchema):

@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.document_analysis_agent import DocumentAnalysisError, analyze_document
@@ -190,24 +190,37 @@ class IntakeIngestionService:
         self,
         db: AsyncSession,
         project: Project,
-        text: str,
         notes_updated_at: datetime,
     ) -> tuple[int, int, bool]:
         current_note = await self._get_intake_note(db, project)
+        if not current_note or not current_note.text.strip():
+            raise ValueError("intake_notes_missing")
+        if len(current_note.text.strip()) < 20:
+            raise ValueError("intake_notes_too_short")
         if current_note and not _timestamps_equal(current_note.updated_at, notes_updated_at):
             logger.info("notes_analysis_precheck_stale", project_id=str(project.id))
             return 0, 0, True
 
-        truncated = text[-8000:] if len(text) > 8000 else text
+        truncated = (
+            current_note.text[-8000:]
+            if len(current_note.text) > 8000
+            else current_note.text
+        )
 
         analysis = await analyze_notes(truncated, self._build_field_catalog())
 
         current_note = await self._get_intake_note(db, project)
-        if current_note and not _timestamps_equal(current_note.updated_at, notes_updated_at):
+        if not current_note or not _timestamps_equal(
+            current_note.updated_at, notes_updated_at
+        ):
             logger.info("notes_analysis_postcheck_stale", project_id=str(project.id))
             return 0, 0, True
 
         async with db.begin_nested():
+            await db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+                {"lock_key": f"notes_analysis:{project.id}"},
+            )
             await db.execute(
                 delete(IntakeSuggestion)
                 .where(IntakeSuggestion.project_id == project.id)
@@ -587,7 +600,9 @@ def _timestamps_equal(db_ts: datetime, request_ts: datetime) -> bool:
     def floor_to_ms(dt: datetime) -> datetime:
         return dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
 
-    return floor_to_ms(db_ts) == floor_to_ms(request_ts)
+    db_utc = db_ts.astimezone(UTC)
+    request_utc = request_ts.astimezone(UTC)
+    return floor_to_ms(db_utc) == floor_to_ms(request_utc)
 
 
 def _filter_unmapped_items(items: list[DocumentUnmapped]) -> list[DocumentUnmapped]:

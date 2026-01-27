@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-from app.api.dependencies import ActiveProjectDep, AsyncDB, CurrentUser
+from app.api.dependencies import ActiveProjectDep, AsyncDB, CurrentUser, RateLimitUser10
 from app.schemas.common import ErrorResponse
 from app.schemas.intake import (
     AnalyzeNotesRequest,
@@ -25,6 +25,7 @@ from app.schemas.intake import (
     IntakeSuggestionStatusResponse,
 )
 from app.services.intake_service import IntakeBatchService, IntakeService
+from app.agents.notes_analysis_agent import NotesAnalysisError
 from app.services.intake_ingestion_service import IntakeIngestionService
 
 router = APIRouter()
@@ -88,21 +89,52 @@ async def analyze_intake_notes(
     project: ActiveProjectDep,
     payload: AnalyzeNotesRequest,
     db: AsyncDB,
+    _rate_limit: RateLimitUser10,
 ) -> AnalyzeNotesResponse:
-    suggestions_count, unmapped_count, stale_ignored = (
-        await notes_ingestion_service.analyze_notes_text(
-            db=db,
-            project=project,
-            text=payload.text,
-            notes_updated_at=payload.notes_updated_at,
+    try:
+        suggestions_count, unmapped_count, stale_ignored = (
+            await notes_ingestion_service.analyze_notes_text(
+                db=db,
+                project=project,
+                notes_updated_at=payload.notes_updated_at,
+            )
         )
-    )
-    await db.commit()
-    return AnalyzeNotesResponse(
-        suggestions_count=suggestions_count,
-        unmapped_count=unmapped_count,
-        stale_ignored=stale_ignored,
-    )
+        await db.commit()
+        return AnalyzeNotesResponse(
+            suggestions_count=suggestions_count,
+            unmapped_count=unmapped_count,
+            stale_ignored=stale_ignored,
+        )
+    except ValueError as exc:
+        await db.rollback()
+        error_key = str(exc)
+        error_map = {
+            "intake_notes_missing": {
+                "message": "Intake notes required",
+                "code": "NOTES_MISSING",
+            },
+            "intake_notes_too_short": {
+                "message": "Intake notes too short",
+                "code": "NOTES_TOO_SHORT",
+            },
+        }
+        detail = error_map.get(
+            error_key,
+            {"message": "Invalid intake notes", "code": "NOTES_INVALID"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        ) from None
+    except NotesAnalysisError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "Notes analysis failed",
+                "code": "NOTES_ANALYSIS_FAILED",
+            },
+        ) from None
 
 
 @router.patch(

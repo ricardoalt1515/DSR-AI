@@ -47,6 +47,9 @@ export function IntakePanel({
 }: IntakePanelProps) {
 	const pendingCount = usePendingSuggestionsCount();
 	const setIntakeNotes = useIntakePanelStore((state) => state.setIntakeNotes);
+	const setNotesSaveStatus = useIntakePanelStore(
+		(state) => state.setNotesSaveStatus,
+	);
 	const setNotesLastSavedISO = useIntakePanelStore(
 		(state) => state.setNotesLastSavedISO,
 	);
@@ -68,27 +71,54 @@ export function IntakePanel({
 		(state) => state.processingDocumentsCount,
 	);
 	const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-	const initializedRef = useRef(false);
+	const hydrateInFlightRef = useRef<{
+		projectId: string;
+		promise: Promise<boolean>;
+	} | null>(null);
+	const activeProjectIdRef = useRef(projectId);
 
 	const hydrateIntake = useCallback(async (): Promise<boolean> => {
-		setIsLoadingSuggestions(true);
+		const existing = hydrateInFlightRef.current;
+		if (existing && existing.projectId === projectId) {
+			return existing.promise;
+		}
+
+		const run = (async () => {
+			setIsLoadingSuggestions(true);
+			try {
+				const response = await intakeAPI.hydrate(projectId);
+				if (activeProjectIdRef.current !== projectId) {
+					return false;
+				}
+				setIntakeNotes(response.intakeNotes ?? "");
+				setNotesLastSavedISO(response.notesUpdatedAt ?? null);
+				setNotesSaveStatus(
+					response.notesUpdatedAt ? "saved" : "idle",
+				);
+				setSuggestions(response.suggestions ?? []);
+				setUnmappedNotes(response.unmappedNotes ?? []);
+				setUnmappedNotesCount(response.unmappedNotesCount ?? 0);
+				setIsProcessingDocuments(
+					response.processingDocumentsCount > 0,
+					response.processingDocumentsCount,
+				);
+				return true;
+			} catch (error) {
+				logger.error("Failed to hydrate intake panel", error, "IntakePanel");
+				return false;
+			} finally {
+				setIsLoadingSuggestions(false);
+			}
+		})();
+
+		hydrateInFlightRef.current = { projectId, promise: run };
 		try {
-			const response = await intakeAPI.hydrate(projectId);
-			setIntakeNotes(response.intakeNotes ?? "");
-			setNotesLastSavedISO(response.notesUpdatedAt ?? null);
-			setSuggestions(response.suggestions ?? []);
-			setUnmappedNotes(response.unmappedNotes ?? []);
-			setUnmappedNotesCount(response.unmappedNotesCount ?? 0);
-			setIsProcessingDocuments(
-				response.processingDocumentsCount > 0,
-				response.processingDocumentsCount,
-			);
-			return true;
-		} catch (error) {
-			logger.error("Failed to hydrate intake panel", error, "IntakePanel");
-			return false;
+			return await run;
 		} finally {
-			setIsLoadingSuggestions(false);
+			const current = hydrateInFlightRef.current;
+			if (current && current.projectId === projectId) {
+				hydrateInFlightRef.current = null;
+			}
 		}
 	}, [
 		projectId,
@@ -96,14 +126,14 @@ export function IntakePanel({
 		setIsLoadingSuggestions,
 		setIsProcessingDocuments,
 		setNotesLastSavedISO,
+		setNotesSaveStatus,
 		setSuggestions,
 		setUnmappedNotes,
 		setUnmappedNotesCount,
 	]);
 
 	useEffect(() => {
-		if (initializedRef.current) return;
-		initializedRef.current = true;
+		activeProjectIdRef.current = projectId;
 		reset();
 		void hydrateIntake();
 	}, [hydrateIntake, reset]);

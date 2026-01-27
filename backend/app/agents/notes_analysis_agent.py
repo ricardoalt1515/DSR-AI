@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
+import time
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
 
@@ -62,12 +63,22 @@ async def analyze_notes(text: str, field_catalog: str) -> NotesAnalysisOutput:
         raise NotesAnalysisError("Empty intake notes")
 
     try:
+        logger.info("notes_analysis_start", chars=len(text))
+        started = time.perf_counter()
         context = NotesContext(field_catalog=field_catalog)
         result = await notes_analysis_agent.run(
             f"Analyze these intake notes:\n\n{text}",
             deps=context,
         )
-        return NotesAnalysisOutput.model_validate(result.output)
+        output = NotesAnalysisOutput.model_validate(result.output)
+        duration_ms = (time.perf_counter() - started) * 1000
+        logger.info(
+            "notes_analysis_complete",
+            duration_ms=round(duration_ms, 2),
+            suggestions=len(output.suggestions),
+            unmapped=len(output.unmapped),
+        )
+        return output
     except Exception as exc:
         logger.error("notes_analysis_failed", error=str(exc))
         raise NotesAnalysisError(str(exc)) from exc

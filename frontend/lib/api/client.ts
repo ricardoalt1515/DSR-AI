@@ -90,6 +90,42 @@ const withRetry = async <T>(
 	throw lastError || new Error(`${options.logContext} failed`);
 };
 
+const createAbortSignal = (
+	timeout: number,
+	externalSignal?: AbortSignal,
+): { signal: AbortSignal; cleanup: () => void } => {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => {
+		controller.abort(new DOMException("Request timed out", "AbortError"));
+	}, timeout);
+
+	const handleExternalAbort = () => {
+		controller.abort(
+			externalSignal?.reason ??
+				new DOMException("Request aborted", "AbortError"),
+		);
+	};
+
+	if (externalSignal) {
+		if (externalSignal.aborted) {
+			handleExternalAbort();
+		} else {
+			externalSignal.addEventListener("abort", handleExternalAbort, {
+				once: true,
+			});
+		}
+	}
+
+	const cleanup = () => {
+		clearTimeout(timeoutId);
+		if (externalSignal) {
+			externalSignal.removeEventListener("abort", handleExternalAbort);
+		}
+	};
+
+	return { signal: controller.signal, cleanup };
+};
+
 class APIClient {
 	private baseURL: string;
 	private defaultHeaders: Record<string, string>;
@@ -155,11 +191,10 @@ class APIClient {
 					delete mergedHeaders["Content-Type"];
 				}
 
-				const timeoutSignal = AbortSignal.timeout(timeout);
-				const signal = externalSignal
-					? AbortSignal.any([externalSignal, timeoutSignal])
-					: timeoutSignal;
-
+				const { signal, cleanup } = createAbortSignal(
+					timeout,
+					externalSignal,
+				);
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,
@@ -183,7 +218,12 @@ class APIClient {
 					}
 				}
 
-				const response = await fetch(url, requestConfig);
+				let response: Response;
+				try {
+					response = await fetch(url, requestConfig);
+				} finally {
+					cleanup();
+				}
 
 				// Handle non-200 responses
 				if (!response.ok) {
@@ -349,18 +389,22 @@ class APIClient {
 						mergedHeaders["X-Organization-Id"] = selectedOrgId;
 					}
 				}
-				const timeoutSignal = AbortSignal.timeout(timeout);
-				const signal = externalSignal
-					? AbortSignal.any([externalSignal, timeoutSignal])
-					: timeoutSignal;
-
+				const { signal, cleanup } = createAbortSignal(
+					timeout,
+					externalSignal,
+				);
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,
 					signal,
 				};
 
-				const response = await fetch(url, requestConfig);
+				let response: Response;
+				try {
+					response = await fetch(url, requestConfig);
+				} finally {
+					cleanup();
+				}
 
 				if (!response.ok) {
 					let message = `HTTP ${response.status}: ${response.statusText}`;

@@ -118,9 +118,6 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	const setNotesLastSavedISO = useIntakePanelStore(
 		(state) => state.setNotesLastSavedISO,
 	);
-	const notesLastSavedISO = useIntakePanelStore(
-		(state) => state.notesLastSavedISO,
-	);
 	const hydrateIntake = onHydrate;
 
 	const { loadTechnicalData, updateFieldOptimistic } =
@@ -135,10 +132,17 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 		newValue: string;
 	} | null>(null);
 	const analyzeAbortRef = useRef<AbortController | null>(null);
+	const saveSeqRef = useRef(0);
+	const activeProjectIdRef = useRef(projectId);
 
 	useEffect(() => {
 		return () => analyzeAbortRef.current?.abort();
 	}, []);
+
+	useEffect(() => {
+		activeProjectIdRef.current = projectId;
+		saveSeqRef.current = 0;
+	}, [projectId]);
 	const [confirmBatch, setConfirmBatch] = useState<{
 		ids: string[];
 		items: {
@@ -419,15 +423,28 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 
 	const handleSaveNotes = useCallback(
 		async (notes: string) => {
+			const requestProjectId = projectId;
+			const seq = saveSeqRef.current + 1;
+			saveSeqRef.current = seq;
 			const response = await intakeAPI.saveNotes(projectId, notes);
+			if (saveSeqRef.current !== seq) return;
+			if (activeProjectIdRef.current !== requestProjectId) return;
+			if (typeof response.updatedAt !== "string" || response.updatedAt.length === 0) {
+				throw new Error("Missing updatedAt from saveNotes");
+			}
 			setNotesLastSavedISO(response.updatedAt);
 		},
 		[projectId, setNotesLastSavedISO],
 	);
 
 	const handleAnalyzeNotes = useCallback(
-		async (text: string) => {
-			if (!notesLastSavedISO) return;
+		async () => {
+			const { notesLastSavedISO: latestSavedISO } =
+				useIntakePanelStore.getState();
+			if (typeof latestSavedISO !== "string" || latestSavedISO.length === 0) {
+				toast.error("Save notes before analysis");
+				return;
+			}
 
 			analyzeAbortRef.current?.abort();
 			analyzeAbortRef.current = new AbortController();
@@ -436,8 +453,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 			try {
 				const result = await intakeAPI.analyzeNotes(
 					projectId,
-					text,
-					notesLastSavedISO,
+					latestSavedISO,
 					signal,
 				);
 
@@ -462,7 +478,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 				toast.error("Failed to analyze notes");
 			}
 		},
-		[hydrateIntake, notesLastSavedISO, projectId],
+		[hydrateIntake, projectId],
 	);
 
 	// Handle file upload
