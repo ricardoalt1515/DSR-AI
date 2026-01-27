@@ -13,11 +13,15 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.document_analysis_agent import DocumentAnalysisError, analyze_document
+from app.agents.notes_analysis_agent import analyze_notes
 from app.agents.image_analysis_agent import ImageAnalysisError, analyze_image
 from app.models.document_analysis_output import DocumentAnalysisOutput, DocumentUnmapped
 from app.models.file import ProjectFile
+from app.models.intake_note import IntakeNote
 from app.models.intake_suggestion import IntakeSuggestion
 from app.models.intake_unmapped_note import IntakeUnmappedNote
+from app.models.notes_analysis_output import NotesAnalysisOutput
+from app.models.project import Project
 from app.schemas.intake import IntakeEvidence
 from app.services.s3_service import download_file_content
 from app.templates.assessment_questionnaire import get_assessment_questionnaire
@@ -181,6 +185,87 @@ class IntakeIngestionService:
         except Exception as exc:
             await self._mark_failed(db, file, str(exc))
             raise
+
+    async def analyze_notes_text(
+        self,
+        db: AsyncSession,
+        project: Project,
+        text: str,
+        notes_updated_at: datetime,
+    ) -> tuple[int, int, bool]:
+        current_note = await self._get_intake_note(db, project)
+        if current_note and not _timestamps_equal(current_note.updated_at, notes_updated_at):
+            logger.info("notes_analysis_precheck_stale", project_id=str(project.id))
+            return 0, 0, True
+
+        truncated = text[-8000:] if len(text) > 8000 else text
+
+        analysis = await analyze_notes(truncated, self._build_field_catalog())
+
+        current_note = await self._get_intake_note(db, project)
+        if current_note and not _timestamps_equal(current_note.updated_at, notes_updated_at):
+            logger.info("notes_analysis_postcheck_stale", project_id=str(project.id))
+            return 0, 0, True
+
+        async with db.begin_nested():
+            await db.execute(
+                delete(IntakeSuggestion)
+                .where(IntakeSuggestion.project_id == project.id)
+                .where(IntakeSuggestion.organization_id == project.organization_id)
+                .where(IntakeSuggestion.source == "notes")
+                .where(IntakeSuggestion.status == "pending")
+            )
+            await db.execute(
+                delete(IntakeUnmappedNote)
+                .where(IntakeUnmappedNote.project_id == project.id)
+                .where(IntakeUnmappedNote.organization_id == project.organization_id)
+                .where(IntakeUnmappedNote.source_file_id.is_(None))
+                .where(IntakeUnmappedNote.source_file.is_(None))
+                .where(IntakeUnmappedNote.status == "open")
+            )
+
+            for suggestion in analysis.suggestions:
+                registry_item = self.registry.get(suggestion.field_id)
+                if not registry_item:
+                    await self._persist_unmapped_from_notes(
+                        db,
+                        project,
+                        suggestion.value,
+                        suggestion.confidence,
+                    )
+                    continue
+
+                value_type = "number" if _is_number_like(suggestion.value) else "string"
+                intake_suggestion = IntakeSuggestion(
+                    organization_id=project.organization_id,
+                    project_id=project.id,
+                    source_file_id=None,
+                    field_id=registry_item.field_id,
+                    field_label=registry_item.field_label,
+                    section_id=registry_item.section_id,
+                    section_title=registry_item.section_title,
+                    value=str(suggestion.value),
+                    value_type=value_type,
+                    unit=suggestion.unit,
+                    confidence=NotesAnalysisOutput.normalize_confidence(
+                        suggestion.confidence
+                    ),
+                    status="pending",
+                    source="notes",
+                    evidence=None,
+                    created_by_user_id=None,
+                )
+                db.add(intake_suggestion)
+
+            for unmapped in analysis.unmapped:
+                await self._persist_unmapped_from_notes(
+                    db,
+                    project,
+                    unmapped.extracted_text,
+                    unmapped.confidence,
+                )
+
+        return len(analysis.suggestions), len(analysis.unmapped), False
 
     async def _process_image_or_document(
         self,
@@ -447,6 +532,35 @@ class IntakeIngestionService:
             f"- {item.field_id}: {item.section_title} > {item.field_label}" for item in items
         )
 
+    async def _persist_unmapped_from_notes(
+        self,
+        db: AsyncSession,
+        project: Project,
+        text: str,
+        confidence: int,
+    ) -> None:
+        unmapped = IntakeUnmappedNote(
+            organization_id=project.organization_id,
+            project_id=project.id,
+            extracted_text=text,
+            confidence=NotesAnalysisOutput.normalize_confidence(confidence),
+            source_file_id=None,
+            source_file=None,
+            status="open",
+        )
+        db.add(unmapped)
+
+    async def _get_intake_note(
+        self, db: AsyncSession, project: Project
+    ) -> IntakeNote | None:
+        result = await db.execute(
+            select(IntakeNote).where(
+                IntakeNote.project_id == project.id,
+                IntakeNote.organization_id == project.organization_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
 
 def _is_number_like(value: str) -> bool:
     try:
@@ -460,6 +574,20 @@ def _normalize_page(page: int | None) -> int | None:
     if not page or page < 1:
         return None
     return page
+
+
+def _timestamps_equal(db_ts: datetime, request_ts: datetime) -> bool:
+    """Compare timestamps floored to milliseconds.
+
+    Invariant: both timestamps must be timezone-aware UTC.
+    """
+    if db_ts.tzinfo is None or request_ts.tzinfo is None:
+        raise ValueError("Timestamps must be timezone-aware")
+
+    def floor_to_ms(dt: datetime) -> datetime:
+        return dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
+
+    return floor_to_ms(db_ts) == floor_to_ms(request_ts)
 
 
 def _filter_unmapped_items(items: list[DocumentUnmapped]) -> list[DocumentUnmapped]:

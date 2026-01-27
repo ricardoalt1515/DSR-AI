@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import ActiveProjectDep, AsyncDB, CurrentUser
 from app.schemas.common import ErrorResponse
 from app.schemas.intake import (
+    AnalyzeNotesRequest,
+    AnalyzeNotesResponse,
     IntakeDismissUnmappedBulkRequest,
     IntakeDismissUnmappedBulkResponse,
     IntakeDismissUnmappedResponse,
@@ -23,8 +25,10 @@ from app.schemas.intake import (
     IntakeSuggestionStatusResponse,
 )
 from app.services.intake_service import IntakeBatchService, IntakeService
+from app.services.intake_ingestion_service import IntakeIngestionService
 
 router = APIRouter()
+notes_ingestion_service = IntakeIngestionService()
 
 
 @router.get(
@@ -73,6 +77,32 @@ async def save_intake_notes(
     )
     await db.commit()
     return IntakeNotesUpdateResponse(text=note.text, updated_at=note.updated_at)
+
+
+@router.post(
+    "/{project_id}/intake/notes/analyze",
+    responses={404: {"model": ErrorResponse}},
+    summary="Analyze intake notes",
+)
+async def analyze_intake_notes(
+    project: ActiveProjectDep,
+    payload: AnalyzeNotesRequest,
+    db: AsyncDB,
+) -> AnalyzeNotesResponse:
+    suggestions_count, unmapped_count, stale_ignored = (
+        await notes_ingestion_service.analyze_notes_text(
+            db=db,
+            project=project,
+            text=payload.text,
+            notes_updated_at=payload.notes_updated_at,
+        )
+    )
+    await db.commit()
+    return AnalyzeNotesResponse(
+        suggestions_count=suggestions_count,
+        unmapped_count=unmapped_count,
+        stale_ignored=stale_ignored,
+    )
 
 
 @router.patch(

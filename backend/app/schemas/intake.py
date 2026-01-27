@@ -1,10 +1,10 @@
 """Schemas for intake panel APIs."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from app.schemas.common import BaseSchema
 
@@ -28,6 +28,7 @@ class IntakeSuggestionItem(BaseSchema):
     unit: str | None
     confidence: int
     status: Literal["pending", "applied", "rejected"]
+    source: Literal["notes", "file", "image", "sds", "lab"]
     source_file_id: UUID | None = None
     evidence: IntakeEvidence | None = None
 
@@ -55,6 +56,10 @@ class IntakeHydrateResponse(BaseSchema):
     unmapped_notes_count: int
     processing_documents_count: int
 
+    @field_serializer("notes_updated_at")
+    def serialize_notes_updated_at(self, dt: datetime | None) -> str | None:
+        return _serialize_canonical_datetime(dt)
+
 
 class IntakeNotesUpdateRequest(BaseSchema):
     text: str
@@ -63,6 +68,13 @@ class IntakeNotesUpdateRequest(BaseSchema):
 class IntakeNotesUpdateResponse(BaseSchema):
     text: str
     updated_at: datetime
+
+    @field_serializer("updated_at")
+    def serialize_updated_at(self, dt: datetime) -> str:
+        serialized = _serialize_canonical_datetime(dt)
+        if serialized is None:
+            raise ValueError("updated_at must be timezone-aware")
+        return serialized
 
 
 class IntakeSuggestionStatusRequest(BaseSchema):
@@ -158,3 +170,32 @@ class IntakeSuggestionBatchResponse(BaseSchema):
     applied_count: int
     rejected_count: int
     error_count: int
+
+
+class AnalyzeNotesRequest(BaseSchema):
+    text: str = Field(min_length=20, max_length=10000)
+    notes_updated_at: datetime
+
+    @field_validator("notes_updated_at")
+    @classmethod
+    def validate_notes_updated_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("notes_updated_at must be timezone-aware")
+        return value
+
+
+class AnalyzeNotesResponse(BaseSchema):
+    suggestions_count: int
+    unmapped_count: int
+    stale_ignored: bool = False
+
+
+def _serialize_canonical_datetime(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        raise ValueError("datetime must be timezone-aware")
+    dt_utc = dt.astimezone(timezone.utc)
+    ms = dt_utc.microsecond // 1000
+    dt_ms = dt_utc.replace(microsecond=ms * 1000)
+    return dt_ms.strftime("%Y-%m-%dT%H:%M:%S") + f".{ms:03d}Z"

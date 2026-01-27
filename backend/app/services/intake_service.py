@@ -98,6 +98,7 @@ class IntakeService:
                     unit=suggestion.unit,
                     confidence=suggestion.confidence,
                     status=status,
+                    source=suggestion.source,
                     source_file_id=suggestion.source_file_id,
                     evidence=evidence,
                 )
@@ -637,6 +638,11 @@ def _truncate_excerpt(text: str) -> str:
 
 class BatchSuggestionResult:
     """Result of a batch suggestion operation."""
+
+    id: UUID
+    success: bool
+    status: Literal["applied", "rejected"] | None
+    error: str | None
 
     def __init__(
         self,

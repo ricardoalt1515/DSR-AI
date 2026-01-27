@@ -88,7 +88,10 @@ class IntakeSuggestion(BaseModel):
     confidence: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(Text, nullable=False)
-    evidence: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    evidence: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
+    )
     created_by_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
