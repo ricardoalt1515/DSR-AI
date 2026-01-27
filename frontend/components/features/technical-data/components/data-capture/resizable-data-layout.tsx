@@ -1,5 +1,6 @@
 "use client";
 
+import { IntakeLayoutGroup } from "@/components/features/projects/intake-layout-group";
 import { IntakePanel } from "@/components/features/projects/intake-panel";
 import { Card } from "@/components/ui/card";
 import {
@@ -23,13 +24,12 @@ interface ResizableDataLayoutProps {
 	onSave?: () => void;
 	autoSave?: boolean;
 	focusSectionId?: string | null;
+	onOpenSection?: (sectionId: string) => void;
 	onUpdateSectionNotes?: (sectionId: string, notes: string) => void;
-	// Section/field CRUD operations (passed through to FlexibleDataCapture)
 	onAddSection?: (section: Omit<TableSection, "id">) => void;
 	onRemoveSection?: (sectionId: string) => void;
 	onAddField?: (sectionId: string, field: Omit<TableField, "id">) => void;
 	onRemoveField?: (sectionId: string, fieldId: string) => void;
-	// Intake panel props
 	disabled?: boolean;
 	onUploadComplete?: () => void;
 }
@@ -41,47 +41,52 @@ export function ResizableDataLayout({
 	onSave,
 	autoSave = true,
 	focusSectionId,
+	onOpenSection,
 	onUpdateSectionNotes,
 	disabled = false,
 	onUploadComplete,
 }: ResizableDataLayoutProps) {
 	return (
-		<Card className="h-full overflow-hidden rounded-3xl border-none bg-card/80 shadow-sm">
-			<ResizablePanelGroup direction="horizontal" className="h-full">
-				<ResizablePanel defaultSize={70} minSize={50} className="min-w-[360px]">
-					<FlexibleDataCapture
-						sections={sections}
-						onFieldChange={onFieldChange}
-						{...(projectId !== undefined ? { projectId } : {})}
-						{...(onSave ? { onSave } : {})}
-						autoSave={autoSave}
-						className="h-full overflow-y-auto px-6 py-5"
-						focusSectionId={focusSectionId ?? null}
-						{...(onUpdateSectionNotes ? { onUpdateSectionNotes } : {})}
-					/>
-				</ResizablePanel>
-				<ResizableHandle withHandle className="bg-border/60" />
-				<ResizablePanel
-					defaultSize={30}
-					minSize={28}
-					className="hidden min-w-[280px] lg:block"
-				>
-					{projectId ? (
-						<IntakePanel
-							projectId={projectId}
+		<IntakeLayoutGroup>
+			<Card className="h-full overflow-hidden rounded-3xl border-none bg-card/80 shadow-sm">
+				<ResizablePanelGroup direction="horizontal" className="h-full">
+					<ResizablePanel defaultSize={65} minSize={55} className="min-w-0">
+						<FlexibleDataCapture
 							sections={sections}
-							disabled={disabled}
-							{...(onUploadComplete ? { onUploadComplete } : {})}
+							onFieldChange={onFieldChange}
+							{...(projectId !== undefined ? { projectId } : {})}
+							{...(onSave ? { onSave } : {})}
+							autoSave={autoSave}
+							className="h-full overflow-y-auto px-6 py-5"
+							focusSectionId={focusSectionId ?? null}
+							{...(onUpdateSectionNotes ? { onUpdateSectionNotes } : {})}
 						/>
-					) : (
-						<div className="h-full overflow-y-auto px-5 py-5 surface-muted">
-							<p className="text-sm text-muted-foreground">
-								Save the project to enable AI suggestions.
-							</p>
-						</div>
-					)}
-				</ResizablePanel>
-			</ResizablePanelGroup>
-		</Card>
+					</ResizablePanel>
+					<ResizableHandle withHandle className="hidden lg:flex bg-border/60" />
+					<ResizablePanel
+						defaultSize={35}
+						minSize={25}
+						maxSize={45}
+						className="hidden lg:block min-w-0"
+					>
+						{projectId ? (
+							<IntakePanel
+								projectId={projectId}
+								sections={sections}
+								disabled={disabled}
+								onOpenSection={onOpenSection}
+								{...(onUploadComplete ? { onUploadComplete } : {})}
+							/>
+						) : (
+							<div className="h-full overflow-y-auto px-5 py-5 surface-muted">
+								<p className="text-sm text-muted-foreground">
+									Save the project to enable AI suggestions.
+								</p>
+							</div>
+						)}
+					</ResizablePanel>
+				</ResizablePanelGroup>
+			</Card>
+		</IntakeLayoutGroup>
 	);
 }

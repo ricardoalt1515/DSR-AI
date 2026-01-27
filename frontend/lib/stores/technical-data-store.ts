@@ -49,7 +49,14 @@ interface TechnicalDataState {
 
 	// Actions
 	setActiveProject: (projectId: string | null) => void;
-	loadTechnicalData: (projectId: string) => Promise<void>;
+	loadTechnicalData: (projectId: string, force?: boolean) => Promise<void>;
+	updateFieldOptimistic: (
+		projectId: string,
+		sectionId: string,
+		fieldId: string,
+		value: FieldValue,
+		unit?: string,
+	) => void;
 	updateField: (
 		projectId: string,
 		payload: {
@@ -319,6 +326,20 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 				});
 			},
 
+			updateFieldOptimistic: (projectId, sectionId, fieldId, value, unit) => {
+				set((state) => {
+					const sections = state.technicalData[projectId];
+					if (!sections) return;
+					state.technicalData[projectId] = updateFieldInSections(sections, {
+						sectionId,
+						fieldId,
+						value,
+						unit,
+						source: "ai",
+					});
+				});
+			},
+
 			/**
 			 * Load technical data for a project
 			 *
@@ -340,7 +361,11 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					return;
 				}
 
-				set({ loading: true });
+				const hasExistingData =
+					(currentState.technicalData[projectId]?.length ?? 0) > 0;
+				if (!hasExistingData) {
+					set({ loading: true });
+				}
 
 				try {
 					// Load data from backend
@@ -804,6 +829,7 @@ export const getTechnicalDataCompleteness = (projectId: string) => {
 const EMPTY_ACTIONS = {
 	setActiveProject: () => {},
 	loadTechnicalData: async () => {},
+	updateFieldOptimistic: () => {},
 	updateField: async () => {},
 	applyFieldUpdates: async () => {},
 	addCustomSection: async () => null,
@@ -824,6 +850,7 @@ const EMPTY_ACTIONS = {
 const actionsSelector = (s: TechnicalDataState) => ({
 	setActiveProject: s.setActiveProject,
 	loadTechnicalData: s.loadTechnicalData,
+	updateFieldOptimistic: s.updateFieldOptimistic,
 	updateField: s.updateField,
 	applyFieldUpdates: s.applyFieldUpdates,
 	addCustomSection: s.addCustomSection,

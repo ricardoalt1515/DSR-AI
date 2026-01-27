@@ -26,9 +26,10 @@ import { IntakePanelContent } from "./intake-panel-content";
 interface IntakePanelProps {
 	projectId: string;
 	sections: TableSection[];
-	disabled?: boolean;
-	onUploadComplete?: () => void;
-	className?: string;
+	disabled?: boolean | undefined;
+	onOpenSection?: ((sectionId: string) => void) | undefined;
+	onUploadComplete?: (() => void) | undefined;
+	className?: string | undefined;
 }
 
 /**
@@ -41,6 +42,7 @@ export function IntakePanel({
 	projectId,
 	sections,
 	disabled = false,
+	onOpenSection,
 	onUploadComplete,
 	className,
 }: IntakePanelProps) {
@@ -135,18 +137,22 @@ export function IntakePanel({
 	return (
 		<>
 			{/* Desktop: Direct render */}
-			<div className={cn("hidden lg:block h-full", className)}>
-				<ScrollArea className="h-full">
-					<div className="px-5 py-5 surface-muted">
-						<IntakePanelContent
-							projectId={projectId}
-							sections={sections}
-							disabled={disabled}
-							onUploadComplete={handleUploadComplete}
-							onHydrate={hydrateIntake}
-						/>
-					</div>
-				</ScrollArea>
+			<div
+				className={cn(
+					"hidden lg:block h-full w-full min-w-0 overflow-hidden",
+					className,
+				)}
+			>
+				<div className="h-full overflow-y-auto overflow-x-hidden p-5 surface-muted">
+					<IntakePanelContent
+						projectId={projectId}
+						sections={sections}
+						disabled={disabled}
+						onOpenSection={onOpenSection}
+						onUploadComplete={handleUploadComplete}
+						onHydrate={hydrateIntake}
+					/>
+				</div>
 			</div>
 
 			{/* Mobile: FAB + Drawer */}
@@ -186,11 +192,12 @@ export function IntakePanel({
 							</DrawerTitle>
 						</DrawerHeader>
 						<ScrollArea className="h-[calc(85vh-80px)]">
-							<div className="p-4">
+							<div className="p-4 min-w-0">
 								<IntakePanelContent
 									projectId={projectId}
 									sections={sections}
 									disabled={disabled}
+									onOpenSection={onOpenSection}
 									onUploadComplete={handleUploadComplete}
 									onHydrate={hydrateIntake}
 								/>

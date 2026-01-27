@@ -35,7 +35,13 @@ interface UploadingFile {
 interface QuickUploadSectionProps {
 	projectId: string;
 	disabled?: boolean;
-	onUpload?: (file: File, category: string) => Promise<void>;
+	onUpload?: (
+		file: File,
+		category: string,
+	) => Promise<{
+		is_deduplicated?: boolean;
+		cached_from_date?: string;
+	}>;
 	maxSize?: number;
 }
 
@@ -79,9 +85,7 @@ export function QuickUploadSection({
 					);
 				}, 150);
 
-				if (onUpload) {
-					await onUpload(file, category);
-				}
+				const response = onUpload ? await onUpload(file, category) : null;
 
 				// Mark as complete
 				setUploadingFiles((prev) =>
@@ -92,7 +96,18 @@ export function QuickUploadSection({
 					),
 				);
 
-				toast.success(`${file.name} uploaded`);
+				if (response?.is_deduplicated) {
+					const dateStr = response.cached_from_date
+						? new Date(response.cached_from_date).toLocaleDateString()
+						: null;
+					toast.info(
+						dateStr
+							? `Reused analysis from ${dateStr}`
+							: "Reused previous analysis",
+					);
+				} else {
+					toast.success(`${file.name} uploaded`);
+				}
 
 				// Remove after delay
 				setTimeout(() => {
@@ -181,7 +196,7 @@ export function QuickUploadSection({
 						onValueChange={setCategory}
 						disabled={disabled}
 					>
-						<SelectTrigger className="h-8 w-[180px] rounded-xl text-xs">
+						<SelectTrigger className="h-8 min-w-0 w-full max-w-[180px] rounded-xl text-xs">
 							<SelectValue placeholder="Select type" />
 						</SelectTrigger>
 						<SelectContent>

@@ -17,11 +17,12 @@ AI waste-opportunity platform: opportunities -> AI proposals -> compliance gates
 
 - Keep plans extremely concise. Sacrifice grammar for concision.
 - End each plan with unresolved questions, if any.
+- after you finalize the plan, spin up a subagent and ask it to review the plan for feedback and refinement, and then update the plan accordingly if it provides useful feedback
 
 ## Subagents
 - ALWAYS wait for all subagents to complete before yielding.
 - Spawn subagents automatically when:
-- Parallelizable work (e.g., install + verify, npm test + typecheck, multiple tasks from plan)
+- Parallelizable work (e.g., install + verify, bun test + typecheck, multiple tasks from plan)
 - Long-running or blocking tasks where a worker can run independently.
 Isolation for risky changes or checks
 

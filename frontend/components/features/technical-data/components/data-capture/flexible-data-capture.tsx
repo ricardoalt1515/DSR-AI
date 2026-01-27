@@ -62,17 +62,25 @@ export const FlexibleDataCapture = memo(function FlexibleDataCapture({
 		},
 	);
 
-	// When a specific section is requested to be focused, ensure it is open and scrolled into view
 	useEffect(() => {
 		if (!focusSectionId) return;
-		setAccordionValue((current) =>
-			current.includes(focusSectionId) ? current : [...current, focusSectionId],
-		);
-		// Smooth scroll to the section container
+		const isFixed = isFixedSection(focusSectionId);
+		if (isFixed) {
+			setFixedAccordionValue((current) =>
+				current.includes(focusSectionId)
+					? current
+					: [...current, focusSectionId],
+			);
+		} else {
+			setAccordionValue((current) =>
+				current.includes(focusSectionId)
+					? current
+					: [...current, focusSectionId],
+			);
+		}
 		const el = document.getElementById(`section-${focusSectionId}`);
 		if (el) {
 			el.scrollIntoView({ behavior: "smooth", block: "start" });
-			// Optional: brief highlight could be added here
 		}
 	}, [focusSectionId]);
 

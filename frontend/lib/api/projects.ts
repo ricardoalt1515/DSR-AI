@@ -68,6 +68,8 @@ export type ProjectFileUploadResponse = {
 	category: string;
 	processing_status: string;
 	uploaded_at: string;
+	is_deduplicated?: boolean;
+	cached_from_date?: string;
 	message: string;
 };
 

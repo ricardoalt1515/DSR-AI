@@ -1,6 +1,8 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { SectionErrorBoundary } from "@/components/features/proposals/overview/section-error-boundary";
@@ -18,24 +20,26 @@ import { AISuggestionsSection } from "./ai-suggestions-section";
 import { ConfirmBatchReplaceDialog } from "./confirm-batch-replace-dialog";
 import { ConfirmReplaceDialog } from "./confirm-replace-dialog";
 import { ConflictCard } from "./conflict-card";
+import { formatSuggestionValue } from "./format-suggestion-value";
 import { IntakeNotesSection } from "./intake-notes-section";
 import { QuickUploadSection } from "./quick-upload-section";
 import { UnmappedNotesSection } from "./unmapped-notes-section";
-import { formatSuggestionValue } from "./format-suggestion-value";
 
 interface IntakePanelContentProps {
 	projectId: string;
 	sections: TableSection[];
-	disabled?: boolean;
-	onUploadComplete?: () => void;
+	disabled?: boolean | undefined;
+	onOpenSection?: ((sectionId: string) => void) | undefined;
+	onUploadComplete?: (() => void) | undefined;
 	onHydrate: () => Promise<void>;
-	className?: string;
+	className?: string | undefined;
 }
 
 function isConflictError(error: unknown): boolean {
-	if (!(error instanceof Error)) return false;
+	if (typeof error !== "object" || error === null) return false;
 	if (!("code" in error)) return false;
-	return (error as { code?: string }).code === "HTTP_409";
+	const code = error.code;
+	return typeof code === "string" && code === "HTTP_409";
 }
 
 function hasExistingValue(value: unknown): boolean {
@@ -57,6 +61,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	projectId,
 	sections,
 	disabled = false,
+	onOpenSection,
 	onUploadComplete,
 	onHydrate,
 	className,
@@ -115,8 +120,10 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	);
 	const hydrateIntake = onHydrate;
 
-	const { loadTechnicalData } = useTechnicalDataActions();
+	const { loadTechnicalData, updateFieldOptimistic } =
+		useTechnicalDataActions();
 	const conflictingSuggestions = useConflictingSuggestions();
+	const animatingIds = useRef(new Set<string>());
 	const [confirmSingle, setConfirmSingle] = useState<{
 		suggestion: AISuggestion;
 		fieldLabel: string;
@@ -176,6 +183,10 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	// Apply suggestion to technical data
 	const performApplySuggestion = useCallback(
 		async (suggestion: AISuggestion) => {
+			// Debounce rapid clicks - prevent duplicate animations
+			if (animatingIds.current.has(suggestion.id)) return;
+			animatingIds.current.add(suggestion.id);
+
 			// Optimistic update in intake store
 			applySuggestion(suggestion.id);
 			rejectConflictSiblings(
@@ -184,22 +195,36 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 				suggestion.id,
 			);
 
+			// Optimistic update in technical data store (value visible immediately)
+			updateFieldOptimistic(
+				projectId,
+				suggestion.sectionId,
+				suggestion.fieldId,
+				suggestion.value,
+				suggestion.unit,
+			);
+
 			try {
 				await intakeAPI.updateSuggestionStatus(
 					projectId,
 					suggestion.id,
 					"applied",
 				);
+				// Silent refresh - no skeleton because data already exists
 				await loadTechnicalData(projectId, true);
 				toast.success("Suggestion applied");
 			} catch (_error) {
 				if (isConflictError(_error)) {
 					await hydrateIntake();
+					await loadTechnicalData(projectId, true);
 					return;
 				}
 				revertSuggestion(suggestion.id);
 				resetConflict(suggestion.sectionId, suggestion.fieldId);
+				await loadTechnicalData(projectId, true);
 				throw _error;
+			} finally {
+				animatingIds.current.delete(suggestion.id);
 			}
 		},
 		[
@@ -210,6 +235,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 			rejectConflictSiblings,
 			resetConflict,
 			revertSuggestion,
+			updateFieldOptimistic,
 		],
 	);
 
@@ -225,10 +251,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 					fieldLabel: fieldState.label,
 					sectionTitle: fieldState.sectionTitle,
 					currentValue: formatFieldValue(fieldState.value),
-					newValue: formatSuggestionValue(
-						suggestion.value,
-						suggestion.unit,
-					),
+					newValue: formatSuggestionValue(suggestion.value, suggestion.unit),
 				});
 				return;
 			}
@@ -281,10 +304,12 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 			} catch (_error) {
 				if (isConflictError(_error)) {
 					await hydrateIntake();
+					await loadTechnicalData(projectId, true);
 					return;
 				}
 				revertSuggestion(selected.id);
 				resetConflict(selected.sectionId, selected.fieldId);
+				await loadTechnicalData(projectId, true);
 				throw _error;
 			}
 		},
@@ -402,38 +427,57 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 				throw new Error("Photo tag requires an image file.");
 			}
 			const processWithAi = isPdf || isImage;
-			await projectsAPI.uploadFile(projectId, file, {
+			const response = await projectsAPI.uploadFile(projectId, file, {
 				category,
 				process_with_ai: processWithAi,
 			});
 			onUploadComplete?.();
+			return response;
 		},
 		[onUploadComplete, projectId],
 	);
 
-	// Batch apply suggestions via API
 	const performBatchApply = useCallback(
 		async (ids: string[]) => {
-			applySuggestions(ids);
-			try {
-			const response = await intakeAPI.batchUpdateSuggestions(
-				projectId,
-				ids,
-				"applied",
+			const { suggestions } = useIntakePanelStore.getState();
+			const toApply = suggestions.filter(
+				(s) => ids.includes(s.id) && s.status === "pending",
 			);
-			if (response.errorCount > 0) {
-				toast.warning(
-					`Applied ${response.appliedCount}, ${response.errorCount} failed`,
+
+			applySuggestions(ids);
+			for (const s of toApply) {
+				rejectConflictSiblings(s.sectionId, s.fieldId, s.id);
+				updateFieldOptimistic(
+					projectId,
+					s.sectionId,
+					s.fieldId,
+					s.value,
+					s.unit,
 				);
-				await hydrateIntake();
 			}
-			await loadTechnicalData(projectId, true);
-		} catch (_error) {
-			if (isConflictError(_error)) {
-				await hydrateIntake();
-					return;
+
+			try {
+				const response = await intakeAPI.batchUpdateSuggestions(
+					projectId,
+					ids,
+					"applied",
+				);
+				if (response.errorCount > 0) {
+					toast.warning(
+						`Applied ${response.appliedCount}, ${response.errorCount} failed`,
+					);
+					await hydrateIntake();
+				}
+				await loadTechnicalData(projectId, true);
+				return toApply[0];
+			} catch (_error) {
+				if (isConflictError(_error)) {
+					await hydrateIntake();
+					await loadTechnicalData(projectId, true);
+					return undefined;
 				}
 				revertSuggestions(ids);
+				await loadTechnicalData(projectId, true);
 				throw _error;
 			}
 		},
@@ -442,7 +486,9 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 			hydrateIntake,
 			loadTechnicalData,
 			projectId,
+			rejectConflictSiblings,
 			revertSuggestions,
+			updateFieldOptimistic,
 		],
 	);
 
@@ -476,22 +522,17 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 						fieldLabel: fieldState.label,
 						sectionTitle: fieldState.sectionTitle,
 						currentValue: formatFieldValue(fieldState.value),
-						newValue: formatSuggestionValue(
-							suggestion.value,
-							suggestion.unit,
-						),
+						newValue: formatSuggestionValue(suggestion.value, suggestion.unit),
 					};
 				})
-				.filter(
-					(item): item is NonNullable<typeof item> => item !== null,
-				);
+				.filter((item): item is NonNullable<typeof item> => item !== null);
 
 			if (replaceItems.length > 0) {
 				setConfirmBatch({ ids, items: replaceItems });
-				return;
+				return undefined;
 			}
 
-			await performBatchApply(ids);
+			return performBatchApply(ids);
 		},
 		[getFieldState, performBatchApply],
 	);
@@ -501,20 +542,20 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 		async (ids: string[]) => {
 			rejectSuggestions(ids);
 			try {
-			const response = await intakeAPI.batchUpdateSuggestions(
-				projectId,
-				ids,
-				"rejected",
-			);
-			if (response.errorCount > 0) {
-				toast.warning(
-					`Rejected ${response.rejectedCount}, ${response.errorCount} failed`,
+				const response = await intakeAPI.batchUpdateSuggestions(
+					projectId,
+					ids,
+					"rejected",
 				);
-				await hydrateIntake();
-			}
-		} catch (_error) {
-			if (isConflictError(_error)) {
-				await hydrateIntake();
+				if (response.errorCount > 0) {
+					toast.warning(
+						`Rejected ${response.rejectedCount}, ${response.errorCount} failed`,
+					);
+					await hydrateIntake();
+				}
+			} catch (_error) {
+				if (isConflictError(_error)) {
+					await hydrateIntake();
 					return;
 				}
 				revertSuggestions(ids);
@@ -526,7 +567,42 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 
 	return (
 		<SectionErrorBoundary sectionName="Intake Panel">
-			<div className={cn("flex h-full flex-col gap-4", className)}>
+			<div className={cn("flex h-full flex-col gap-4 min-w-0", className)}>
+				{/* Sticky processing banner - prominently visible during document analysis */}
+				<AnimatePresence>
+					{isProcessingDocuments && (
+						<motion.div
+							initial={{ opacity: 0, y: -20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+							className="sticky top-0 z-20 flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 backdrop-blur-sm p-4"
+							role="status"
+							aria-live="polite"
+						>
+							<Loader2 className="h-5 w-5 animate-spin text-primary" />
+							<div className="flex-1 flex flex-col gap-2">
+								<p className="text-sm font-medium text-foreground">
+									Analyzing {processingDocumentsCount}{" "}
+									{processingDocumentsCount === 1 ? "document" : "documents"}...
+								</p>
+								<div className="h-1 w-full bg-primary/20 rounded-full overflow-hidden">
+									<motion.div
+										className="h-full bg-primary rounded-full"
+										initial={{ x: "-100%" }}
+										animate={{ x: "100%" }}
+										transition={{
+											repeat: Number.POSITIVE_INFINITY,
+											duration: 1.5,
+											ease: "easeInOut",
+										}}
+									/>
+								</div>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
 				<SectionErrorBoundary sectionName="Intake Notes">
 					<IntakeNotesSection
 						projectId={projectId}
@@ -559,8 +635,6 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 						projectId={projectId}
 						disabled={disabled}
 						isLoading={isLoadingSuggestions}
-						isProcessing={isProcessingDocuments}
-						processingCount={processingDocumentsCount}
 						getFieldHasValue={(sectionId, fieldId) => {
 							const fieldState = getFieldState(sectionId, fieldId);
 							return fieldState ? hasExistingValue(fieldState.value) : false;
@@ -569,7 +643,7 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 						onRejectSuggestion={handleRejectSuggestion}
 						onBatchApply={handleBatchApply}
 						onBatchReject={handleBatchReject}
-						onHydrate={hydrateIntake}
+						onOpenSection={onOpenSection}
 					/>
 				</SectionErrorBoundary>
 

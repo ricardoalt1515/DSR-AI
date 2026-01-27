@@ -51,9 +51,9 @@ export function BatchActionToolbar({
 	return (
 		<div
 			className={cn(
-				"sticky bottom-0 left-0 right-0 z-10",
-				"flex items-center justify-between gap-3",
-				"px-4 py-3 mt-2",
+				"z-10",
+				"flex flex-wrap items-center justify-between gap-3 min-w-0",
+				"px-4 py-3",
 				"bg-card/95 backdrop-blur-sm",
 				"border-t border-border",
 				"rounded-b-2xl",
@@ -75,11 +75,11 @@ export function BatchActionToolbar({
 			</div>
 
 			{/* Actions */}
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2 min-w-0">
 				<Button
 					variant="default"
 					size="sm"
-					className="h-8 gap-1.5"
+					className="h-8 gap-1.5 shrink min-w-0"
 					onClick={handleApply}
 					disabled={disabled}
 				>
@@ -89,7 +89,7 @@ export function BatchActionToolbar({
 				<Button
 					variant="outline"
 					size="sm"
-					className="h-8 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive"
+					className="h-8 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive shrink min-w-0"
 					onClick={handleReject}
 					disabled={disabled}
 				>

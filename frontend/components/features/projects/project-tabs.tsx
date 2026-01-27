@@ -41,8 +41,8 @@ const TechnicalDataSheet = lazy(() =>
 const ProposalsTab = lazy(() =>
 	import("./proposals-tab").then((m) => ({ default: m.ProposalsTab })),
 );
-const FilesTabEnhanced = lazy(() =>
-	import("./files-tab-enhanced").then((m) => ({ default: m.FilesTabEnhanced })),
+const FilesSection = lazy(() =>
+	import("./files-section").then((m) => ({ default: m.FilesSection })),
 );
 
 // Tab values at module level to avoid recreation on each render
@@ -257,7 +257,7 @@ export const ProjectTabs = memo(function ProjectTabs({
 					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
 				>
 					<Suspense fallback={<FilesListSkeleton count={4} />}>
-						<FilesTabEnhanced projectId={project.id} />
+						<FilesSection projectId={project.id} />
 					</Suspense>
 				</TabsContent>
 

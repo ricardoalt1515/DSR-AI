@@ -64,7 +64,7 @@ export function IntakeSummaryBar({
 			)}
 		>
 			{/* Stats */}
-			<div className="flex flex-wrap items-center gap-4 text-sm">
+			<div className="flex flex-wrap items-center gap-4 text-sm min-w-0">
 				<div className="flex items-center gap-1.5">
 					<Sparkles className="h-4 w-4 text-primary" />
 					<span className="font-medium">{stats.pendingCount} pending</span>
@@ -93,13 +93,13 @@ export function IntakeSummaryBar({
 			</div>
 
 			{/* Action buttons */}
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center justify-end gap-2 min-w-0">
 				{/* Auto-resolve conflicts button */}
 				{stats.conflictCount > 0 && (
 					<Button
 						variant="outline"
 						size="sm"
-						className="h-8 gap-1.5"
+						className="h-8 gap-1.5 shrink min-w-0"
 						onClick={handleAutoResolve}
 						disabled={disabled}
 					>
@@ -113,7 +113,7 @@ export function IntakeSummaryBar({
 					<Button
 						variant="default"
 						size="sm"
-						className="h-8 gap-1.5"
+						className="h-8 gap-1.5 shrink min-w-0"
 						onClick={handleApplyHighConfidence}
 						disabled={disabled}
 					>

@@ -11,6 +11,7 @@ interface UseIntakeKeyboardShortcutsOptions {
 	visibleIds: string[];
 	onApplySelected: () => Promise<void>;
 	onRejectSelected: () => Promise<void>;
+	onShowHelp?: () => void;
 	disabled?: boolean;
 }
 
@@ -28,6 +29,7 @@ export function useIntakeKeyboardShortcuts({
 	visibleIds,
 	onApplySelected,
 	onRejectSelected,
+	onShowHelp,
 	disabled = false,
 }: UseIntakeKeyboardShortcutsOptions) {
 	const selectedCount = useSelectedCount();
@@ -48,7 +50,14 @@ export function useIntakeKeyboardShortcuts({
 				return;
 			}
 
-			// Check if focus is within the container
+			// "?" key for help can be triggered globally within the page
+			if (e.key === "?" && onShowHelp) {
+				e.preventDefault();
+				onShowHelp();
+				return;
+			}
+
+			// Check if focus is within the container for other shortcuts
 			if (containerRef.current && !containerRef.current.contains(target)) {
 				return;
 			}
@@ -89,6 +98,7 @@ export function useIntakeKeyboardShortcuts({
 			disabled,
 			onApplySelected,
 			onRejectSelected,
+			onShowHelp,
 			selectAllVisible,
 			selectedCount,
 			visibleIds,

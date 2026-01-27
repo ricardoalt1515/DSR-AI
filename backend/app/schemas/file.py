@@ -19,6 +19,8 @@ class FileUploadResponse(BaseModel):
     category: str
     processing_status: str = Field(description="queued, processing, completed, failed")
     uploaded_at: datetime
+    is_deduplicated: bool = False
+    cached_from_date: datetime | None = None
     message: str = "File uploaded successfully"
 
     class Config:
@@ -31,6 +33,8 @@ class FileUploadResponse(BaseModel):
                 "category": "analysis",
                 "processing_status": "queued",
                 "uploaded_at": "2025-09-30T18:00:00Z",
+                "is_deduplicated": False,
+                "cached_from_date": None,
                 "message": "File uploaded successfully",
             }
         }

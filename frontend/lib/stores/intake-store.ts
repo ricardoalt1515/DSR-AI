@@ -775,3 +775,13 @@ export const useUniqueSourceFiles = () =>
 			}));
 		}),
 	);
+
+// Check if all suggestions have been processed (for completion state)
+export const useHasProcessedSuggestions = () =>
+	useIntakePanelStore((state) => {
+		const total = state.suggestions.length;
+		const pending = state.suggestions.filter(
+			(s) => s.status === "pending",
+		).length;
+		return total > 0 && pending === 0;
+	});

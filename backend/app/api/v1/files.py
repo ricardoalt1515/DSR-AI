@@ -231,6 +231,24 @@ async def upload_file(
                 raise
             file_path = storage_key
 
+        is_deduplicated = False
+        cached_from_date = None
+        if file_hash:
+            cached_result = await db.execute(
+                select(ProjectFile)
+                .where(
+                    ProjectFile.file_hash == file_hash,
+                    ProjectFile.project_id == project.id,
+                    ProjectFile.organization_id == project.organization_id,
+                    ProjectFile.processing_status == "completed",
+                )
+                .limit(1)
+            )
+            cached = cached_result.scalar_one_or_none()
+            if cached and (cached.ai_analysis or cached.processed_text):
+                is_deduplicated = True
+                cached_from_date = cached.processed_at
+
         # Re-check archive state with lock before DB mutation
         locked_result = await db.execute(
             select(Project)
@@ -320,6 +338,8 @@ async def upload_file(
             category=category,
             processing_status=processing_status,
             uploaded_at=project_file.created_at,
+            is_deduplicated=is_deduplicated,
+            cached_from_date=cached_from_date,
             message="File uploaded successfully",
         )
 

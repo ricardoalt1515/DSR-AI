@@ -1,7 +1,8 @@
 "use client";
 
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { FlyingValueTarget } from "@/components/features/projects/flying-value-target";
 import { FieldEditor } from "@/components/features/technical-data/field-editor";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -82,13 +83,25 @@ export function DynamicSection({
 		return String(dependsOnField.value) === String(conditionValue);
 	});
 
+	const handleValueLanded = useCallback(
+		(fieldId: string) => {
+			const el = document.getElementById(`field-${section.id}-${fieldId}`);
+			if (el) {
+				el.classList.add("animate-apply-burst");
+				setTimeout(() => el.classList.remove("animate-apply-burst"), 1000);
+			}
+		},
+		[section.id],
+	);
+
 	const content = (
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			{visibleFields.map((field) => (
 				<div
 					key={field.id}
+					id={`field-${section.id}-${field.id}`}
 					className={cn(
-						"field-container",
+						"field-container relative",
 						// Multiline fields take full width
 						field.multiline && "md:col-span-2",
 						// Tags take full width (multi-select needs space)
@@ -101,6 +114,11 @@ export function DynamicSection({
 							"md:col-span-2",
 					)}
 				>
+					<FlyingValueTarget
+						fieldId={field.id}
+						sectionId={section.id}
+						onValueLanded={() => handleValueLanded(field.id)}
+					/>
 					<EditableCell
 						field={field}
 						sectionId={section.id}

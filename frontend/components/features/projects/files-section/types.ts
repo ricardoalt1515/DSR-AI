@@ -1,8 +1,8 @@
 /**
- * Files Tab Enhanced Types
+ * Files Section Types
  *
- * Types for the document-centric file list with AI insights,
- * expandable rows, and category-based filtering.
+ * Types for the redesigned files section with split-view layout,
+ * grid/list views, and master-detail preview panel.
  */
 
 import type { AISuggestion, UnmappedNote } from "@/lib/types/intake";
@@ -22,14 +22,14 @@ export type FileProcessingStatus =
 	| "failed";
 
 /**
- * Sort options for file list (ai-confidence removed - belongs in Intake Panel)
+ * View mode for file browser
  */
-export type FileSortBy = "date" | "name";
+export type FileViewMode = "grid" | "list";
 
 /**
- * Filter status options
+ * Sort options for file list
  */
-export type FileFilterStatus = "all" | "processing" | "completed" | "failed";
+export type FileSortBy = "date" | "name";
 
 /**
  * Key fact extracted from document analysis
@@ -52,7 +52,7 @@ export interface FileAIAnalysis {
 }
 
 /**
- * Enhanced project file with typed AI analysis
+ * Enhanced project file for the files section
  */
 export interface EnhancedProjectFile {
 	id: string;
@@ -70,39 +70,50 @@ export interface EnhancedProjectFile {
 }
 
 /**
- * State for the file list component
- */
-export interface FileListState {
-	expandedFileIds: Set<string>;
-	sortBy: FileSortBy;
-	filterStatus: FileFilterStatus;
-	filterCategory: FileCategory | "all";
-	searchTerm: string;
-}
-
-/**
- * URL query params for deep linking
- */
-export interface FileListUrlParams {
-	expanded?: string; // Comma-separated file IDs
-	category?: FileCategory | "all";
-	status?: FileFilterStatus;
-	sort?: FileSortBy;
-	search?: string;
-}
-
-/**
- * Category configuration for badges and filtering
+ * Category configuration for visual styling
  */
 export interface CategoryConfig {
 	label: string;
-	borderColor: string;
+	color: string;
 	bgColor: string;
 	textColor: string;
-	darkBgColor: string;
-	darkTextColor: string;
-	icon: "beaker" | "shield" | "image" | "file";
+	dotColor: string;
 }
+
+/**
+ * Category display configuration
+ * Colors aligned with design spec: lab=blue, sds=amber, photo=violet, general=slate
+ */
+export const CATEGORY_CONFIG: Record<FileCategory, CategoryConfig> = {
+	lab: {
+		label: "Lab",
+		color: "blue",
+		bgColor: "bg-blue-500/10 dark:bg-blue-500/20",
+		textColor: "text-blue-600 dark:text-blue-400",
+		dotColor: "bg-blue-500",
+	},
+	sds: {
+		label: "SDS",
+		color: "amber",
+		bgColor: "bg-amber-500/10 dark:bg-amber-500/20",
+		textColor: "text-amber-600 dark:text-amber-400",
+		dotColor: "bg-amber-500",
+	},
+	photo: {
+		label: "Photo",
+		color: "violet",
+		bgColor: "bg-violet-500/10 dark:bg-violet-500/20",
+		textColor: "text-violet-600 dark:text-violet-400",
+		dotColor: "bg-violet-500",
+	},
+	general: {
+		label: "General",
+		color: "slate",
+		bgColor: "bg-slate-500/10 dark:bg-slate-500/20",
+		textColor: "text-slate-500 dark:text-slate-400",
+		dotColor: "bg-slate-400",
+	},
+};
 
 /**
  * Map file type to category.
@@ -121,7 +132,6 @@ export function getFileCategory(
 			return "lab";
 		if (cat === "sds" || cat === "safety" || cat === "regulatory") return "sds";
 		if (cat === "photo" || cat === "image" || cat === "photos") return "photo";
-		// technical, general → general (default below)
 	}
 
 	// Fall back to file type detection
@@ -134,48 +144,6 @@ export function getFileCategory(
 }
 
 /**
- * Category display configuration
- */
-export const CATEGORY_CONFIG: Record<FileCategory, CategoryConfig> = {
-	lab: {
-		label: "LAB",
-		borderColor: "border-l-blue-500",
-		bgColor: "bg-blue-500/10",
-		textColor: "text-blue-600",
-		darkBgColor: "dark:bg-blue-500/20",
-		darkTextColor: "dark:text-blue-400",
-		icon: "beaker",
-	},
-	sds: {
-		label: "SDS",
-		borderColor: "border-l-amber-500",
-		bgColor: "bg-amber-500/10",
-		textColor: "text-amber-600",
-		darkBgColor: "dark:bg-amber-500/20",
-		darkTextColor: "dark:text-amber-400",
-		icon: "shield",
-	},
-	photo: {
-		label: "PHOTO",
-		borderColor: "border-l-violet-500",
-		bgColor: "bg-violet-500/10",
-		textColor: "text-violet-600",
-		darkBgColor: "dark:bg-violet-500/20",
-		darkTextColor: "dark:text-violet-400",
-		icon: "image",
-	},
-	general: {
-		label: "GENERAL",
-		borderColor: "border-l-slate-400",
-		bgColor: "bg-slate-500/10",
-		textColor: "text-slate-500",
-		darkBgColor: "dark:bg-slate-500/20",
-		darkTextColor: "dark:text-slate-400",
-		icon: "file",
-	},
-};
-
-/**
  * Parse processing status from backend string
  */
 export function parseProcessingStatus(status: string): FileProcessingStatus {
@@ -185,3 +153,8 @@ export function parseProcessingStatus(status: string): FileProcessingStatus {
 	if (s === "failed" || s === "error") return "failed";
 	return "pending";
 }
+
+/**
+ * Local storage key for view mode preference
+ */
+export const VIEW_MODE_STORAGE_KEY = "files-section-view-mode";

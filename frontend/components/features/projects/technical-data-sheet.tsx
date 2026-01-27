@@ -213,7 +213,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 		[isArchived, projectId, removeField],
 	);
 
-	if (loading) {
+	if (loading && sections.length === 0) {
 		return <TechnicalFormSkeleton />;
 	}
 
@@ -526,6 +526,7 @@ export function TechnicalDataSheet({ projectId }: TechnicalDataSheetProps) {
 						onRemoveField={handleRemoveField}
 						autoSave
 						focusSectionId={focusSectionId}
+						onOpenSection={setFocusSectionId}
 						disabled={isArchived}
 					/>
 				</div>

@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, FileText, Pencil, X } from "lucide-react";
+import {
+	AlertTriangle,
+	ChevronDown,
+	FileText,
+	MoreHorizontal,
+	Pencil,
+	X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +31,16 @@ import {
 	CommandItem,
 	CommandList,
 } from "@/components/ui/command";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Popover,
 	PopoverContent,
@@ -71,7 +88,6 @@ export function UnmappedNotesSection({
 	disabled = false,
 }: UnmappedNotesSectionProps) {
 	const [isOpen, setIsOpen] = useState(false);
-	const [filePopoverOpen, setFilePopoverOpen] = useState(false);
 
 	// Build grouped field options - memoized to avoid recreation on every render
 	const groupedOptions = useMemo(
@@ -131,67 +147,50 @@ export function UnmappedNotesSection({
 				</CollapsibleTrigger>
 				<CollapsibleContent>
 					<CardContent className="space-y-3 pt-0">
-						<div className="flex flex-wrap items-center justify-between gap-2">
+						<div className="flex items-center justify-between gap-2">
 							<span className="text-xs text-muted-foreground">
 								Showing {notes.length} of {totalCount}
 							</span>
-							<div className="flex flex-wrap items-center gap-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 rounded-xl text-xs"
-									onClick={onDismissLowConfidence}
-									disabled={disabled}
-								>
-									Dismiss low-confidence
-								</Button>
-								<Popover
-									open={filePopoverOpen}
-									onOpenChange={setFilePopoverOpen}
-								>
-									<PopoverTrigger asChild>
-										<Button
-											variant="ghost"
-											size="sm"
-											className="h-7 rounded-xl text-xs"
-											disabled={disabled}
-										>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-7 rounded-xl text-xs"
+										disabled={disabled}
+									>
+										Bulk actions
+										<MoreHorizontal className="ml-1 h-3 w-3" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem onClick={onDismissLowConfidence}>
+										Dismiss low-confidence
+									</DropdownMenuItem>
+									<DropdownMenuSub>
+										<DropdownMenuSubTrigger>
 											Dismiss by file
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-[240px] p-0" align="end">
-										<Command>
-											<CommandInput placeholder="Search files..." />
-											<CommandList>
-												<CommandEmpty>No files found.</CommandEmpty>
-												<CommandGroup heading="Sources">
-													{fileOptions.map((option) => (
-														<CommandItem
-															key={option.id ?? "notes"}
-															onSelect={() => {
-																onDismissByFile(option.id);
-																setFilePopoverOpen(false);
-															}}
-															className="cursor-pointer"
-														>
-															{option.label}
-														</CommandItem>
-													))}
-												</CommandGroup>
-											</CommandList>
-										</Command>
-									</PopoverContent>
-								</Popover>
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 rounded-xl text-xs text-destructive"
-									onClick={onDismissAll}
-									disabled={disabled}
-								>
-									Dismiss all
-								</Button>
-							</div>
+										</DropdownMenuSubTrigger>
+										<DropdownMenuSubContent>
+											{fileOptions.map((opt) => (
+												<DropdownMenuItem
+													key={opt.id ?? "notes"}
+													onClick={() => onDismissByFile(opt.id)}
+												>
+													{opt.label}
+												</DropdownMenuItem>
+											))}
+										</DropdownMenuSubContent>
+									</DropdownMenuSub>
+									<DropdownMenuSeparator />
+									<DropdownMenuItem
+										onClick={onDismissAll}
+										className="text-destructive focus:text-destructive"
+									>
+										Dismiss all
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 						<p className="text-xs text-muted-foreground">
 							Estos no se pueden mapear a campos existentes.
