@@ -20,6 +20,7 @@ from app.models.intake_unmapped_note import IntakeUnmappedNote
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.intake import IntakeEvidence, IntakeSuggestionItem, IntakeUnmappedNoteItem
+from app.services.intake_field_catalog import apply_suggestion
 from app.services.project_data_service import ProjectDataService
 from app.services.timeline_service import create_timeline_event
 
@@ -523,13 +524,11 @@ class IntakeService:
                     continue
                 if field.get("id") == suggestion.field_id:
                     coerced_value = _coerce_value(suggestion.value, suggestion.value_type)
-                    if field.get("type") == "tags":
-                        if coerced_value in ("", None):
-                            field["value"] = []
-                        elif isinstance(coerced_value, list):
-                            field["value"] = coerced_value
-                        else:
-                            field["value"] = [str(coerced_value)]
+                    field_type = field.get("type", "text")
+
+                    # Use apply_suggestion from field catalog for type-aware parsing
+                    if field_type == "tags":
+                        field["value"] = apply_suggestion(field_type, coerced_value)
                     else:
                         field["value"] = coerced_value
                     if suggestion.unit is not None:

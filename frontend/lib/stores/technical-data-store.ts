@@ -42,6 +42,8 @@ interface TechnicalDataState {
 	// Sync error state - for backend failures that don't rollback local changes
 	syncError: string | null;
 	pendingChanges: boolean;
+	// Request sequence guard per project to prevent stale overwrites
+	loadSeqByProject: Record<string, number>;
 
 	// Selectors
 	getSections: (projectId: string) => TableSection[];
@@ -49,7 +51,10 @@ interface TechnicalDataState {
 
 	// Actions
 	setActiveProject: (projectId: string | null) => void;
-	loadTechnicalData: (projectId: string, force?: boolean) => Promise<void>;
+	loadTechnicalData: (
+		projectId: string,
+		options?: boolean | { force?: boolean; silent?: boolean },
+	) => Promise<void>;
 	updateFieldOptimistic: (
 		projectId: string,
 		sectionId: string,
@@ -314,6 +319,7 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 			error: null,
 			syncError: null,
 			pendingChanges: false,
+			loadSeqByProject: {},
 
 			getSections: (projectId) =>
 				get().technicalData?.[projectId] || EMPTY_SECTIONS,
@@ -349,11 +355,20 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 			 * - Single responsibility: Only loads data
 			 * - Proper error handling: Catches and logs errors
 			 */
-			loadTechnicalData: async (projectId: string, force = false) => {
+			loadTechnicalData: async (
+				projectId: string,
+				options?: boolean | { force?: boolean; silent?: boolean },
+			) => {
 				const currentState = get();
 
-				// Fail fast: Prevent concurrent loads
-				if (currentState.loading && !force) {
+				// Normalize options: support both boolean (legacy) and object (new)
+				const opts =
+					typeof options === "boolean"
+						? { force: options, silent: false }
+						: { force: false, silent: false, ...options };
+
+				// Fail fast: Prevent concurrent loads (unless forced)
+				if (currentState.loading && !opts.force) {
 					logger.debug(
 						"Load already in progress, skipping",
 						"TechnicalDataStore",
@@ -363,13 +378,34 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 				const hasExistingData =
 					(currentState.technicalData[projectId]?.length ?? 0) > 0;
-				if (!hasExistingData) {
+
+				// Only show loading UI if not in silent mode or if no existing data
+				const shouldSetLoading = !opts.silent || !hasExistingData;
+
+				if (shouldSetLoading) {
 					set({ loading: true });
 				}
+
+				// Increment sequence for this project
+				const currentSeq = (currentState.loadSeqByProject[projectId] ?? 0) + 1;
+				set((state) => {
+					state.loadSeqByProject[projectId] = currentSeq;
+				});
 
 				try {
 					// Load data from backend
 					const projectData = await projectDataAPI.getData(projectId);
+
+					// Check if this is still the latest request (prevent stale overwrites)
+					const latestState = get();
+					if (latestState.loadSeqByProject[projectId] !== currentSeq) {
+						logger.debug(
+							"Stale load response ignored - newer request in flight",
+							"TechnicalDataStore",
+						);
+						return;
+					}
+
 					const rawSections = projectData.technical_sections as
 						| TableSection[]
 						| undefined;
@@ -383,9 +419,16 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 						// Backend applies template automatically in background (1-2 seconds)
 						// Don't create frontend template - wait for backend
+						// SILENT MODE: Don't clear existing data to prevent UI flicker during animations
+						if (!opts.silent) {
+							set((state) => {
+								state.technicalData[projectId] = [];
+							});
+						}
 						set((state) => {
-							state.technicalData[projectId] = [];
-							state.loading = false;
+							if (shouldSetLoading) {
+								state.loading = false;
+							}
 						});
 
 						return;
@@ -409,7 +452,9 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 					// Save to store
 					set((state) => {
 						state.technicalData[projectId] = rehydratedSections;
-						state.loading = false;
+						if (shouldSetLoading) {
+							state.loading = false;
+						}
 						state.error = null; // Clear any previous errors
 					});
 				} catch (error) {
@@ -425,10 +470,15 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 						"TechnicalDataStore",
 					);
 
-					// Set error state with empty data (fail gracefully)
+					// Set error state
+					// SILENT MODE: Don't clear existing data to prevent UI flicker during animations
 					set((state) => {
-						state.technicalData[projectId] = [];
-						state.loading = false;
+						if (!opts.silent) {
+							state.technicalData[projectId] = [];
+						}
+						if (shouldSetLoading) {
+							state.loading = false;
+						}
 						state.error = errorMessage;
 					});
 				}

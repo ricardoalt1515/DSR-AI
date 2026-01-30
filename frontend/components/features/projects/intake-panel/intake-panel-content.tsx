@@ -17,7 +17,6 @@ import type { AISuggestion } from "@/lib/types/intake";
 import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 import { AISuggestionsSection } from "./ai-suggestions-section";
-import { ConfirmBatchReplaceDialog } from "./confirm-batch-replace-dialog";
 import { ConfirmReplaceDialog } from "./confirm-replace-dialog";
 import { ConflictCard } from "./conflict-card";
 import { formatSuggestionValue } from "./format-suggestion-value";
@@ -91,9 +90,6 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	const rejectSuggestion = useIntakePanelStore(
 		(state) => state.rejectSuggestion,
 	);
-	const rejectSuggestions = useIntakePanelStore(
-		(state) => state.rejectSuggestions,
-	);
 	const revertSuggestion = useIntakePanelStore(
 		(state) => state.revertSuggestion,
 	);
@@ -143,16 +139,6 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 		activeProjectIdRef.current = projectId;
 		saveSeqRef.current = 0;
 	}, [projectId]);
-	const [confirmBatch, setConfirmBatch] = useState<{
-		ids: string[];
-		items: {
-			id: string;
-			fieldLabel: string;
-			sectionTitle: string;
-			currentValue: string;
-			newValue: string;
-		}[];
-	} | null>(null);
 
 	// Group conflicts by fieldId
 	const conflictGroups = useMemo(() => {
@@ -223,17 +209,17 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 					"applied",
 				);
 				// Silent refresh - no skeleton because data already exists
-				await loadTechnicalData(projectId, true);
+				await loadTechnicalData(projectId, { force: true, silent: true });
 				toast.success("Suggestion applied");
 			} catch (_error) {
 				if (isConflictError(_error)) {
 					await hydrateIntake();
-					await loadTechnicalData(projectId, true);
+					await loadTechnicalData(projectId, { force: true, silent: true });
 					return;
 				}
 				revertSuggestion(suggestion.id);
 				resetConflict(suggestion.sectionId, suggestion.fieldId);
-				await loadTechnicalData(projectId, true);
+				await loadTechnicalData(projectId, { force: true, silent: true });
 				throw _error;
 			} finally {
 				animatingIds.current.delete(suggestion.id);
@@ -312,16 +298,16 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 					selected.id,
 					"applied",
 				);
-				await loadTechnicalData(projectId, true);
+				await loadTechnicalData(projectId, { force: true, silent: true });
 			} catch (_error) {
 				if (isConflictError(_error)) {
 					await hydrateIntake();
-					await loadTechnicalData(projectId, true);
+					await loadTechnicalData(projectId, { force: true, silent: true });
 					return;
 				}
 				revertSuggestion(selected.id);
 				resetConflict(selected.sectionId, selected.fieldId);
-				await loadTechnicalData(projectId, true);
+				await loadTechnicalData(projectId, { force: true, silent: true });
 				throw _error;
 			}
 		},
@@ -429,7 +415,10 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 			const response = await intakeAPI.saveNotes(projectId, notes);
 			if (saveSeqRef.current !== seq) return;
 			if (activeProjectIdRef.current !== requestProjectId) return;
-			if (typeof response.updatedAt !== "string" || response.updatedAt.length === 0) {
+			if (
+				typeof response.updatedAt !== "string" ||
+				response.updatedAt.length === 0
+			) {
 				throw new Error("Missing updatedAt from saveNotes");
 			}
 			setNotesLastSavedISO(response.updatedAt);
@@ -437,49 +426,46 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 		[projectId, setNotesLastSavedISO],
 	);
 
-	const handleAnalyzeNotes = useCallback(
-		async () => {
-			const { notesLastSavedISO: latestSavedISO } =
-				useIntakePanelStore.getState();
-			if (typeof latestSavedISO !== "string" || latestSavedISO.length === 0) {
-				toast.error("Save notes before analysis");
+	const handleAnalyzeNotes = useCallback(async () => {
+		const { notesLastSavedISO: latestSavedISO } =
+			useIntakePanelStore.getState();
+		if (typeof latestSavedISO !== "string" || latestSavedISO.length === 0) {
+			toast.error("Save notes before analysis");
+			return;
+		}
+
+		analyzeAbortRef.current?.abort();
+		analyzeAbortRef.current = new AbortController();
+		const signal = analyzeAbortRef.current.signal;
+
+		try {
+			const result = await intakeAPI.analyzeNotes(
+				projectId,
+				latestSavedISO,
+				signal,
+			);
+
+			if (signal.aborted) return;
+			if (result.staleIgnored) {
+				toast.warning("Notes changed during analysis. Try again.");
 				return;
 			}
 
-			analyzeAbortRef.current?.abort();
-			analyzeAbortRef.current = new AbortController();
-			const signal = analyzeAbortRef.current.signal;
+			const hydratedOk = await hydrateIntake();
+			if (signal.aborted) return;
 
-			try {
-				const result = await intakeAPI.analyzeNotes(
-					projectId,
-					latestSavedISO,
-					signal,
+			if (hydratedOk) {
+				toast.success(
+					`Analysis complete: ${result.suggestionsCount} suggestions`,
 				);
-
-				if (signal.aborted) return;
-				if (result.staleIgnored) {
-					toast.warning("Notes changed during analysis. Try again.");
-					return;
-				}
-
-				const hydratedOk = await hydrateIntake();
-				if (signal.aborted) return;
-
-				if (hydratedOk) {
-					toast.success(
-						`Analysis complete: ${result.suggestionsCount} suggestions`,
-					);
-				} else {
-					toast.error("Failed to refresh suggestions");
-				}
-			} catch (_error) {
-				if (signal.aborted) return;
-				toast.error("Failed to analyze notes");
+			} else {
+				toast.error("Failed to refresh suggestions");
 			}
-		},
-		[hydrateIntake, projectId],
-	);
+		} catch (_error) {
+			if (signal.aborted) return;
+			toast.error("Failed to analyze notes");
+		}
+	}, [hydrateIntake, projectId]);
 
 	// Handle file upload
 	const handleUpload = useCallback(
@@ -532,16 +518,16 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 					);
 					await hydrateIntake();
 				}
-				await loadTechnicalData(projectId, true);
+				await loadTechnicalData(projectId, { force: true, silent: true });
 				return toApply[0];
 			} catch (_error) {
 				if (isConflictError(_error)) {
 					await hydrateIntake();
-					await loadTechnicalData(projectId, true);
+					await loadTechnicalData(projectId, { force: true, silent: true });
 					return undefined;
 				}
 				revertSuggestions(ids);
-				await loadTechnicalData(projectId, true);
+				await loadTechnicalData(projectId, { force: true, silent: true });
 				throw _error;
 			}
 		},
@@ -572,61 +558,9 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 				);
 				return;
 			}
-			const replaceItems = pendingSuggestions
-				.map((suggestion) => {
-					const fieldState = getFieldState(
-						suggestion.sectionId,
-						suggestion.fieldId,
-					);
-					if (!fieldState || !hasExistingValue(fieldState.value)) {
-						return null;
-					}
-					return {
-						id: suggestion.id,
-						fieldLabel: fieldState.label,
-						sectionTitle: fieldState.sectionTitle,
-						currentValue: formatFieldValue(fieldState.value),
-						newValue: formatSuggestionValue(suggestion.value, suggestion.unit),
-					};
-				})
-				.filter((item): item is NonNullable<typeof item> => item !== null);
-
-			if (replaceItems.length > 0) {
-				setConfirmBatch({ ids, items: replaceItems });
-				return undefined;
-			}
-
 			return performBatchApply(ids);
 		},
-		[getFieldState, performBatchApply],
-	);
-
-	// Batch reject suggestions via API
-	const handleBatchReject = useCallback(
-		async (ids: string[]) => {
-			rejectSuggestions(ids);
-			try {
-				const response = await intakeAPI.batchUpdateSuggestions(
-					projectId,
-					ids,
-					"rejected",
-				);
-				if (response.errorCount > 0) {
-					toast.warning(
-						`Rejected ${response.rejectedCount}, ${response.errorCount} failed`,
-					);
-					await hydrateIntake();
-				}
-			} catch (_error) {
-				if (isConflictError(_error)) {
-					await hydrateIntake();
-					return;
-				}
-				revertSuggestions(ids);
-				throw _error;
-			}
-		},
-		[hydrateIntake, projectId, rejectSuggestions, revertSuggestions],
+		[performBatchApply],
 	);
 
 	return (
@@ -700,14 +634,9 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 						projectId={projectId}
 						disabled={disabled}
 						isLoading={isLoadingSuggestions}
-						getFieldHasValue={(sectionId, fieldId) => {
-							const fieldState = getFieldState(sectionId, fieldId);
-							return fieldState ? hasExistingValue(fieldState.value) : false;
-						}}
 						onApplySuggestion={handleApplySuggestion}
 						onRejectSuggestion={handleRejectSuggestion}
 						onBatchApply={handleBatchApply}
-						onBatchReject={handleBatchReject}
 						onOpenSection={onOpenSection}
 					/>
 				</SectionErrorBoundary>
@@ -749,29 +678,6 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 								return;
 							}
 							toast.error("Failed to apply suggestion");
-						}
-					}}
-				/>
-			)}
-			{confirmBatch && (
-				<ConfirmBatchReplaceDialog
-					open={Boolean(confirmBatch)}
-					onOpenChange={(open) => {
-						if (!open) setConfirmBatch(null);
-					}}
-					items={confirmBatch.items}
-					totalCount={confirmBatch.ids.length}
-					onConfirm={async () => {
-						const pending = confirmBatch;
-						setConfirmBatch(null);
-						try {
-							await performBatchApply(pending.ids);
-						} catch (error) {
-							if (isConflictError(error)) {
-								await hydrateIntake();
-								return;
-							}
-							toast.error("Failed to apply suggestions");
 						}
 					}}
 				/>

@@ -5,12 +5,15 @@
  * grid/list views, and master-detail preview panel.
  */
 
-import type { AISuggestion, UnmappedNote } from "@/lib/types/intake";
+import type {
+	FileCategory as AnalysisFileCategory,
+	FileAIAnalysis,
+} from "./analysis-parsers";
 
 /**
  * File category for visual distinction and filtering
  */
-export type FileCategory = "lab" | "sds" | "photo" | "general";
+export type FileCategory = AnalysisFileCategory;
 
 /**
  * Processing status for file analysis
@@ -31,25 +34,25 @@ export type FileViewMode = "grid" | "list";
  */
 export type FileSortBy = "date" | "name";
 
-/**
- * Key fact extracted from document analysis
- */
-export interface KeyFact {
-	id: string;
-	label: string;
-	value: string;
-}
+export type {
+	DocumentAIAnalysis,
+	DocumentAIAnalysisType,
+	FileAIAnalysis,
+	ImageAIAnalysis,
+	ImageAnalysisConfidence,
+	ImageCompositionItem,
+	ImageDisposalPathway,
+	ImageLifecycleStatus,
+	ImageQualityGrade,
+} from "./analysis-parsers";
 
-/**
- * AI analysis data attached to a file
- */
-export interface FileAIAnalysis {
-	summary: string;
-	suggestions: AISuggestion[];
-	keyFacts: KeyFact[];
-	unmappedNotes: UnmappedNote[];
-	averageConfidence: number;
-}
+export {
+	DISPOSAL_PATHWAYS,
+	DOC_TYPES,
+	IMAGE_CONFIDENCE,
+	IMAGE_QUALITY,
+	LIFECYCLE_STATUS,
+} from "./analysis-parsers";
 
 /**
  * Enhanced project file for the files section

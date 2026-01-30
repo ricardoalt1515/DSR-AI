@@ -77,72 +77,84 @@ export function IntakePanel({
 	} | null>(null);
 	const activeProjectIdRef = useRef(projectId);
 
-	const hydrateIntake = useCallback(async (): Promise<boolean> => {
-		const existing = hydrateInFlightRef.current;
-		if (existing && existing.projectId === projectId) {
-			return existing.promise;
-		}
+	const hydrateIntake = useCallback(
+		async (options?: { silent?: boolean }): Promise<boolean> => {
+			const existing = hydrateInFlightRef.current;
+			if (existing && existing.projectId === projectId) {
+				return existing.promise;
+			}
 
-		const run = (async () => {
-			setIsLoadingSuggestions(true);
-			try {
-				const response = await intakeAPI.hydrate(projectId);
-				if (activeProjectIdRef.current !== projectId) {
-					return false;
+			const run = (async () => {
+				// Only show loading UI for explicit refreshes, not background polling
+				if (!options?.silent) {
+					setIsLoadingSuggestions(true);
 				}
-				setIntakeNotes(response.intakeNotes ?? "");
-				setNotesLastSavedISO(response.notesUpdatedAt ?? null);
-				setNotesSaveStatus(
-					response.notesUpdatedAt ? "saved" : "idle",
-				);
-				setSuggestions(response.suggestions ?? []);
-				setUnmappedNotes(response.unmappedNotes ?? []);
-				setUnmappedNotesCount(response.unmappedNotesCount ?? 0);
-				setIsProcessingDocuments(
-					response.processingDocumentsCount > 0,
-					response.processingDocumentsCount,
-				);
-				return true;
-			} catch (error) {
-				logger.error("Failed to hydrate intake panel", error, "IntakePanel");
-				return false;
-			} finally {
-				setIsLoadingSuggestions(false);
-			}
-		})();
+				try {
+					const response = await intakeAPI.hydrate(projectId);
+					if (activeProjectIdRef.current !== projectId) {
+						return false;
+					}
+					setIntakeNotes(response.intakeNotes ?? "");
+					setNotesLastSavedISO(response.notesUpdatedAt ?? null);
+					setNotesSaveStatus(response.notesUpdatedAt ? "saved" : "idle");
+					setSuggestions(response.suggestions ?? []);
+					setUnmappedNotes(response.unmappedNotes ?? []);
+					setUnmappedNotesCount(response.unmappedNotesCount ?? 0);
+					setIsProcessingDocuments(
+						response.processingDocumentsCount > 0,
+						response.processingDocumentsCount,
+					);
+					return true;
+				} catch (error) {
+					if (!options?.silent) {
+						logger.error(
+							"Failed to hydrate intake panel",
+							error,
+							"IntakePanel",
+						);
+					}
+					return false;
+				} finally {
+					if (!options?.silent) {
+						setIsLoadingSuggestions(false);
+					}
+				}
+			})();
 
-		hydrateInFlightRef.current = { projectId, promise: run };
-		try {
-			return await run;
-		} finally {
-			const current = hydrateInFlightRef.current;
-			if (current && current.projectId === projectId) {
-				hydrateInFlightRef.current = null;
+			hydrateInFlightRef.current = { projectId, promise: run };
+			try {
+				return await run;
+			} finally {
+				const current = hydrateInFlightRef.current;
+				if (current && current.projectId === projectId) {
+					hydrateInFlightRef.current = null;
+				}
 			}
-		}
-	}, [
-		projectId,
-		setIntakeNotes,
-		setIsLoadingSuggestions,
-		setIsProcessingDocuments,
-		setNotesLastSavedISO,
-		setNotesSaveStatus,
-		setSuggestions,
-		setUnmappedNotes,
-		setUnmappedNotesCount,
-	]);
+		},
+		[
+			projectId,
+			setIntakeNotes,
+			setIsLoadingSuggestions,
+			setIsProcessingDocuments,
+			setNotesLastSavedISO,
+			setNotesSaveStatus,
+			setSuggestions,
+			setUnmappedNotes,
+			setUnmappedNotesCount,
+		],
+	);
 
 	useEffect(() => {
 		activeProjectIdRef.current = projectId;
 		reset();
 		void hydrateIntake();
-	}, [hydrateIntake, reset]);
+	}, [hydrateIntake, reset, projectId]);
 
 	useEffect(() => {
 		if (processingDocumentsCount > 0) {
 			if (!pollingRef.current) {
 				pollingRef.current = setInterval(() => {
-					void hydrateIntake();
+					void hydrateIntake({ silent: true }); // Background refresh without loading UI
 				}, 5000);
 			}
 		} else if (pollingRef.current) {

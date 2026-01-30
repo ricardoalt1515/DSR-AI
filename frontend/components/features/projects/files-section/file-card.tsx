@@ -21,7 +21,7 @@ export const FileCard = memo(function FileCard({
 	onClick,
 }: FileCardProps) {
 	const categoryConfig = CATEGORY_CONFIG[file.category];
-	const hasAI = file.hasAIAnalysis || file.processingStatus === "completed";
+	const hasAI = file.hasAIAnalysis;
 
 	return (
 		<button

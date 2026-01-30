@@ -2,11 +2,12 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { projectsAPI } from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
+import { isRecord, parseAnalysis } from "./analysis-parsers";
 import { FilePreviewContent } from "./file-preview-content";
 import { FilePreviewMetadata } from "./file-preview-metadata";
 import type { EnhancedProjectFile, FileAIAnalysis } from "./types";
@@ -26,6 +27,21 @@ interface FilePreviewModalProps {
  * Layout: 60/40 split on desktop (preview | metadata)
  * Mobile: Stacked layout (preview 40vh | metadata scroll)
  */
+const PREVIEWABLE_EXTENSIONS = [
+	"jpg",
+	"jpeg",
+	"png",
+	"gif",
+	"webp",
+	"pdf",
+] as const;
+
+type PreviewableExtension = (typeof PREVIEWABLE_EXTENSIONS)[number];
+
+function isPreviewableExtension(value: string): value is PreviewableExtension {
+	return PREVIEWABLE_EXTENSIONS.some((ext) => ext === value);
+}
+
 export function FilePreviewModal({
 	file,
 	projectId,
@@ -37,54 +53,56 @@ export function FilePreviewModal({
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 	const [analysis, setAnalysis] = useState<FileAIAnalysis | null>(null);
-	const previousUrlRef = useRef<string | null>(null);
 
-	// Cleanup preview URL
-	const cleanupPreviewUrl = useCallback(() => {
-		if (previousUrlRef.current) {
-			URL.revokeObjectURL(previousUrlRef.current);
-			previousUrlRef.current = null;
-		}
-	}, []);
+	useEffect(() => {
+		return () => {
+			if (previewUrl) {
+				URL.revokeObjectURL(previewUrl);
+			}
+		};
+	}, [previewUrl]);
 
 	// Load file preview and analysis when modal opens
 	useEffect(() => {
 		if (!open || !file) {
-			cleanupPreviewUrl();
 			setPreviewUrl(null);
 			setAnalysis(null);
 			return;
 		}
 
+		let isActive = true;
 		const loadFileData = async () => {
 			setIsLoadingPreview(true);
-			cleanupPreviewUrl();
+			setPreviewUrl(null);
+			setAnalysis(null);
 
 			try {
 				// Fetch file detail for AI analysis
 				const detail = await projectsAPI.getFileDetail(projectId, file.id);
 
-				if (detail.ai_analysis) {
-					// @ts-expect-error - Backend returns raw analysis object
-					setAnalysis(detail.ai_analysis);
+				if (detail.ai_analysis && isRecord(detail.ai_analysis)) {
+					setAnalysis(
+						parseAnalysis(detail.ai_analysis, {
+							fileType: file.fileType,
+							category: file.category,
+						}),
+					);
+				} else {
+					setAnalysis(null);
 				}
 
 				// Load preview for images and PDFs
 				const fileType = file.fileType.toLowerCase();
-				const canPreview = [
-					"jpg",
-					"jpeg",
-					"png",
-					"gif",
-					"webp",
-					"pdf",
-				].includes(fileType);
+				const canPreview = isPreviewableExtension(fileType);
 
 				if (canPreview) {
 					try {
 						const blob = await projectsAPI.downloadFileBlob(file.id);
 						const url = URL.createObjectURL(blob);
-						previousUrlRef.current = url;
+						if (!isActive) {
+							URL.revokeObjectURL(url);
+							return;
+						}
 						setPreviewUrl(url);
 					} catch {
 						// Silently fail preview - user can still see file info
@@ -98,14 +116,10 @@ export function FilePreviewModal({
 		};
 
 		void loadFileData();
-	}, [open, file, projectId, cleanupPreviewUrl]);
-
-	// Cleanup on unmount
-	useEffect(() => {
 		return () => {
-			cleanupPreviewUrl();
+			isActive = false;
 		};
-	}, [cleanupPreviewUrl]);
+	}, [open, file, projectId]);
 
 	// Handle download
 	const handleDownload = useCallback(async () => {

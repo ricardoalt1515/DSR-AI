@@ -24,11 +24,13 @@ engine = create_engine(
 )
 
 # Async engine (for FastAPI endpoints)
+# pool_recycle prevents stale connections without pool_pre_ping issues
 async_engine = create_async_engine(
     settings.async_database_url,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_pre_ping=False,  # Disabled: causes MissingGreenlet with asyncpg
+    pool_recycle=300,     # Recycle connections every 5 minutes
+    pool_size=5,          # Reduced: sufficient for current load
+    max_overflow=5,       # Reduced: match pool_size
     echo=False,  # Disable SQL query logging to reduce noise
 )
 

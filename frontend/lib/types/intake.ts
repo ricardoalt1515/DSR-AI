@@ -50,29 +50,3 @@ export interface IntakeNote {
 }
 
 export type NotesSaveStatus = "idle" | "saving" | "saved" | "error";
-
-/**
- * Get confidence level from numeric confidence value
- */
-export function getConfidenceLevel(confidence: number): ConfidenceLevel {
-	if (confidence >= 85) return "high";
-	if (confidence >= 70) return "medium";
-	return "low";
-}
-
-/**
- * Get variant for confidence badge
- */
-export function getConfidenceBadgeVariant(
-	confidence: number,
-): "success" | "warning" | "secondary" {
-	const level = getConfidenceLevel(confidence);
-	switch (level) {
-		case "high":
-			return "success";
-		case "medium":
-			return "warning";
-		default:
-			return "secondary";
-	}
-}

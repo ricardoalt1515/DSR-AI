@@ -1,29 +1,31 @@
 import { enableMapSet } from "immer";
+import { useMemo } from "react";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { useShallow } from "zustand/react/shallow";
 import type {
 	AISuggestion,
-	ConfidenceLevel,
 	NotesSaveStatus,
-	SuggestionStatus,
 	UnmappedNote,
 } from "@/lib/types/intake";
-import { getConfidenceLevel } from "@/lib/types/intake";
 
 enableMapSet();
 
-export type ConfidenceFilter = "all" | ConfidenceLevel;
+export type ActiveFilter = "all" | "high" | "notes" | "files";
 
-/**
- * Undo entry for batch operations.
- * Captures the previous state of affected suggestions so they can be reverted.
- */
-export interface UndoEntry {
-	type: "batch_apply" | "batch_reject";
-	suggestionIds: string[];
-	previousStates: Map<string, SuggestionStatus>;
-	timestamp: number;
+function getFieldKey(s: { sectionId: string; fieldId: string }): string {
+	return `${s.sectionId}:${s.fieldId}`;
+}
+
+function buildFieldCounts(
+	suggestions: Array<{ sectionId: string; fieldId: string }>,
+): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const s of suggestions) {
+		const key = getFieldKey(s);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return counts;
 }
 
 interface IntakePanelState {
@@ -40,14 +42,8 @@ interface IntakePanelState {
 	isProcessingDocuments: boolean;
 	processingDocumentsCount: number;
 
-	// Selection state (for batch operations)
-	selectedSuggestionIds: Set<string>;
-	lastSelectedId: string | null;
-
-	// Filters
-	confidenceFilter: ConfidenceFilter;
-	sectionFilter: string | null;
-	sourceFileFilter: string | null;
+	// Single filter (simplified from 3 separate filters)
+	activeFilter: ActiveFilter;
 
 	// Basic setters
 	setIntakeNotes: (notes: string) => void;
@@ -71,7 +67,6 @@ interface IntakePanelState {
 	applySuggestion: (id: string) => void;
 	rejectSuggestion: (id: string) => void;
 	applySuggestions: (ids: string[]) => void;
-	rejectSuggestions: (ids: string[]) => void;
 	revertSuggestions: (ids: string[]) => void;
 	revertSuggestion: (id: string) => void;
 	resolveConflict: (
@@ -80,39 +75,15 @@ interface IntakePanelState {
 		selectedId: string,
 	) => void;
 
-	// Selection actions
-	toggleSuggestionSelection: (id: string) => void;
-	toggleRangeSelection: (id: string, visibleIds: string[]) => void;
-	selectAllVisible: (visibleIds: string[]) => void;
-	clearSelection: () => void;
-
-	// Batch actions (optimistic updates)
-	applySelectedSuggestions: () => string[];
-	rejectSelectedSuggestions: () => string[];
+	// Batch action - apply all high-confidence suggestions
 	applyHighConfidenceSuggestions: (minConfidence?: number) => string[];
 
-	// Filter actions
-	setConfidenceFilter: (filter: ConfidenceFilter) => void;
-	setSectionFilter: (sectionId: string | null) => void;
-	setSourceFileFilter: (fileId: string | null) => void;
-	clearFilters: () => void;
+	// Filter action
+	setActiveFilter: (filter: ActiveFilter) => void;
 
 	// Unmapped notes actions
 	dismissUnmappedNote: (noteId: string) => void;
 	dismissUnmappedNotes: (noteIds: string[]) => void;
-
-	// Auto-resolve conflicts by picking highest confidence
-	autoResolveAllConflicts: () => {
-		resolvedCount: number;
-		winnerIds: string[];
-		loserIds: string[];
-	};
-
-	// Undo stack for batch operations
-	undoStack: UndoEntry[];
-	pushUndo: (entry: UndoEntry) => void;
-	popUndo: () => UndoEntry | undefined;
-	undoBatchOperation: () => string[];
 
 	// Reset
 	reset: () => void;
@@ -128,12 +99,7 @@ const createInitialState = () => ({
 	isLoadingSuggestions: false,
 	isProcessingDocuments: false,
 	processingDocumentsCount: 0,
-	selectedSuggestionIds: new Set<string>(),
-	lastSelectedId: null,
-	confidenceFilter: "all" as ConfidenceFilter,
-	sectionFilter: null,
-	sourceFileFilter: null,
-	undoStack: [] as UndoEntry[],
+	activeFilter: "all" as ActiveFilter,
 });
 
 export const useIntakePanelStore = create<IntakePanelState>()(
@@ -161,9 +127,6 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 		setSuggestions: (suggestions) => {
 			set((state) => {
 				state.suggestions = suggestions;
-				// Clear selection when suggestions change (data refresh)
-				state.selectedSuggestionIds = new Set();
-				state.lastSelectedId = null;
 			});
 		},
 
@@ -207,11 +170,13 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 		},
 
 		resetConflict: (sectionId, fieldId) => {
-			const conflictKey = `${sectionId}:${fieldId}`;
+			const conflictKey = getFieldKey({ sectionId, fieldId });
 			set((state) => {
 				for (const suggestion of state.suggestions) {
-					const key = `${suggestion.sectionId}:${suggestion.fieldId}`;
-					if (key === conflictKey && suggestion.status !== "applied") {
+					if (
+						getFieldKey(suggestion) === conflictKey &&
+						suggestion.status !== "applied"
+					) {
 						suggestion.status = "pending";
 					}
 				}
@@ -219,11 +184,13 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 		},
 
 		rejectConflictSiblings: (sectionId, fieldId, selectedId) => {
-			const conflictKey = `${sectionId}:${fieldId}`;
+			const conflictKey = getFieldKey({ sectionId, fieldId });
 			set((state) => {
 				for (const suggestion of state.suggestions) {
-					const key = `${suggestion.sectionId}:${suggestion.fieldId}`;
-					if (key !== conflictKey || suggestion.id === selectedId) {
+					if (
+						getFieldKey(suggestion) !== conflictKey ||
+						suggestion.id === selectedId
+					) {
 						continue;
 					}
 					if (suggestion.status === "pending") {
@@ -239,8 +206,6 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 				if (suggestion) {
 					suggestion.status = "applied";
 				}
-				// Remove from selection
-				state.selectedSuggestionIds.delete(id);
 			});
 		},
 
@@ -250,55 +215,16 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 				if (suggestion) {
 					suggestion.status = "rejected";
 				}
-				// Remove from selection
-				state.selectedSuggestionIds.delete(id);
 			});
 		},
 
 		applySuggestions: (ids) => {
-			const previousStates = new Map<string, SuggestionStatus>();
-			const affectedIds: string[] = [];
 			set((state) => {
 				for (const id of ids) {
 					const suggestion = state.suggestions.find((s) => s.id === id);
 					if (suggestion && suggestion.status === "pending") {
-						previousStates.set(id, suggestion.status);
 						suggestion.status = "applied";
-						affectedIds.push(id);
-						state.selectedSuggestionIds.delete(id);
 					}
-				}
-				if (affectedIds.length > 0) {
-					state.undoStack.push({
-						type: "batch_apply",
-						suggestionIds: affectedIds,
-						previousStates,
-						timestamp: Date.now(),
-					});
-				}
-			});
-		},
-
-		rejectSuggestions: (ids) => {
-			const previousStates = new Map<string, SuggestionStatus>();
-			const affectedIds: string[] = [];
-			set((state) => {
-				for (const id of ids) {
-					const suggestion = state.suggestions.find((s) => s.id === id);
-					if (suggestion && suggestion.status === "pending") {
-						previousStates.set(id, suggestion.status);
-						suggestion.status = "rejected";
-						affectedIds.push(id);
-						state.selectedSuggestionIds.delete(id);
-					}
-				}
-				if (affectedIds.length > 0) {
-					state.undoStack.push({
-						type: "batch_reject",
-						suggestionIds: affectedIds,
-						previousStates,
-						timestamp: Date.now(),
-					});
 				}
 			});
 		},
@@ -325,11 +251,9 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 
 		resolveConflict: (sectionId, fieldId, selectedId) => {
 			set((state) => {
-				const conflictKey = `${sectionId}:${fieldId}`;
+				const conflictKey = getFieldKey({ sectionId, fieldId });
 				const conflictingSuggestions = state.suggestions.filter(
-					(s) =>
-						`${s.sectionId}:${s.fieldId}` === conflictKey &&
-						s.status === "pending",
+					(s) => getFieldKey(s) === conflictKey && s.status === "pending",
 				);
 
 				for (const suggestion of conflictingSuggestions) {
@@ -338,243 +262,30 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 					} else {
 						suggestion.status = "rejected";
 					}
-					// Remove from selection
-					state.selectedSuggestionIds.delete(suggestion.id);
 				}
 			});
-		},
-
-		// Selection actions
-		toggleSuggestionSelection: (id) => {
-			set((state) => {
-				if (state.selectedSuggestionIds.has(id)) {
-					state.selectedSuggestionIds.delete(id);
-				} else {
-					state.selectedSuggestionIds.add(id);
-				}
-				state.lastSelectedId = id;
-			});
-		},
-
-		toggleRangeSelection: (id, visibleIds) => {
-			set((state) => {
-				if (!state.lastSelectedId) {
-					// No previous selection, just toggle this one
-					state.selectedSuggestionIds.add(id);
-					state.lastSelectedId = id;
-					return;
-				}
-
-				const lastIndex = visibleIds.indexOf(state.lastSelectedId);
-				const currentIndex = visibleIds.indexOf(id);
-
-				if (lastIndex === -1 || currentIndex === -1) {
-					// One of the IDs is not in visible list, just toggle
-					state.selectedSuggestionIds.add(id);
-					state.lastSelectedId = id;
-					return;
-				}
-
-				// Select range
-				const start = Math.min(lastIndex, currentIndex);
-				const end = Math.max(lastIndex, currentIndex);
-
-				for (let i = start; i <= end; i++) {
-					const id = visibleIds[i];
-					if (id) state.selectedSuggestionIds.add(id);
-				}
-				state.lastSelectedId = id;
-			});
-		},
-
-		selectAllVisible: (visibleIds) => {
-			set((state) => {
-				for (const id of visibleIds) {
-					state.selectedSuggestionIds.add(id);
-				}
-			});
-		},
-
-		clearSelection: () => {
-			set((state) => {
-				state.selectedSuggestionIds = new Set();
-				state.lastSelectedId = null;
-			});
-		},
-
-		// Batch actions - return IDs that were affected for API calls
-		// Also push undo entry for batch operations
-		applySelectedSuggestions: () => {
-			const affectedIds: string[] = [];
-			const previousStates = new Map<string, SuggestionStatus>();
-			set((state) => {
-				for (const id of state.selectedSuggestionIds) {
-					const suggestion = state.suggestions.find((s) => s.id === id);
-					if (suggestion && suggestion.status === "pending") {
-						previousStates.set(id, suggestion.status);
-						suggestion.status = "applied";
-						affectedIds.push(id);
-					}
-				}
-				if (affectedIds.length > 0) {
-					state.undoStack.push({
-						type: "batch_apply",
-						suggestionIds: affectedIds,
-						previousStates,
-						timestamp: Date.now(),
-					});
-				}
-				state.selectedSuggestionIds = new Set();
-				state.lastSelectedId = null;
-			});
-			return affectedIds;
-		},
-
-		rejectSelectedSuggestions: () => {
-			const affectedIds: string[] = [];
-			const previousStates = new Map<string, SuggestionStatus>();
-			set((state) => {
-				for (const id of state.selectedSuggestionIds) {
-					const suggestion = state.suggestions.find((s) => s.id === id);
-					if (suggestion && suggestion.status === "pending") {
-						previousStates.set(id, suggestion.status);
-						suggestion.status = "rejected";
-						affectedIds.push(id);
-					}
-				}
-				if (affectedIds.length > 0) {
-					state.undoStack.push({
-						type: "batch_reject",
-						suggestionIds: affectedIds,
-						previousStates,
-						timestamp: Date.now(),
-					});
-				}
-				state.selectedSuggestionIds = new Set();
-				state.lastSelectedId = null;
-			});
-			return affectedIds;
 		},
 
 		applyHighConfidenceSuggestions: (minConfidence = 85) => {
 			const affectedIds: string[] = [];
-			const previousStates = new Map<string, SuggestionStatus>();
 			set((state) => {
 				for (const suggestion of state.suggestions) {
 					if (
 						suggestion.status === "pending" &&
 						suggestion.confidence >= minConfidence
 					) {
-						previousStates.set(suggestion.id, suggestion.status);
 						suggestion.status = "applied";
 						affectedIds.push(suggestion.id);
 					}
 				}
-				if (affectedIds.length > 0) {
-					state.undoStack.push({
-						type: "batch_apply",
-						suggestionIds: affectedIds,
-						previousStates,
-						timestamp: Date.now(),
-					});
-				}
-				state.selectedSuggestionIds = new Set();
-				state.lastSelectedId = null;
 			});
 			return affectedIds;
 		},
 
-		// Filter actions
-		setConfidenceFilter: (filter) => {
+		setActiveFilter: (filter) => {
 			set((state) => {
-				state.confidenceFilter = filter;
+				state.activeFilter = filter;
 			});
-		},
-
-		setSectionFilter: (sectionId) => {
-			set((state) => {
-				state.sectionFilter = sectionId;
-			});
-		},
-
-		setSourceFileFilter: (fileId) => {
-			set((state) => {
-				state.sourceFileFilter = fileId;
-			});
-		},
-
-		clearFilters: () => {
-			set((state) => {
-				state.confidenceFilter = "all";
-				state.sectionFilter = null;
-				state.sourceFileFilter = null;
-			});
-		},
-
-		autoResolveAllConflicts: () => {
-			const winnerIds: string[] = [];
-			const loserIds: string[] = [];
-			let resolvedCount = 0;
-			const previousStates = new Map<string, SuggestionStatus>();
-
-			set((state) => {
-				// Find all pending suggestions
-				const pending = state.suggestions.filter((s) => s.status === "pending");
-
-				// Group by field key to find conflicts
-				const fieldGroups = new Map<string, typeof pending>();
-				for (const s of pending) {
-					const key = `${s.sectionId}:${s.fieldId}`;
-					const group = fieldGroups.get(key);
-					if (group) {
-						group.push(s);
-					} else {
-						fieldGroups.set(key, [s]);
-					}
-				}
-
-				// For each conflict group (>1 suggestion), pick highest confidence
-				for (const [_fieldKey, group] of fieldGroups) {
-					if (group.length <= 1) continue;
-
-					// Find highest confidence suggestion
-					const winner = group.reduce((a, b) =>
-						a.confidence > b.confidence ? a : b,
-					);
-
-					// Apply winner, reject others
-					for (const suggestion of group) {
-						const storeItem = state.suggestions.find(
-							(s) => s.id === suggestion.id,
-						);
-						if (!storeItem) continue;
-
-						previousStates.set(storeItem.id, storeItem.status);
-
-						if (suggestion.id === winner.id) {
-							storeItem.status = "applied";
-							winnerIds.push(storeItem.id);
-						} else {
-							storeItem.status = "rejected";
-							loserIds.push(storeItem.id);
-						}
-						state.selectedSuggestionIds.delete(storeItem.id);
-					}
-					resolvedCount++;
-				}
-
-				// Push undo entry if any conflicts were resolved
-				if (winnerIds.length > 0) {
-					state.undoStack.push({
-						type: "batch_apply",
-						suggestionIds: [...previousStates.keys()],
-						previousStates,
-						timestamp: Date.now(),
-					});
-				}
-			});
-
-			return { resolvedCount, winnerIds, loserIds };
 		},
 
 		dismissUnmappedNote: (noteId) => {
@@ -590,43 +301,6 @@ export const useIntakePanelStore = create<IntakePanelState>()(
 			set((state) => {
 				state.unmappedNotes = state.unmappedNotes.filter((n) => !ids.has(n.id));
 			});
-		},
-
-		// Undo stack methods
-		pushUndo: (entry) => {
-			set((state) => {
-				state.undoStack.push(entry);
-			});
-		},
-
-		popUndo: () => {
-			let entry: UndoEntry | undefined;
-			set((state) => {
-				entry = state.undoStack.pop();
-			});
-			return entry;
-		},
-
-		undoBatchOperation: () => {
-			const revertedIds: string[] = [];
-			set((state) => {
-				const entry = state.undoStack.pop();
-				if (!entry) return;
-
-				// Check if undo is still valid (within 15 seconds)
-				const elapsed = Date.now() - entry.timestamp;
-				if (elapsed > 15000) return;
-
-				// Revert each suggestion to its previous state
-				for (const [id, previousStatus] of entry.previousStates) {
-					const suggestion = state.suggestions.find((s) => s.id === id);
-					if (suggestion) {
-						suggestion.status = previousStatus;
-						revertedIds.push(id);
-					}
-				}
-			});
-			return revertedIds;
 		},
 
 		reset: () => {
@@ -655,61 +329,56 @@ export const useConflictingSuggestions = (): AISuggestion[] =>
 	useIntakePanelStore(
 		useShallow((state) => {
 			const pending = state.suggestions.filter((s) => s.status === "pending");
-			const fieldCounts = new Map<string, number>();
-
-			for (const s of pending) {
-				const key = `${s.sectionId}:${s.fieldId}`;
-				fieldCounts.set(key, (fieldCounts.get(key) ?? 0) + 1);
-			}
-
+			const fieldCounts = buildFieldCounts(pending);
 			const conflictFieldIds = new Set(
 				[...fieldCounts.entries()]
 					.filter(([, count]) => count > 1)
 					.map(([fieldKey]) => fieldKey),
 			);
-
-			return pending.filter((s) =>
-				conflictFieldIds.has(`${s.sectionId}:${s.fieldId}`),
-			);
+			return pending.filter((s) => conflictFieldIds.has(getFieldKey(s)));
 		}),
 	);
 
-// Filtered suggestions selector
-export const useFilteredPendingSuggestions = (): AISuggestion[] =>
-	useIntakePanelStore(
-		useShallow((state) => {
-			let filtered = state.suggestions.filter((s) => s.status === "pending");
-
-			// Apply confidence filter
-			if (state.confidenceFilter !== "all") {
-				filtered = filtered.filter(
-					(s) => getConfidenceLevel(s.confidence) === state.confidenceFilter,
-				);
-			}
-
-			// Apply section filter
-			if (state.sectionFilter) {
-				filtered = filtered.filter((s) => s.sectionId === state.sectionFilter);
-			}
-
-			// Apply source file filter
-			if (state.sourceFileFilter) {
-				filtered = filtered.filter(
-					(s) => s.sourceFileId === state.sourceFileFilter,
-				);
-			}
-
-			return filtered;
-		}),
+// Filtered suggestions selector - sorts conflicts to top
+// Uses useMemo for stable reference to prevent unnecessary re-renders
+export const useFilteredPendingSuggestions = (): AISuggestion[] => {
+	const { suggestions, activeFilter } = useIntakePanelStore(
+		useShallow((state) => ({
+			suggestions: state.suggestions,
+			activeFilter: state.activeFilter,
+		})),
 	);
 
-// Selection count
-export const useSelectedCount = () =>
-	useIntakePanelStore((state) => state.selectedSuggestionIds.size);
+	return useMemo(() => {
+		const pending = suggestions.filter((s) => s.status === "pending");
+		const fieldCounts = buildFieldCounts(pending);
+		const isConflicting = (s: AISuggestion) =>
+			(fieldCounts.get(getFieldKey(s)) ?? 0) > 1;
 
-// Check if a suggestion is selected
-export const useIsSuggestionSelected = (id: string) =>
-	useIntakePanelStore((state) => state.selectedSuggestionIds.has(id));
+		// Apply filter
+		let filtered = pending;
+		switch (activeFilter) {
+			case "high":
+				filtered = pending.filter((s) => s.confidence >= 85);
+				break;
+			case "notes":
+				filtered = pending.filter((s) => !s.sourceFileId);
+				break;
+			case "files":
+				filtered = pending.filter((s) => Boolean(s.sourceFileId));
+				break;
+		}
+
+		// Sort: conflicts first, then by confidence desc
+		return [...filtered].sort((a, b) => {
+			const aConflict = isConflicting(a);
+			const bConflict = isConflicting(b);
+			if (aConflict && !bConflict) return -1;
+			if (!aConflict && bConflict) return 1;
+			return b.confidence - a.confidence;
+		});
+	}, [suggestions, activeFilter]);
+};
 
 // Get summary stats for the summary bar
 export const useSuggestionStats = () =>
@@ -737,42 +406,6 @@ export const useSuggestionStats = () =>
 				mediumConfCount: mediumConf.length,
 				conflictCount,
 			};
-		}),
-	);
-
-// Get unique sections for filter dropdown
-export const useUniqueSections = () =>
-	useIntakePanelStore(
-		useShallow((state) => {
-			const pending = state.suggestions.filter((s) => s.status === "pending");
-			const sections = new Map<string, string>();
-			for (const s of pending) {
-				if (!sections.has(s.sectionId)) {
-					sections.set(s.sectionId, s.sectionTitle);
-				}
-			}
-			return Array.from(sections.entries()).map(([id, title]) => ({
-				id,
-				title,
-			}));
-		}),
-	);
-
-// Get unique source files for filter dropdown
-export const useUniqueSourceFiles = () =>
-	useIntakePanelStore(
-		useShallow((state) => {
-			const pending = state.suggestions.filter((s) => s.status === "pending");
-			const files = new Map<string, string>();
-			for (const s of pending) {
-				if (s.sourceFileId && s.evidence?.filename) {
-					files.set(s.sourceFileId, s.evidence.filename);
-				}
-			}
-			return Array.from(files.entries()).map(([id, filename]) => ({
-				id,
-				filename,
-			}));
 		}),
 	);
 

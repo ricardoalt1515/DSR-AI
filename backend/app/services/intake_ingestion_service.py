@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -13,8 +12,8 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.document_analysis_agent import DocumentAnalysisError, analyze_document
-from app.agents.notes_analysis_agent import analyze_notes
 from app.agents.image_analysis_agent import ImageAnalysisError, analyze_image
+from app.agents.notes_analysis_agent import analyze_notes
 from app.models.document_analysis_output import DocumentAnalysisOutput, DocumentUnmapped
 from app.models.file import ProjectFile
 from app.models.intake_note import IntakeNote
@@ -23,8 +22,13 @@ from app.models.intake_unmapped_note import IntakeUnmappedNote
 from app.models.notes_analysis_output import NotesAnalysisOutput
 from app.models.project import Project
 from app.schemas.intake import IntakeEvidence
+from app.services.intake_field_catalog import (
+    FieldRegistryItem,
+    build_questionnaire_registry,
+    format_catalog_for_prompt,
+    normalize_suggestions,
+)
 from app.services.s3_service import download_file_content
-from app.templates.assessment_questionnaire import get_assessment_questionnaire
 
 logger = structlog.get_logger(__name__)
 
@@ -40,39 +44,6 @@ _METADATA_PATTERNS = [
     re.compile(r"\bwww\.\S+|https?://\S+\b", re.IGNORECASE),
     re.compile(r"\b(confidential|all rights reserved|copyright|prepared by|issued)\b", re.IGNORECASE),
 ]
-
-
-@dataclass
-class FieldRegistryItem:
-    section_id: str
-    section_title: str
-    field_id: str
-    field_label: str
-
-
-def build_questionnaire_registry() -> dict[str, FieldRegistryItem]:
-    questionnaire = get_assessment_questionnaire()
-    registry: dict[str, FieldRegistryItem] = {}
-    for section in questionnaire:
-        section_id = str(section.get("id", ""))
-        section_title = str(section.get("title", ""))
-        fields = section.get("fields", [])
-        if not isinstance(fields, list):
-            continue
-        for field in fields:
-            if not isinstance(field, dict):
-                continue
-            field_id = str(field.get("id", ""))
-            field_label = str(field.get("label", ""))
-            if not field_id:
-                continue
-            registry[field_id] = FieldRegistryItem(
-                section_id=section_id,
-                section_title=section_title,
-                field_id=field_id,
-                field_label=field_label,
-            )
-    return registry
 
 
 def determine_doc_type(category: str | None) -> DocType:
@@ -207,7 +178,16 @@ class IntakeIngestionService:
             else current_note.text
         )
 
-        analysis = await analyze_notes(truncated, self._build_field_catalog())
+        # Use new field catalog with type metadata
+        field_catalog = format_catalog_for_prompt(self.registry)
+        analysis = await analyze_notes(truncated, field_catalog)
+
+        # Normalize suggestions: dedupe, validate field_ids, handle multi-value fields
+        valid_suggestions, extra_unmapped = normalize_suggestions(
+            [s.model_dump() for s in analysis.suggestions],
+            self.registry,
+            source="notes",
+        )
 
         current_note = await self._get_intake_note(db, project)
         if not current_note or not _timestamps_equal(
@@ -237,18 +217,15 @@ class IntakeIngestionService:
                 .where(IntakeUnmappedNote.status == "open")
             )
 
-            for suggestion in analysis.suggestions:
-                registry_item = self.registry.get(suggestion.field_id)
+            # Persist valid suggestions
+            for suggestion_data in valid_suggestions:
+                field_id = suggestion_data["field_id"]
+                registry_item = self.registry.get(field_id)
                 if not registry_item:
-                    await self._persist_unmapped_from_notes(
-                        db,
-                        project,
-                        suggestion.value,
-                        suggestion.confidence,
-                    )
                     continue
 
-                value_type = "number" if _is_number_like(suggestion.value) else "string"
+                value = suggestion_data.get("value", "")
+                value_type = "number" if _is_number_like(str(value)) else "string"
                 intake_suggestion = IntakeSuggestion(
                     organization_id=project.organization_id,
                     project_id=project.id,
@@ -257,11 +234,11 @@ class IntakeIngestionService:
                     field_label=registry_item.field_label,
                     section_id=registry_item.section_id,
                     section_title=registry_item.section_title,
-                    value=str(suggestion.value),
+                    value=str(value),
                     value_type=value_type,
-                    unit=suggestion.unit,
+                    unit=suggestion_data.get("unit"),
                     confidence=NotesAnalysisOutput.normalize_confidence(
-                        suggestion.confidence
+                        suggestion_data.get("confidence", 50)
                     ),
                     status="pending",
                     source="notes",
@@ -270,6 +247,7 @@ class IntakeIngestionService:
                 )
                 db.add(intake_suggestion)
 
+            # Persist unmapped from analysis + extra from normalization
             for unmapped in analysis.unmapped:
                 await self._persist_unmapped_from_notes(
                     db,
@@ -278,7 +256,15 @@ class IntakeIngestionService:
                     unmapped.confidence,
                 )
 
-        return len(analysis.suggestions), len(analysis.unmapped), False
+            for unmapped_data in extra_unmapped:
+                await self._persist_unmapped_from_notes(
+                    db,
+                    project,
+                    unmapped_data.get("extracted_text", ""),
+                    unmapped_data.get("confidence", 50),
+                )
+
+        return len(valid_suggestions), len(analysis.unmapped) + len(extra_unmapped), False
 
     async def _process_image_or_document(
         self,
@@ -371,26 +357,36 @@ class IntakeIngestionService:
 
         await self._delete_pending_for_source(db, file)
 
-        for suggestion in analysis.suggestions:
-            if suggestion.evidence is None:
-                await self._persist_unmapped(db, file, suggestion.value, suggestion.confidence)
-                continue
-            registry_item = self.registry.get(suggestion.field_id)
+        # Normalize suggestions: dedupe, validate field_ids, handle multi-value fields
+        valid_suggestions, extra_unmapped = normalize_suggestions(
+            [s.model_dump() for s in analysis.suggestions],
+            self.registry,
+            source="document",
+        )
+
+        for suggestion_data in valid_suggestions:
+            field_id = suggestion_data["field_id"]
+            registry_item = self.registry.get(field_id)
             if not registry_item:
-                await self._persist_unmapped(db, file, suggestion.value, suggestion.confidence)
+                continue
+
+            # Check for evidence - documents require evidence
+            evidence_data = suggestion_data.get("evidence")
+            if not evidence_data:
+                await self._persist_unmapped(db, file, suggestion_data.get("value", ""), suggestion_data.get("confidence", 50))
                 continue
 
             evidence_payload: dict[str, Any] | None = None
-            if suggestion.evidence:
-                page = _normalize_page(suggestion.evidence.page)
-                evidence_payload = IntakeEvidence(
-                    file_id=file.id,
-                    filename=file.filename,
-                    page=page,
-                    excerpt=suggestion.evidence.excerpt,
-                ).model_dump(mode="json")
+            page = _normalize_page(evidence_data.get("page"))
+            evidence_payload = IntakeEvidence(
+                file_id=file.id,
+                filename=file.filename,
+                page=page,
+                excerpt=evidence_data.get("excerpt", ""),
+            ).model_dump(mode="json")
 
-            value_type = "number" if _is_number_like(suggestion.value) else "string"
+            value = suggestion_data.get("value", "")
+            value_type = "number" if _is_number_like(str(value)) else "string"
             intake_suggestion = IntakeSuggestion(
                 organization_id=file.organization_id,
                 project_id=file.project_id,
@@ -399,10 +395,10 @@ class IntakeIngestionService:
                 field_label=registry_item.field_label,
                 section_id=registry_item.section_id,
                 section_title=registry_item.section_title,
-                value=str(suggestion.value),
+                value=str(value),
                 value_type=value_type,
-                unit=suggestion.unit,
-                confidence=analysis.normalize_confidence(suggestion.confidence),
+                unit=suggestion_data.get("unit"),
+                confidence=analysis.normalize_confidence(suggestion_data.get("confidence", 50)),
                 status="pending",
                 source="file" if doc_type == "general" else doc_type,
                 evidence=evidence_payload,
@@ -410,8 +406,10 @@ class IntakeIngestionService:
             )
             db.add(intake_suggestion)
 
+        # Persist unmapped from analysis + extra from normalization
         filtered_unmapped = _filter_unmapped_items(analysis.unmapped)
-        for item in filtered_unmapped:
+        all_unmapped = list(filtered_unmapped) + [DocumentUnmapped(**u) for u in extra_unmapped]
+        for item in all_unmapped[:MAX_UNMAPPED_ITEMS]:
             await self._persist_unmapped(db, file, item.extracted_text, item.confidence)
 
     async def _delete_pending_for_source(self, db: AsyncSession, file: ProjectFile) -> None:
@@ -538,12 +536,12 @@ class IntakeIngestionService:
         await db.flush()
 
     def _build_field_catalog(self) -> str:
-        items = sorted(
-            self.registry.values(), key=lambda item: (item.section_title, item.field_label)
-        )
-        return "\n".join(
-            f"- {item.field_id}: {item.section_title} > {item.field_label}" for item in items
-        )
+        """Build field catalog for prompts using the new formatter.
+
+        Deprecated: Use format_catalog_for_prompt() directly from intake_field_catalog module.
+        Kept for backward compatibility.
+        """
+        return format_catalog_for_prompt(self.registry)
 
     async def _persist_unmapped_from_notes(
         self,

@@ -49,7 +49,7 @@ import {
 import type { UnmappedNote } from "@/lib/types/intake";
 import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
-import { ConfidenceBadge } from "./confidence-badge";
+import { ConfidenceIndicator } from "./confidence-indicator";
 
 interface UnmappedNotesSectionProps {
 	notes: UnmappedNote[];
@@ -261,7 +261,7 @@ function UnmappedNoteCard({
 						{note.sourceFile ?? "Notes"}
 					</span>
 				</div>
-				<ConfidenceBadge confidence={note.confidence} />
+				<ConfidenceIndicator confidence={note.confidence} size="sm" />
 			</div>
 
 			{/* Actions */}

@@ -64,24 +64,8 @@ export function DynamicSection({
 }: DynamicSectionProps) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 
-	// ✅ OPTIMIZACIÓN: Filtrar campos condicionales
-	const visibleFields = section.fields.filter((field) => {
-		// Si no tiene condición, siempre visible
-		if (!field.conditional) return true;
-
-		// Buscar el campo del que depende
-		const dependsOnField = section.fields.find(
-			(f) => f.id === field.conditional?.field,
-		);
-		if (!dependsOnField) return true; // If field not found, show anyway
-
-		// Verificar si el valor cumple la condición
-		const conditionValue = field.conditional.value;
-		if (Array.isArray(conditionValue)) {
-			return conditionValue.includes(String(dependsOnField.value));
-		}
-		return String(dependsOnField.value) === String(conditionValue);
-	});
+	// All fields are now visible (conditional fields merged into single textarea fields)
+	const visibleFields = section.fields;
 
 	const handleValueLanded = useCallback(
 		(fieldId: string) => {

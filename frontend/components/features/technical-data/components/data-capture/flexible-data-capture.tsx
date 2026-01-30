@@ -53,14 +53,35 @@ export const FlexibleDataCapture = memo(function FlexibleDataCapture({
 	// State for fixed sections accordion
 	const [fixedAccordionValue, setFixedAccordionValue] = useState<string[]>(
 		() => {
-			// ✅ OPTIMIZACIÓN: Solo expandir las primeras 2 secciones para mejorar rendimiento inicial
-			// Expandir todas causa render masivo de cientos de campos
-			return sections
-				.filter((s) => isFixedSection(s.id))
-				.slice(0, 2)
-				.map((s) => s.id);
+			// Expandir todas las secciones fijas para mejor UX
+			return sections.filter((s) => isFixedSection(s.id)).map((s) => s.id);
 		},
 	);
+
+	// Rehidratar accordion cuando sections cambia de vacío a poblado
+	useEffect(() => {
+		if (sections.length > 0) {
+			// Expandir secciones fijas
+			const fixedIds = sections
+				.filter((s) => isFixedSection(s.id))
+				.map((s) => s.id);
+			setFixedAccordionValue(fixedIds);
+
+			// Expandir secciones custom incompletas (primeras 3)
+			const incompleteCustomIds = sections
+				.filter((s) => !isFixedSection(s.id))
+				.filter((s) => {
+					const completed = s.fields.filter(
+						(f) => f.value && f.value !== "",
+					).length;
+					const total = s.fields.length;
+					return total > 0 && completed < total;
+				})
+				.slice(0, 3)
+				.map((s) => s.id);
+			setAccordionValue(incompleteCustomIds);
+		}
+	}, [sections]);
 
 	useEffect(() => {
 		if (!focusSectionId) return;

@@ -1,5 +1,4 @@
 import type { AISuggestion, UnmappedNote } from "@/lib/types/intake";
-import { API_TIMEOUT } from "@/lib/constants/timings";
 import { apiClient } from "./client";
 
 export interface IntakeHydrateResponse {
@@ -62,11 +61,6 @@ export interface AnalyzeNotesResponse {
 
 // Batch suggestion operations
 export type IntakeSuggestionBatchStatus = "applied" | "rejected";
-
-export interface IntakeSuggestionBatchRequest {
-	suggestionIds: string[];
-	status: IntakeSuggestionBatchStatus;
-}
 
 export interface IntakeSuggestionBatchResultItem {
 	id: string;
@@ -168,7 +162,7 @@ export const intakeAPI = {
 				method: "POST",
 				body: { notesUpdatedAt },
 				timeout: 120000,
-				signal,
+				...(signal && { signal }),
 			},
 		);
 	},

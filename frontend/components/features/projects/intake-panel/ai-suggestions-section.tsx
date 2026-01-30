@@ -1,8 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Info, Keyboard, Sparkles, Upload } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { CheckCircle2, Info, Sparkles, Upload } from "lucide-react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import {
 	Card,
@@ -26,28 +26,20 @@ import {
 } from "@/lib/stores/intake-store";
 import type { AISuggestion } from "@/lib/types/intake";
 import { cn } from "@/lib/utils";
-import { BatchActionToolbar } from "./batch-action-toolbar";
 import { focusField } from "./focus-field";
 import { IntakeSummaryBar } from "./intake-summary-bar";
-import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog";
+import { SuggestionCard } from "./suggestion-card";
 import { SuggestionFilters } from "./suggestion-filters";
-import { SuggestionRow } from "./suggestion-row";
-import { useIntakeKeyboardShortcuts } from "./use-intake-keyboard-shortcuts";
 
 interface AISuggestionsSectionProps {
 	projectId: string;
 	disabled?: boolean | undefined;
 	isLoading?: boolean | undefined;
-	getFieldHasValue?:
-		| ((sectionId: string, fieldId: string) => boolean)
-		| undefined;
 	onApplySuggestion: (suggestion: AISuggestion) => Promise<void>;
-	onEditSuggestion?: ((suggestion: AISuggestion) => void) | undefined;
 	onRejectSuggestion: (suggestion: AISuggestion) => Promise<void>;
 	onBatchApply?:
 		| ((ids: string[]) => Promise<AISuggestion | undefined>)
 		| undefined;
-	onBatchReject?: ((ids: string[]) => Promise<void>) | undefined;
 	onOpenSection?: ((sectionId: string) => void) | undefined;
 }
 
@@ -55,24 +47,14 @@ export function AISuggestionsSection({
 	projectId: _projectId,
 	disabled = false,
 	isLoading = false,
-	getFieldHasValue,
 	onApplySuggestion,
 	onRejectSuggestion,
 	onBatchApply,
-	onBatchReject,
 	onOpenSection,
 }: AISuggestionsSectionProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
 	const filteredSuggestions = useFilteredPendingSuggestions();
 	const pendingCount = usePendingSuggestionsCount();
 	const hasProcessedSuggestions = useHasProcessedSuggestions();
-	const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-
-	// Get visible IDs for range selection
-	const visibleIds = useMemo(
-		() => filteredSuggestions.map((s) => s.id),
-		[filteredSuggestions],
-	);
 
 	// Single apply/reject (from row actions)
 	const handleApply = useCallback(
@@ -141,24 +123,6 @@ export function AISuggestionsSection({
 		[handleApply, onBatchApply, onOpenSection],
 	);
 
-	const handleBatchReject = useCallback(
-		async (ids: string[]) => {
-			if (onBatchReject) {
-				try {
-					await onBatchReject(ids);
-					toast.success(`Rejected ${ids.length} suggestions`);
-				} catch {
-					toast.error("Failed to reject suggestions");
-				}
-			} else {
-				for (const id of ids) {
-					await handleReject(id);
-				}
-			}
-		},
-		[handleReject, onBatchReject],
-	);
-
 	// Apply all high-confidence (from summary bar)
 	const handleApplyHighConfidence = useCallback(
 		async (ids: string[]) => {
@@ -167,54 +131,8 @@ export function AISuggestionsSection({
 		[handleBatchApply],
 	);
 
-	// Auto-resolve all conflicts (from summary bar)
-	const handleAutoResolveConflicts = useCallback(
-		async (result: { winnerIds: string[]; loserIds: string[] }) => {
-			// Apply the winners via batch API
-			if (result.winnerIds.length > 0) {
-				await handleBatchApply(result.winnerIds);
-			}
-			// Reject the losers via batch API
-			if (result.loserIds.length > 0) {
-				await handleBatchReject(result.loserIds);
-			}
-		},
-		[handleBatchApply, handleBatchReject],
-	);
-
-	// Selected actions (for toolbar)
-	const handleApplySelected = useCallback(async () => {
-		const { selectedSuggestionIds } = useIntakePanelStore.getState();
-		const ids = Array.from(selectedSuggestionIds);
-		if (ids.length > 0) {
-			await handleBatchApply(ids);
-		}
-	}, [handleBatchApply]);
-
-	const handleRejectSelected = useCallback(async () => {
-		const { selectedSuggestionIds } = useIntakePanelStore.getState();
-		const ids = Array.from(selectedSuggestionIds);
-		if (ids.length > 0) {
-			await handleBatchReject(ids);
-		}
-	}, [handleBatchReject]);
-
-	// Keyboard shortcuts
-	useIntakeKeyboardShortcuts({
-		containerRef,
-		visibleIds,
-		onApplySelected: handleApplySelected,
-		onRejectSelected: handleRejectSelected,
-		onShowHelp: () => setShowKeyboardHelp(true),
-		disabled,
-	});
-
 	return (
-		<Card
-			ref={containerRef}
-			className="flex flex-col min-w-0 overflow-hidden rounded-3xl backdrop-blur-sm bg-card/60 border border-white/10"
-			tabIndex={0}
-		>
+		<Card className="flex flex-col min-w-0 overflow-hidden rounded-3xl backdrop-blur-sm bg-card/60 border border-white/10">
 			<CardHeader className="pb-3">
 				<div className="flex items-center justify-between min-w-0 gap-2">
 					<CardTitle className="flex items-center gap-2 text-base min-w-0">
@@ -235,23 +153,6 @@ export function AISuggestionsSection({
 									<p className="text-xs">
 										High: ≥85% • Medium: 70-85% • Low: &lt;70%
 									</p>
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<button
-										type="button"
-										onClick={() => setShowKeyboardHelp(true)}
-										className="rounded p-0.5 hover:bg-muted/50 transition-colors"
-										aria-label="Keyboard shortcuts"
-									>
-										<Keyboard className="h-3 w-3 text-muted-foreground" />
-									</button>
-								</TooltipTrigger>
-								<TooltipContent>
-									<p className="text-xs">Keyboard shortcuts (?)</p>
 								</TooltipContent>
 							</Tooltip>
 						</TooltipProvider>
@@ -343,7 +244,6 @@ export function AISuggestionsSection({
 						<div className="px-4 mb-3">
 							<IntakeSummaryBar
 								onApplyHighConfidence={handleApplyHighConfidence}
-								onAutoResolveConflicts={handleAutoResolveConflicts}
 								disabled={disabled}
 							/>
 						</div>
@@ -353,54 +253,28 @@ export function AISuggestionsSection({
 							<SuggestionFilters />
 						</div>
 
-						{/* Suggestion rows */}
-						<div className="flex flex-col gap-2 px-2 pr-3">
+						{/* Suggestion cards */}
+						<div className="flex flex-col gap-3 px-4 pb-4">
 							{filteredSuggestions.length === 0 ? (
 								<div className="text-center py-8 text-sm text-muted-foreground">
 									No suggestions match the current filters
 								</div>
 							) : (
-								<AnimatePresence mode="popLayout">
-									{filteredSuggestions.map((suggestion, index) => (
-										<SuggestionRow
-											key={suggestion.id}
-											suggestion={suggestion}
-											visibleIds={visibleIds}
-											index={index}
-											willReplace={
-												getFieldHasValue?.(
-													suggestion.sectionId,
-													suggestion.fieldId,
-												) ?? false
-											}
-											onApply={handleApply}
-											onReject={handleReject}
-											onOpenSection={onOpenSection}
-											disabled={disabled}
-										/>
-									))}
-								</AnimatePresence>
+								filteredSuggestions.map((suggestion) => (
+									<SuggestionCard
+										key={suggestion.id}
+										suggestion={suggestion}
+										onApply={handleApply}
+										onReject={handleReject}
+										disabled={disabled}
+										onOpenSection={onOpenSection}
+									/>
+								))
 							)}
 						</div>
 					</>
 				)}
 			</CardContent>
-
-			{/* Batch action toolbar - outside scroll area for reliable positioning */}
-			{!isLoading && pendingCount > 0 && (
-				<BatchActionToolbar
-					onApplyBatch={handleBatchApply}
-					onRejectBatch={handleBatchReject}
-					disabled={disabled}
-					className="flex-shrink-0"
-				/>
-			)}
-
-			{/* Keyboard shortcuts help dialog */}
-			<KeyboardShortcutsDialog
-				open={showKeyboardHelp}
-				onOpenChange={setShowKeyboardHelp}
-			/>
 		</Card>
 	);
 }

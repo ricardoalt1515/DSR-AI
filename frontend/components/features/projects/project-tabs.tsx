@@ -245,7 +245,8 @@ export const ProjectTabs = memo(function ProjectTabs({
 
 				<TabsContent
 					value="technical"
-					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+					forceMount
+					className="mt-6 animate-in fade-in-0 slide-in-from-bottom-1 duration-200 data-[state=inactive]:hidden"
 				>
 					<Suspense fallback={<TechnicalFormSkeleton />}>
 						<TechnicalDataSheet projectId={project.id} />

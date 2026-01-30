@@ -191,10 +191,7 @@ class APIClient {
 					delete mergedHeaders["Content-Type"];
 				}
 
-				const { signal, cleanup } = createAbortSignal(
-					timeout,
-					externalSignal,
-				);
+				const { signal, cleanup } = createAbortSignal(timeout, externalSignal);
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,
@@ -389,10 +386,7 @@ class APIClient {
 						mergedHeaders["X-Organization-Id"] = selectedOrgId;
 					}
 				}
-				const { signal, cleanup } = createAbortSignal(
-					timeout,
-					externalSignal,
-				);
+				const { signal, cleanup } = createAbortSignal(timeout, externalSignal);
 				const requestConfig: RequestInit = {
 					method,
 					headers: mergedHeaders,

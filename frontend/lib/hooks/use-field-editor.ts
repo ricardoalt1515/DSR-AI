@@ -1,80 +1,14 @@
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TableField } from "@/lib/types/technical-data";
 import { useDebounce } from "./use-debounce";
 
 /**
  * ✅ Hook compartido para lógica de edición de campos
  * Centraliza estado, validación y auto-save
+ * Patrón CONTROLADO: siempre usa field.value como fuente de verdad
  */
 
 type EditMode = "viewing" | "editing" | "notes" | "deleting";
-
-export interface FieldEditorState {
-	mode: EditMode;
-	value: string | number | string[];
-	unit: string;
-	notes: string;
-	error: string | null;
-}
-
-type FieldEditorAction =
-	| { type: "START_EDIT" }
-	| { type: "START_NOTES" }
-	| { type: "START_DELETE" }
-	| { type: "UPDATE_VALUE"; payload: string | number | string[] }
-	| { type: "UPDATE_UNIT"; payload: string }
-	| { type: "UPDATE_NOTES"; payload: string }
-	| { type: "SET_ERROR"; payload: string | null }
-	| {
-			type: "CANCEL";
-			payload: {
-				value: string | number | string[];
-				unit: string;
-				notes: string;
-			};
-	  }
-	| { type: "SAVE" }
-	| { type: "SAVE_NOTES" };
-
-function fieldEditorReducer(
-	state: FieldEditorState,
-	action: FieldEditorAction,
-): FieldEditorState {
-	switch (action.type) {
-		case "START_EDIT":
-			return { ...state, mode: "editing", error: null };
-		case "START_NOTES":
-			return { ...state, mode: state.mode === "notes" ? "viewing" : "notes" };
-		case "START_DELETE":
-			return {
-				...state,
-				mode: state.mode === "deleting" ? "viewing" : "deleting",
-			};
-		case "UPDATE_VALUE":
-			return { ...state, value: action.payload };
-		case "UPDATE_UNIT":
-			return { ...state, unit: action.payload };
-		case "UPDATE_NOTES":
-			return { ...state, notes: action.payload };
-		case "SET_ERROR":
-			return { ...state, error: action.payload };
-		case "CANCEL":
-			return {
-				...state,
-				mode: "viewing",
-				value: action.payload.value,
-				unit: action.payload.unit,
-				notes: action.payload.notes,
-				error: null,
-			};
-		case "SAVE":
-			return { ...state, mode: "viewing", error: null };
-		case "SAVE_NOTES":
-			return { ...state, mode: "viewing" };
-		default:
-			return state;
-	}
-}
 
 interface UseFieldEditorOptions {
 	field: TableField;
@@ -91,31 +25,38 @@ export function useFieldEditor({
 	field,
 	onSave,
 	autoSave = false,
-	autoSaveDelay = 500, // ✅ 500ms prevents race conditions with Select/Combobox interactions
+	autoSaveDelay = 500,
 }: UseFieldEditorOptions) {
-	// ✅ Estado consolidado con useReducer
-	const [state, dispatch] = useReducer(fieldEditorReducer, {
-		mode: "viewing" as const,
-		value: field.value,
-		unit: field.unit || "",
-		notes: field.notes || "",
-		error: null,
-	});
+	// ✅ Estado local SOLO para draft durante edición
+	const [mode, setMode] = useState<EditMode>("viewing");
+	const [draftValue, setDraftValue] = useState<
+		string | number | string[] | null
+	>(null);
+	const [draftUnit, setDraftUnit] = useState<string | null>(null);
+	const [draftNotes, setDraftNotes] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
+
+	// ✅ Fuente única de verdad: siempre usa field.* cuando no estamos editando
+	const value = mode === "editing" ? draftValue : field.value;
+	const unit =
+		mode === "editing" ? (draftUnit ?? field.unit ?? "") : (field.unit ?? "");
+	const notes =
+		mode === "notes" ? (draftNotes ?? field.notes ?? "") : (field.notes ?? "");
 
 	// ✅ Validación centralizada
 	const validateValue = useCallback(
-		(value: string | number | string[]): string | null => {
+		(val: string | number | string[] | null): string | null => {
 			// Required field validation
 			if (
 				field.required &&
-				(!value || value === "" || (Array.isArray(value) && value.length === 0))
+				(!val || val === "" || (Array.isArray(val) && val.length === 0))
 			) {
 				return "This field is required";
 			}
 
 			// Custom validation rule
-			if (field.validationRule && value) {
-				const isValid = field.validationRule(value);
+			if (field.validationRule && val) {
+				const isValid = field.validationRule(val);
 				if (!isValid && field.validationMessage) {
 					return field.validationMessage;
 				}
@@ -128,103 +69,130 @@ export function useFieldEditor({
 
 	// ✅ Validación en tiempo real
 	const validationStatus = useMemo(() => {
-		if (!state.value && state.value !== 0) return null;
-		const error = validateValue(state.value);
-		return error ? "invalid" : "valid";
-	}, [state.value, validateValue]);
+		if (!value && value !== 0) return null;
+		const err = validateValue(value);
+		return err ? "invalid" : "valid";
+	}, [value, validateValue]);
 
 	// ✅ Auto-save con debounce (solo si está habilitado)
-	const debouncedValue = useDebounce(state.value, autoSaveDelay);
-	const debouncedUnit = useDebounce(state.unit, autoSaveDelay);
+	const debouncedValue = useDebounce(draftValue, autoSaveDelay);
+	const debouncedUnit = useDebounce(draftUnit, autoSaveDelay);
 
 	useEffect(() => {
 		if (!autoSave || !onSave) return;
+		if (mode !== "editing") return;
+		if (validationStatus === "invalid") return;
 
-		// Solo auto-guardar si:
-		// 1. Estamos en modo edición
-		// 2. El valor cambió
-		// 3. El valor es válido o está vacío
-		if (
-			state.mode === "editing" &&
-			(debouncedValue !== field.value || debouncedUnit !== field.unit) &&
-			validationStatus !== "invalid"
-		) {
-			onSave(debouncedValue, debouncedUnit, state.notes);
-			// ✅ FIX: NO cerrar modo edición en auto-save
-			// El usuario sale explícitamente con: click fuera, Enter, o Escape
-			// dispatch({ type: 'SAVE' }) ← REMOVIDO
+		// ✅ FIX: Solo guardar si hay un draft activo del usuario
+		const hasValueChanged =
+			debouncedValue !== null && debouncedValue !== field.value;
+		const hasUnitChanged =
+			debouncedUnit !== null && debouncedUnit !== field.unit;
+
+		if (hasValueChanged || hasUnitChanged) {
+			onSave(debouncedValue ?? "", debouncedUnit ?? field.unit ?? "", notes);
 		}
 	}, [
 		autoSave,
 		debouncedValue,
 		debouncedUnit,
-		validationStatus,
-		state.notes,
-		state.mode,
 		field.value,
 		field.unit,
+		mode,
+		notes,
 		onSave,
+		validationStatus,
 	]);
 
 	// ✅ Acciones
 	const startEdit = useCallback(() => {
-		dispatch({ type: "START_EDIT" });
-	}, []);
+		setDraftValue(field.value);
+		setDraftUnit(field.unit ?? "");
+		setError(null);
+		setMode("editing");
+	}, [field.value, field.unit]);
 
 	const startNotes = useCallback(() => {
-		dispatch({ type: "START_NOTES" });
-	}, []);
+		setDraftNotes(field.notes ?? "");
+		setMode((prev) => (prev === "notes" ? "viewing" : "notes"));
+	}, [field.notes]);
 
 	const startDelete = useCallback(() => {
-		dispatch({ type: "START_DELETE" });
+		setMode((prev) => (prev === "deleting" ? "viewing" : "deleting"));
 	}, []);
 
-	const updateValue = useCallback((value: string | number | string[]) => {
-		dispatch({ type: "UPDATE_VALUE", payload: value });
+	const updateValue = useCallback(
+		(val: string | number | string[]) => {
+			setDraftValue(val);
+			// Clear error when user starts typing
+			if (error) setError(null);
+		},
+		[error],
+	);
+
+	const updateUnit = useCallback((u: string) => {
+		setDraftUnit(u);
 	}, []);
 
-	const updateUnit = useCallback((unit: string) => {
-		dispatch({ type: "UPDATE_UNIT", payload: unit });
-	}, []);
-
-	const updateNotes = useCallback((notes: string) => {
-		dispatch({ type: "UPDATE_NOTES", payload: notes });
+	const updateNotes = useCallback((n: string) => {
+		setDraftNotes(n);
 	}, []);
 
 	const handleSave = useCallback(() => {
-		const error = validateValue(state.value);
-		if (error) {
-			dispatch({ type: "SET_ERROR", payload: error });
+		const val = draftValue ?? field.value ?? "";
+		const err = validateValue(val);
+		if (err) {
+			setError(err);
 			return false;
 		}
 
 		if (onSave) {
-			onSave(state.value, state.unit, state.notes);
+			onSave(
+				val,
+				draftUnit ?? field.unit ?? "",
+				draftNotes ?? field.notes ?? "",
+			);
 		}
-		dispatch({ type: "SAVE" });
+		setDraftValue(null);
+		setDraftUnit(null);
+		setError(null);
+		setMode("viewing");
 		return true;
-	}, [state.value, state.unit, state.notes, validateValue, onSave]);
+	}, [
+		draftValue,
+		draftUnit,
+		draftNotes,
+		field.value,
+		field.unit,
+		field.notes,
+		validateValue,
+		onSave,
+	]);
 
 	const handleSaveNotes = useCallback(() => {
 		if (onSave) {
-			onSave(field.value, field.unit, state.notes);
+			onSave(field.value, field.unit ?? "", draftNotes ?? field.notes ?? "");
 		}
-		dispatch({ type: "SAVE_NOTES" });
-	}, [field.value, field.unit, state.notes, onSave]);
+		setDraftNotes(null);
+		setMode("viewing");
+	}, [field.value, field.unit, field.notes, draftNotes, onSave]);
 
 	const handleCancel = useCallback(() => {
-		dispatch({
-			type: "CANCEL",
-			payload: {
-				value: field.value,
-				unit: field.unit || "",
-				notes: field.notes || "",
-			},
-		});
-	}, [field.value, field.unit, field.notes]);
+		setDraftValue(null);
+		setDraftUnit(null);
+		setDraftNotes(null);
+		setError(null);
+		setMode("viewing");
+	}, []);
 
 	return {
-		state,
+		state: {
+			mode,
+			value,
+			unit,
+			notes,
+			error,
+		},
 		validationStatus,
 		actions: {
 			startEdit,

@@ -4,6 +4,7 @@ import { Loader2, NotebookPen, Sparkles } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -11,7 +12,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DEBOUNCE } from "@/lib/constants";
 import { useIntakePanelStore } from "@/lib/stores/intake-store";
@@ -74,21 +74,27 @@ export function IntakeNotesSection({
 					await onSave(value);
 				}
 
-			if (saveSeqRef.current === seq) {
-				setNotesSaveStatus("saved");
-				if (!onSave) {
-					setNotesLastSavedISO(new Date().toISOString());
+				if (saveSeqRef.current === seq) {
+					setNotesSaveStatus("saved");
+					if (!onSave) {
+						setNotesLastSavedISO(new Date().toISOString());
+					}
 				}
+				return saveSeqRef.current === seq;
+			} catch {
+				if (saveSeqRef.current === seq) {
+					setNotesSaveStatus("error");
+				}
+				return false;
 			}
-			return saveSeqRef.current === seq;
-		} catch {
-			if (saveSeqRef.current === seq) {
-				setNotesSaveStatus("error");
-			}
-			return false;
-		}
-	},
-	[disabled, onSave, setIntakeNotes, setNotesSaveStatus, setNotesLastSavedISO],
+		},
+		[
+			disabled,
+			onSave,
+			setIntakeNotes,
+			setNotesSaveStatus,
+			setNotesLastSavedISO,
+		],
 	);
 
 	const handleChange = useCallback(
@@ -187,64 +193,64 @@ export function IntakeNotesSection({
 					Free-form observations from field surveys.
 				</CardDescription>
 			</CardHeader>
-		<CardContent>
-			<div>
-				<Textarea
-					value={localValue}
-					onChange={handleChange}
+			<CardContent>
+				<div>
+					<Textarea
+						value={localValue}
+						onChange={handleChange}
 						placeholder="Record survey findings, risks, client agreements or relevant assumptions..."
 						className={cn(
 							"min-h-[120px] resize-none rounded-2xl border-transparent bg-muted/30",
 							"focus:border-primary/30 focus:ring-1 focus:ring-primary/20",
 							disabled && "cursor-not-allowed opacity-60",
 						)}
-					disabled={disabled || isAnalyzing}
-					aria-label="Intake notes"
-				/>
-			</div>
-			<div
-				className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"
-				aria-live="polite"
-			>
-				{onAnalyze && (
-					<Button
-						variant="secondary"
-						size="sm"
-						onClick={handleAnalyze}
-						disabled={!canAnalyze}
-						title={
-							notesLastSavedISO === null ? "Save notes first" : undefined
-						}
-					>
-						{isAnalyzing ? (
+						disabled={disabled || isAnalyzing}
+						aria-label="Intake notes"
+					/>
+				</div>
+				<div
+					className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"
+					aria-live="polite"
+				>
+					{onAnalyze && (
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={handleAnalyze}
+							disabled={!canAnalyze}
+							title={
+								notesLastSavedISO === null ? "Save notes first" : undefined
+							}
+						>
+							{isAnalyzing ? (
+								<>
+									<Loader2 className="h-4 w-4 animate-spin" />
+									Analyzing...
+								</>
+							) : (
+								<>
+									<Sparkles className="h-4 w-4" />
+									Analyze Notes
+								</>
+							)}
+						</Button>
+					)}
+					<div className="flex items-center gap-1.5">
+						{notesSaveStatus === "saving" && (
 							<>
-								<Loader2 className="h-4 w-4 animate-spin" />
-								Analyzing...
-							</>
-						) : (
-							<>
-								<Sparkles className="h-4 w-4" />
-								Analyze Notes
+								<Loader2 className="h-3 w-3 animate-spin" />
+								<span>Saving...</span>
 							</>
 						)}
-					</Button>
-				)}
-				<div className="flex items-center gap-1.5">
-					{notesSaveStatus === "saving" && (
-						<>
-							<Loader2 className="h-3 w-3 animate-spin" />
-							<span>Saving...</span>
-						</>
-					)}
-					{notesSaveStatus === "saved" && (
-						<span className="text-success">{formatLastSaved()}</span>
-					)}
-					{notesSaveStatus === "error" && (
-						<span className="text-destructive">Failed to save</span>
-					)}
+						{notesSaveStatus === "saved" && (
+							<span className="text-success">{formatLastSaved()}</span>
+						)}
+						{notesSaveStatus === "error" && (
+							<span className="text-destructive">Failed to save</span>
+						)}
+					</div>
 				</div>
-			</div>
-		</CardContent>
-	</Card>
+			</CardContent>
+		</Card>
 	);
 }

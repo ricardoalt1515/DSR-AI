@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { AISuggestion } from "@/lib/types/intake";
 import { cn } from "@/lib/utils";
-import { ConfidenceBadge } from "./confidence-badge";
+import { ConfidenceIndicator } from "./confidence-indicator";
 import { formatSuggestionValue } from "./format-suggestion-value";
 
 interface ConflictCardProps {
@@ -90,7 +90,10 @@ export function ConflictCard({
 						>
 							<div className="flex items-center justify-between">
 								<span className="font-medium">{formatValue(suggestion)}</span>
-								<ConfidenceBadge confidence={suggestion.confidence} />
+								<ConfidenceIndicator
+									confidence={suggestion.confidence}
+									size="sm"
+								/>
 							</div>
 							<p className="text-xs text-muted-foreground">
 								from {suggestion.evidence?.filename ?? "Notes"}

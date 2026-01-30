@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
+from app.agents.notes_analysis_agent import NotesAnalysisError
 from app.api.dependencies import ActiveProjectDep, AsyncDB, CurrentUser, RateLimitUser10
 from app.schemas.common import ErrorResponse
 from app.schemas.intake import (
@@ -24,9 +25,8 @@ from app.schemas.intake import (
     IntakeSuggestionStatusRequest,
     IntakeSuggestionStatusResponse,
 )
-from app.services.intake_service import IntakeBatchService, IntakeService
-from app.agents.notes_analysis_agent import NotesAnalysisError
 from app.services.intake_ingestion_service import IntakeIngestionService
+from app.services.intake_service import IntakeBatchService, IntakeService
 
 router = APIRouter()
 notes_ingestion_service = IntakeIngestionService()

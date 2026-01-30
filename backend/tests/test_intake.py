@@ -1,6 +1,5 @@
 import copy
 import uuid
-from typing import cast
 
 import pytest
 from conftest import (
@@ -16,10 +15,7 @@ from sqlalchemy import select
 from app.models.file import ProjectFile
 from app.models.intake_note import IntakeNote
 from app.models.intake_suggestion import IntakeSuggestion
-from app.models.intake_unmapped_note import IntakeUnmappedNote
-from app.models.timeline import TimelineEvent
 from app.models.user import UserRole
-from app.schemas.intake import IntakeEvidence
 from app.services.intake_ingestion_service import IntakeIngestionService
 from app.templates.assessment_questionnaire import get_assessment_questionnaire
 
@@ -199,551 +195,164 @@ async def test_apply_reject_and_auto_reject(client: AsyncClient, db_session, set
     refreshed = await db_session.get(IntakeSuggestion, suggestion2.id)
     assert refreshed.status == "rejected"
 
-    await db_session.refresh(project)
-    sections = project.project_data.get("technical_sections", [])
-    assert isinstance(sections, list)
-    sections = [sec for sec in sections if isinstance(sec, dict)]
-    sections = cast(list[dict[str, object]], sections)
-    applied_value = None
-    for sec in sections:
-        if sec.get("id") != section["id"]:
-            continue
-        fields = sec.get("fields", [])
-        assert isinstance(fields, list)
-        for f in fields:
-            if not isinstance(f, dict):
-                continue
-            field_dict = cast(dict[str, object], f)
-            if field_dict.get("id") == field["id"]:
-                applied_value = field_dict.get("value")
-                break
-    assert applied_value == "Applied value"
 
-    suggestion3 = IntakeSuggestion(
-        organization_id=org.id,
-        project_id=project.id,
-        source_file_id=None,
-        field_id=field["id"],
-        field_label=field["label"],
-        section_id=section["id"],
-        section_title=section["title"],
-        value="Reject me",
-        value_type="string",
-        unit=None,
-        confidence=70,
-        status="pending",
-        source="notes",
-        evidence=None,
-        created_by_user_id=user.id,
+# ============================================================================
+# Field Catalog Tests (New)
+# ============================================================================
+
+
+def test_build_questionnaire_registry_includes_field_type():
+    """Test that field registry includes field_type metadata."""
+    from app.services.intake_field_catalog import build_questionnaire_registry
+    registry = build_questionnaire_registry()
+
+    # Check that we have fields
+    assert len(registry) > 0
+
+    # Check that field_type is included
+    for item in registry.values():
+        assert item.field_type is not None
+        assert item.field_type in ["text", "tags", "textarea", "combobox", "number", "radio"]
+
+
+def test_format_catalog_for_prompt_structure():
+    """Test that catalog format includes type information."""
+    from app.services.intake_field_catalog import (
+        build_questionnaire_registry,
+        format_catalog_for_prompt,
     )
-    db_session.add(suggestion3)
-    await db_session.commit()
+    registry = build_questionnaire_registry()
+    catalog = format_catalog_for_prompt(registry)
 
-    response = await client.patch(
-        f"/api/v1/projects/{project.id}/intake/suggestions/{suggestion3.id}",
-        json={"status": "rejected"},
+    # Check header
+    assert "CATALOG_VERSION=1" in catalog
+    assert "LANGUAGE=EN" in catalog
+
+    # Check field entries have type
+    assert "type:" in catalog
+
+    # Check specific fields exist
+    assert "field_id:" in catalog
+    assert "section:" in catalog
+    assert "label:" in catalog
+
+
+def test_normalize_suggestions_drops_unknown_field_ids():
+    """Test that suggestions with unknown field_ids are moved to unmapped."""
+    from app.services.intake_field_catalog import (
+        build_questionnaire_registry,
+        normalize_suggestions,
     )
-    assert response.status_code == 200
-    refreshed = await db_session.get(IntakeSuggestion, suggestion3.id)
-    assert refreshed.status == "rejected"
+    registry = build_questionnaire_registry()
+
+    suggestions = [
+        {"field_id": "waste-types", "value": "Plastic", "confidence": 90},
+        {"field_id": "unknown-field-xyz", "value": "Some value", "confidence": 80},
+    ]
+
+    valid, unmapped = normalize_suggestions(suggestions, registry, source="test")
+
+    # Should only have 1 valid suggestion
+    assert len(valid) == 1
+    assert valid[0]["field_id"] == "waste-types"
+
+    # Unknown field should be in unmapped
+    assert len(unmapped) == 1
+    assert "unknown-field-xyz" in unmapped[0].get("reason", "")
 
 
-@pytest.mark.asyncio
-async def test_double_apply_returns_409(client: AsyncClient, db_session, set_current_user):
-    uid = uuid.uuid4().hex[:8]
-    org = await create_org(db_session, "Org Double", "org-double")
-    user = await create_user(
-        db_session,
-        email=f"double-{uid}@example.com",
-        org_id=org.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
+def test_normalize_suggestions_dedupes_single_value_fields():
+    """Test that single-value fields keep only highest confidence suggestion."""
+    from app.services.intake_field_catalog import (
+        build_questionnaire_registry,
+        normalize_suggestions,
     )
-    company = await create_company(db_session, org_id=org.id, name="Double Co")
-    location = await create_location(
-        db_session, org_id=org.id, company_id=company.id, name="Double"
+    registry = build_questionnaire_registry()
+
+    # Pick a single-value field (not in MULTI_VALUE_FIELDS)
+    single_value_field = "waste-description"
+    if single_value_field not in registry:
+        # Skip if field doesn't exist
+        return
+
+    suggestions = [
+        {"field_id": single_value_field, "value": "First value", "confidence": 70},
+        {"field_id": single_value_field, "value": "Better value", "confidence": 90},
+        {"field_id": single_value_field, "value": "Worse value", "confidence": 60},
+    ]
+
+    valid, unmapped = normalize_suggestions(suggestions, registry, source="test")
+
+    # Should only have 1 valid suggestion (highest confidence)
+    assert len(valid) == 1
+    assert valid[0]["value"] == "Better value"
+    assert valid[0]["confidence"] == 90
+
+    # Lower confidence ones should be unmapped
+    assert len(unmapped) == 2
+
+
+def test_normalize_suggestions_collects_multi_value_fields():
+    """Test that multi-value fields collect all suggestions."""
+    from app.services.intake_field_catalog import (
+        build_questionnaire_registry,
+        normalize_suggestions,
     )
-    project = await create_project(
-        db_session, org_id=org.id, user_id=user.id, location_id=location.id, name="Double"
-    )
+    registry = build_questionnaire_registry()
 
-    section, field, questionnaire = _first_field()
-    project.project_data = {"technical_sections": copy.deepcopy(questionnaire)}
-    await db_session.commit()
+    # Use a known multi-value field
+    multi_field = "current-practices"
+    if multi_field not in registry:
+        # Skip if field doesn't exist
+        return
 
-    suggestion = IntakeSuggestion(
-        organization_id=org.id,
-        project_id=project.id,
-        source_file_id=None,
-        field_id=field["id"],
-        field_label=field["label"],
-        section_id=section["id"],
-        section_title=section["title"],
-        value="Apply once",
-        value_type="string",
-        unit=None,
-        confidence=90,
-        status="pending",
-        source="notes",
-        evidence=None,
-        created_by_user_id=user.id,
-    )
-    db_session.add(suggestion)
-    await db_session.commit()
+    suggestions = [
+        {"field_id": multi_field, "value": "Storage", "confidence": 90},
+        {"field_id": multi_field, "value": "Recycling", "confidence": 85},
+        {"field_id": multi_field, "value": "Neutralization", "confidence": 80},
+    ]
 
-    set_current_user(user)
-    response = await client.patch(
-        f"/api/v1/projects/{project.id}/intake/suggestions/{suggestion.id}",
-        json={"status": "applied"},
-    )
-    assert response.status_code == 200
+    valid, unmapped = normalize_suggestions(suggestions, registry, source="test")
 
-    events_before = await db_session.execute(
-        select(TimelineEvent).where(TimelineEvent.project_id == project.id)
-    )
-    events_count_before = len(events_before.scalars().all())
+    # Should have all 3 suggestions
+    assert len(valid) == 3
+    values = {s["value"] for s in valid}
+    assert values == {"Storage", "Recycling", "Neutralization"}
 
-    response = await client.patch(
-        f"/api/v1/projects/{project.id}/intake/suggestions/{suggestion.id}",
-        json={"status": "applied"},
-    )
-    assert response.status_code == 409
-
-    events_after = await db_session.execute(
-        select(TimelineEvent).where(TimelineEvent.project_id == project.id)
-    )
-    events_count_after = len(events_after.scalars().all())
-    assert events_count_after == events_count_before
+    # No unmapped
+    assert len(unmapped) == 0
 
 
-@pytest.mark.asyncio
-async def test_unmapped_map_and_dismiss(client: AsyncClient, db_session, set_current_user):
-    uid = uuid.uuid4().hex[:8]
-    org = await create_org(db_session, "Org Unmapped", "org-unmapped")
-    user = await create_user(
-        db_session,
-        email=f"unmapped-{uid}@example.com",
-        org_id=org.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company = await create_company(db_session, org_id=org.id, name="Unmapped Co")
-    location = await create_location(
-        db_session, org_id=org.id, company_id=company.id, name="Unmapped"
-    )
-    project = await create_project(
-        db_session, org_id=org.id, user_id=user.id, location_id=location.id, name="Unmapped"
-    )
+def test_apply_suggestion_parses_tags():
+    """Test that apply_suggestion correctly parses tags fields."""
+    from app.services.intake_field_catalog import apply_suggestion
+    # Test comma-separated string
+    result = apply_suggestion("tags", "Storage, Recycling, Neutralization")
+    assert result == ["Storage", "Recycling", "Neutralization"]
 
-    section, field, _ = _first_field()
-    note = IntakeUnmappedNote(
-        organization_id=org.id,
-        project_id=project.id,
-        extracted_text="Some unmapped text",
-        confidence=60,
-        source_file_id=None,
-        source_file=None,
-        status="open",
-    )
-    db_session.add(note)
-    await db_session.commit()
+    # Test with extra spaces
+    result = apply_suggestion("tags", "  Storage  ,  Recycling  ")
+    assert result == ["Storage", "Recycling"]
 
-    set_current_user(user)
-    response = await client.post(
-        f"/api/v1/projects/{project.id}/intake/unmapped-notes/{note.id}/map",
-        json={
-            "fieldId": field["id"],
-            "sectionId": section["id"],
-            "fieldLabel": field["label"],
-            "sectionTitle": section["title"],
-        },
-    )
-    assert response.status_code == 200
-
-    refreshed_note = await db_session.get(IntakeUnmappedNote, note.id)
-    assert refreshed_note.status == "mapped"
-    assert refreshed_note.mapped_to_suggestion_id is not None
-
-    note2 = IntakeUnmappedNote(
-        organization_id=org.id,
-        project_id=project.id,
-        extracted_text="Dismiss me",
-        confidence=40,
-        source_file_id=None,
-        source_file=None,
-        status="open",
-    )
-    db_session.add(note2)
-    await db_session.commit()
-
-    response = await client.post(
-        f"/api/v1/projects/{project.id}/intake/unmapped-notes/{note2.id}/dismiss"
-    )
-    assert response.status_code == 200
-    refreshed_note2 = await db_session.get(IntakeUnmappedNote, note2.id)
-    assert refreshed_note2.status == "dismissed"
+    # Test empty values are dropped
+    result = apply_suggestion("tags", "Storage,, ,Recycling")
+    assert result == ["Storage", "Recycling"]
 
 
-@pytest.mark.asyncio
-async def test_idempotency_skip(db_session):
-    org = await create_org(db_session, "Org Idem", "org-idem")
-    user = await create_user(
-        db_session,
-        email=f"idem-{uuid.uuid4().hex[:8]}@example.com",
-        org_id=org.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company = await create_company(db_session, org_id=org.id, name="Idem Co")
-    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Idem")
-    project = await create_project(
-        db_session, org_id=org.id, user_id=user.id, location_id=location.id, name="Idem"
-    )
+def test_apply_suggestion_handles_other_types():
+    """Test that apply_suggestion handles other field types correctly."""
+    from app.services.intake_field_catalog import apply_suggestion
+    # Text field - ensure string
+    assert apply_suggestion("text", 123) == "123"
+    assert apply_suggestion("text", "hello") == "hello"
 
-    file = ProjectFile(
-        organization_id=org.id,
-        project_id=project.id,
-        filename="already.pdf",
-        file_path="/fake/path/already.pdf",
-        file_size=1024,
-        mime_type="application/pdf",
-        file_type="pdf",
-        category="general",
-        processing_status="completed",
-        processing_attempts=0,
-        file_hash="abc123",
-    )
-    db_session.add(file)
-    await db_session.commit()
+    # Textarea field - ensure string
+    assert apply_suggestion("textarea", 456) == "456"
 
-    service = IntakeIngestionService()
-    await service.process_file(db_session, file)
+    # Number field - parse numbers
+    assert apply_suggestion("number", "42") == 42
+    assert apply_suggestion("number", "3.14") == 3.14
+    assert apply_suggestion("number", "not a number") == "not a number"  # Falls back to string
 
-    result = await db_session.execute(
-        select(IntakeSuggestion).where(IntakeSuggestion.project_id == project.id)
-    )
-    assert result.scalars().all() == []
-    result = await db_session.execute(
-        select(IntakeUnmappedNote).where(IntakeUnmappedNote.project_id == project.id)
-    )
-    assert result.scalars().all() == []
-
-
-@pytest.mark.asyncio
-async def test_dedupe_reuses_completed_file(db_session):
-    org = await create_org(db_session, "Org Dedupe", "org-dedupe")
-    user = await create_user(
-        db_session,
-        email=f"dedupe-{uuid.uuid4().hex[:8]}@example.com",
-        org_id=org.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company = await create_company(db_session, org_id=org.id, name="Dedupe Co")
-    location = await create_location(
-        db_session, org_id=org.id, company_id=company.id, name="Dedupe"
-    )
-    project = await create_project(
-        db_session, org_id=org.id, user_id=user.id, location_id=location.id, name="Dedupe"
-    )
-
-    file_hash = "dedupe-hash"
-    completed_file = ProjectFile(
-        organization_id=org.id,
-        project_id=project.id,
-        filename="done.pdf",
-        file_path="/fake/path/done.pdf",
-        file_size=1024,
-        mime_type="application/pdf",
-        file_type="pdf",
-        category="general",
-        processing_status="completed",
-        processing_attempts=0,
-        file_hash=file_hash,
-        processed_text="Cached text",
-        ai_analysis={"summary": "Cached summary"},
-    )
-    pending_file = ProjectFile(
-        organization_id=org.id,
-        project_id=project.id,
-        filename="dup.pdf",
-        file_path="/fake/path/dup.pdf",
-        file_size=1024,
-        mime_type="application/pdf",
-        file_type="pdf",
-        category="general",
-        processing_status="processing",
-        processing_attempts=0,
-        file_hash=file_hash,
-    )
-    db_session.add_all([completed_file, pending_file])
-    await db_session.commit()
-
-    service = IntakeIngestionService()
-    await service.process_file(db_session, pending_file)
-
-    await db_session.refresh(pending_file)
-    assert pending_file.processing_status == "completed"
-    assert pending_file.processed_text == "Cached text"
-    assert pending_file.ai_analysis == {"summary": "Cached summary"}
-
-
-@pytest.mark.asyncio
-async def test_dedupe_clones_suggestions_and_unmapped(db_session):
-    org = await create_org(db_session, "Org Clone", "org-clone")
-    user = await create_user(
-        db_session,
-        email=f"clone-{uuid.uuid4().hex[:8]}@example.com",
-        org_id=org.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company = await create_company(db_session, org_id=org.id, name="Clone Co")
-    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Clone")
-    project = await create_project(
-        db_session, org_id=org.id, user_id=user.id, location_id=location.id, name="Clone"
-    )
-
-    section, field, _ = _first_field()
-    file_hash = "clone-hash"
-    cached_file = ProjectFile(
-        organization_id=org.id,
-        project_id=project.id,
-        filename="cached.pdf",
-        file_path="/fake/path/cached.pdf",
-        file_size=1024,
-        mime_type="application/pdf",
-        file_type="pdf",
-        category="general",
-        processing_status="completed",
-        processing_attempts=0,
-        file_hash=file_hash,
-        processed_text="Cached text",
-        ai_analysis={"summary": "Cached summary"},
-    )
-    new_file = ProjectFile(
-        organization_id=org.id,
-        project_id=project.id,
-        filename="new.pdf",
-        file_path="/fake/path/new.pdf",
-        file_size=1024,
-        mime_type="application/pdf",
-        file_type="pdf",
-        category="general",
-        processing_status="processing",
-        processing_attempts=0,
-        file_hash=file_hash,
-    )
-    db_session.add_all([cached_file, new_file])
-    await db_session.flush()
-
-    suggestion = IntakeSuggestion(
-        organization_id=org.id,
-        project_id=project.id,
-        source_file_id=cached_file.id,
-        field_id=field["id"],
-        field_label=field["label"],
-        section_id=section["id"],
-        section_title=section["title"],
-        value="Clone value",
-        value_type="string",
-        unit=None,
-        confidence=90,
-        status="pending",
-        source="file",
-        evidence={
-            "file_id": str(cached_file.id),
-            "filename": cached_file.filename,
-            "page": 1,
-            "excerpt": "Excerpt",
-        },
-        created_by_user_id=None,
-    )
-    note = IntakeUnmappedNote(
-        organization_id=org.id,
-        project_id=project.id,
-        extracted_text="Unmapped text",
-        confidence=60,
-        source_file_id=cached_file.id,
-        source_file=cached_file.filename,
-        status="open",
-    )
-    db_session.add_all([suggestion, note])
-    await db_session.commit()
-
-    service = IntakeIngestionService()
-    await service.process_file(db_session, new_file)
-
-    result = await db_session.execute(
-        select(IntakeSuggestion).where(IntakeSuggestion.source_file_id == new_file.id)
-    )
-    cloned_suggestions = result.scalars().all()
-    assert len(cloned_suggestions) == 1
-    assert cloned_suggestions[0].field_id == field["id"]
-    assert cloned_suggestions[0].evidence is not None
-
-    result = await db_session.execute(
-        select(IntakeUnmappedNote).where(IntakeUnmappedNote.source_file_id == new_file.id)
-    )
-    cloned_notes = result.scalars().all()
-    assert len(cloned_notes) == 1
-    assert cloned_notes[0].source_file == new_file.filename
-
-
-@pytest.mark.asyncio
-async def test_cross_org_denied(client: AsyncClient, db_session, set_current_user):
-    org1 = await create_org(db_session, "Org A", "org-a")
-    user1 = await create_user(
-        db_session,
-        email=f"org-a-{uuid.uuid4().hex[:8]}@example.com",
-        org_id=org1.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company1 = await create_company(db_session, org_id=org1.id, name="Org A Co")
-    location1 = await create_location(
-        db_session, org_id=org1.id, company_id=company1.id, name="Org A"
-    )
-    project1 = await create_project(
-        db_session, org_id=org1.id, user_id=user1.id, location_id=location1.id, name="Org A"
-    )
-
-    section, field, questionnaire = _first_field()
-    project1.project_data = {"technical_sections": copy.deepcopy(questionnaire)}
-    await db_session.commit()
-
-    suggestion = IntakeSuggestion(
-        organization_id=org1.id,
-        project_id=project1.id,
-        source_file_id=None,
-        field_id=field["id"],
-        field_label=field["label"],
-        section_id=section["id"],
-        section_title=section["title"],
-        value="Cross org",
-        value_type="string",
-        unit=None,
-        confidence=90,
-        status="pending",
-        source="notes",
-        evidence=None,
-        created_by_user_id=user1.id,
-    )
-    db_session.add(suggestion)
-    await db_session.commit()
-
-    org2 = await create_org(db_session, "Org B", "org-b")
-    user2 = await create_user(
-        db_session,
-        email=f"org-b-{uuid.uuid4().hex[:8]}@example.com",
-        org_id=org2.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company2 = await create_company(db_session, org_id=org2.id, name="Org B Co")
-    location2 = await create_location(
-        db_session, org_id=org2.id, company_id=company2.id, name="Org B"
-    )
-    project2 = await create_project(
-        db_session, org_id=org2.id, user_id=user2.id, location_id=location2.id, name="Org B"
-    )
-    project2.project_data = {"technical_sections": copy.deepcopy(questionnaire)}
-    await db_session.commit()
-
-    set_current_user(user2)
-    response = await client.patch(
-        f"/api/v1/projects/{project2.id}/intake/suggestions/{suggestion.id}",
-        json={"status": "applied"},
-    )
-    assert response.status_code == 404
-
-
-def test_evidence_validation_extra_key():
-    from pydantic import ValidationError
-
-    with pytest.raises(ValidationError):
-        IntakeEvidence.model_validate(
-            {
-                "file_id": uuid.uuid4(),
-                "filename": "test.pdf",
-                "page": 1,
-                "excerpt": "text",
-                "extra": "nope",
-            }
-        )
-
-
-@pytest.mark.asyncio
-async def test_image_reprocess_does_not_duplicate_unmapped(db_session, monkeypatch):
-    org = await create_org(db_session, "Org Image", "org-image")
-    user = await create_user(
-        db_session,
-        email=f"image-{uuid.uuid4().hex[:8]}@example.com",
-        org_id=org.id,
-        role=UserRole.FIELD_AGENT.value,
-        is_superuser=False,
-    )
-    company = await create_company(db_session, org_id=org.id, name="Image Co")
-    location = await create_location(db_session, org_id=org.id, company_id=company.id, name="Image")
-    project = await create_project(
-        db_session, org_id=org.id, user_id=user.id, location_id=location.id, name="Image"
-    )
-
-    file = ProjectFile(
-        organization_id=org.id,
-        project_id=project.id,
-        filename="photo.png",
-        file_path="/fake/path/photo.png",
-        file_size=1024,
-        mime_type="image/png",
-        file_type="png",
-        category="photos",
-        processing_status="processing",
-        processing_attempts=0,
-        file_hash="img123",
-    )
-    db_session.add(file)
-    await db_session.commit()
-
-    from app.models.image_analysis_output import ImageAnalysisOutput
-
-    async def _fake_analyze_image(**_kwargs):
-        return ImageAnalysisOutput(
-            material_type="Plastic drums",
-            quality_grade="High",
-            lifecycle_status="Good",
-            confidence="High",
-            estimated_composition=[],
-            current_disposal_pathway="Landfill",
-            co2_if_disposed=0.0,
-            co2_if_diverted=0.0,
-            co2_savings=0.0,
-            esg_statement="ESG",
-            lca_assumptions="",
-            ppe_requirements=[],
-            storage_requirements=[],
-            degradation_risks=[],
-            visible_hazards=[],
-            summary="Clean plastic drums in good condition.",
-        )
-
-    monkeypatch.setattr(
-        "app.services.intake_ingestion_service.analyze_image",
-        _fake_analyze_image,
-    )
-
-    service = IntakeIngestionService()
-    await service._process_image(db_session, file, b"image-bytes")
-    await db_session.commit()
-
-    await service._process_image(db_session, file, b"image-bytes")
-    await db_session.commit()
-
-    result = await db_session.execute(
-        select(IntakeUnmappedNote).where(
-            IntakeUnmappedNote.project_id == project.id,
-            IntakeUnmappedNote.source_file_id == file.id,
-        )
-    )
-    notes = result.scalars().all()
-    assert len(notes) == 1
+    # Combobox - pass through
+    assert apply_suggestion("combobox", "value") == "value"

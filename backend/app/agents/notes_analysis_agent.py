@@ -1,11 +1,11 @@
 """AI agent for analyzing intake notes (LLM-only)."""
 
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
-import time
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
 

@@ -1,6 +1,6 @@
 """Schemas for intake panel APIs."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -180,7 +180,7 @@ class AnalyzeNotesRequest(BaseSchema):
     def validate_notes_updated_at(cls, value: datetime) -> datetime:
         if value.tzinfo is None:
             raise ValueError("notes_updated_at must be timezone-aware")
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
 
 class AnalyzeNotesResponse(BaseSchema):
@@ -194,7 +194,7 @@ def _serialize_canonical_datetime(dt: datetime | None) -> str | None:
         return None
     if dt.tzinfo is None:
         raise ValueError("datetime must be timezone-aware")
-    dt_utc = dt.astimezone(timezone.utc)
+    dt_utc = dt.astimezone(UTC)
     ms = dt_utc.microsecond // 1000
     dt_ms = dt_utc.replace(microsecond=ms * 1000)
     return dt_ms.strftime("%Y-%m-%dT%H:%M:%S") + f".{ms:03d}Z"
