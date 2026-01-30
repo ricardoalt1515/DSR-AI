@@ -99,7 +99,7 @@ class IntakeService:
                     unit=suggestion.unit,
                     confidence=suggestion.confidence,
                     status=status,
-                    source=suggestion.source,
+                    source=cast(Literal["notes", "file", "image", "sds", "lab"], suggestion.source),
                     source_file_id=suggestion.source_file_id,
                     evidence=evidence,
                 )
@@ -445,7 +445,7 @@ class IntakeService:
             )
             .values(status="dismissed", updated_at=datetime.now(UTC))
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     @staticmethod
     async def dismiss_unmapped_by_confidence(
@@ -463,7 +463,7 @@ class IntakeService:
             )
             .values(status="dismissed", updated_at=datetime.now(UTC))
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     @staticmethod
     async def dismiss_unmapped_by_file(
@@ -481,7 +481,7 @@ class IntakeService:
         else:
             stmt = stmt.where(IntakeUnmappedNote.source_file_id == source_file_id)
         result = await db.execute(stmt.values(status="dismissed", updated_at=datetime.now(UTC)))
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     @staticmethod
     async def _apply_to_project_data(
@@ -672,7 +672,6 @@ class IntakeBatchService:
         For 'applied' status, also updates project_data and auto-rejects siblings.
         """
         results: list[BatchSuggestionResult] = []
-        now = datetime.now(UTC)
 
         for suggestion_id in suggestion_ids:
             try:

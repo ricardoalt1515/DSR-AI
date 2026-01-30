@@ -122,9 +122,10 @@ class IntakeDismissUnmappedScope(BaseSchema):
     @model_validator(mode="after")
     def validate_scope(self) -> "IntakeDismissUnmappedScope":
         fields_set = self.model_fields_set
-        if self.scope == "all":
-            if "max_confidence" in fields_set or "source_file_id" in fields_set:
-                raise ValueError("scope='all' cannot include max_confidence or source_file_id")
+        if self.scope == "all" and (
+            "max_confidence" in fields_set or "source_file_id" in fields_set
+        ):
+            raise ValueError("scope='all' cannot include max_confidence or source_file_id")
         if self.scope == "low_confidence":
             if "max_confidence" not in fields_set or self.max_confidence is None:
                 raise ValueError("max_confidence is required for scope='low_confidence'")

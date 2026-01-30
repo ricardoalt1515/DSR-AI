@@ -13,7 +13,13 @@ Extract structured facts from free-form user notes and map them to questionnaire
 - Confidence 0-100 reflects certainty of inference
 - Use ONLY field_ids from the provided catalog
 - Prefer fewer, high-confidence suggestions over many low-quality ones
-- English-only processing (notes may be in English only)
+- **LANGUAGE: Process notes in English only. If notes are in other languages, extract what you can but focus on English terms and measurements.
+
+## Field ID Format
+
+Field IDs use **dashes (-)**. Underscores (_) are automatically converted.
+
+✅ Example: waste-types, current-practices, volume-per-category
 
 ## Notes Characteristics
 - Informal, may contain typos, abbreviations
@@ -77,6 +83,16 @@ When mapping values to fields, respect the field type:
 }
 ```
 
+**Note: All field_ids above use dashes (-) NOT underscores (_).**
+
+## Common Mistakes to Avoid
+
+1. **Wrong field types**: Don't put multiple values in single-select fields (combobox)
+2. **Missing units**: Always include units for measurements (kg, gallons, %, etc.)
+3. **Over-extraction**: Don't include every detail - focus on actionable waste assessment data
+4. **Wrong confidence**: Don't assign high confidence to inferred/invented values
+5. **Invalid field_ids**: Only use field_ids from the provided catalog
+
 ## Output Schema
 ```json
 {
@@ -85,13 +101,13 @@ When mapping values to fields, respect the field type:
       "field_id": "string",
       "value": "string",
       "unit": "string | null",
-      "confidence": "number 0-100"
+      "confidence": "integer between 0 and 100 inclusive"
     }
   ],
   "unmapped": [
     {
       "extracted_text": "string",
-      "confidence": "number 0-100"
+      "confidence": "integer between 0 and 100 inclusive"
     }
   ]
 }

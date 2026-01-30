@@ -20,6 +20,9 @@ class DocumentAnalysisError(Exception):
     pass
 
 
+MAX_DOC_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
 @dataclass
 class DocumentContext:
     filename: str
@@ -44,24 +47,26 @@ def load_document_analysis_prompt() -> str:
         raise
 
 
+_BASE_PROMPT = load_document_analysis_prompt()
+
+
 document_analysis_agent = Agent(
     settings.AI_DOCUMENT_MODEL,
     deps_type=DocumentContext,
     output_type=DocumentAnalysisOutput,
-    instructions=load_document_analysis_prompt(),
     model_settings=ModelSettings(temperature=0.2),
     retries=2,
+    system_prompt=_BASE_PROMPT,
 )
 
 
-@document_analysis_agent.instructions
-def inject_doc_type(ctx: RunContext[DocumentContext]) -> str:
-    return f"Document type: {ctx.deps.doc_type}"
-
-
-@document_analysis_agent.instructions
-def inject_field_catalog(ctx: RunContext[DocumentContext]) -> str:
-    return f"Allowed fields (use exact field_id values):\n{ctx.deps.field_catalog}"
+@document_analysis_agent.system_prompt
+def inject_document_context(ctx: RunContext[DocumentContext]) -> str:
+    """Inject document type and field catalog dynamically from dependencies."""
+    return (
+        f"Document type: {ctx.deps.doc_type}\n\n"
+        f"Allowed fields (use exact field_id values):\n{ctx.deps.field_catalog}"
+    )
 
 
 async def analyze_document(
@@ -73,6 +78,13 @@ async def analyze_document(
 ) -> DocumentAnalysisOutput:
     if not document_bytes:
         raise DocumentAnalysisError(f"Empty document: {filename}")
+
+    # Reject documents larger than 10 MB
+    if len(document_bytes) > MAX_DOC_BYTES:
+        raise DocumentAnalysisError(
+            f"Document too large: {filename} ({len(document_bytes) / 1024 / 1024:.1f} MB). "
+            f"Maximum size is {MAX_DOC_BYTES / 1024 / 1024:.0f} MB."
+        )
 
     try:
         context = DocumentContext(

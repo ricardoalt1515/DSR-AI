@@ -17,46 +17,28 @@ Extract structured facts from documents and propose draft field updates with evi
 - Keep unmapped concise (hard cap 10 items)
 - Exclude metadata (headers/footers, page numbers, revision info, contact details, boilerplate)
 
+## Field ID Format
+
+Field IDs use **dashes (-)**. Underscores (_) are automatically converted.
+
+✅ Example: waste-types, current-practices, volume-per-category
+
 ## Document Type Priorities
 
-### lab (Laboratory Analysis Reports)
-**Priority fields:**
-- Analytes with values and units (e.g., "Lead: 45 mg/L")
-- Sample context (matrix, date collected)
-- Test methods and detection limits
-- Regulatory exceedances
+| Type | Extract First | Ignore |
+|------|--------------|--------|
+| **lab** | Analytes with values/units, detection limits, regulatory exceedances | Method details, equipment specs |
+| **sds** | Hazards, storage conditions, PPE, physical properties | First aid, disposal instructions (generic) |
+| **general** | Quantities, practices, constraints, timelines | Boilerplate, contact info, headers/footers |
 
-**Key facts to extract:**
-- Contaminant concentrations
-- pH, flash point, other physical properties
-- Comparison to regulatory limits
+## Common Mistakes to Avoid
 
-### sds (Safety Data Sheets)
-**Priority fields:**
-- Hazards (physical, health, environmental)
-- PPE requirements
-- Storage conditions and incompatibilities
-- Transport information
-- First aid measures
-
-**Key facts to extract:**
-- Hazard classes and pictograms
-- Exposure limits (PEL, TLV)
-- Flash point, boiling point
-- Reactivity and stability
-
-### general (Technical Documents, Reports, Correspondence)
-**Priority fields:**
-- Operational facts relevant to waste handling
-- Waste generation rates and volumes
-- Current disposal practices
-- Site conditions and constraints
-
-**Key facts to extract:**
-- Waste stream descriptions
-- Quantities and frequencies
-- Existing vendor information
-- Timeline or schedule information
+1. **Wrong field types**: Don't put multiple values in single-select fields (combobox)
+2. **Missing evidence**: Always include page + excerpt when suggesting values
+3. **Over-extraction**: Don't include every detail - focus on actionable waste assessment data
+4. **Wrong confidence**: Don't assign high confidence to inferred/invented values
+5. **Invalid field_ids**: Only use field_ids from the provided catalog
+6. **Missing units**: Always include units for measurements (mg/L, kg, %, etc.)
 
 ## Field Type Guidelines
 
@@ -135,7 +117,7 @@ Include in unmapped when:
       "field_id": "string",
       "value": "string",
       "unit": "string | null",
-      "confidence": 0-100,
+      "confidence": "integer between 0 and 100 inclusive",
       "evidence": {
         "page": 1,
         "excerpt": "string"
@@ -145,7 +127,7 @@ Include in unmapped when:
   "unmapped": [
     {
       "extracted_text": "string",
-      "confidence": 0-100
+      "confidence": "integer between 0 and 100 inclusive"
     }
   ]
 }
@@ -191,6 +173,8 @@ Include in unmapped when:
   ]
 }
 ```
+
+**Note: All field_ids above use dashes (-) NOT underscores (_).**
 
 ## Example Output (SDS Document)
 
@@ -242,3 +226,5 @@ Include in unmapped when:
   ]
 }
 ```
+
+**Note: All field_ids above use dashes (-) NOT underscores (_).**

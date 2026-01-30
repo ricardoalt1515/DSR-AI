@@ -43,24 +43,36 @@ def load_notes_analysis_prompt() -> str:
         raise
 
 
+_BASE_PROMPT = load_notes_analysis_prompt()
+
+
 notes_analysis_agent = Agent(
     settings.AI_TEXT_MODEL,
     deps_type=NotesContext,
     output_type=NotesAnalysisOutput,
-    instructions=load_notes_analysis_prompt(),
     model_settings=ModelSettings(temperature=0.2),
     retries=2,
+    system_prompt=_BASE_PROMPT,
 )
 
 
-@notes_analysis_agent.instructions
+@notes_analysis_agent.system_prompt
 def inject_field_catalog(ctx: RunContext[NotesContext]) -> str:
+    """Inject field catalog dynamically from dependencies."""
     return f"Allowed fields (use exact field_id values):\n{ctx.deps.field_catalog}"
+
+
+MAX_NOTES_CHARS = 8000
 
 
 async def analyze_notes(text: str, field_catalog: str) -> NotesAnalysisOutput:
     if not text:
         raise NotesAnalysisError("Empty intake notes")
+
+    # Truncate to most recent 8000 characters if exceeds limit
+    if len(text) > MAX_NOTES_CHARS:
+        text = text[-MAX_NOTES_CHARS:]
+        logger.info("notes_truncated", original_chars=len(text), truncated_chars=MAX_NOTES_CHARS)
 
     try:
         logger.info("notes_analysis_start", chars=len(text))

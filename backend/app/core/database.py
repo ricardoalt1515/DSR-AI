@@ -28,9 +28,9 @@ engine = create_engine(
 async_engine = create_async_engine(
     settings.async_database_url,
     pool_pre_ping=False,  # Disabled: causes MissingGreenlet with asyncpg
-    pool_recycle=300,     # Recycle connections every 5 minutes
-    pool_size=5,          # Reduced: sufficient for current load
-    max_overflow=5,       # Reduced: match pool_size
+    pool_recycle=300,  # Recycle connections every 5 minutes
+    pool_size=5,  # Reduced: sufficient for current load
+    max_overflow=5,  # Reduced: match pool_size
     echo=False,  # Disable SQL query logging to reduce noise
 )
 

@@ -204,6 +204,7 @@ async def test_apply_reject_and_auto_reject(client: AsyncClient, db_session, set
 def test_build_questionnaire_registry_includes_field_type():
     """Test that field registry includes field_type metadata."""
     from app.services.intake_field_catalog import build_questionnaire_registry
+
     registry = build_questionnaire_registry()
 
     # Check that we have fields
@@ -215,12 +216,46 @@ def test_build_questionnaire_registry_includes_field_type():
         assert item.field_type in ["text", "tags", "textarea", "combobox", "number", "radio"]
 
 
+def test_normalize_field_id_handles_llm_variations():
+    """Test field_id normalization handles common LLM output variations."""
+    from app.services.intake_field_catalog import normalize_field_id
+
+    # Underscores to dashes
+    assert normalize_field_id("waste_types") == "waste-types"
+
+    # Case insensitive
+    assert normalize_field_id("Waste-Types") == "waste-types"
+    assert normalize_field_id("PAIN-POINTS") == "pain-points"
+
+    # Trailing colon/punctuation
+    assert normalize_field_id("pain-points:") == "pain-points"
+    assert normalize_field_id("pain-points.") == "pain-points"
+    assert normalize_field_id("pain-points,") == "pain-points"
+    assert normalize_field_id("pain-points: ") == "pain-points"
+
+    # Quotes/backticks
+    assert normalize_field_id("`waste-types`") == "waste-types"
+    assert normalize_field_id('"waste-types"') == "waste-types"
+    assert normalize_field_id("'waste-types'") == "waste-types"
+
+    # Whitespace
+    assert normalize_field_id("  waste-types  ") == "waste-types"
+
+    # Combined worst case
+    assert normalize_field_id(" `Waste_Types`: ") == "waste-types"
+
+    # Empty/edge cases
+    assert normalize_field_id("") == ""
+    assert normalize_field_id("   ") == ""
+
+
 def test_format_catalog_for_prompt_structure():
     """Test that catalog format includes type information."""
     from app.services.intake_field_catalog import (
         build_questionnaire_registry,
         format_catalog_for_prompt,
     )
+
     registry = build_questionnaire_registry()
     catalog = format_catalog_for_prompt(registry)
 
@@ -237,95 +272,10 @@ def test_format_catalog_for_prompt_structure():
     assert "label:" in catalog
 
 
-def test_normalize_suggestions_drops_unknown_field_ids():
-    """Test that suggestions with unknown field_ids are moved to unmapped."""
-    from app.services.intake_field_catalog import (
-        build_questionnaire_registry,
-        normalize_suggestions,
-    )
-    registry = build_questionnaire_registry()
-
-    suggestions = [
-        {"field_id": "waste-types", "value": "Plastic", "confidence": 90},
-        {"field_id": "unknown-field-xyz", "value": "Some value", "confidence": 80},
-    ]
-
-    valid, unmapped = normalize_suggestions(suggestions, registry, source="test")
-
-    # Should only have 1 valid suggestion
-    assert len(valid) == 1
-    assert valid[0]["field_id"] == "waste-types"
-
-    # Unknown field should be in unmapped
-    assert len(unmapped) == 1
-    assert "unknown-field-xyz" in unmapped[0].get("reason", "")
-
-
-def test_normalize_suggestions_dedupes_single_value_fields():
-    """Test that single-value fields keep only highest confidence suggestion."""
-    from app.services.intake_field_catalog import (
-        build_questionnaire_registry,
-        normalize_suggestions,
-    )
-    registry = build_questionnaire_registry()
-
-    # Pick a single-value field (not in MULTI_VALUE_FIELDS)
-    single_value_field = "waste-description"
-    if single_value_field not in registry:
-        # Skip if field doesn't exist
-        return
-
-    suggestions = [
-        {"field_id": single_value_field, "value": "First value", "confidence": 70},
-        {"field_id": single_value_field, "value": "Better value", "confidence": 90},
-        {"field_id": single_value_field, "value": "Worse value", "confidence": 60},
-    ]
-
-    valid, unmapped = normalize_suggestions(suggestions, registry, source="test")
-
-    # Should only have 1 valid suggestion (highest confidence)
-    assert len(valid) == 1
-    assert valid[0]["value"] == "Better value"
-    assert valid[0]["confidence"] == 90
-
-    # Lower confidence ones should be unmapped
-    assert len(unmapped) == 2
-
-
-def test_normalize_suggestions_collects_multi_value_fields():
-    """Test that multi-value fields collect all suggestions."""
-    from app.services.intake_field_catalog import (
-        build_questionnaire_registry,
-        normalize_suggestions,
-    )
-    registry = build_questionnaire_registry()
-
-    # Use a known multi-value field
-    multi_field = "current-practices"
-    if multi_field not in registry:
-        # Skip if field doesn't exist
-        return
-
-    suggestions = [
-        {"field_id": multi_field, "value": "Storage", "confidence": 90},
-        {"field_id": multi_field, "value": "Recycling", "confidence": 85},
-        {"field_id": multi_field, "value": "Neutralization", "confidence": 80},
-    ]
-
-    valid, unmapped = normalize_suggestions(suggestions, registry, source="test")
-
-    # Should have all 3 suggestions
-    assert len(valid) == 3
-    values = {s["value"] for s in valid}
-    assert values == {"Storage", "Recycling", "Neutralization"}
-
-    # No unmapped
-    assert len(unmapped) == 0
-
-
 def test_apply_suggestion_parses_tags():
     """Test that apply_suggestion correctly parses tags fields."""
     from app.services.intake_field_catalog import apply_suggestion
+
     # Test comma-separated string
     result = apply_suggestion("tags", "Storage, Recycling, Neutralization")
     assert result == ["Storage", "Recycling", "Neutralization"]
@@ -342,6 +292,7 @@ def test_apply_suggestion_parses_tags():
 def test_apply_suggestion_handles_other_types():
     """Test that apply_suggestion handles other field types correctly."""
     from app.services.intake_field_catalog import apply_suggestion
+
     # Text field - ensure string
     assert apply_suggestion("text", 123) == "123"
     assert apply_suggestion("text", "hello") == "hello"

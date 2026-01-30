@@ -92,12 +92,14 @@ async def analyze_intake_notes(
     _rate_limit: RateLimitUser10,
 ) -> AnalyzeNotesResponse:
     try:
-        suggestions_count, unmapped_count, stale_ignored = (
-            await notes_ingestion_service.analyze_notes_text(
-                db=db,
-                project=project,
-                notes_updated_at=payload.notes_updated_at,
-            )
+        (
+            suggestions_count,
+            unmapped_count,
+            stale_ignored,
+        ) = await notes_ingestion_service.analyze_notes_text(
+            db=db,
+            project=project,
+            notes_updated_at=payload.notes_updated_at,
         )
         await db.commit()
         return AnalyzeNotesResponse(
@@ -165,9 +167,7 @@ async def update_suggestion_status(
                 current_user=current_user,
             )
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
     except IntegrityError:
         await db.rollback()
         raise HTTPException(

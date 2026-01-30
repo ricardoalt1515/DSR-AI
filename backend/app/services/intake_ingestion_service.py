@@ -26,7 +26,7 @@ from app.services.intake_field_catalog import (
     FieldRegistryItem,
     build_questionnaire_registry,
     format_catalog_for_prompt,
-    normalize_suggestions,
+    normalize_field_id,
 )
 from app.services.s3_service import download_file_content
 
@@ -42,7 +42,9 @@ _METADATA_PATTERNS = [
     re.compile(r"\b(rev|revision|version|doc(ument)?\s*(no|id))\b", re.IGNORECASE),
     re.compile(r"\b(tel|phone|fax|email)\b", re.IGNORECASE),
     re.compile(r"\bwww\.\S+|https?://\S+\b", re.IGNORECASE),
-    re.compile(r"\b(confidential|all rights reserved|copyright|prepared by|issued)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(confidential|all rights reserved|copyright|prepared by|issued)\b", re.IGNORECASE
+    ),
 ]
 
 
@@ -173,26 +175,15 @@ class IntakeIngestionService:
             return 0, 0, True
 
         truncated = (
-            current_note.text[-8000:]
-            if len(current_note.text) > 8000
-            else current_note.text
+            current_note.text[-8000:] if len(current_note.text) > 8000 else current_note.text
         )
 
-        # Use new field catalog with type metadata
+        # Build field catalog for AI prompt
         field_catalog = format_catalog_for_prompt(self.registry)
         analysis = await analyze_notes(truncated, field_catalog)
 
-        # Normalize suggestions: dedupe, validate field_ids, handle multi-value fields
-        valid_suggestions, extra_unmapped = normalize_suggestions(
-            [s.model_dump() for s in analysis.suggestions],
-            self.registry,
-            source="notes",
-        )
-
         current_note = await self._get_intake_note(db, project)
-        if not current_note or not _timestamps_equal(
-            current_note.updated_at, notes_updated_at
-        ):
+        if not current_note or not _timestamps_equal(current_note.updated_at, notes_updated_at):
             logger.info("notes_analysis_postcheck_stale", project_id=str(project.id))
             return 0, 0, True
 
@@ -217,15 +208,29 @@ class IntakeIngestionService:
                 .where(IntakeUnmappedNote.status == "open")
             )
 
-            # Persist valid suggestions
-            for suggestion_data in valid_suggestions:
-                field_id = suggestion_data["field_id"]
-                registry_item = self.registry.get(field_id)
-                if not registry_item:
+            # Simple direct loop: validate field_id against registry
+            suggestions_count = 0
+            for suggestion in analysis.suggestions:
+                # Skip empty values (handles 0 correctly)
+                value_str = str(suggestion.value).strip()
+                if value_str == "":
                     continue
 
-                value = suggestion_data.get("value", "")
-                value_type = "number" if _is_number_like(str(value)) else "string"
+                # Normalize field_id for lookup
+                field_id = normalize_field_id(suggestion.field_id)
+                registry_item = self.registry.get(field_id)
+
+                if not registry_item:
+                    # Unknown field_id → goes to unmapped
+                    await self._persist_unmapped_from_notes(
+                        db,
+                        project,
+                        suggestion.value,
+                        suggestion.confidence,
+                    )
+                    continue
+
+                value_type = "number" if _is_number_like(suggestion.value) else "string"
                 intake_suggestion = IntakeSuggestion(
                     organization_id=project.organization_id,
                     project_id=project.id,
@@ -234,20 +239,19 @@ class IntakeIngestionService:
                     field_label=registry_item.field_label,
                     section_id=registry_item.section_id,
                     section_title=registry_item.section_title,
-                    value=str(value),
+                    value=str(suggestion.value),
                     value_type=value_type,
-                    unit=suggestion_data.get("unit"),
-                    confidence=NotesAnalysisOutput.normalize_confidence(
-                        suggestion_data.get("confidence", 50)
-                    ),
+                    unit=suggestion.unit,
+                    confidence=NotesAnalysisOutput.normalize_confidence(suggestion.confidence),
                     status="pending",
                     source="notes",
                     evidence=None,
                     created_by_user_id=None,
                 )
                 db.add(intake_suggestion)
+                suggestions_count += 1
 
-            # Persist unmapped from analysis + extra from normalization
+            # Persist unmapped from AI analysis
             for unmapped in analysis.unmapped:
                 await self._persist_unmapped_from_notes(
                     db,
@@ -256,15 +260,7 @@ class IntakeIngestionService:
                     unmapped.confidence,
                 )
 
-            for unmapped_data in extra_unmapped:
-                await self._persist_unmapped_from_notes(
-                    db,
-                    project,
-                    unmapped_data.get("extracted_text", ""),
-                    unmapped_data.get("confidence", 50),
-                )
-
-        return len(valid_suggestions), len(analysis.unmapped) + len(extra_unmapped), False
+        return suggestions_count, len(analysis.unmapped), False
 
     async def _process_image_or_document(
         self,
@@ -357,36 +353,36 @@ class IntakeIngestionService:
 
         await self._delete_pending_for_source(db, file)
 
-        # Normalize suggestions: dedupe, validate field_ids, handle multi-value fields
-        valid_suggestions, extra_unmapped = normalize_suggestions(
-            [s.model_dump() for s in analysis.suggestions],
-            self.registry,
-            source="document",
-        )
+        # Simple direct loop: validate field_id against registry (same pattern as notes)
+        for suggestion in analysis.suggestions:
+            # Skip empty values (handles 0 correctly)
+            value_str = str(suggestion.value).strip()
+            if value_str == "":
+                continue
 
-        for suggestion_data in valid_suggestions:
-            field_id = suggestion_data["field_id"]
+            # Normalize field_id for lookup
+            field_id = normalize_field_id(suggestion.field_id)
             registry_item = self.registry.get(field_id)
+
             if not registry_item:
+                # Unknown field_id → goes to unmapped
+                await self._persist_unmapped(db, file, suggestion.value, suggestion.confidence)
                 continue
 
             # Check for evidence - documents require evidence
-            evidence_data = suggestion_data.get("evidence")
-            if not evidence_data:
-                await self._persist_unmapped(db, file, suggestion_data.get("value", ""), suggestion_data.get("confidence", 50))
+            if not suggestion.evidence:
+                await self._persist_unmapped(db, file, suggestion.value, suggestion.confidence)
                 continue
 
-            evidence_payload: dict[str, Any] | None = None
-            page = _normalize_page(evidence_data.get("page"))
+            page = _normalize_page(suggestion.evidence.page)
             evidence_payload = IntakeEvidence(
                 file_id=file.id,
                 filename=file.filename,
                 page=page,
-                excerpt=evidence_data.get("excerpt", ""),
+                excerpt=suggestion.evidence.excerpt or "",
             ).model_dump(mode="json")
 
-            value = suggestion_data.get("value", "")
-            value_type = "number" if _is_number_like(str(value)) else "string"
+            value_type = "number" if _is_number_like(suggestion.value) else "string"
             intake_suggestion = IntakeSuggestion(
                 organization_id=file.organization_id,
                 project_id=file.project_id,
@@ -395,10 +391,10 @@ class IntakeIngestionService:
                 field_label=registry_item.field_label,
                 section_id=registry_item.section_id,
                 section_title=registry_item.section_title,
-                value=str(value),
+                value=str(suggestion.value),
                 value_type=value_type,
-                unit=suggestion_data.get("unit"),
-                confidence=analysis.normalize_confidence(suggestion_data.get("confidence", 50)),
+                unit=suggestion.unit,
+                confidence=analysis.normalize_confidence(suggestion.confidence),
                 status="pending",
                 source="file" if doc_type == "general" else doc_type,
                 evidence=evidence_payload,
@@ -406,10 +402,9 @@ class IntakeIngestionService:
             )
             db.add(intake_suggestion)
 
-        # Persist unmapped from analysis + extra from normalization
+        # Persist unmapped from analysis
         filtered_unmapped = _filter_unmapped_items(analysis.unmapped)
-        all_unmapped = list(filtered_unmapped) + [DocumentUnmapped(**u) for u in extra_unmapped]
-        for item in all_unmapped[:MAX_UNMAPPED_ITEMS]:
+        for item in list(filtered_unmapped)[:MAX_UNMAPPED_ITEMS]:
             await self._persist_unmapped(db, file, item.extracted_text, item.confidence)
 
     async def _delete_pending_for_source(self, db: AsyncSession, file: ProjectFile) -> None:
@@ -561,9 +556,7 @@ class IntakeIngestionService:
         )
         db.add(unmapped)
 
-    async def _get_intake_note(
-        self, db: AsyncSession, project: Project
-    ) -> IntakeNote | None:
+    async def _get_intake_note(self, db: AsyncSession, project: Project) -> IntakeNote | None:
         result = await db.execute(
             select(IntakeNote).where(
                 IntakeNote.project_id == project.id,
@@ -640,16 +633,11 @@ def _is_trivial_number(text: str) -> bool:
     if any(char.isalpha() for char in text):
         return False
     stripped = text.strip()
-    if len(stripped) < 6:
-        return True
-    return False
+    return len(stripped) < 6
 
 
 def _is_metadata_like(text: str) -> bool:
     lowered = text.casefold()
     if "cas" in lowered:
         return False
-    for pattern in _METADATA_PATTERNS:
-        if pattern.search(text):
-            return True
-    return False
+    return any(pattern.search(text) for pattern in _METADATA_PATTERNS)

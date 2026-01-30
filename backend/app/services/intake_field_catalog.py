@@ -7,7 +7,11 @@ and field value application logic.
 from dataclasses import dataclass
 from typing import Any
 
+import structlog
+
 from app.templates.assessment_questionnaire import get_assessment_questionnaire
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -30,6 +34,35 @@ MULTI_VALUE_FIELDS = {
     "primary-objectives",
     "volume-per-category",
 }
+
+
+def normalize_field_id(field_id: str) -> str:
+    """Normalize field_id for registry lookup.
+
+    Handles common LLM output variations:
+    - Strips whitespace
+    - Removes quotes/backticks
+    - Converts underscores to dashes
+    - Lowercases for comparison
+    - Removes trailing punctuation (colons, periods, commas)
+
+    Examples:
+        "waste_types" → "waste-types"
+        "Waste-Types:" → "waste-types"
+        "`pain-points`" → "pain-points"
+        " waste-types: " → "waste-types"
+    """
+    if not field_id:
+        return ""
+    # Order matters: strip spaces, then quotes, then transform, then trailing punct
+    result = field_id.strip()
+    # Remove surrounding quotes/backticks (may have multiple layers)
+    result = result.strip("\"`'")
+    result = result.lower()
+    result = result.replace("_", "-")
+    # Final cleanup: trailing punctuation AND any remaining quotes
+    result = result.rstrip(" :.,`\"'")
+    return result
 
 
 def build_questionnaire_registry() -> dict[str, FieldRegistryItem]:
@@ -95,77 +128,6 @@ def format_catalog_for_prompt(registry: dict[str, FieldRegistryItem]) -> str:
         lines.append("")
 
     return "\n".join(lines)
-
-
-def normalize_suggestions(
-    suggestions: list[dict[str, Any]],
-    registry: dict[str, FieldRegistryItem],
-    source: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Normalize and validate suggestions against the field registry.
-
-    Performs:
-    - Drops suggestions with unknown field_ids (moves to unmapped)
-    - Deduplicates single-value fields (keeps highest confidence)
-    - Collects all values for multi-value fields
-
-    Args:
-        suggestions: Raw suggestions from AI agent
-        registry: Field registry
-        source: Source identifier ("notes" or "document")
-
-    Returns:
-        Tuple of (valid_suggestions, unmapped_items)
-    """
-    valid_suggestions: list[dict[str, Any]] = []
-    unmapped_items: list[dict[str, Any]] = []
-
-    # Track best suggestion per field for single-value fields
-    best_by_field: dict[str, dict[str, Any]] = {}
-
-    for suggestion in suggestions:
-        field_id = suggestion.get("field_id", "")
-        registry_item = registry.get(field_id)
-
-        # Unknown field_id - move to unmapped
-        if not registry_item:
-            unmapped_items.append({
-                "extracted_text": suggestion.get("value", ""),
-                "reason": f"Unknown field_id: {field_id}",
-                "confidence": suggestion.get("confidence", 50),
-            })
-            continue
-
-        # Multi-value field: collect all
-        if field_id in MULTI_VALUE_FIELDS:
-            valid_suggestions.append(suggestion)
-            continue
-
-        # Single-value field: keep best confidence
-        confidence = suggestion.get("confidence", 0)
-        if field_id not in best_by_field:
-            best_by_field[field_id] = suggestion
-        elif confidence > best_by_field[field_id].get("confidence", 0):
-            # Move previous to unmapped
-            prev = best_by_field[field_id]
-            unmapped_items.append({
-                "extracted_text": prev.get("value", ""),
-                "reason": f"Lower confidence ({prev.get('confidence', 0)}) than alternative ({confidence})",
-                "confidence": prev.get("confidence", 50),
-            })
-            best_by_field[field_id] = suggestion
-        else:
-            # Current is worse - move to unmapped
-            unmapped_items.append({
-                "extracted_text": suggestion.get("value", ""),
-                "reason": f"Lower confidence ({confidence}) than alternative ({best_by_field[field_id].get('confidence', 0)})",
-                "confidence": confidence,
-            })
-
-    # Add best single-value suggestions
-    valid_suggestions.extend(best_by_field.values())
-
-    return valid_suggestions, unmapped_items
 
 
 def apply_suggestion(
