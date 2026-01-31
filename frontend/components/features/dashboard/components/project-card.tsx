@@ -2,17 +2,32 @@
 
 import {
 	Archive,
-	Briefcase,
+	Beaker,
 	Building,
 	Calendar,
+	Car,
 	Clock,
 	Download,
 	Edit,
 	Factory,
 	FileText,
-	Home,
+	Flame,
+	GraduationCap,
+	HardHat,
+	Heart,
+	Hotel,
+	Leaf,
 	MapPin,
+	Monitor,
 	MoreHorizontal,
+	Package,
+	Recycle,
+	ShoppingCart,
+	Store,
+	Target,
+	Truck,
+	Utensils,
+	Zap,
 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
@@ -61,15 +76,27 @@ const sectorIcons: Record<
 	string,
 	React.ComponentType<{ className?: string }>
 > = {
-	Municipal: Building,
-	Industrial: Factory,
-	Residential: Home,
-	Commercial: Briefcase,
-	// Fallbacks for lowercase (backwards compatibility)
-	municipal: Building,
-	industrial: Factory,
-	residential: Home,
-	commercial: Briefcase,
+	// New 20 industries
+	manufacturing_industrial: Factory,
+	automotive_transportation: Car,
+	chemicals_pharmaceuticals: Beaker,
+	oil_gas_energy: Flame,
+	mining_metals_materials: HardHat,
+	construction_infrastructure: Building,
+	packaging_paper_printing: Package,
+	food_beverage: Utensils,
+	agriculture_forestry: Leaf,
+	retail_wholesale_distribution: ShoppingCart,
+	healthcare_medical: Heart,
+	electronics_it_ewaste: Monitor,
+	utilities_public_services: Zap,
+	hospitality_commercial_services: Hotel,
+	education_institutions: GraduationCap,
+	logistics_transportation_services: Truck,
+	environmental_waste_services: Recycle,
+	consumer_goods_fmcg: Store,
+	financial_commercial_offices: Building,
+	specialty_high_risk: Target,
 };
 
 type PrimaryAction = {

@@ -1,30 +1,51 @@
 "use client";
 
 /**
- * CompactSectorSelect - Inline sector/subsector selection
+ * CompactSectorSelect - Inline industry/sub-industry selection
  *
  * Two-row layout:
- * 1. Sector: Simple Select with 5 options
- * 2. Subsector: Searchable Combobox that updates based on sector, with custom option
+ * 1. Industry: Simple Select with 20 industry options
+ * 2. Sub-Industry: Searchable Combobox that updates based on industry, with custom option
+ *
+ * Note: Internal field names remain "sector/subsector" for API compatibility,
+ * but UI labels show "Industry/Sub-Industry" to users.
  */
 
 import {
+	Beaker,
+	Building,
 	Building2,
+	Car,
 	Check,
 	ChevronsUpDown,
 	Factory,
-	Home,
+	Flame,
+	GraduationCap,
+	HardHat,
+	Heart,
+	Hotel,
+	Leaf,
+	Monitor,
+	Package,
+	Recycle,
+	ShoppingCart,
 	Store,
 	Target,
+	Truck,
+	Utensils,
+	Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
 	Command,
+	CommandEmpty,
 	CommandGroup,
 	CommandInput,
 	CommandItem,
 	CommandList,
+	CommandSeparator,
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,24 +53,37 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import type { Sector, SectorGroupKey, Subsector } from "@/lib/sectors-config";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import type { Sector, Subsector } from "@/lib/sectors-config";
-import { getSubsectors, sectorsConfig } from "@/lib/sectors-config";
+	getSectorsByGroup,
+	getSubsectors,
+	SECTOR_GROUPS,
+	sectorsConfig,
+} from "@/lib/sectors-config";
 import { cn } from "@/lib/utils";
 
-// Icon mapping for sectors
+// Icon mapping for industries
 const SECTOR_ICONS = {
-	municipal: Building2,
-	commercial: Store,
-	industrial: Factory,
-	residential: Home,
-	other: Target,
+	manufacturing_industrial: Factory,
+	automotive_transportation: Car,
+	chemicals_pharmaceuticals: Beaker,
+	oil_gas_energy: Flame,
+	mining_metals_materials: HardHat,
+	construction_infrastructure: Building,
+	packaging_paper_printing: Package,
+	food_beverage: Utensils,
+	agriculture_forestry: Leaf,
+	retail_wholesale_distribution: ShoppingCart,
+	healthcare_medical: Heart,
+	electronics_it_ewaste: Monitor,
+	utilities_public_services: Zap,
+	hospitality_commercial_services: Hotel,
+	education_institutions: GraduationCap,
+	logistics_transportation_services: Truck,
+	environmental_waste_services: Recycle,
+	consumer_goods_fmcg: Store,
+	financial_commercial_offices: Building2,
+	specialty_high_risk: Target,
 } as const;
 
 interface CompactSectorSelectProps {
@@ -72,8 +106,16 @@ export function CompactSectorSelect({
 	className,
 	error,
 }: CompactSectorSelectProps) {
+	const [sectorOpen, setSectorOpen] = useState(false);
+	const [sectorSearchValue, setSectorSearchValue] = useState("");
 	const [subsectorOpen, setSubsectorOpen] = useState(false);
 	const [searchValue, setSearchValue] = useState("");
+
+	// Find selected sector config for display
+	const selectedSectorConfig = useMemo(() => {
+		if (!sector) return null;
+		return sectorsConfig.find((s) => s.id === sector) || null;
+	}, [sector]);
 
 	// Get available subsectors for selected sector
 	const availableSubsectors = useMemo(() => {
@@ -100,6 +142,8 @@ export function CompactSectorSelect({
 		} else {
 			onSubsectorChange("");
 		}
+		setSectorSearchValue("");
+		setSectorOpen(false);
 	};
 
 	// Handle subsector selection (from list or custom)
@@ -127,44 +171,113 @@ export function CompactSectorSelect({
 		(s) => s.label.toLowerCase() === searchValue.toLowerCase(),
 	);
 
+	// Group keys for iteration
+	const groupKeys = Object.keys(SECTOR_GROUPS) as SectorGroupKey[];
+
 	return (
 		<div className={cn("space-y-4", className)}>
-			{/* Sector Select */}
+			{/* Industry Combobox - Searchable with groups */}
 			<div className="grid gap-2">
 				<Label htmlFor="sector">
-					Sector <span className="text-destructive">*</span>
+					Industry <span className="text-destructive">*</span>
 				</Label>
-				<Select
-					{...(sector ? { value: sector } : {})}
-					onValueChange={handleSectorChange}
-					disabled={disabled}
-				>
-					<SelectTrigger id="sector" className="w-full">
-						<SelectValue placeholder="Select sector..." />
-					</SelectTrigger>
-					<SelectContent>
-						{sectorsConfig.map((sectorConfig) => {
-							const Icon =
-								SECTOR_ICONS[sectorConfig.id as keyof typeof SECTOR_ICONS] ||
-								Target;
-							return (
-								<SelectItem key={sectorConfig.id} value={sectorConfig.id}>
-									<div className="flex items-center gap-2">
-										<Icon className="h-4 w-4 text-muted-foreground" />
-										<span>{sectorConfig.label}</span>
-									</div>
-								</SelectItem>
-							);
-						})}
-					</SelectContent>
-				</Select>
+				<Popover open={sectorOpen} onOpenChange={setSectorOpen}>
+					<PopoverTrigger asChild>
+						<Button
+							id="sector"
+							variant="outline"
+							role="combobox"
+							aria-expanded={sectorOpen}
+							disabled={disabled}
+							className={cn(
+								"w-full justify-between py-2.5 font-normal",
+								!sector && "text-muted-foreground",
+							)}
+						>
+							{selectedSectorConfig ? (
+								<span className="flex items-center gap-2">
+									{(() => {
+										const Icon =
+											SECTOR_ICONS[
+												selectedSectorConfig.id as keyof typeof SECTOR_ICONS
+											] || Target;
+										return (
+											<Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+										);
+									})()}
+									<span className="truncate">{selectedSectorConfig.label}</span>
+								</span>
+							) : (
+								"Select industry..."
+							)}
+							<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent
+						className="w-[--radix-popover-trigger-width] p-0 max-h-[var(--radix-popover-content-available-height)] overflow-hidden"
+						align="start"
+						portalled={false}
+					>
+						<Command className="max-h-[var(--radix-popover-content-available-height)]">
+							<CommandInput
+								placeholder="Search industries..."
+								value={sectorSearchValue}
+								onValueChange={setSectorSearchValue}
+							/>
+							<CommandList className="max-h-[calc(var(--radix-popover-content-available-height)-2.75rem)]">
+								<CommandEmpty>No industries found.</CommandEmpty>
+								{groupKeys.map((groupKey, index) => {
+									const group = SECTOR_GROUPS[groupKey];
+									const groupSectors = getSectorsByGroup(groupKey);
+
+									return (
+										<Fragment key={groupKey}>
+											{index > 0 && <CommandSeparator />}
+											<CommandGroup heading={group.label}>
+												{groupSectors.map((sectorConfig) => {
+													const Icon =
+														SECTOR_ICONS[
+															sectorConfig.id as keyof typeof SECTOR_ICONS
+														] || Target;
+													return (
+														<CommandItem
+															key={sectorConfig.id}
+															value={sectorConfig.label}
+															onSelect={() =>
+																handleSectorChange(sectorConfig.id)
+															}
+															className="py-2.5"
+														>
+															<Check
+																className={cn(
+																	"mr-2 h-4 w-4 shrink-0",
+																	sector === sectorConfig.id
+																		? "opacity-100"
+																		: "opacity-0",
+																)}
+															/>
+															<Icon className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+															<span className="truncate">
+																{sectorConfig.label}
+															</span>
+														</CommandItem>
+													);
+												})}
+											</CommandGroup>
+										</Fragment>
+									);
+								})}
+							</CommandList>
+						</Command>
+					</PopoverContent>
+				</Popover>
 				{error && <p className="text-sm text-destructive">{error}</p>}
 			</div>
 
-			{/* Subsector Combobox - Creatable */}
+			{/* Sub-Industry Combobox - Creatable */}
 			<div className="grid gap-2">
 				<Label htmlFor="subsector">
-					Subsector{" "}
+					Sub-Industry{" "}
 					<span className="text-xs text-muted-foreground">
 						(type to search or create)
 					</span>
@@ -183,16 +296,20 @@ export function CompactSectorSelect({
 							)}
 						>
 							{sector
-								? selectedSubsectorLabel || "Select or type subsector..."
-								: "Select sector first..."}
+								? selectedSubsectorLabel || "Select or type sub-industry..."
+								: "Select industry first..."}
 							<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 						</Button>
 					</PopoverTrigger>
 					<PopoverContent
-						className="w-[--radix-popover-trigger-width] p-0"
+						className="w-[--radix-popover-trigger-width] p-0 max-h-[var(--radix-popover-content-available-height)] overflow-hidden"
 						align="start"
+						portalled={false}
 					>
-						<Command shouldFilter={false}>
+						<Command
+							shouldFilter={false}
+							className="max-h-[var(--radix-popover-content-available-height)]"
+						>
 							<CommandInput
 								placeholder="Search or type new..."
 								value={searchValue}
@@ -204,7 +321,7 @@ export function CompactSectorSelect({
 									}
 								}}
 							/>
-							<CommandList>
+							<CommandList className="max-h-[calc(var(--radix-popover-content-available-height)-2.75rem)]">
 								<CommandGroup>
 									{/* Filter and show matching options */}
 									{availableSubsectors
@@ -269,7 +386,7 @@ export function CompactSectorSelect({
 }
 
 /**
- * Helper to format subsector for display
+ * Helper to format sub-industry for display
  */
 export function formatSubsector(subsector: string): string {
 	// Check if it's a known subsector

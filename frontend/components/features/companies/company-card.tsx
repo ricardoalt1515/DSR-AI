@@ -116,7 +116,6 @@ export function CompanyCard({ company, onDelete }: CompanyCardProps) {
 				<CardContent className="space-y-3">
 					{company.sector &&
 						company.subsector &&
-						company.sector !== "other" &&
 						company.subsector !== "other" && (
 							<div className="flex flex-wrap gap-2">
 								<Badge variant="secondary" className="capitalize">

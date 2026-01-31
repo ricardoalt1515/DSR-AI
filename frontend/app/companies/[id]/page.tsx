@@ -333,15 +333,14 @@ export default function CompanyDetailPage() {
 					<CardTitle>Company Information</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					{/* Sector/Subsector - only show if not default 'other' */}
+					{/* Industry/Sub-Industry - only show if set */}
 					{currentCompany.sector &&
 						currentCompany.subsector &&
-						currentCompany.sector !== "other" &&
 						currentCompany.subsector !== "other" && (
 							<>
 								<div>
 									<p className="text-sm font-medium text-muted-foreground mb-2">
-										Business Sector
+										Industry
 									</p>
 									<div className="flex flex-wrap gap-2">
 										<Badge variant="secondary" className="capitalize text-sm">
