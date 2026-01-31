@@ -88,6 +88,7 @@ import { useCompanyStore } from "@/lib/stores/company-store";
 import {
 	usePagination,
 	useProjectActions,
+	useProjectInitialized,
 	useProjectLoading,
 	useProjects,
 } from "@/lib/stores/project-store";
@@ -99,11 +100,14 @@ import {
 const WasteStreamList = memo(function WasteStreamList({
 	projects,
 	loading,
+	isInitialized,
 }: {
 	projects: ProjectSummary[];
 	loading: boolean;
+	isInitialized: boolean;
 }) {
-	if (loading && projects.length === 0) {
+	// Only show skeleton on first load (not yet initialized)
+	if (loading && !isInitialized) {
 		return <WasteStreamGridSkeleton />;
 	}
 
@@ -415,6 +419,7 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 }) {
 	const projects = useProjects();
 	const loading = useProjectLoading();
+	const isInitialized = useProjectInitialized();
 	const { hasMore, totalProjects, pageSize } = usePagination();
 	const { loadMore } = useProjectActions();
 
@@ -460,7 +465,11 @@ const WasteStreamListContainer = memo(function WasteStreamListContainer({
 					description="Try a different search term or clear the filter to see all waste streams."
 				/>
 			) : (
-				<WasteStreamList projects={filtered} loading={loading} />
+				<WasteStreamList
+					projects={filtered}
+					loading={loading}
+					isInitialized={isInitialized}
+				/>
 			)}
 
 			{/* Load More Button */}

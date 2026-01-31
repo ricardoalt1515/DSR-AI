@@ -73,7 +73,9 @@ async def test_create_company():
 
     async with AsyncSessionLocal() as db:
         # Try to create
-        company = Company(**test_data.model_dump())
+        # CompanyCreate inherits BaseSchema which serializes camelCase by default;
+        # ORM expects snake_case field names.
+        company = Company(**test_data.model_dump(by_alias=False))
         db.add(company)
         await db.commit()
         await db.refresh(company)

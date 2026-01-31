@@ -20,6 +20,9 @@ from app.api.dependencies import (
     AsyncDB,
     CompanyAdminActionDep,
     CurrentCompanyCreator,
+    CurrentIncomingMaterialsCreator,
+    CurrentIncomingMaterialsDeleter,
+    CurrentIncomingMaterialsEditor,
     CurrentLocationContactsCreator,
     CurrentLocationContactsDeleter,
     CurrentLocationContactsEditor,
@@ -31,7 +34,7 @@ from app.api.dependencies import (
     RateLimitUser60,
     apply_archived_filter,
 )
-from app.models import Company, Location, LocationContact, Project
+from app.models import Company, IncomingMaterial, Location, LocationContact, Project
 from app.models.file import ProjectFile
 from app.models.proposal import Proposal
 from app.schemas.common import SuccessResponse
@@ -40,6 +43,11 @@ from app.schemas.company import (
     CompanyDetail,
     CompanySummary,
     CompanyUpdate,
+)
+from app.schemas.incoming_material import (
+    IncomingMaterialCreate,
+    IncomingMaterialRead,
+    IncomingMaterialUpdate,
 )
 from app.schemas.location import (
     LocationCreate,
@@ -440,7 +448,8 @@ async def create_company(
 ):
     """Create a new company."""
     company = Company(
-        **company_data.model_dump(),
+        # BaseSchema serializes with camelCase by default; ORM expects snake_case field names.
+        **company_data.model_dump(by_alias=False),
         organization_id=org.id,
         created_by_user_id=current_user.id,
     )
@@ -559,7 +568,7 @@ async def update_company(
     current_user, company = current_user_company
 
     # Update only provided fields
-    update_data = company_data.model_dump(exclude_unset=True)
+    update_data = company_data.model_dump(exclude_unset=True, by_alias=False)
     for field, value in update_data.items():
         setattr(company, field, value)
 
@@ -719,7 +728,8 @@ async def create_location_contact(
 ):
     """Create a contact for a location."""
     contact = LocationContact(
-        **contact_data.model_dump(),
+        # BaseSchema serializes with camelCase by default; ORM expects snake_case field names.
+        **contact_data.model_dump(by_alias=False),
         organization_id=org.id,
         location_id=location.id,
     )
@@ -758,7 +768,7 @@ async def update_location_contact(
             detail=f"Location contact {contact_id} not found",
         )
 
-    update_data = contact_data.model_dump(exclude_unset=True)
+    update_data = contact_data.model_dump(exclude_unset=True, by_alias=False)
     for field, value in update_data.items():
         setattr(contact, field, value)
 
@@ -799,6 +809,131 @@ async def delete_location_contact(
     await db.commit()
 
     return SuccessResponse(message=f"Contact {contact.name} deleted successfully")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# INCOMING MATERIALS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.get(
+    "/locations/{location_id}/incoming-materials",
+    response_model=list[IncomingMaterialRead],
+)
+async def list_incoming_materials(
+    location: ActiveLocationDep,
+    db: AsyncDB,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser60,
+):
+    """List all incoming materials for a location."""
+    result = await db.execute(
+        select(IncomingMaterial)
+        .where(
+            IncomingMaterial.location_id == location.id,
+            IncomingMaterial.organization_id == org.id,
+        )
+        .order_by(IncomingMaterial.name)
+    )
+    materials = result.scalars().all()
+    return [IncomingMaterialRead.model_validate(m, from_attributes=True) for m in materials]
+
+
+@router.post(
+    "/locations/{location_id}/incoming-materials",
+    response_model=IncomingMaterialRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_incoming_material(
+    location: ActiveLocationDep,
+    material_data: IncomingMaterialCreate,
+    db: AsyncDB,
+    current_user: CurrentIncomingMaterialsCreator,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser30,
+):
+    """Create an incoming material for a location."""
+    material = IncomingMaterial(
+        **material_data.model_dump(by_alias=False),
+        organization_id=org.id,
+        location_id=location.id,
+    )
+    db.add(material)
+    await db.commit()
+    await db.refresh(material)
+    return IncomingMaterialRead.model_validate(material, from_attributes=True)
+
+
+@router.put(
+    "/locations/{location_id}/incoming-materials/{material_id}",
+    response_model=IncomingMaterialRead,
+)
+async def update_incoming_material(
+    location: ActiveLocationDep,
+    material_id: UUID,
+    material_data: IncomingMaterialUpdate,
+    db: AsyncDB,
+    current_user: CurrentIncomingMaterialsEditor,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser30,
+):
+    """Update an incoming material for a location."""
+    result = await db.execute(
+        select(IncomingMaterial).where(
+            IncomingMaterial.id == material_id,
+            IncomingMaterial.location_id == location.id,
+            IncomingMaterial.organization_id == org.id,
+        )
+    )
+    material = result.scalar_one_or_none()
+
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incoming material {material_id} not found",
+        )
+
+    update_data = material_data.model_dump(exclude_unset=True, by_alias=False)
+    for field, value in update_data.items():
+        setattr(material, field, value)
+
+    await db.commit()
+    await db.refresh(material)
+    return IncomingMaterialRead.model_validate(material, from_attributes=True)
+
+
+@router.delete(
+    "/locations/{location_id}/incoming-materials/{material_id}",
+    response_model=SuccessResponse,
+)
+async def delete_incoming_material(
+    location: ActiveLocationDep,
+    material_id: UUID,
+    db: AsyncDB,
+    current_user: CurrentIncomingMaterialsDeleter,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser10,
+):
+    """Delete an incoming material from a location."""
+    result = await db.execute(
+        select(IncomingMaterial).where(
+            IncomingMaterial.id == material_id,
+            IncomingMaterial.location_id == location.id,
+            IncomingMaterial.organization_id == org.id,
+        )
+    )
+    material = result.scalar_one_or_none()
+
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incoming material {material_id} not found",
+        )
+
+    await db.delete(material)
+    await db.commit()
+
+    return SuccessResponse(message=f"Incoming material {material.name} deleted successfully")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -850,7 +985,7 @@ async def create_location(
     current_user, _company = current_user_company
 
     # Override company_id from URL (security)
-    location_dict = location_data.model_dump()
+    location_dict = location_data.model_dump(by_alias=False)
     location_dict["company_id"] = company_id
 
     location = Location(
@@ -879,6 +1014,7 @@ async def get_location(
         .options(
             selectinload(Location.company),
             selectinload(Location.contacts),
+            selectinload(Location.incoming_materials),
         )
         .where(
             Location.id == location_id,
@@ -925,11 +1061,16 @@ async def get_location(
         LocationContactRead.model_validate(contact, from_attributes=True)
         for contact in (location.contacts or [])
     ]
+    incoming_materials_summary = [
+        IncomingMaterialRead.model_validate(material, from_attributes=True)
+        for material in (location.incoming_materials or [])
+    ]
     return LocationDetail(
         **location_summary.model_dump(),
         company=company_summary,
         projects=[LocationProjectSummary.model_validate(p, from_attributes=True) for p in projects],
         contacts=contacts_summary,
+        incoming_materials=incoming_materials_summary,
     )
 
 
@@ -947,7 +1088,7 @@ async def update_location(
     current_user, location = current_user_location
 
     # Update only provided fields
-    update_data = location_data.model_dump(exclude_unset=True)
+    update_data = location_data.model_dump(exclude_unset=True, by_alias=False)
     for field, value in update_data.items():
         setattr(location, field, value)
 

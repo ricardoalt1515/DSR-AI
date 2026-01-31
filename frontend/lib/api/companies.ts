@@ -8,6 +8,7 @@ import type {
 	CompanyDetail,
 	CompanySummary,
 	CompanyUpdate,
+	IncomingMaterial,
 	LocationContact,
 	LocationCreate,
 	LocationDetail,
@@ -212,6 +213,51 @@ export const locationsAPI = {
 	): Promise<SuccessResponse> {
 		return apiClient.delete(
 			`/companies/locations/${locationId}/contacts/${contactId}`,
+		);
+	},
+
+	// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+	// INCOMING MATERIALS
+	// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+	async listIncomingMaterials(locationId: string): Promise<IncomingMaterial[]> {
+		return apiClient.get<IncomingMaterial[]>(
+			`/companies/locations/${locationId}/incoming-materials`,
+		);
+	},
+
+	async createIncomingMaterial(
+		locationId: string,
+		data: Omit<
+			IncomingMaterial,
+			"id" | "locationId" | "createdAt" | "updatedAt"
+		>,
+	): Promise<IncomingMaterial> {
+		return apiClient.post<IncomingMaterial>(
+			`/companies/locations/${locationId}/incoming-materials`,
+			data as unknown as Record<string, unknown>,
+		);
+	},
+
+	async updateIncomingMaterial(
+		locationId: string,
+		materialId: string,
+		data: Partial<
+			Omit<IncomingMaterial, "id" | "locationId" | "createdAt" | "updatedAt">
+		>,
+	): Promise<IncomingMaterial> {
+		return apiClient.put<IncomingMaterial>(
+			`/companies/locations/${locationId}/incoming-materials/${materialId}`,
+			data as unknown as Record<string, unknown>,
+		);
+	},
+
+	async deleteIncomingMaterial(
+		locationId: string,
+		materialId: string,
+	): Promise<SuccessResponse> {
+		return apiClient.delete(
+			`/companies/locations/${locationId}/incoming-materials/${materialId}`,
 		);
 	},
 };

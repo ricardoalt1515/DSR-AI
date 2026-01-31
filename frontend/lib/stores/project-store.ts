@@ -88,6 +88,7 @@ interface ProjectState {
 	projects: ProjectSummary[];
 	currentProject: ProjectDetail | null;
 	loading: boolean;
+	isInitialized: boolean; // true after first load attempt completes
 	error: string | null;
 	dataSource: "api" | "mock";
 	dashboardStats: DashboardStats | null;
@@ -155,6 +156,7 @@ export const useProjectStore = create<ProjectState>()(
 			projects: [],
 			currentProject: null,
 			loading: false,
+			isInitialized: false,
 			error: null,
 			dataSource: "api",
 			dashboardStats: null,
@@ -264,6 +266,7 @@ export const useProjectStore = create<ProjectState>()(
 						draft.hasMore = page < (response.pages ?? 0);
 
 						draft.loading = false;
+						draft.isInitialized = true;
 						draft.dataSource = "api";
 					});
 				} catch (error) {
@@ -280,6 +283,7 @@ export const useProjectStore = create<ProjectState>()(
 							projects: get().projects,
 							loading: false,
 							dataSource: "api",
+							isInitialized: true,
 							error: message,
 						});
 						return;
@@ -288,6 +292,7 @@ export const useProjectStore = create<ProjectState>()(
 					set({
 						projects: append ? get().projects : [],
 						loading: false,
+						isInitialized: true,
 						dataSource: "api",
 						error: message,
 					});
@@ -589,6 +594,7 @@ export const useProjectStore = create<ProjectState>()(
 					state.projects = [];
 					state.currentProject = null;
 					state.loading = false;
+					state.isInitialized = false;
 					state.error = null;
 					state.dashboardStats = null;
 					state.page = 1;
@@ -622,6 +628,8 @@ export const useDashboardStats = () =>
 	useProjectStore((state) => state?.dashboardStats);
 export const useProjectLoading = () =>
 	useProjectStore((state) => state?.loading ?? false);
+export const useProjectInitialized = () =>
+	useProjectStore((state) => state?.isInitialized ?? false);
 export const useProjectError = () =>
 	useProjectStore((state) => state?.error ?? null);
 

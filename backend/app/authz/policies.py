@@ -61,3 +61,15 @@ def can_update_location_contact(user: User) -> bool:
 
 def can_delete_location_contact(user: User) -> bool:
     return user.is_superuser or user.is_org_admin()
+
+
+def can_create_incoming_material(user: User) -> bool:
+    return user.is_superuser or user.is_org_admin() or is_agent(user)
+
+
+def can_update_incoming_material(user: User) -> bool:
+    return user.is_superuser or user.is_org_admin() or is_agent(user)
+
+
+def can_delete_incoming_material(user: User) -> bool:
+    return user.is_superuser or user.is_org_admin()

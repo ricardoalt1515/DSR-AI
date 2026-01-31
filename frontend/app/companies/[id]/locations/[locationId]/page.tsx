@@ -25,6 +25,7 @@ const PremiumProjectWizard = dynamic(
 	{ ssr: false, loading: () => null },
 );
 
+import { IncomingMaterialsCard } from "@/components/features/locations/incoming-materials-card";
 import { LocationContactsCard } from "@/components/features/locations/location-contacts-card";
 import { ArchivedBanner } from "@/components/shared/archived-banner";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
@@ -334,6 +335,14 @@ export default function LocationDetailPage() {
 				canWriteContacts={canWriteLocationContacts && !isArchived}
 				canDeleteContacts={canDeleteContacts && !isArchived}
 				onContactsUpdated={() => loadLocation(locationId, projectsFilter)}
+			/>
+
+			<IncomingMaterialsCard
+				materials={currentLocation.incomingMaterials ?? []}
+				locationId={locationId}
+				canWriteMaterials={canWriteLocationContacts && !isArchived}
+				canDeleteMaterials={canDeleteContacts && !isArchived}
+				onMaterialsUpdated={() => loadLocation(locationId, projectsFilter)}
 			/>
 
 			{/* Projects Section */}

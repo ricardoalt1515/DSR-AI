@@ -494,6 +494,48 @@ async def get_current_location_contacts_deleter(
 CurrentLocationContactsDeleter = Annotated[User, Depends(get_current_location_contacts_deleter)]
 
 
+async def get_current_incoming_materials_creator(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_create_incoming_material(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create incoming materials",
+        )
+    return current_user
+
+
+CurrentIncomingMaterialsCreator = Annotated[User, Depends(get_current_incoming_materials_creator)]
+
+
+async def get_current_incoming_materials_editor(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_update_incoming_material(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update incoming materials",
+        )
+    return current_user
+
+
+CurrentIncomingMaterialsEditor = Annotated[User, Depends(get_current_incoming_materials_editor)]
+
+
+async def get_current_incoming_materials_deleter(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_delete_incoming_material(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete incoming materials",
+        )
+    return current_user
+
+
+CurrentIncomingMaterialsDeleter = Annotated[User, Depends(get_current_incoming_materials_deleter)]
+
+
 async def get_active_location(
     location_id: UUID,
     org: Organization = Depends(get_organization_context),

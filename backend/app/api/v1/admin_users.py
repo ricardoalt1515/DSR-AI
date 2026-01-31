@@ -89,7 +89,7 @@ async def update_user(
             detail="Use organization provisioning endpoint for tenant users",
         )
 
-    update_data = updates.model_dump(exclude_unset=True)
+    update_data = updates.model_dump(exclude_unset=True, by_alias=False)
     requested_role = update_data.get("role")
     requested_is_superuser = update_data.get("is_superuser")
     will_be_active = update_data.get("is_active", user.is_active)

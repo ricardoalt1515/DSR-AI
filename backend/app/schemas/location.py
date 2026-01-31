@@ -11,6 +11,7 @@ from uuid import UUID
 from pydantic import Field
 
 from app.schemas.common import BaseSchema
+from app.schemas.incoming_material import IncomingMaterialRead
 from app.schemas.location_contact import LocationContactRead
 
 if TYPE_CHECKING:
@@ -79,3 +80,4 @@ class LocationDetail(LocationSummary):
     company: CompanySummary | None = None
     projects: list[LocationProjectSummary] = Field(default_factory=list)
     contacts: list[LocationContactRead] = Field(default_factory=list)
+    incoming_materials: list[IncomingMaterialRead] = Field(default_factory=list)

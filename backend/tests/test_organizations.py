@@ -179,6 +179,36 @@ async def test_superadmin_create_org(client: AsyncClient, db_session, set_curren
 
 
 @pytest.mark.asyncio
+async def test_superadmin_create_org_with_contact_fields(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    superadmin = await create_user(
+        db_session,
+        email=f"superadmin-create-contact-{uid}@example.com",
+        org_id=None,
+        role=UserRole.ADMIN.value,
+        is_superuser=True,
+    )
+
+    set_current_user(superadmin)
+    response = await client.post(
+        "/api/v1/organizations",
+        json={
+            "name": f"New Org Contact {uid}",
+            "slug": f"new-org-contact-{uid}",
+            "contactEmail": f"ops-{uid}@example.com",
+            "contactPhone": "+1-555-0100",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == f"New Org Contact {uid}"
+    assert data["contactEmail"] == f"ops-{uid}@example.com"
+    assert data["contactPhone"] == "+1-555-0100"
+
+
+@pytest.mark.asyncio
 async def test_regular_user_cannot_list_all_orgs(client: AsyncClient, db_session, set_current_user):
     uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Regular", "org-regular")

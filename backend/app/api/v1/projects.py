@@ -523,7 +523,7 @@ async def update_project(
     require_not_archived(project)
 
     # Update fields
-    update_data = project_data.model_dump(exclude_unset=True)
+    update_data = project_data.model_dump(exclude_unset=True, by_alias=False)
     changed_fields = list(update_data.keys())
 
     for field, value in update_data.items():

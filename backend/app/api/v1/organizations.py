@@ -34,7 +34,8 @@ async def create_organization(
     admin: SuperAdminOnly,
     db: AsyncDB,
 ):
-    org = Organization(**data.model_dump())
+    # BaseSchema serializes with camelCase by default; ORM expects snake_case field names.
+    org = Organization(**data.model_dump(by_alias=False))
     db.add(org)
     await db.commit()
     await db.refresh(org)
@@ -159,7 +160,7 @@ async def update_organization(
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, by_alias=False)
     for field, value in update_data.items():
         setattr(org, field, value)
 
@@ -219,7 +220,7 @@ async def update_org_user(
             detail="Cannot promote to platform admin from this endpoint.",
         )
 
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, by_alias=False)
     is_demoting_org_admin = (
         user.role == UserRole.ORG_ADMIN
         and update_data.get("role")
@@ -287,7 +288,7 @@ async def update_my_org_user(
             detail="Cannot promote to platform admin from this endpoint.",
         )
 
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, by_alias=False)
     is_demoting_org_admin = (
         user.role == UserRole.ORG_ADMIN
         and update_data.get("role")

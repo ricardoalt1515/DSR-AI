@@ -80,6 +80,7 @@ export interface LocationDetail extends LocationSummary {
 		createdAt: string;
 	}>;
 	contacts?: LocationContact[];
+	incomingMaterials?: IncomingMaterial[];
 }
 
 export interface LocationContact {
@@ -89,6 +90,55 @@ export interface LocationContact {
 	email?: string;
 	phone?: string;
 	title?: string;
+	notes?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INCOMING MATERIALS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const INCOMING_MATERIAL_CATEGORIES = [
+	"chemicals",
+	"metals",
+	"wood",
+	"oil",
+	"packaging",
+	"plastics",
+	"glass",
+	"paper",
+	"textiles",
+	"other",
+] as const;
+
+export type IncomingMaterialCategory =
+	(typeof INCOMING_MATERIAL_CATEGORIES)[number];
+
+export const INCOMING_MATERIAL_CATEGORY_LABELS: Record<
+	IncomingMaterialCategory,
+	string
+> = {
+	chemicals: "Chemicals",
+	metals: "Metals",
+	wood: "Wood",
+	oil: "Oil",
+	packaging: "Packaging",
+	plastics: "Plastics",
+	glass: "Glass",
+	paper: "Paper",
+	textiles: "Textiles",
+	other: "Other",
+};
+
+export interface IncomingMaterial {
+	id: string;
+	locationId: string;
+	name: string;
+	category: IncomingMaterialCategory;
+	volumeFrequency: string;
+	qualitySpec?: string;
+	currentSupplier?: string;
 	notes?: string;
 	createdAt: string;
 	updatedAt: string;

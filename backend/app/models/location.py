@@ -115,6 +115,13 @@ class Location(BaseModel):
         order_by="LocationContact.name",
         lazy="selectin",
     )
+    incoming_materials = relationship(
+        "IncomingMaterial",
+        back_populates="location",
+        cascade="all, delete-orphan",
+        order_by="IncomingMaterial.name",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         """Safe repr that doesn't trigger lazy loads or attribute refresh."""

@@ -2,6 +2,7 @@
 
 from app.models.company import Company
 from app.models.file import ProjectFile
+from app.models.incoming_material import IncomingMaterial, IncomingMaterialCategory
 from app.models.intake_note import IntakeNote
 from app.models.intake_suggestion import IntakeSuggestion
 from app.models.intake_unmapped_note import IntakeUnmappedNote
@@ -15,6 +16,8 @@ from app.models.user import User
 
 __all__ = [
     "Company",
+    "IncomingMaterial",
+    "IncomingMaterialCategory",
     "IntakeNote",
     "IntakeSuggestion",
     "IntakeUnmappedNote",
