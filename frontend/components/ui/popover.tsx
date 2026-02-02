@@ -20,7 +20,14 @@ const PopoverContent = React.forwardRef<
 	}
 >(
 	(
-		{ className, align = "center", sideOffset = 4, portalled = true, container, ...props },
+		{
+			className,
+			align = "center",
+			sideOffset = 4,
+			portalled = true,
+			container,
+			...props
+		},
 		ref,
 	) => {
 		const content = (
@@ -38,7 +45,11 @@ const PopoverContent = React.forwardRef<
 
 		if (!portalled) return content;
 
-		return <PopoverPrimitive.Portal container={container}>{content}</PopoverPrimitive.Portal>;
+		return (
+			<PopoverPrimitive.Portal container={container}>
+				{content}
+			</PopoverPrimitive.Portal>
+		);
 	},
 );
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;

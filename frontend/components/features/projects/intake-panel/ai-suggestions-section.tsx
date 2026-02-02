@@ -35,7 +35,11 @@ interface AISuggestionsSectionProps {
 	projectId: string;
 	disabled?: boolean | undefined;
 	isLoading?: boolean | undefined;
-	onApplySuggestion: (suggestion: AISuggestion) => Promise<void>;
+	/** Returns true if applied immediately, false if modal was shown */
+	onApplySuggestion: (
+		suggestion: AISuggestion,
+		sourceRect?: DOMRect,
+	) => Promise<boolean>;
 	onRejectSuggestion: (suggestion: AISuggestion) => Promise<void>;
 	onBatchApply?:
 		| ((ids: string[]) => Promise<AISuggestion | undefined>)
@@ -58,17 +62,18 @@ export function AISuggestionsSection({
 
 	// Single apply/reject (from row actions)
 	const handleApply = useCallback(
-		async (id: string) => {
+		async (id: string, sourceRect?: DOMRect): Promise<boolean> => {
 			const { suggestions } = useIntakePanelStore.getState();
 			const suggestion = suggestions.find(
 				(s) => s.id === id && s.status === "pending",
 			);
-			if (!suggestion) return;
+			if (!suggestion) return false;
 
 			try {
-				await onApplySuggestion(suggestion);
+				return await onApplySuggestion(suggestion, sourceRect);
 			} catch {
 				toast.error(`Failed to apply ${suggestion.fieldLabel}`);
+				return false;
 			}
 		},
 		[onApplySuggestion],
@@ -184,53 +189,70 @@ export function AISuggestionsSection({
 							initial={{ opacity: 0, scale: 0.95 }}
 							animate={{ opacity: 1, scale: 1 }}
 							exit={{ opacity: 0, scale: 0.95 }}
-							transition={{ duration: 0.2 }}
+							transition={{ duration: 0.25 }}
 							className={cn(
-								"flex flex-col items-center justify-center gap-3 mx-4 mb-4",
-								"rounded-2xl border border-dashed p-6 text-center",
+								"flex flex-col items-center justify-center gap-4 mx-4 mb-4",
+								"rounded-2xl border border-dashed p-8 text-center",
 								hasProcessedSuggestions
-									? "border-success/40 bg-success/5"
-									: "border-muted/60 bg-muted/20",
+									? "border-success/30 bg-success/5"
+									: "border-muted/40 bg-muted/10",
 							)}
 						>
 							{hasProcessedSuggestions ? (
 								<>
-									{/* Completion celebration */}
+									{/* Professional completion with ring pulse */}
 									<motion.div
-										initial={{ scale: 0 }}
-										animate={{ scale: 1 }}
+										initial={{ scale: 0, opacity: 0 }}
+										animate={{ scale: 1, opacity: 1 }}
 										transition={{
 											type: "spring",
-											stiffness: 260,
+											stiffness: 300,
 											damping: 20,
 											delay: 0.1,
 										}}
-										className="rounded-full bg-success/20 p-3"
+										className="rounded-full bg-success/15 p-4 animate-completion-ring"
 									>
-										<CheckCircle2 className="h-6 w-6 text-success" />
+										<motion.div
+											initial={{ scale: 0.8 }}
+											animate={{ scale: 1 }}
+											transition={{
+												type: "spring",
+												stiffness: 400,
+												damping: 15,
+												delay: 0.2,
+											}}
+										>
+											<CheckCircle2 className="h-7 w-7 text-success" />
+										</motion.div>
 									</motion.div>
 									<motion.div
-										initial={{ opacity: 0, y: 10 }}
+										initial={{ opacity: 0, y: 8 }}
 										animate={{ opacity: 1, y: 0 }}
-										transition={{ delay: 0.2 }}
+										transition={{ delay: 0.25, duration: 0.3 }}
+										className="space-y-1"
 									>
 										<p className="text-sm font-medium text-foreground">
 											All suggestions reviewed!
 										</p>
-										<p className="text-xs text-muted-foreground mt-1">
+										<p className="text-xs text-muted-foreground">
 											Upload more documents to continue
 										</p>
 									</motion.div>
 								</>
 							) : (
 								<>
-									{/* Upload prompt */}
-									<div className="rounded-full bg-muted/50 p-3">
-										<Upload className="h-5 w-5 text-muted-foreground" />
+									{/* Softer upload prompt */}
+									<div className="rounded-full bg-muted/30 p-4">
+										<Upload className="h-6 w-6 text-muted-foreground/70" />
 									</div>
-									<p className="text-sm text-muted-foreground">
-										Upload documents to see AI suggestions
-									</p>
+									<div className="space-y-1">
+										<p className="text-sm text-muted-foreground">
+											Upload documents to see AI suggestions
+										</p>
+										<p className="text-xs text-muted-foreground/60">
+											PDFs and images will be analyzed automatically
+										</p>
+									</div>
 								</>
 							)}
 						</motion.div>
@@ -253,14 +275,14 @@ export function AISuggestionsSection({
 							<SuggestionFilters />
 						</div>
 
-						{/* Suggestion cards */}
+						{/* Suggestion cards with staggered entry */}
 						<div className="flex flex-col gap-3 px-4 pb-4">
 							{filteredSuggestions.length === 0 ? (
 								<div className="text-center py-8 text-sm text-muted-foreground">
 									No suggestions match the current filters
 								</div>
 							) : (
-								filteredSuggestions.map((suggestion) => (
+								filteredSuggestions.map((suggestion, index) => (
 									<SuggestionCard
 										key={suggestion.id}
 										suggestion={suggestion}
@@ -268,6 +290,7 @@ export function AISuggestionsSection({
 										onReject={handleReject}
 										disabled={disabled}
 										onOpenSection={onOpenSection}
+										animationDelay={Math.min(index * 0.05, 0.3)}
 									/>
 								))
 							)}

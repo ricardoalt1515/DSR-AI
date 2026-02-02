@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
@@ -19,7 +19,171 @@ import { cn } from "@/lib/utils";
 import { AISuggestionsSection } from "./ai-suggestions-section";
 import { ConfirmReplaceDialog } from "./confirm-replace-dialog";
 import { ConflictCard } from "./conflict-card";
+import {
+	applyBurst,
+	focusField,
+	waitForElement,
+	waitForStableRect,
+} from "./focus-field";
 import { formatSuggestionValue } from "./format-suggestion-value";
+
+// Animation constants (must match suggestion-card.tsx)
+const FLY_DURATION_MS = 850;
+const ARC_HEIGHT = 0.45;
+
+// ============================================================================
+// CURVED ARC + PHYSICS-BASED FLY ANIMATION
+// Duplicated from suggestion-card.tsx for modal confirm flow
+// ============================================================================
+
+/** Calculate point on quadratic bezier curve at parameter t (0-1) */
+function getQuadraticBezierPoint(
+	t: number,
+	p0: { x: number; y: number },
+	p1: { x: number; y: number },
+	p2: { x: number; y: number },
+): { x: number; y: number } {
+	const x = (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x;
+	const y = (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y;
+	return { x, y };
+}
+
+/** Calculate control point for arc - lifts the curve above the straight line */
+function getArcControlPoint(
+	start: { x: number; y: number },
+	end: { x: number; y: number },
+	arcHeight = ARC_HEIGHT,
+): { x: number; y: number } {
+	const midX = (start.x + end.x) / 2;
+	const midY = (start.y + end.y) / 2;
+	const distance = Math.hypot(end.x - start.x, end.y - start.y);
+	return {
+		x: midX,
+		y: midY - distance * arcHeight,
+	};
+}
+
+/** Generate keyframes along curved bezier path with spring-like physics */
+function generateFlightKeyframes(
+	start: DOMRect,
+	end: DOMRect,
+	steps = 16,
+): Keyframe[] {
+	const p0 = {
+		x: start.left + start.width / 2,
+		y: start.top + start.height / 2,
+	};
+	const p2 = { x: end.left + end.width / 2 - 30, y: end.top };
+	const p1 = getArcControlPoint(p0, p2);
+
+	const keyframes: Keyframe[] = [];
+
+	for (let i = 0; i <= steps; i++) {
+		const t = i / steps;
+		const pos = getQuadraticBezierPoint(t, p0, p1, p2);
+
+		const peakScale = 1.15;
+		const endScale = 0.85;
+		let scale: number;
+		if (t < 0.4) {
+			scale = 1.1 + (peakScale - 1.1) * (t / 0.4);
+		} else {
+			scale = peakScale - (peakScale - endScale) * ((t - 0.4) / 0.6);
+		}
+
+		const rotation = t < 0.4 ? -6 * (t / 0.4) : -6 + 12 * ((t - 0.4) / 0.6);
+		const opacity = t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25;
+		const glowIntensity = 0.35 + 0.25 * Math.sin(t * Math.PI);
+
+		keyframes.push({
+			left: `${pos.x - start.width / 2}px`,
+			top: `${pos.y - start.height / 2}px`,
+			transform: `scale(${scale}) rotate(${rotation}deg)`,
+			opacity,
+			boxShadow: `0 4px 20px hsl(var(--primary) / ${glowIntensity})`,
+			offset: t,
+		});
+	}
+
+	return keyframes;
+}
+
+/** Create expanding burst effect at launch point */
+function createLaunchBurst(rect: DOMRect): void {
+	const burst = document.createElement("div");
+	burst.style.cssText = `
+		position: fixed;
+		left: ${rect.left + rect.width / 2}px;
+		top: ${rect.top + rect.height / 2}px;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		background: radial-gradient(circle, hsl(var(--primary) / 0.6) 0%, transparent 70%);
+		transform: translate(-50%, -50%) scale(0);
+		pointer-events: none;
+		z-index: 49;
+	`;
+	document.body.appendChild(burst);
+
+	const animation = burst.animate(
+		[
+			{ transform: "translate(-50%, -50%) scale(0)", opacity: 1 },
+			{ transform: "translate(-50%, -50%) scale(4)", opacity: 0 },
+		],
+		{
+			duration: 400,
+			easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+		},
+	);
+	animation.onfinish = () => burst.remove();
+}
+
+/** Create sparkle trail that follows the chip with staggered delays */
+function createSparkleTrail(
+	keyframes: Keyframe[],
+	duration: number,
+	startRect: DOMRect,
+): void {
+	const sparkleConfigs = [
+		{ delay: 80, size: 8 },
+		{ delay: 160, size: 6 },
+		{ delay: 240, size: 4 },
+	];
+
+	for (const config of sparkleConfigs) {
+		const sparkle = document.createElement("div");
+		sparkle.style.cssText = `
+			position: fixed;
+			width: ${config.size}px;
+			height: ${config.size}px;
+			border-radius: 50%;
+			background: hsl(var(--primary));
+			box-shadow: 0 0 ${config.size * 2}px hsl(var(--primary) / 0.6);
+			pointer-events: none;
+			z-index: 49;
+			left: ${startRect.left + startRect.width / 2}px;
+			top: ${startRect.top + startRect.height / 2}px;
+		`;
+		document.body.appendChild(sparkle);
+
+		const posKeyframes: Keyframe[] = keyframes.map((kf) => ({
+			left: kf.left as string,
+			top: kf.top as string,
+			opacity: kf.opacity as number,
+			offset: kf.offset as number,
+		}));
+
+		const anim = sparkle.animate(posKeyframes, {
+			duration,
+			delay: config.delay,
+			easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+			fill: "forwards",
+		});
+
+		anim.onfinish = () => sparkle.remove();
+	}
+}
+
 import { IntakeNotesSection } from "./intake-notes-section";
 import { QuickUploadSection } from "./quick-upload-section";
 import { UnmappedNotesSection } from "./unmapped-notes-section";
@@ -126,6 +290,8 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 		sectionTitle: string;
 		currentValue: string;
 		newValue: string;
+		/** Button rect for fly animation after modal confirm */
+		sourceRect?: DOMRect;
 	} | null>(null);
 	const analyzeAbortRef = useRef<AbortController | null>(null);
 	const saveSeqRef = useRef(0);
@@ -238,22 +404,29 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 	);
 
 	const handleApplySuggestion = useCallback(
-		async (suggestion: AISuggestion) => {
+		async (
+			suggestion: AISuggestion,
+			sourceRect?: DOMRect,
+		): Promise<boolean> => {
 			const fieldState = getFieldState(
 				suggestion.sectionId,
 				suggestion.fieldId,
 			);
 			if (fieldState && hasExistingValue(fieldState.value)) {
+				// Show confirmation modal - store sourceRect for animation after confirm
 				setConfirmSingle({
 					suggestion,
 					fieldLabel: fieldState.label,
 					sectionTitle: fieldState.sectionTitle,
 					currentValue: formatFieldValue(fieldState.value),
 					newValue: formatSuggestionValue(suggestion.value, suggestion.unit),
+					// Spread conditionally to satisfy exactOptionalPropertyTypes
+					...(sourceRect ? { sourceRect } : {}),
 				});
-				return;
+				return false; // Modal shown, not applied yet
 			}
 			await performApplySuggestion(suggestion);
+			return true; // Applied successfully
 		},
 		[getFieldState, performApplySuggestion],
 	);
@@ -578,23 +751,37 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 							role="status"
 							aria-live="polite"
 						>
-							<Loader2 className="h-5 w-5 animate-spin text-primary" />
+							{/* Animated Sparkles icon with pulse rings */}
+							<div className="relative flex-shrink-0">
+								<motion.div
+									animate={{ scale: [1, 1.1, 1] }}
+									transition={{
+										repeat: Number.POSITIVE_INFINITY,
+										duration: 2,
+										ease: "easeInOut",
+									}}
+								>
+									<Sparkles className="h-5 w-5 text-primary" />
+								</motion.div>
+								{/* Pulse ring behind icon */}
+								<motion.div
+									className="absolute inset-0 rounded-full bg-primary/20"
+									animate={{ scale: [1, 1.8], opacity: [0.4, 0] }}
+									transition={{
+										repeat: Number.POSITIVE_INFINITY,
+										duration: 1.5,
+										ease: "easeOut",
+									}}
+								/>
+							</div>
 							<div className="flex-1 flex flex-col gap-2">
 								<p className="text-sm font-medium text-foreground">
 									Analyzing {processingDocumentsCount}{" "}
 									{processingDocumentsCount === 1 ? "document" : "documents"}...
 								</p>
-								<div className="h-1 w-full bg-primary/20 rounded-full overflow-hidden">
-									<motion.div
-										className="h-full bg-primary rounded-full"
-										initial={{ x: "-100%" }}
-										animate={{ x: "100%" }}
-										transition={{
-											repeat: Number.POSITIVE_INFINITY,
-											duration: 1.5,
-											ease: "easeInOut",
-										}}
-									/>
+								{/* Shimmer progress bar */}
+								<div className="h-1.5 w-full bg-primary/20 rounded-full overflow-hidden">
+									<div className="h-full w-full animate-shimmer rounded-full" />
 								</div>
 							</div>
 						</motion.div>
@@ -670,6 +857,148 @@ export const IntakePanelContent = memo(function IntakePanelContent({
 					onConfirm={async () => {
 						const pending = confirmSingle;
 						setConfirmSingle(null);
+
+						// Run fly animation if we have source rect
+						const prefersReducedMotion =
+							typeof window !== "undefined" &&
+							window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+						if (pending.sourceRect && onOpenSection && !prefersReducedMotion) {
+							// Run fly animation from stored button position
+							void (async () => {
+								const buttonRect = pending.sourceRect;
+								if (!buttonRect) return;
+
+								const formattedValue = formatSuggestionValue(
+									pending.suggestion.value,
+									pending.suggestion.unit,
+								);
+
+								// 1. Open section
+								onOpenSection(pending.suggestion.sectionId);
+
+								// 2. Wait for target
+								const fieldId = `field-${pending.suggestion.sectionId}-${pending.suggestion.fieldId}`;
+								const targetEl = await waitForElement(fieldId, 1500);
+								const finalTargetEl =
+									targetEl ??
+									(await waitForElement(
+										`section-${pending.suggestion.sectionId}`,
+										500,
+									));
+
+								if (!finalTargetEl) {
+									void focusField({
+										sectionId: pending.suggestion.sectionId,
+										fieldId: pending.suggestion.fieldId,
+										onOpenSection,
+										highlight: true,
+										scroll: true,
+									});
+									return;
+								}
+
+								// 3. Wait for stable rect
+								await waitForStableRect(finalTargetEl, {
+									timeoutMs: 1000,
+									stableFrames: 2,
+									epsilonPx: 2,
+								});
+
+								// 4. Scroll
+								finalTargetEl.scrollIntoView({
+									behavior: "auto",
+									block: "center",
+								});
+								await new Promise((r) => requestAnimationFrame(r));
+
+								// 5. Get target rect
+								const targetRect = finalTargetEl.getBoundingClientRect();
+
+								// 6. Launch burst effect
+								createLaunchBurst(buttonRect);
+
+								// 7. Create flying chip
+								const chip = document.createElement("div");
+								chip.className =
+									"fixed z-50 flex items-center gap-1.5 rounded-lg pointer-events-none";
+								chip.style.background =
+									"linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)";
+								chip.style.color = "hsl(var(--primary-foreground))";
+								chip.style.padding = "10px 16px";
+								chip.style.fontSize = "14px";
+								chip.style.fontWeight = "500";
+								chip.style.boxShadow = "0 4px 20px hsl(var(--primary) / 0.4)";
+								chip.style.border =
+									"1px solid hsl(var(--primary-foreground) / 0.2)";
+
+								const icon = document.createElementNS(
+									"http://www.w3.org/2000/svg",
+									"svg",
+								);
+								icon.setAttribute("width", "14");
+								icon.setAttribute("height", "14");
+								icon.setAttribute("viewBox", "0 0 24 24");
+								icon.setAttribute("fill", "none");
+								icon.setAttribute("stroke", "currentColor");
+								icon.setAttribute("stroke-width", "2");
+								icon.setAttribute("stroke-linecap", "round");
+								icon.setAttribute("stroke-linejoin", "round");
+								icon.innerHTML =
+									'<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>';
+								icon.style.flexShrink = "0";
+
+								const text = document.createElement("span");
+								text.textContent =
+									formattedValue.length > 18
+										? `${formattedValue.slice(0, 18)}...`
+										: formattedValue;
+
+								chip.appendChild(icon);
+								chip.appendChild(text);
+
+								chip.style.left = `${buttonRect.left}px`;
+								chip.style.top = `${buttonRect.top}px`;
+								chip.style.transform = "scale(1.1)";
+
+								document.body.appendChild(chip);
+
+								// 8. Generate curved path keyframes
+								const keyframes = generateFlightKeyframes(
+									buttonRect,
+									targetRect,
+								);
+
+								// 9. Create sparkle trail
+								createSparkleTrail(keyframes, FLY_DURATION_MS, buttonRect);
+
+								// 10. Animate chip with Web Animations API
+								const animation = chip.animate(keyframes, {
+									duration: FLY_DURATION_MS,
+									easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+									fill: "forwards",
+								});
+
+								animation.onfinish = () => {
+									chip.remove();
+									applyBurst(finalTargetEl);
+									const focusable = finalTargetEl.querySelector<HTMLElement>(
+										'input, textarea, select, button, [tabindex]:not([tabindex="-1"])',
+									);
+									focusable?.focus({ preventScroll: true });
+								};
+							})();
+						} else if (onOpenSection) {
+							// Reduced motion or no source rect: just focus with highlight
+							void focusField({
+								sectionId: pending.suggestion.sectionId,
+								fieldId: pending.suggestion.fieldId,
+								onOpenSection,
+								highlight: true,
+								scroll: true,
+							});
+						}
+
 						try {
 							await performApplySuggestion(pending.suggestion);
 						} catch (error) {

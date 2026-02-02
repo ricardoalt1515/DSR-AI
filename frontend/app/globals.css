@@ -1956,30 +1956,154 @@ body {
  * Uses framer-motion layoutId for smooth cross-component animation
  * ============================================================================ */
 
-/* Target field burst - 24px ring + background flash */
+/* Target field burst - Multi-ring ripple with inset border glow */
 @keyframes field-apply-burst {
 	0% {
-		box-shadow: 0 0 0 0 hsl(var(--primary) / 0.6);
+		box-shadow:
+			0 0 0 0 hsl(var(--primary) / 0.6),
+			0 0 0 0 hsl(var(--primary) / 0.3),
+			inset 0 0 0 2px hsl(var(--primary) / 0.8);
+		background-color: hsl(var(--primary) / 0.15);
+		transform: scale(1.02);
+	}
+	15% {
+		box-shadow:
+			0 0 20px 4px hsl(var(--primary) / 0.4),
+			0 0 0 8px hsl(var(--primary) / 0.25),
+			inset 0 0 0 2px hsl(var(--primary) / 0.6);
 		background-color: hsl(var(--primary) / 0.12);
 	}
 	40% {
-		box-shadow: 0 0 0 16px hsl(var(--primary) / 0.2);
+		box-shadow:
+			0 0 30px 8px hsl(var(--primary) / 0.25),
+			0 0 0 16px hsl(var(--primary) / 0.12),
+			inset 0 0 0 2px hsl(var(--primary) / 0.4);
+		background-color: hsl(var(--primary) / 0.08);
+	}
+	100% {
+		box-shadow:
+			0 0 12px 2px hsl(var(--primary) / 0.08),
+			0 0 0 32px transparent,
+			inset 0 0 0 0px transparent;
+		background-color: transparent;
+		transform: scale(1);
+	}
+}
+
+/* Sustained glow - fades out slowly after burst completes */
+@keyframes field-sustained-glow {
+	0% {
+		box-shadow:
+			0 0 0 1px hsl(var(--primary) / 0.5),
+			0 0 16px 2px hsl(var(--primary) / 0.3);
 		background-color: hsl(var(--primary) / 0.06);
 	}
 	100% {
-		box-shadow: 0 0 0 24px transparent;
+		box-shadow:
+			0 0 0 1px transparent,
+			0 0 0 0 transparent;
 		background-color: transparent;
 	}
 }
 
 .animate-apply-burst {
-	animation: field-apply-burst 900ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	animation: field-apply-burst 1000ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-sustained-glow {
+	animation: field-sustained-glow 2000ms cubic-bezier(0.4, 0, 0.6, 1) forwards;
+	animation-delay: 700ms;
+}
+
+/* Subtle pulse for high-confidence indicators */
+@keyframes pulse-subtle {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.85;
+	}
+}
+
+.animate-pulse-subtle {
+	animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Mobile FAB pulse ring */
+@keyframes fab-pulse-ring {
+	0% {
+		box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+	}
+	70% {
+		box-shadow: 0 0 0 12px hsl(var(--primary) / 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+	}
+}
+
+.animate-fab-pulse {
+	animation: fab-pulse-ring 2s ease-out infinite;
+}
+
+/* Shimmer effect for progress bars */
+@keyframes shimmer {
+	0% {
+		background-position: -200% 0;
+	}
+	100% {
+		background-position: 200% 0;
+	}
+}
+
+.animate-shimmer {
+	background: linear-gradient(
+		90deg,
+		hsl(var(--primary)) 0%,
+		hsl(var(--primary) / 0.6) 50%,
+		hsl(var(--primary)) 100%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Completion ring pulse */
+@keyframes completion-ring {
+	0% {
+		box-shadow: 0 0 0 0 hsl(var(--success) / 0.4);
+		transform: scale(0.95);
+	}
+	50% {
+		box-shadow: 0 0 0 8px hsl(var(--success) / 0.15);
+		transform: scale(1);
+	}
+	100% {
+		box-shadow: 0 0 0 12px hsl(var(--success) / 0);
+		transform: scale(1);
+	}
+}
+
+.animate-completion-ring {
+	animation: completion-ring 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.animate-apply-burst {
 		animation: none;
-		background-color: hsl(var(--primary) / 0.1);
+		background-color: hsl(var(--primary) / 0.15);
+		transition: background-color 0.3s ease;
+	}
+
+	.animate-sustained-glow {
+		animation: none;
+	}
+
+	.animate-pulse-subtle,
+	.animate-fab-pulse,
+	.animate-shimmer,
+	.animate-completion-ring {
+		animation: none;
 	}
 }
 

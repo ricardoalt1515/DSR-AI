@@ -75,17 +75,21 @@ export async function waitForStableRect(
 }
 
 /**
- * Apply highlight burst animation to an element
+ * Apply multi-stage highlight burst animation to an element.
+ * Stage 1: Initial burst with inset border glow (0-1000ms)
+ * Stage 2: Sustained glow that fades out (700ms-2800ms, overlaps)
  */
 export function applyBurst(target: HTMLElement): void {
-	// Remove any existing burst class first
-	target.classList.remove("animate-apply-burst");
-	// Force reflow
+	// Remove any existing animation classes first
+	target.classList.remove("animate-apply-burst", "animate-sustained-glow");
+	// Force reflow to reset animations
 	void target.offsetWidth;
-	// Add burst class
-	target.classList.add("animate-apply-burst");
-	// Clean up after animation
-	setTimeout(() => target.classList.remove("animate-apply-burst"), 1000);
+	// Add both animation classes - sustained-glow has animation-delay built in
+	target.classList.add("animate-apply-burst", "animate-sustained-glow");
+	// Clean up after all animations complete (burst: 1000ms + sustained: 700ms delay + 2000ms duration = 2700ms)
+	setTimeout(() => {
+		target.classList.remove("animate-apply-burst", "animate-sustained-glow");
+	}, 2800);
 }
 
 export async function focusField({

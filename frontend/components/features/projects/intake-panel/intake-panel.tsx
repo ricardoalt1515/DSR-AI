@@ -205,6 +205,8 @@ export function IntakePanel({
 								"fixed bottom-6 right-6 z-50",
 								"h-14 w-14 rounded-full shadow-lg",
 								"bg-primary hover:bg-primary/90",
+								// Pulse ring animation when there are pending suggestions
+								pendingCount > 0 && "animate-fab-pulse",
 							)}
 							aria-label="Open intake panel"
 						>
@@ -212,7 +214,12 @@ export function IntakePanel({
 							{pendingCount > 0 && (
 								<Badge
 									variant="destructive"
-									className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-[10px]"
+									className={cn(
+										"absolute -top-1.5 -right-1.5",
+										"h-5 min-w-5 px-1.5",
+										"text-[10px] font-semibold",
+										"shadow-md",
+									)}
 								>
 									{pendingCount}
 								</Badge>
