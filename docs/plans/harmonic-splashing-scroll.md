@@ -1,197 +1,191 @@
-# Feedback System - Implementation Plan
+# Feedback System (MVP)
 
-## Contexto
-- SMTP/Email **NO está configurado** (solo código, no infraestructura)
-- Ya tienen `httpx` instalado (para HTTP requests)
-- Usan Asana/Jira/Dart
+## Summary
+Navbar button → modal → save to Postgres → superadmin list with filters + resolve action.
 
-## Análisis de Opciones
-
-| Herramienta | Setup | Dependencias | Código | ¿Recomendado? |
-|-------------|-------|--------------|--------|---------------|
-| **Asana (HTTP)** | 5 min | ✅ Ya tienes httpx | ~15 líneas | ✅ **MEJOR** |
-| Jira (HTTP) | 10 min | ✅ Ya tienes httpx | ~20 líneas | ⭐ Buena |
-| AWS SES | 30+ min | Verificar dominio, IAM | ~30 líneas | ⚠️ Complejo |
-| Gmail API | 30+ min | OAuth, Google Console | ~50 líneas | ❌ Evitar |
+## Scope
+- **In**: Submit feedback (type + text + page path), store in DB, superadmin list at `/admin/feedback` with filters, mark as resolved
+- **Out**: External ticketing, file uploads, comments, delete
 
 ---
 
-## ELEGIDO: Jira via HTTP
+## Data Model
 
-**Por qué Jira**:
-1. **Zero dependencias nuevas** - httpx ya está instalado
-2. **Setup de 10 minutos** - API token + project key
-3. **API simple** - Un POST y listo
-4. **Gratis** - API incluida en tu plan de Jira
-5. **Visible para el equipo** - Issues aparecen en tu workflow existente
-
-### Setup (10 minutos)
-
-1. **Crear API Token**: [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) → Create API token
-2. **Obtener Project Key**: En tu proyecto de Jira, es el prefijo de los issues (ej: `FEED-123` → key es `FEED`)
-3. **Obtener tu email de Atlassian**: El email con el que accedes a Jira
-4. **Agregar env vars**: `JIRA_API_TOKEN`, `JIRA_EMAIL`, `JIRA_PROJECT_KEY`, `JIRA_BASE_URL`
-
-### Código completo
-
-```python
-# backend/app/services/jira_service.py
-import httpx
-import base64
-from app.core.config import settings
-
-async def create_feedback_issue(feedback, classification) -> dict:
-    """Create Jira issue for user feedback."""
-
-    if not all([settings.JIRA_API_TOKEN, settings.JIRA_EMAIL, settings.JIRA_PROJECT_KEY]):
-        return {"success": False, "error": "Jira not configured"}
-
-    # Jira Cloud usa Basic Auth con email:api_token
-    auth = base64.b64encode(f"{settings.JIRA_EMAIL}:{settings.JIRA_API_TOKEN}".encode()).decode()
-
-    emoji = {"bug": "🐛", "feature_request": "✨", "improvement": "💡"}.get(classification.category, "📝")
-
-    # Map category to Jira issue type
-    issue_type = "Bug" if classification.category == "bug" else "Task"
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{settings.JIRA_BASE_URL}/rest/api/3/issue",
-            headers={
-                "Authorization": f"Basic {auth}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "fields": {
-                    "project": {"key": settings.JIRA_PROJECT_KEY},
-                    "summary": f"{emoji} [{classification.category}] {classification.summary}",
-                    "description": {
-                        "type": "doc",
-                        "version": 1,
-                        "content": [
-                            {"type": "paragraph", "content": [{"type": "text", "text": f"Priority: {classification.priority}/5 | Sentiment: {classification.sentiment}"}]},
-                            {"type": "paragraph", "content": [{"type": "text", "text": f"Page: {feedback.page_url or 'N/A'}"}]},
-                            {"type": "rule"},
-                            {"type": "paragraph", "content": [{"type": "text", "text": feedback.content}]},
-                            {"type": "rule"},
-                            {"type": "paragraph", "content": [{"type": "text", "text": f"Feedback ID: {feedback.id}"}]}
-                        ]
-                    },
-                    "issuetype": {"name": issue_type}
-                }
-            },
-            timeout=15.0
-        )
-
-        if response.status_code == 201:
-            issue_key = response.json()["key"]
-            issue_url = f"{settings.JIRA_BASE_URL}/browse/{issue_key}"
-            return {"success": True, "url": issue_url, "key": issue_key}
-        return {"success": False, "error": response.text}
-```
-
-**~40 líneas, zero dependencias nuevas.**
-
----
-
-## Flujo Completo
-
-```
-User clicks 💬 → Dialog → Submit →
-  Backend saves to DB →
-  Background job:
-    1. OpenAI classifies (category, priority, sentiment, summary)
-    2. Create Jira issue with classification
-  → Toast "Thanks!"
-```
-
----
-
-## Archivos a Crear
-
-| Archivo | Líneas | Propósito |
-|---------|--------|-----------|
-| `backend/app/models/feedback.py` | ~25 | Modelo |
-| `backend/app/api/v1/feedback.py` | ~30 | POST endpoint |
-| `backend/app/services/feedback_service.py` | ~40 | Clasificar + crear issue |
-| `backend/app/services/jira_service.py` | ~40 | HTTP a Jira |
-| `frontend/components/features/feedback/feedback-button.tsx` | ~20 | Botón flotante |
-| `frontend/components/features/feedback/feedback-dialog.tsx` | ~80 | Dialog + form |
-| `frontend/lib/api/feedback.ts` | ~15 | API client |
-| Migration | ~20 | Tabla feedback |
-
-**Total: ~270 líneas de código**
-
----
-
-## Modelo Mínimo
+Notes:
+- `BaseModel` provides `id`, `created_at`, and `updated_at`. `updated_at` becomes useful once triage fields (resolve/reopen) exist.
+- Always derive `organization_id` server-side from `OrganizationContext` (never accept it from the client payload).
+- Sanitize `page_path` server-side (strip query/hash) as a defense-in-depth fallback.
 
 ```python
 class Feedback(BaseModel):
     __tablename__ = "feedback"
 
-    organization_id: UUID  # Multi-tenant
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)  # max 4000 (schema + DB constraint)
+    feedback_type: Mapped[str | None] = mapped_column(String(50))  # bug|incorrect_response|feature_request|general
+    page_path: Mapped[str | None] = mapped_column(String(512))  # store pathname only (no query/hash)
+
+    # Admin triage (only mutable fields in MVP)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # Optional (skip if you want ultra-minimal):
+    # resolution_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+```
+
+---
+
+## Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v1/feedback` | CurrentUser | Submit feedback |
+| GET | `/api/v1/admin/feedback` | CurrentSuperUser | List with filters (org-scoped) |
+| PATCH | `/api/v1/admin/feedback/{id}` | CurrentSuperUser | Resolve / reopen feedback |
+
+### Query params (GET)
+- `days`: 7 \| 30 \| null (all)
+- `resolved`: true \| false \| null (all)
+- `feedback_type`: bug \| incorrect_response \| feature_request \| general \| null
+- `limit`: default 50, max 200
+
+---
+
+## Schemas
+
+```python
+FeedbackType = Literal["bug", "incorrect_response", "feature_request", "general"]
+
+class FeedbackCreate(BaseSchema):
+    content: str = Field(..., min_length=1, max_length=4000)
+    feedback_type: FeedbackType | None = None
+    page_path: str | None = Field(None, max_length=512)
+
+class FeedbackUpdate(BaseSchema):
+    resolved: bool
+    # Optional:
+    # resolution_note: str | None = Field(None, max_length=500)
+
+class FeedbackRead(BaseSchema):
+    id: UUID
+    content: str
+    feedback_type: str | None
+    page_path: str | None
     user_id: UUID
-    content: str           # El feedback
-    category_hint: str     # Selección del user (opcional)
-    ai_category: str       # bug|feature|improvement|question
-    ai_priority: int       # 1-5
-    ai_summary: str        # One-liner
-    page_url: str          # Dónde estaba
-    jira_issue_url: str    # Link al issue creado
-    jira_issue_key: str    # Ej: FEED-123
+    resolved_at: datetime | None
+    resolved_by_user_id: UUID | None
+    created_at: datetime
 ```
 
 ---
 
-## Issue en Jira (resultado)
+## Files
 
-```
-FEED-42: 🐛 [bug] El botón de guardar no funciona en móvil
+**Backend (create):**
+- `backend/app/models/feedback.py`
+- `backend/app/schemas/feedback.py`
+- `backend/app/api/v1/feedback.py`
+- `backend/alembic/versions/xxx_add_feedback.py`
+- `backend/tests/test_feedback.py`
 
-Priority: 4/5 | Sentiment: Negative
-Page: /projects/abc123/edit
-────────────────────────────────
-Cuando intento guardar un proyecto desde mi celular,
-el botón no hace nada. Probé en Chrome y Safari.
-────────────────────────────────
-Feedback ID: fb_abc123
-```
+**Backend (modify):**
+- `backend/app/main.py` (register routers)
+- `backend/alembic/env.py` (import Feedback for autogenerate)
 
-**Type**: Bug (si category=bug) o Task (otros)
+**Frontend (create):**
+- `frontend/components/features/feedback/feedback-button.tsx`
+- `frontend/components/features/feedback/feedback-dialog.tsx`
+- `frontend/lib/api/feedback.ts`
+- `frontend/app/admin/feedback/page.tsx`
 
----
-
-## Environment Variables
-
-```env
-JIRA_BASE_URL=https://your-domain.atlassian.net
-JIRA_EMAIL=your-email@company.com
-JIRA_API_TOKEN=your_api_token
-JIRA_PROJECT_KEY=FEED
-```
+**Frontend (modify):**
+- `frontend/components/shared/layout/navbar.tsx` (mount FeedbackButton)
+- `frontend/components/features/admin/admin-sidebar.tsx` (add nav item)
 
 ---
 
-## Tiempo Estimado
+## Frontend Implementation
 
-| Task | Tiempo |
-|------|--------|
-| Modelo + migración | 20min |
-| Endpoint POST | 20min |
-| AI classification | 30min |
-| Jira service | 25min |
-| Frontend button + dialog | 1h |
-| Testing | 25min |
-| **Total** | **~3.5h** |
+### Files to Create
+- `frontend/lib/api/feedback.ts` — API client
+- `frontend/components/features/feedback/feedback-button.tsx` — Icon button + dialog trigger
+- `frontend/components/features/feedback/feedback-dialog.tsx` — Modal form
+- `frontend/app/admin/feedback/page.tsx` — Admin list page
+
+### Files to Modify
+- `frontend/components/shared/layout/navbar.tsx` — Add FeedbackButton next to NotificationDropdown
+- `frontend/components/features/admin/admin-sidebar.tsx` — Add nav item
+
+### API Client (`feedback.ts`)
+```typescript
+export interface FeedbackPayload {
+  content: string;
+  feedbackType?: "bug" | "incorrect_response" | "feature_request" | "general";
+  pagePath?: string;
+}
+
+export interface FeedbackItem {
+  id: string;
+  content: string;
+  feedbackType: string | null;
+  pagePath: string | null;
+  userId: string;
+  resolvedAt: string | null;
+  resolvedByUserId: string | null;
+  createdAt: string;
+}
+
+// POST /api/v1/feedback
+// GET /api/v1/admin/feedback?days=7&resolved=false&feedback_type=bug&limit=50
+// PATCH /api/v1/admin/feedback/{id}
+```
+
+### FeedbackButton
+- MessageSquarePlus icon in navbar (next to NotificationDropdown)
+- Opens FeedbackDialog on click
+
+### FeedbackDialog
+- Textarea for content (required, max 4000)
+- Select for type: Bug | Incorrect response | Feature request | General (optional)
+- Sends: `{ content, feedbackType, pagePath: window.location.pathname }`
+- Toast success: "Thanks for your feedback!"
+- Pattern: Follow `create-company-dialog.tsx`
+
+### Admin Page
+- Filters: Days (Select: 7/30/All), Status (Select: Open/Resolved/All), Type (Select)
+- Table columns: Date, Type, Content (truncated 100 chars), Status badge, Action button
+- Action: ✓ button to resolve, ↺ button to reopen
+- Pattern: Follow `admin/users/page.tsx` with TanStack Table
+- If no org selected: show "Select an organization" prompt
 
 ---
 
-## Verificación
+## Tests
 
-1. Configurar env vars de Jira
-2. Click botón 💬 → llenar feedback → submit
-3. Verificar:
-   - Toast "Thanks!" aparece
-   - Record en DB con `ai_category`, `ai_priority`, `jira_issue_url`
-   - Issue creado en Jira con clasificación correcta
+1. User can create feedback (201)
+2. Superuser can list feedback with filters (200)
+3. Non-superuser cannot list (403)
+4. Superuser can resolve + reopen (200)
+
+---
+
+## Time
+
+| Task | Time |
+|------|------|
+| Model + migration | 15min |
+| Schemas | 10min |
+| Endpoints (POST, GET, PATCH) | 30min |
+| Tests | 25min |
+| Frontend button + dialog | 40min |
+| Admin page + filters | 50min |
+| **Total** | **~3h** |
+
+---
+
+## Acceptance Criteria
+
+1. User submits feedback → toast success
+2. Admin sees list at `/admin/feedback` with working filters
+3. Admin resolves/reopens feedback → state updates
+4. `make check` and `bun run check:ci` pass

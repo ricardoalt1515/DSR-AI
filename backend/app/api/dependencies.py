@@ -179,6 +179,29 @@ async def get_organization_context(
 OrganizationContext = Annotated[Organization, Depends(get_organization_context)]
 
 
+async def get_current_user_organization(
+    current_user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_db),
+) -> Organization:
+    """
+    Resolve organization context for non-superusers only.
+
+    This mirrors the non-superuser branch of get_organization_context and
+    explicitly blocks superusers to keep error semantics clear.
+    """
+    if current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Superadmins cannot submit feedback")
+    if not current_user.organization_id:
+        raise HTTPException(status_code=403, detail="User not assigned to any organization")
+    org = await db.get(Organization, current_user.organization_id)
+    if not org or not org.is_active:
+        raise HTTPException(status_code=403, detail="User's organization is inactive")
+    return org
+
+
+CurrentUserOrganization = Annotated[Organization, Depends(get_current_user_organization)]
+
+
 def apply_organization_filter(query, model, org: Organization):
     """Filter query by organization_id."""
     return query.where(model.organization_id == org.id)

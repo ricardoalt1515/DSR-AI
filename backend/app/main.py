@@ -3,6 +3,7 @@ H2O Allegiant Backend - Main application entry point.
 """
 
 import logging
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -411,13 +412,21 @@ async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Handle validation errors with proper error response format."""
-    logger.error(f"Validation error: {exc.errors()}")
+    error_id = uuid.uuid4().hex
+    logger.error(
+        "Validation error",
+        exc_info=settings.DEBUG,
+        error_id=error_id,
+        method=request.method,
+        path=request.url.path,
+        error_count=len(exc.errors()),
+    )
 
     error_response = ErrorResponse(
         error=APIError(
             message="Validation error",
             code="VALIDATION_ERROR",
-            details={"errors": exc.errors()},
+            details={"error_id": error_id, "errors": exc.errors()},
         )
     )
 
@@ -430,13 +439,25 @@ async def validation_exception_handler(
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected errors."""
-    logger.error("Unexpected error", exc_info=True, error_type=type(exc).__name__)
+    error_id = uuid.uuid4().hex
+    logger.error(
+        "Unexpected error",
+        exc_info=settings.DEBUG,
+        error_type=type(exc).__name__,
+        error_id=error_id,
+        method=request.method,
+        path=request.url.path,
+    )
+
+    details = {"error_id": error_id}
+    if settings.DEBUG:
+        details["type"] = type(exc).__name__
 
     error_response = ErrorResponse(
         error=APIError(
             message="Internal server error" if not settings.DEBUG else str(exc),
             code="INTERNAL_ERROR",
-            details={"type": type(exc).__name__} if settings.DEBUG else None,
+            details=details,
         )
     )
 
@@ -470,6 +491,7 @@ from app.api.v1 import (
     admin_users,
     auth,
     companies,
+    feedback,
     files,
     health,
     intake,
@@ -537,6 +559,18 @@ app.include_router(
     organizations.router,
     prefix=f"{settings.API_V1_PREFIX}/organizations",
     tags=["Organizations"],
+)
+
+app.include_router(
+    feedback.router,
+    prefix=f"{settings.API_V1_PREFIX}/feedback",
+    tags=["Feedback"],
+)
+
+app.include_router(
+    feedback.admin_router,
+    prefix=f"{settings.API_V1_PREFIX}/admin/feedback",
+    tags=["Admin Feedback"],
 )
 
 # ============================================================================

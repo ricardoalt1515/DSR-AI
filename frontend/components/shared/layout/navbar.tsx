@@ -28,6 +28,7 @@ const PremiumProjectWizard = dynamic(
 	{ ssr: false, loading: () => null },
 );
 
+import { FeedbackButton } from "@/components/features/feedback/feedback-button";
 import {
 	OrgContextBadge,
 	OrgSelectionModal,
@@ -279,6 +280,19 @@ export function NavBar() {
 
 						<ThemeToggle />
 						<NotificationDropdown />
+						{authedUser &&
+							(isSuperAdmin ? (
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-9 rounded-full border border-border/40 bg-card/60 text-foreground transition-colors duration-300 hover:bg-card/80"
+									asChild
+								>
+									<Link href="/admin/feedback">Feedback</Link>
+								</Button>
+							) : (
+								<FeedbackButton />
+							))}
 						<Button
 							variant="ghost"
 							size="icon"

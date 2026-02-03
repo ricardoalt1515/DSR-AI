@@ -1,6 +1,12 @@
 "use client";
 
-import { Building2, Menu, Settings, ShieldCheck } from "lucide-react";
+import {
+	Building2,
+	Menu,
+	MessageSquare,
+	Settings,
+	ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -26,6 +32,12 @@ const NAV_ITEMS = [
 		label: "Platform Admins",
 		icon: ShieldCheck,
 		description: "Superuser accounts",
+	},
+	{
+		href: "/admin/feedback",
+		label: "User Feedback",
+		icon: MessageSquare,
+		description: "Review user feedback",
 	},
 ];
 

@@ -22,6 +22,7 @@ from app.models import (  # noqa: F401
     Organization,
     User,
     Company,
+    Feedback,
     IntakeNote,
     IntakeSuggestion,
     IntakeUnmappedNote,
