@@ -112,8 +112,7 @@ class IntakeIngestionService:
                 processing_status="processing",
                 processing_attempts=ProjectFile.processing_attempts + 1,
                 processing_started_at=func.now(),
-                processing_available_at=func.now()
-                + text(f"INTERVAL '{LEASE_SECONDS} seconds'"),
+                processing_available_at=func.now() + text(f"INTERVAL '{LEASE_SECONDS} seconds'"),
                 processing_error=None,
             )
             .returning(ProjectFile)

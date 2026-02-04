@@ -5,6 +5,8 @@
 backend.hcl
 .terraform/
 .terraform.lock.hcl
+tfplan
+*.tfplan
 crash.log
 
 # IDE
