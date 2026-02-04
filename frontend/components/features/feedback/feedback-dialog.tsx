@@ -22,18 +22,19 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+	FEEDBACK_TYPE_CONFIG,
 	type FeedbackPayload,
 	type FeedbackType,
 	feedbackAPI,
 } from "@/lib/api/feedback";
 import { cn } from "@/lib/utils";
 
-const FEEDBACK_TYPE_OPTIONS: Array<{ value: FeedbackType; label: string }> = [
-	{ value: "bug", label: "Bug" },
-	{ value: "incorrect_response", label: "Incorrect Response" },
-	{ value: "feature_request", label: "Feature Request" },
-	{ value: "general", label: "General" },
-];
+const FEEDBACK_TYPE_OPTIONS = Object.entries(FEEDBACK_TYPE_CONFIG).map(
+	([value, info]) => ({
+		value: value as FeedbackType,
+		label: info.label,
+	}),
+);
 
 /** Character count thresholds for visual feedback */
 function getCharCountClass(length: number, max: number): string {
@@ -52,11 +53,17 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 	const [content, setContent] = useState("");
 	const [feedbackType, setFeedbackType] = useState<FeedbackType | undefined>();
 	const [loading, setLoading] = useState(false);
+	const [contentError, setContentError] = useState<string | null>(null);
 	const feedbackTypeValue = feedbackType ?? "none";
+	const contentErrorId = "feedback-content-error";
+	const contentHelpId = "feedback-content-help";
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!content.trim()) return;
+		if (!content.trim()) {
+			setContentError("Feedback is required.");
+			return;
+		}
 
 		setLoading(true);
 		try {
@@ -81,6 +88,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 	const resetForm = () => {
 		setContent("");
 		setFeedbackType(undefined);
+		setContentError(null);
 	};
 
 	const handleOpenChange = (open: boolean) => {
@@ -131,13 +139,33 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 							<Textarea
 								id="feedback-content"
 								value={content}
-								onChange={(e) => setContent(e.target.value)}
+								onChange={(e) => {
+									setContent(e.target.value);
+									if (contentError) setContentError(null);
+								}}
 								placeholder="Describe your feedback..."
 								rows={4}
 								maxLength={4000}
 								className="resize-none"
+								required
+								aria-required="true"
+								aria-invalid={!!contentError}
+								aria-describedby={cn(
+									contentError ? contentErrorId : undefined,
+									contentHelpId,
+								)}
 							/>
+							{contentError && (
+								<p
+									id={contentErrorId}
+									className="text-xs text-destructive"
+									role="alert"
+								>
+									{contentError}
+								</p>
+							)}
 							<p
+								id={contentHelpId}
 								className={cn(
 									"text-xs text-right",
 									getCharCountClass(content.length, 4000),

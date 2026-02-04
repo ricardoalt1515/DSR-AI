@@ -37,10 +37,16 @@ async def test_user_can_create_feedback(
     response = await client.post("/api/v1/feedback", json=payload)
     assert response.status_code == 201
     data = response.json()
-    assert data["content"] == payload["content"]
-    assert data["feedbackType"] == payload["feedback_type"]
-    assert data["pagePath"] == "/projects/123"
-    assert data["userId"] == str(user.id)
+    assert "id" in data
+    assert "createdAt" in data
+
+    result = await db_session.execute(select(Feedback).where(Feedback.id == data["id"]))
+    feedback = result.scalar_one()
+    assert feedback.organization_id == org.id
+    assert feedback.user_id == user.id
+    assert feedback.content == payload["content"]
+    assert feedback.feedback_type == payload["feedback_type"]
+    assert feedback.page_path == "/projects/123"
 
 
 @pytest.mark.asyncio
@@ -165,6 +171,9 @@ async def test_superuser_can_list_feedback_with_filters(
     data = response.json()
     assert len(data) == 1
     assert data[0]["content"] == "Recent bug"
+    assert data[0]["user"]["id"] == str(user.id)
+    assert data[0]["user"]["firstName"] == user.first_name
+    assert data[0]["user"]["lastName"] == user.last_name
 
 
 @pytest.mark.asyncio
@@ -256,6 +265,7 @@ async def test_superuser_can_resolve_and_reopen_feedback(
     resolved_data = resolve_response.json()
     assert resolved_data["resolvedAt"] is not None
     assert resolved_data["resolvedByUserId"] == str(superuser.id)
+    assert resolved_data["user"]["id"] == str(user.id)
 
     reopen_response = await client.patch(
         f"/api/v1/admin/feedback/{feedback.id}",
@@ -266,6 +276,7 @@ async def test_superuser_can_resolve_and_reopen_feedback(
     reopened_data = reopen_response.json()
     assert reopened_data["resolvedAt"] is None
     assert reopened_data["resolvedByUserId"] is None
+    assert reopened_data["user"]["id"] == str(user.id)
 
 
 @pytest.mark.asyncio

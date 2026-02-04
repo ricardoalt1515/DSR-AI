@@ -37,8 +37,8 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import {
+	type AdminFeedbackItem,
 	FEEDBACK_TYPE_CONFIG,
-	type FeedbackItem,
 	type FeedbackType,
 	feedbackAPI,
 	type ListFeedbackParams,
@@ -65,9 +65,11 @@ function truncate(text: string, maxLength: number): string {
 
 export default function AdminFeedbackPage() {
 	const { selectedOrgId } = useOrganizationStore();
-	const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
+	const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [actionLoading, setActionLoading] = useState<string | null>(null);
+	const [pendingActionIds, setPendingActionIds] = useState<Set<string>>(
+		() => new Set(),
+	);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -117,7 +119,16 @@ export default function AdminFeedbackPage() {
 	/** Consolidated handler for resolve/reopen actions */
 	const handleToggleResolved = useCallback(
 		async (id: string, resolve: boolean) => {
-			setActionLoading(id);
+			let shouldProceed = false;
+			setPendingActionIds((prev) => {
+				if (prev.has(id)) return prev;
+				shouldProceed = true;
+				const next = new Set(prev);
+				next.add(id);
+				return next;
+			});
+			if (!shouldProceed) return;
+
 			try {
 				const updated = resolve
 					? await feedbackAPI.resolve(id)
@@ -133,7 +144,11 @@ export default function AdminFeedbackPage() {
 					resolve ? "Failed to resolve feedback" : "Failed to reopen feedback",
 				);
 			} finally {
-				setActionLoading(null);
+				setPendingActionIds((prev) => {
+					const next = new Set(prev);
+					next.delete(id);
+					return next;
+				});
 			}
 		},
 		[],
@@ -310,11 +325,17 @@ export default function AdminFeedbackPage() {
 																	? item.content
 																	: truncate(item.content, 80)}
 															</p>
-															{item.pagePath && (
-																<p className="text-xs text-muted-foreground mt-0.5">
-																	{item.pagePath}
-																</p>
-															)}
+															<p className="text-xs text-muted-foreground mt-0.5">
+																{item.pagePath ? (
+																	<>
+																		<span>{item.pagePath}</span>{" "}
+																		<span aria-hidden="true">·</span>{" "}
+																	</>
+																) : null}
+																<span>
+																	{item.user.firstName} {item.user.lastName}
+																</span>
+															</p>
 														</div>
 														{needsTruncation && (
 															<Button
@@ -363,7 +384,7 @@ export default function AdminFeedbackPage() {
 														onClick={() =>
 															handleToggleResolved(item.id, !isResolved)
 														}
-														disabled={actionLoading === item.id}
+														disabled={pendingActionIds.has(item.id)}
 														aria-label={
 															isResolved
 																? "Reopen feedback"

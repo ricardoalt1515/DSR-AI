@@ -29,12 +29,24 @@ export interface FeedbackPayload {
 	pagePath?: string;
 }
 
-export interface FeedbackItem {
+export interface FeedbackPublicCreateResponse {
+	id: string;
+	createdAt: string;
+}
+
+export interface AdminFeedbackUser {
+	id: string;
+	firstName: string;
+	lastName: string;
+}
+
+export interface AdminFeedbackItem {
 	id: string;
 	content: string;
 	feedbackType: FeedbackType | null;
 	pagePath: string | null;
 	userId: string;
+	user: AdminFeedbackUser;
 	resolvedAt: string | null;
 	resolvedByUserId: string | null;
 	createdAt: string;
@@ -48,14 +60,16 @@ export interface ListFeedbackParams {
 }
 
 export const feedbackAPI = {
-	async submit(payload: FeedbackPayload): Promise<FeedbackItem> {
-		return apiClient.post<FeedbackItem>(
+	async submit(
+		payload: FeedbackPayload,
+	): Promise<FeedbackPublicCreateResponse> {
+		return apiClient.post<FeedbackPublicCreateResponse>(
 			"/feedback",
 			payload as unknown as Record<string, unknown>,
 		);
 	},
 
-	async list(params?: ListFeedbackParams): Promise<FeedbackItem[]> {
+	async list(params?: ListFeedbackParams): Promise<AdminFeedbackItem[]> {
 		const query = new URLSearchParams();
 		if (params?.days) query.set("days", String(params.days));
 		if (params?.resolved !== undefined)
@@ -67,17 +81,17 @@ export const feedbackAPI = {
 		const endpoint = queryString
 			? `/admin/feedback?${queryString}`
 			: "/admin/feedback";
-		return apiClient.get<FeedbackItem[]>(endpoint);
+		return apiClient.get<AdminFeedbackItem[]>(endpoint);
 	},
 
-	async resolve(id: string): Promise<FeedbackItem> {
-		return apiClient.patch<FeedbackItem>(`/admin/feedback/${id}`, {
+	async resolve(id: string): Promise<AdminFeedbackItem> {
+		return apiClient.patch<AdminFeedbackItem>(`/admin/feedback/${id}`, {
 			resolved: true,
 		} as unknown as Record<string, unknown>);
 	},
 
-	async reopen(id: string): Promise<FeedbackItem> {
-		return apiClient.patch<FeedbackItem>(`/admin/feedback/${id}`, {
+	async reopen(id: string): Promise<AdminFeedbackItem> {
+		return apiClient.patch<AdminFeedbackItem>(`/admin/feedback/${id}`, {
 			resolved: false,
 		} as unknown as Record<string, unknown>);
 	},

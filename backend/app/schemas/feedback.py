@@ -11,6 +11,12 @@ from app.schemas.common import BaseSchema
 FeedbackType = Literal["bug", "incorrect_response", "feature_request", "general"]
 
 
+class FeedbackUserRead(BaseSchema):
+    id: UUID
+    first_name: str
+    last_name: str
+
+
 class FeedbackCreate(BaseSchema):
     model_config = ConfigDict(extra="forbid")
 
@@ -25,12 +31,18 @@ class FeedbackUpdate(BaseSchema):
     resolved: bool
 
 
-class FeedbackRead(BaseSchema):
+class FeedbackPublicCreateResponse(BaseSchema):
+    id: UUID
+    created_at: datetime
+
+
+class FeedbackAdminRead(BaseSchema):
     id: UUID
     content: str
     feedback_type: FeedbackType | None
     page_path: str | None
     user_id: UUID
+    user: FeedbackUserRead
     resolved_at: datetime | None
     resolved_by_user_id: UUID | None
     created_at: datetime

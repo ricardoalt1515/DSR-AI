@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import (
     AsyncDB,
@@ -18,7 +19,14 @@ from app.api.dependencies import (
     SuperAdminOnly,
 )
 from app.models.feedback import Feedback
-from app.schemas.feedback import FeedbackCreate, FeedbackRead, FeedbackType, FeedbackUpdate
+from app.models.user import User
+from app.schemas.feedback import (
+    FeedbackAdminRead,
+    FeedbackCreate,
+    FeedbackPublicCreateResponse,
+    FeedbackType,
+    FeedbackUpdate,
+)
 
 router = APIRouter()
 admin_router = APIRouter()
@@ -48,7 +56,11 @@ def _sanitize_page_path(page_path: str | None) -> str | None:
     return path
 
 
-@router.post("", response_model=FeedbackRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=FeedbackPublicCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_feedback(
     payload: FeedbackCreate,
     current_user: CurrentUser,
@@ -66,10 +78,10 @@ async def create_feedback(
     db.add(feedback)
     await db.commit()
     await db.refresh(feedback)
-    return feedback
+    return FeedbackPublicCreateResponse(id=feedback.id, created_at=feedback.created_at)
 
 
-@admin_router.get("", response_model=list[FeedbackRead])
+@admin_router.get("", response_model=list[FeedbackAdminRead])
 async def list_feedback(
     current_admin: SuperAdminOnly,
     org: OrganizationContext,
@@ -83,7 +95,11 @@ async def list_feedback(
     feedback_type: FeedbackTypeFilter = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
-    query = select(Feedback).where(Feedback.organization_id == org.id)
+    query = (
+        select(Feedback)
+        .options(selectinload(Feedback.user).load_only(User.id, User.first_name, User.last_name))
+        .where(Feedback.organization_id == org.id)
+    )
 
     if days:
         cutoff = datetime.now(UTC) - timedelta(days=days)
@@ -103,7 +119,7 @@ async def list_feedback(
     return feedback_items
 
 
-@admin_router.patch("/{feedback_id}", response_model=FeedbackRead)
+@admin_router.patch("/{feedback_id}", response_model=FeedbackAdminRead)
 async def update_feedback(
     feedback_id: UUID,
     payload: FeedbackUpdate,
@@ -114,6 +130,7 @@ async def update_feedback(
 ):
     result = await db.execute(
         select(Feedback)
+        .options(selectinload(Feedback.user).load_only(User.id, User.first_name, User.last_name))
         .where(Feedback.id == feedback_id, Feedback.organization_id == org.id)
         .with_for_update()
     )
@@ -129,5 +146,9 @@ async def update_feedback(
         feedback.resolved_by_user_id = None
 
     await db.commit()
-    await db.refresh(feedback)
-    return feedback
+    result = await db.execute(
+        select(Feedback)
+        .options(joinedload(Feedback.user).load_only(User.id, User.first_name, User.last_name))
+        .where(Feedback.id == feedback.id, Feedback.organization_id == org.id)
+    )
+    return result.scalar_one()
