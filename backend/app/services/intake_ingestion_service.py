@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.document_analysis_agent import DocumentAnalysisError, analyze_document
+from app.agents.document_analysis_agent import DocumentAnalysisError
 from app.agents.image_analysis_agent import ImageAnalysisError, analyze_image
 from app.agents.notes_analysis_agent import analyze_notes
 from app.models.document_analysis_output import DocumentAnalysisOutput, DocumentUnmapped
@@ -22,18 +23,24 @@ from app.models.intake_unmapped_note import IntakeUnmappedNote
 from app.models.notes_analysis_output import NotesAnalysisOutput
 from app.models.project import Project
 from app.schemas.intake import IntakeEvidence
+from app.services.intake_document_pipeline import analyze_project_file_document
 from app.services.intake_field_catalog import (
     FieldRegistryItem,
     build_questionnaire_registry,
     format_catalog_for_prompt,
     normalize_field_id,
 )
-from app.services.s3_service import download_file_content
+from app.services.s3_service import StorageError, download_file_content
 
 logger = structlog.get_logger(__name__)
 
 DocType = Literal["sds", "lab", "general"]
 MAX_PROCESSING_ATTEMPTS = 3
+LEASE_SECONDS = 300
+RETRY_BASE_SECONDS = 30
+RETRY_MAX_SECONDS = 600
+RETRY_JITTER_PCT = 0.2
+PROCESSING_ERROR_MAX_LENGTH = 500
 MAX_UNMAPPED_ITEMS = 10
 MIN_UNMAPPED_CONFIDENCE = 60
 _METADATA_PATTERNS = [
@@ -78,23 +85,43 @@ class IntakeIngestionService:
         if file.processing_status in {"queued", "processing"}:
             return
         file.processing_status = "queued"
+        file.processing_available_at = datetime.now(UTC)
+        file.processing_started_at = None
         file.processing_error = None
         await db.flush()
 
     async def claim_next_file(self, db: AsyncSession) -> ProjectFile | None:
-        result = await db.execute(
-            select(ProjectFile)
+        candidate = (
+            select(ProjectFile.id)
             .where(ProjectFile.processing_status == "queued")
             .where(ProjectFile.processing_attempts < MAX_PROCESSING_ATTEMPTS)
+            .where(
+                (ProjectFile.processing_available_at.is_(None))
+                | (ProjectFile.processing_available_at <= func.now())
+            )
+            .order_by(ProjectFile.processing_available_at.nullsfirst(), ProjectFile.created_at)
             .with_for_update(skip_locked=True)
             .limit(1)
+            .cte("candidate")
         )
+        stmt = (
+            update(ProjectFile)
+            .where(ProjectFile.id.in_(select(candidate.c.id)))
+            .where(ProjectFile.processing_status == "queued")
+            .values(
+                processing_status="processing",
+                processing_attempts=ProjectFile.processing_attempts + 1,
+                processing_started_at=func.now(),
+                processing_available_at=func.now()
+                + text(f"INTERVAL '{LEASE_SECONDS} seconds'"),
+                processing_error=None,
+            )
+            .returning(ProjectFile)
+        )
+        result = await db.execute(stmt)
         file = result.scalar_one_or_none()
         if not file:
             return None
-        file.processing_status = "processing"
-        file.processing_attempts += 1
-        await db.flush()
         logger.info(
             "intake_ingestion_started",
             file_id=str(file.id),
@@ -119,10 +146,8 @@ class IntakeIngestionService:
         return len(files)
 
     async def process_file(self, db: AsyncSession, file: ProjectFile) -> None:
-        if file.file_hash and file.processed_at and (file.ai_analysis or file.processed_text):
-            file.processing_status = "completed"
-            file.processing_error = None
-            await db.flush()
+        if self._has_processing_results(file):
+            await self._mark_completed(db, file)
             return
 
         if file.file_hash:
@@ -147,6 +172,8 @@ class IntakeIngestionService:
 
         try:
             file_bytes = await download_file_content(file.file_path)
+            if not file_bytes:
+                raise ValueError("empty_file_bytes")
             file_type = (file.file_type or "").lower()
 
             if file_type in {"jpg", "jpeg", "png"}:
@@ -154,10 +181,9 @@ class IntakeIngestionService:
             elif file_type == "pdf":
                 await self._process_document(db, file, file_bytes)
             else:
-                await self._mark_completed(db, file)
+                raise ValueError("unsupported_file_type")
         except Exception as exc:
-            await self._mark_failed(db, file, str(exc))
-            raise
+            await self._handle_ingestion_failure(db, file, exc)
 
     async def analyze_notes_text(
         self,
@@ -280,15 +306,11 @@ class IntakeIngestionService:
         file: ProjectFile,
         file_bytes: bytes,
     ) -> None:
-        try:
-            result = await analyze_image(
-                image_data=file_bytes,
-                filename=file.filename,
-                media_type=file.mime_type or "image/jpeg",
-            )
-        except ImageAnalysisError as exc:
-            await self._mark_failed(db, file, str(exc))
-            return
+        result = await analyze_image(
+            image_data=file_bytes,
+            filename=file.filename,
+            media_type=file.mime_type or "image/jpeg",
+        )
 
         file.ai_analysis = result.model_dump()
         file.processed_text = result.summary
@@ -321,18 +343,14 @@ class IntakeIngestionService:
         file_bytes: bytes,
     ) -> None:
         doc_type = determine_doc_type(file.category)
-        try:
-            field_catalog = self._build_field_catalog()
-            analysis = await analyze_document(
-                document_bytes=file_bytes,
-                filename=file.filename,
-                doc_type=doc_type,
-                field_catalog=field_catalog,
-                media_type=file.mime_type or "application/pdf",
-            )
-        except DocumentAnalysisError as exc:
-            await self._mark_failed(db, file, str(exc))
-            return
+        field_catalog = self._build_field_catalog()
+        analysis = await analyze_project_file_document(
+            file_bytes=file_bytes,
+            filename=file.filename,
+            doc_type=doc_type,
+            field_catalog=field_catalog,
+            media_type=file.mime_type or "application/pdf",
+        )
 
         await self._persist_document_analysis(db, file, analysis, doc_type)
         await self._mark_completed(db, file)
@@ -404,7 +422,7 @@ class IntakeIngestionService:
 
         # Persist unmapped from analysis
         filtered_unmapped = _filter_unmapped_items(analysis.unmapped)
-        for item in list(filtered_unmapped)[:MAX_UNMAPPED_ITEMS]:
+        for item in filtered_unmapped:
             await self._persist_unmapped(db, file, item.extracted_text, item.confidence)
 
     async def _delete_pending_for_source(self, db: AsyncSession, file: ProjectFile) -> None:
@@ -520,15 +538,139 @@ class IntakeIngestionService:
     async def _mark_completed(self, db: AsyncSession, file: ProjectFile) -> None:
         file.processing_status = "completed"
         file.processing_error = None
-        file.processed_at = datetime.now(UTC)
+        if not file.processed_at:
+            file.processed_at = datetime.now(UTC)
         await db.flush()
         logger.info("intake_ingestion_completed", file_id=str(file.id))
 
     async def _mark_failed(self, db: AsyncSession, file: ProjectFile, error: str) -> None:
         file.processing_status = "failed"
         file.processing_error = error
-        file.processed_at = datetime.now(UTC)
+        if not file.processed_at:
+            file.processed_at = datetime.now(UTC)
         await db.flush()
+
+    async def requeue_stale_processing_files(self, db: AsyncSession, limit: int = 100) -> int:
+        stale_requeue = (
+            select(ProjectFile.id)
+            .where(ProjectFile.processing_status == "processing")
+            .where(ProjectFile.processing_available_at < func.now())
+            .where(ProjectFile.processing_attempts < MAX_PROCESSING_ATTEMPTS)
+            .order_by(ProjectFile.processing_available_at)
+            .limit(limit)
+            .cte("stale_requeue")
+        )
+        requeue_stmt = (
+            update(ProjectFile)
+            .where(ProjectFile.id.in_(select(stale_requeue.c.id)))
+            .where(ProjectFile.processing_status == "processing")
+            .values(
+                processing_status="queued",
+                processing_error="lease_expired_requeued",
+                processing_available_at=func.now(),
+                processing_started_at=None,
+            )
+            .returning(ProjectFile.id)
+        )
+        requeued = await db.execute(requeue_stmt)
+        requeued_ids = requeued.scalars().all()
+
+        stale_fail = (
+            select(ProjectFile.id)
+            .where(ProjectFile.processing_status == "processing")
+            .where(ProjectFile.processing_available_at < func.now())
+            .where(ProjectFile.processing_attempts >= MAX_PROCESSING_ATTEMPTS)
+            .order_by(ProjectFile.processing_available_at)
+            .limit(limit)
+            .cte("stale_fail")
+        )
+        fail_stmt = (
+            update(ProjectFile)
+            .where(ProjectFile.id.in_(select(stale_fail.c.id)))
+            .where(ProjectFile.processing_status == "processing")
+            .values(
+                processing_status="failed",
+                processing_error="lease_expired_max_attempts",
+                processed_at=func.now(),
+            )
+            .returning(ProjectFile.id)
+        )
+        failed = await db.execute(fail_stmt)
+        failed_ids = failed.scalars().all()
+        return len(requeued_ids) + len(failed_ids)
+
+    async def _handle_ingestion_failure(
+        self, db: AsyncSession, file: ProjectFile, exc: Exception
+    ) -> None:
+        retryable, reason = self._classify_failure(exc)
+        reason = self._truncate_error(reason)
+
+        if retryable and file.processing_attempts < MAX_PROCESSING_ATTEMPTS:
+            backoff_seconds = self._retry_backoff_seconds(file.id, file.processing_attempts)
+            file.processing_status = "queued"
+            file.processing_error = reason
+            file.processing_available_at = datetime.now(UTC) + timedelta(seconds=backoff_seconds)
+            file.processing_started_at = None
+            await db.flush()
+            logger.warning(
+                "intake_ingestion_requeued",
+                file_id=str(file.id),
+                attempt=file.processing_attempts,
+                backoff_seconds=backoff_seconds,
+                reason=reason,
+            )
+            return
+
+        await self._mark_failed(db, file, reason)
+        logger.error(
+            "intake_ingestion_failed",
+            file_id=str(file.id),
+            attempt=file.processing_attempts,
+            reason=reason,
+            exc_info=True,
+        )
+
+    def _classify_failure(self, exc: Exception) -> tuple[bool, str]:
+        message = str(exc).lower()
+
+        def is_safe_error_code(value: str) -> bool:
+            return bool(re.fullmatch(r"[a-z0-9_]{1,80}", value))
+
+        if isinstance(exc, ValueError):
+            if message in {"empty_file_bytes", "unsupported_file_type"}:
+                return False, message
+            if is_safe_error_code(message):
+                return False, message
+            return True, "unknown_error"
+
+        if isinstance(exc, (DocumentAnalysisError, ImageAnalysisError)):
+            if "empty document" in message or "empty image" in message:
+                return False, "empty_file_bytes"
+            if "document too large" in message:
+                return False, "document_too_large"
+            if isinstance(exc, DocumentAnalysisError):
+                return True, "document_analysis_error"
+            return True, "image_analysis_error"
+        if isinstance(exc, (FileNotFoundError, StorageError)):
+            return False, "file_missing"
+        if "no such key" in message or "not found" in message:
+            return False, "file_missing"
+        return True, "unknown_error"
+
+    def _retry_backoff_seconds(self, file_id: object, attempt: int) -> int:
+        """Backoff = min(30s * 2^(attempt-1), 600s) with deterministic ±20% jitter."""
+        base = min(RETRY_BASE_SECONDS * (2 ** max(attempt - 1, 0)), RETRY_MAX_SECONDS)
+        digest = hashlib.sha256(f"{file_id}:{attempt}".encode()).digest()
+        jitter_value = int.from_bytes(digest[:8], "big") / 2**64
+        jitter_factor = (jitter_value * 2.0 - 1.0) * RETRY_JITTER_PCT
+        backoff = round(base * (1 + jitter_factor))
+        return max(1, min(backoff, RETRY_MAX_SECONDS))
+
+    def _truncate_error(self, error: str) -> str:
+        return error[:PROCESSING_ERROR_MAX_LENGTH]
+
+    def _has_processing_results(self, file: ProjectFile) -> bool:
+        return bool(file.processed_at and (file.ai_analysis or file.processed_text))
 
     def _build_field_catalog(self) -> str:
         """Build field catalog for prompts using the new formatter.

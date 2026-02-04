@@ -127,3 +127,30 @@ resource "aws_iam_role_policy" "ecs_cloudwatch_logs" {
     ]
   })
 }
+
+# -----------------------------------------------------------------------------
+# ECS Exec (optional but recommended for operations)
+# -----------------------------------------------------------------------------
+#
+# Allows `aws ecs execute-command` (SSM channel) inside running tasks.
+# No cost unless you use it, and it improves incident response/debugging.
+resource "aws_iam_role_policy" "ecs_ssm_access" {
+  name_prefix = "${local.name_prefix}-ecs-ssm-"
+  role        = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+}

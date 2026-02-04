@@ -7,6 +7,12 @@ Harden the existing `intake-worker` (DB-polling) so it is production-safe on AWS
 
 This plan intentionally keeps the current “no new infra” MVP choice (DB polling + row-claiming) already documented in `docs/plans/intake-backend-spec.md`.
 
+## Behavior Summary
+- Lease-based claim: atomic `UPDATE … RETURNING` with `SKIP LOCKED` sets `processing_status=processing`, `processing_started_at=now()`, and `processing_available_at=now()+300s`.
+- Stale recovery: reaper runs every ~60s and only requeues `processing` rows whose lease expired; if attempts exhausted, it marks `failed` with `processed_at`.
+- Retry backoff: `backoff = min(30s * 2^(attempt-1), 600s)` with deterministic ±20% jitter; `processing_available_at = now() + backoff`.
+- OCR seam: `analyze_project_file_document()` is the single entry point for document analysis; swap its internals for Textract later without changing ingestion flow.
+
 ## Prerequisites
 - **Docs**: Context7 tool is currently unavailable (quota exceeded), so external best-practice citations are not pulled; plan is derived from repo docs + standard AWS/ECS worker patterns.
 - Local dev DB: tests require `cd backend && docker-compose up` (per `docs/agents/development-commands.md`).

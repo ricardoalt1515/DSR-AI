@@ -43,8 +43,16 @@ resource "aws_secretsmanager_secret" "openai_api_key" {
 }
 
 resource "aws_secretsmanager_secret_version" "openai_api_key" {
+  count         = var.manage_secret_values ? 1 : 0
   secret_id     = aws_secretsmanager_secret.openai_api_key.id
   secret_string = var.openai_api_key
+
+  lifecycle {
+    precondition {
+      condition     = var.openai_api_key != ""
+      error_message = "openai_api_key must be set when manage_secret_values=true."
+    }
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -62,6 +70,14 @@ resource "aws_secretsmanager_secret" "jwt_secret" {
 }
 
 resource "aws_secretsmanager_secret_version" "jwt_secret" {
+  count         = var.manage_secret_values ? 1 : 0
   secret_id     = aws_secretsmanager_secret.jwt_secret.id
   secret_string = var.jwt_secret_key
+
+  lifecycle {
+    precondition {
+      condition     = var.jwt_secret_key != ""
+      error_message = "jwt_secret_key must be set when manage_secret_values=true."
+    }
+  }
 }

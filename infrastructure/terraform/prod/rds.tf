@@ -36,7 +36,7 @@ resource "aws_db_parameter_group" "main" {
 resource "aws_db_instance" "main" {
   identifier     = "${local.name_prefix}-db"
   engine         = "postgres"
-  engine_version = "14.15"  # Latest 14.x version available
+  engine_version = "14.15" # Latest 14.x version available
 
   # Instance configuration
   instance_class    = var.db_instance_class

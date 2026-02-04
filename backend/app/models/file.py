@@ -134,6 +134,18 @@ class ProjectFile(BaseModel):
         comment="Timestamp when processing completed",
     )
 
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when processing lease was claimed",
+    )
+
+    processing_available_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Next time processing is eligible (lease expiry or backoff)",
+    )
+
     processing_attempts: Mapped[int] = mapped_column(
         Integer,
         comment="Number of processing attempts",

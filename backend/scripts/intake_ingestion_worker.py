@@ -1,7 +1,9 @@
 """Simple DB polling worker for intake ingestion (MVP)."""
 
 import asyncio
+import random
 import signal
+import time
 from contextlib import suppress
 
 import structlog
@@ -12,6 +14,10 @@ from app.services.intake_ingestion_service import IntakeIngestionService
 logger = structlog.get_logger(__name__)
 
 _shutdown_event: asyncio.Event | None = None
+POLL_BASE_SECONDS = 2.0
+POLL_MAX_SECONDS = 60.0
+POLL_JITTER_PCT = 0.2
+REAPER_INTERVAL_SECONDS = 60.0
 
 
 def _handle_signal(signum: int) -> None:
@@ -20,7 +26,7 @@ def _handle_signal(signum: int) -> None:
         _shutdown_event.set()
 
 
-async def run_worker(poll_interval_seconds: float = 2.0) -> None:
+async def run_worker() -> None:
     global _shutdown_event
     _shutdown_event = asyncio.Event()
 
@@ -32,30 +38,37 @@ async def run_worker(poll_interval_seconds: float = 2.0) -> None:
         logger.warning("signal_handlers_unavailable")
 
     service = IntakeIngestionService()
+    idle_backoff = POLL_BASE_SECONDS
+    last_reaper = 0.0
     while not _shutdown_event.is_set():
         async with AsyncSessionLocal() as db:
             try:
-                await service.fail_exhausted_files(db)
-                await db.commit()
+                now = time.monotonic()
+                if now - last_reaper >= REAPER_INTERVAL_SECONDS:
+                    await service.requeue_stale_processing_files(db)
+                    await service.fail_exhausted_files(db)
+                    await db.commit()
+                    last_reaper = now
 
                 file = await service.claim_next_file(db)
                 if not file:
                     await db.rollback()
+                    sleep_seconds = idle_backoff * (
+                        1 + random.uniform(-POLL_JITTER_PCT, POLL_JITTER_PCT)
+                    )
+                    sleep_seconds = max(0.0, min(sleep_seconds, POLL_MAX_SECONDS))
+                    idle_backoff = min(idle_backoff * 2, POLL_MAX_SECONDS)
                     with suppress(TimeoutError):
-                        await asyncio.wait_for(
-                            _shutdown_event.wait(), timeout=poll_interval_seconds
-                        )
+                        await asyncio.wait_for(_shutdown_event.wait(), timeout=sleep_seconds)
                     continue
 
                 await db.commit()
                 try:
                     await service.process_file(db, file)
                     await db.commit()
+                    idle_backoff = POLL_BASE_SECONDS
                 except Exception:
-                    try:
-                        await db.commit()
-                    except Exception:
-                        await db.rollback()
+                    await db.rollback()
                     logger.error("intake_ingestion_failed", file_id=str(file.id), exc_info=True)
             except Exception:
                 await db.rollback()

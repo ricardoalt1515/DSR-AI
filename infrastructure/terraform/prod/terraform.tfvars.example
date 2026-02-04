@@ -30,8 +30,10 @@ enable_nat_gateway = true
 
 ecs_task_cpu      = 1024  # 1 vCPU (same as local development)
 ecs_task_memory   = 2048  # 2 GB (same as local development)
+ecs_worker_cpu    = 512   # 0.5 vCPU (worker cheaper than backend)
+ecs_worker_memory = 1024  # 1 GB (worker cheaper than backend)
 ecs_desired_count = 2
-ecs_intake_worker_desired_count = 1
+ecs_intake_worker_desired_count = 0
 ecs_min_capacity  = 1
 ecs_max_capacity  = 3
 
@@ -68,19 +70,18 @@ cors_origins        = "http://localhost:3000"  # Update with your frontend URL
 # Monitoring
 # -----------------------------------------------------------------------------
 
-alarm_email = "alerts@dsr-inc.com"
+# Optional. If empty, Terraform creates no SNS/email notifications (alarms still exist in CloudWatch).
+alarm_email = ""
 
 # -----------------------------------------------------------------------------
-# Secrets (via environment variables - DO NOT COMMIT)
+# Secrets
 # -----------------------------------------------------------------------------
-# Set these via environment variables:
+# Default behavior: Terraform does NOT manage secret values. Keep secrets in AWS
+# Secrets Manager and Terraform will only wire the ARN into ECS (AWSCURRENT).
 #
-# export TF_VAR_openai_api_key="sk-proj-xxxxx"
-# export TF_VAR_jwt_secret_key="$(openssl rand -hex 32)"
+# If you're bootstrapping a new environment and want Terraform to set values:
+# - manage_secret_values = true
+# - export TF_VAR_openai_api_key="sk-proj-xxxxx"
+# - export TF_VAR_jwt_secret_key="$(openssl rand -hex 32)"
 #
-# Or pass via command line:
-# terraform apply -var="openai_api_key=sk-xxx" -var="jwt_secret_key=xxx"
-#
-# DO NOT uncomment below - secrets must be passed via env vars
-# openai_api_key = ""  # Set via TF_VAR_openai_api_key
-# jwt_secret_key = ""  # Set via TF_VAR_jwt_secret_key
+# manage_secret_values = true

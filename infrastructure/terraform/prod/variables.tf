@@ -78,6 +78,28 @@ variable "ecs_task_memory" {
   }
 }
 
+variable "ecs_worker_cpu" {
+  description = "CPU units for intake worker task (512 = 0.5 vCPU)"
+  type        = number
+  default     = 512 # 0.5 vCPU (worker is cheaper than backend)
+
+  validation {
+    condition     = contains([256, 512, 1024, 2048, 4096], var.ecs_worker_cpu)
+    error_message = "Valid CPU values: 256, 512, 1024, 2048, 4096."
+  }
+}
+
+variable "ecs_worker_memory" {
+  description = "Memory for intake worker task in MB"
+  type        = number
+  default     = 1024 # 1 GB (worker is cheaper than backend)
+
+  validation {
+    condition     = var.ecs_worker_memory >= 512 && var.ecs_worker_memory <= 30720
+    error_message = "Memory must be between 512 MB and 30 GB."
+  }
+}
+
 variable "ecs_desired_count" {
   description = "Desired number of ECS tasks"
   type        = number
@@ -181,6 +203,7 @@ variable "enable_https" {
 variable "alarm_email" {
   description = "Email for CloudWatch alarms"
   type        = string
+  default     = ""
 }
 
 variable "enable_nat_gateway" {
@@ -207,14 +230,22 @@ variable "cors_origins" {
 # Or use AWS Secrets Manager ARN
 # -----------------------------------------------------------------------------
 
+variable "manage_secret_values" {
+  description = "If true, Terraform manages OpenAI/JWT secret values (not recommended for prod)."
+  type        = bool
+  default     = false
+}
+
 variable "openai_api_key" {
   description = "OpenAI API key (pass via TF_VAR_openai_api_key)"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "jwt_secret_key" {
   description = "JWT secret key (pass via TF_VAR_jwt_secret_key)"
   type        = string
   sensitive   = true
+  default     = ""
 }

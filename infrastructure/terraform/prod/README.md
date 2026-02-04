@@ -109,17 +109,24 @@ nano terraform.tfvars
 
 ### Step 3: Setup AWS Secrets (5 min)
 
-Create OpenAI and JWT secrets:
+**Recommended (prod-safe):** manage secret values directly in AWS Secrets Manager (not Terraform), and let Terraform only wire secret ARNs into ECS.
+
+- For existing environments, ensure these secrets already exist and are correct:
+  - `OPENAI_API_KEY`
+  - `SECRET_KEY` (JWT)
+  - `POSTGRES_PASSWORD`
+
+If you're bootstrapping a brand-new environment and want a quick setup via AWS CLI, you can use:
 
 ```bash
-# Set environment variables
-export TF_VAR_openai_api_key="sk-proj-YOUR-KEY-HERE"
-export TF_VAR_jwt_secret_key="$(openssl rand -hex 32)"
-
-# Create secrets in AWS Secrets Manager
 cd infrastructure/scripts
 ./setup-secrets.sh
 ```
+
+Notes:
+- This script **writes secrets into AWS**, not Terraform state (safer).
+- Terraform in this repo defaults to `manage_secret_values = false` to avoid accidental rotations.
+- If your production stack already has Secrets Manager secrets created by Terraform with timestamped names, don't run the script in prod (it will create additional secrets).
 
 ### Step 4: Initialize Terraform (5 min)
 

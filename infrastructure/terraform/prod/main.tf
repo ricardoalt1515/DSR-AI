@@ -78,11 +78,13 @@ resource "aws_subnet" "private" {
 # -----------------------------------------------------------------------------
 
 resource "aws_eip" "nat" {
-  count  = var.enable_nat_gateway ? length(local.azs) : 0
+  # MVP cost optimization: a single NAT Gateway shared across private subnets.
+  # This matches the common “1 NAT” setup and avoids paying per-AZ NAT fees.
+  count  = var.enable_nat_gateway ? 1 : 0
   domain = "vpc"
 
   tags = {
-    Name = "${local.name_prefix}-nat-eip-${local.azs[count.index]}"
+    Name = "${local.name_prefix}-nat-eip-${local.azs[0]}"
   }
 
   depends_on = [aws_internet_gateway.main]
@@ -93,12 +95,13 @@ resource "aws_eip" "nat" {
 # -----------------------------------------------------------------------------
 
 resource "aws_nat_gateway" "main" {
-  count         = var.enable_nat_gateway ? length(local.azs) : 0
+  # Single NAT Gateway shared across AZs (see aws_eip.nat count).
+  count         = var.enable_nat_gateway ? 1 : 0
   allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
+  subnet_id     = aws_subnet.public[0].id
 
   tags = {
-    Name = "${local.name_prefix}-nat-${local.azs[count.index]}"
+    Name = "${local.name_prefix}-nat-${local.azs[0]}"
   }
 
   depends_on = [aws_internet_gateway.main]
@@ -140,7 +143,7 @@ resource "aws_route_table" "private" {
     for_each = var.enable_nat_gateway ? [1] : []
     content {
       cidr_block     = "0.0.0.0/0"
-      nat_gateway_id = aws_nat_gateway.main[count.index].id
+      nat_gateway_id = aws_nat_gateway.main[0].id
     }
   }
 

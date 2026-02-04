@@ -94,15 +94,16 @@ locals {
   ]
 
   # Container secrets (from Secrets Manager)
-  # NOTE: Use secret VERSION arn, not just secret arn
+  # Default behavior: wire the secret ARN (AWSCURRENT) into ECS.
+  # Optional: if `manage_secret_values=true`, wire the version ARN instead.
   container_secrets = [
     {
       name      = "OPENAI_API_KEY"
-      valueFrom = aws_secretsmanager_secret_version.openai_api_key.arn
+      valueFrom = try(aws_secretsmanager_secret_version.openai_api_key[0].arn, aws_secretsmanager_secret.openai_api_key.arn)
     },
     {
       name      = "SECRET_KEY"
-      valueFrom = aws_secretsmanager_secret_version.jwt_secret.arn
+      valueFrom = try(aws_secretsmanager_secret_version.jwt_secret[0].arn, aws_secretsmanager_secret.jwt_secret.arn)
     },
     {
       name      = "POSTGRES_PASSWORD"

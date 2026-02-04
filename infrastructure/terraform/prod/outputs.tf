@@ -158,7 +158,7 @@ output "cloudwatch_log_group" {
 
 output "sns_topic_arn" {
   description = "SNS topic ARN for alarms (prod only)"
-  value       = var.environment == "prod" ? aws_sns_topic.alarms[0].arn : null
+  value       = var.environment == "prod" && var.alarm_email != "" ? aws_sns_topic.alarms[0].arn : null
 }
 
 # -----------------------------------------------------------------------------
