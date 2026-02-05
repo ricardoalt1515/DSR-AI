@@ -46,6 +46,7 @@ class FeedbackAdminRead(BaseSchema):
     resolved_at: datetime | None
     resolved_by_user_id: UUID | None
     created_at: datetime
+    attachment_count: int = 0
 
 
 class FeedbackAttachmentRead(BaseSchema):

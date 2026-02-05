@@ -246,6 +246,31 @@ async def test_admin_list_attachments_requires_org_header(
 
 
 @pytest.mark.asyncio
+async def test_admin_list_attachments_feedback_not_found_returns_404(
+    client: AsyncClient,
+    db_session,
+    set_current_user,
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Feedback Missing", "org-feedback-missing")
+    admin = await create_user(
+        db_session,
+        email=f"feedback-missing-{uid}@example.com",
+        org_id=None,
+        role=UserRole.ADMIN.value,
+        is_superuser=True,
+    )
+
+    set_current_user(admin)
+    missing_feedback_id = uuid.uuid4()
+    response = await client.get(
+        f"/api/v1/admin/feedback/{missing_feedback_id}/attachments",
+        headers={"X-Organization-Id": str(org.id)},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_admin_list_attachments_urls_and_preview(
     client: AsyncClient,
     db_session,

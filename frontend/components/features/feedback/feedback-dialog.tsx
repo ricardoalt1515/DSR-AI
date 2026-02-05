@@ -95,7 +95,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 			return;
 		}
 
-		if (!content.trim()) {
+		const trimmedContent = content.trim();
+		if (!trimmedContent) {
 			setContentError("Feedback is required.");
 			return;
 		}
@@ -103,7 +104,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 		setLoading(true);
 		try {
 			const payload: FeedbackPayload = {
-				content: content.trim(),
+				content: trimmedContent,
 				pagePath: window.location.pathname,
 				...(feedbackType && { feedbackType }),
 			};
@@ -339,7 +340,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 							disabled={
 								loading ||
 								(!pendingFeedbackId && !content.trim()) ||
-								(pendingFeedbackId && attachments.length === 0)
+								(!!pendingFeedbackId && attachments.length === 0)
 							}
 						>
 							{pendingFeedbackId ? "Retry Attachments" : "Send Feedback"}

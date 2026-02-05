@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.models.feedback import Feedback
+from app.models.feedback_attachment import FeedbackAttachment
 from app.models.user import UserRole
 
 
@@ -171,6 +172,7 @@ async def test_superuser_can_list_feedback_with_filters(
     data = response.json()
     assert len(data) == 1
     assert data[0]["content"] == "Recent bug"
+    assert data[0]["attachmentCount"] == 0
     assert data[0]["user"]["id"] == str(user.id)
     assert data[0]["user"]["firstName"] == user.first_name
     assert data[0]["user"]["lastName"] == user.last_name
@@ -265,6 +267,7 @@ async def test_superuser_can_resolve_and_reopen_feedback(
     resolved_data = resolve_response.json()
     assert resolved_data["resolvedAt"] is not None
     assert resolved_data["resolvedByUserId"] == str(superuser.id)
+    assert resolved_data["attachmentCount"] == 0
     assert resolved_data["user"]["id"] == str(user.id)
 
     reopen_response = await client.patch(
@@ -276,6 +279,7 @@ async def test_superuser_can_resolve_and_reopen_feedback(
     reopened_data = reopen_response.json()
     assert reopened_data["resolvedAt"] is None
     assert reopened_data["resolvedByUserId"] is None
+    assert reopened_data["attachmentCount"] == 0
     assert reopened_data["user"]["id"] == str(user.id)
 
 
@@ -319,3 +323,72 @@ async def test_superuser_patch_requires_org_header(
         json={"resolved": True},
     )
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_list_feedback_attachment_count(
+    client: AsyncClient,
+    db_session,
+    set_current_user,
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Attach Count", "org-attach-count")
+    superuser = await create_user(
+        db_session,
+        email=f"attach-admin-{uid}@example.com",
+        org_id=None,
+        role=UserRole.ADMIN.value,
+        is_superuser=True,
+    )
+    user = await create_user(
+        db_session,
+        email=f"attach-user-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+
+    fb_with = Feedback(
+        organization_id=org.id,
+        user_id=user.id,
+        content="Has attachments",
+        feedback_type="bug",
+    )
+    fb_without = Feedback(
+        organization_id=org.id,
+        user_id=user.id,
+        content="No attachments",
+        feedback_type="general",
+    )
+    db_session.add_all([fb_with, fb_without])
+    await db_session.commit()
+    await db_session.refresh(fb_with)
+    await db_session.refresh(fb_without)
+
+    for i in range(3):
+        db_session.add(
+            FeedbackAttachment(
+                organization_id=org.id,
+                feedback_id=fb_with.id,
+                storage_key=f"feedback/{org.id}/{fb_with.id}/att-{i}.png",
+                original_filename=f"file-{i}.png",
+                content_type="image/png",
+                size_bytes=1024,
+                is_previewable=True,
+                uploaded_by_user_id=user.id,
+            )
+        )
+    await db_session.commit()
+
+    set_current_user(superuser)
+
+    response = await client.get(
+        "/api/v1/admin/feedback",
+        headers={"X-Organization-Id": str(org.id)},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    by_id = {item["id"]: item for item in data}
+    assert by_id[str(fb_with.id)]["attachmentCount"] == 3
+    assert by_id[str(fb_without.id)]["attachmentCount"] == 0

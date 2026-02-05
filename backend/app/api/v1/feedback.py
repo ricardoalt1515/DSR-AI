@@ -128,19 +128,17 @@ async def _stream_upload_to_temp(upload_file: UploadFile) -> tuple[Path, int]:
 
 
 def _suffix_from_filename(filename: str) -> str:
-    suffix = Path(filename).suffix
-    return suffix if suffix else ""
+    return Path(filename).suffix or ""
 
 
 def _preview_content_type_from_key(storage_key: str) -> str | None:
-    suffix = Path(storage_key).suffix.lower()
-    if suffix in {".jpg", ".jpeg"}:
-        return "image/jpeg"
-    if suffix == ".png":
-        return "image/png"
-    if suffix == ".webp":
-        return "image/webp"
-    return None
+    preview_content_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    return preview_content_types.get(Path(storage_key).suffix.lower())
 
 
 @router.post(
@@ -326,8 +324,19 @@ async def list_feedback(
     feedback_type: FeedbackTypeFilter = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
+    attachment_count_subq = (
+        select(func.count(FeedbackAttachment.id))
+        .where(
+            FeedbackAttachment.feedback_id == Feedback.id,
+            FeedbackAttachment.organization_id == Feedback.organization_id,
+        )
+        .correlate(Feedback)
+        .scalar_subquery()
+        .label("attachment_count")
+    )
+
     query = (
-        select(Feedback)
+        select(Feedback, attachment_count_subq)
         .options(selectinload(Feedback.user).load_only(User.id, User.first_name, User.last_name))
         .where(Feedback.organization_id == org.id)
     )
@@ -346,8 +355,13 @@ async def list_feedback(
 
     query = query.order_by(Feedback.created_at.desc()).limit(limit)
     result = await db.execute(query)
-    feedback_items = result.scalars().all()
-    return feedback_items
+    rows = result.all()
+    return [
+        FeedbackAdminRead.model_validate(fb, from_attributes=True).model_copy(
+            update={"attachment_count": count}
+        )
+        for fb, count in rows
+    ]
 
 
 @admin_router.get(
@@ -361,6 +375,18 @@ async def list_feedback_attachments(
     db: AsyncDB,
     _rate_limit: RateLimitUser60,
 ):
+    feedback_exists = await db.scalar(
+        select(Feedback.id).where(
+            Feedback.id == feedback_id,
+            Feedback.organization_id == org.id,
+        )
+    )
+    if not feedback_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feedback not found",
+        )
+
     result = await db.execute(
         select(FeedbackAttachment)
         .where(
@@ -405,6 +431,68 @@ async def list_feedback_attachments(
     return response_items
 
 
+@admin_router.delete(
+    "/{feedback_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_feedback(
+    feedback_id: UUID,
+    current_admin: SuperAdminOnly,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser30,
+):
+    result = await db.execute(
+        select(Feedback)
+        .where(
+            Feedback.id == feedback_id,
+            Feedback.organization_id == org.id,
+        )
+        .with_for_update()
+    )
+    feedback = result.scalar_one_or_none()
+    if not feedback:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feedback not found",
+        )
+
+    if feedback.resolved_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_error_detail(
+                "Feedback must be resolved before deletion",
+                "FEEDBACK_NOT_RESOLVED",
+                {"feedbackId": str(feedback_id)},
+            ),
+        )
+
+    attachment_rows = await db.scalars(
+        select(FeedbackAttachment.storage_key).where(
+            FeedbackAttachment.organization_id == org.id,
+            FeedbackAttachment.feedback_id == feedback_id,
+        )
+    )
+    storage_keys = [key for key in attachment_rows.all() if key]
+
+    await db.delete(feedback)
+    await db.commit()
+
+    if storage_keys:
+        try:
+            await delete_storage_keys(storage_keys)
+        except Exception as exc:
+            logger.warning(
+                "feedback_attachment_cleanup_failed",
+                feedback_id=str(feedback_id),
+                organization_id=str(org.id),
+                error=str(exc),
+                key_count=len(storage_keys),
+            )
+
+    return None
+
+
 @admin_router.patch("/{feedback_id}", response_model=FeedbackAdminRead)
 async def update_feedback(
     feedback_id: UUID,
@@ -437,4 +525,13 @@ async def update_feedback(
         .options(joinedload(Feedback.user).load_only(User.id, User.first_name, User.last_name))
         .where(Feedback.id == feedback.id, Feedback.organization_id == org.id)
     )
-    return result.scalar_one()
+    updated = result.scalar_one()
+    count = await db.scalar(
+        select(func.count(FeedbackAttachment.id)).where(
+            FeedbackAttachment.feedback_id == updated.id,
+            FeedbackAttachment.organization_id == org.id,
+        )
+    )
+    return FeedbackAdminRead.model_validate(updated, from_attributes=True).model_copy(
+        update={"attachment_count": count or 0}
+    )

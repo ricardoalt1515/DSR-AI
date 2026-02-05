@@ -11,7 +11,7 @@ export const FEEDBACK_TYPE_CONFIG = {
 	bug: { label: "Bug", variant: "destructive" as const },
 	incorrect_response: {
 		label: "Incorrect Response",
-		variant: "secondary" as const,
+		variant: "warning" as const,
 	},
 	feature_request: { label: "Feature Request", variant: "default" as const },
 	general: { label: "General", variant: "outline" as const },
@@ -19,7 +19,13 @@ export const FEEDBACK_TYPE_CONFIG = {
 	FeedbackType,
 	{
 		label: string;
-		variant: "default" | "destructive" | "secondary" | "outline";
+		variant:
+			| "default"
+			| "destructive"
+			| "secondary"
+			| "outline"
+			| "success"
+			| "warning";
 	}
 >;
 
@@ -50,6 +56,7 @@ export interface AdminFeedbackItem {
 	resolvedAt: string | null;
 	resolvedByUserId: string | null;
 	createdAt: string;
+	attachmentCount: number;
 }
 
 export interface FeedbackAttachment {
@@ -130,5 +137,9 @@ export const feedbackAPI = {
 		return apiClient.get<AdminFeedbackAttachment[]>(
 			`/admin/feedback/${feedbackId}/attachments`,
 		);
+	},
+
+	async delete(id: string): Promise<void> {
+		await apiClient.delete(`/admin/feedback/${id}`);
 	},
 };
