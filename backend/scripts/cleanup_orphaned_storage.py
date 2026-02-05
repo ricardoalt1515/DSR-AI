@@ -20,12 +20,13 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.models.feedback_attachment import FeedbackAttachment
 from app.models.file import ProjectFile
 from app.models.proposal import Proposal
 from app.services.s3_service import LOCAL_UPLOADS_DIR, USE_S3
 from app.utils.purge_utils import extract_pdf_paths
 
-_ALLOWED_PREFIXES = ("projects/", "proposals/")
+_ALLOWED_PREFIXES = ("projects/", "proposals/", "feedback/")
 
 
 def _resolve_project_file_path(path_str: str, storage_root: Path) -> Path:
@@ -65,12 +66,20 @@ async def _collect_referenced_paths() -> tuple[set[str], set[Path]]:
                 referenced_keys.add(extra_path)
                 referenced_paths.add(_resolve_pdf_path(extra_path))
 
+        attachment_rows = await db.execute(select(FeedbackAttachment.storage_key))
+        for row in attachment_rows:
+            storage_key = row.storage_key
+            if not storage_key:
+                continue
+            referenced_keys.add(storage_key)
+            referenced_paths.add((storage_root / storage_key).resolve())
+
     return referenced_keys, referenced_paths
 
 
 async def _cleanup_local(referenced_paths: set[Path]) -> None:
     storage_root = Path(settings.LOCAL_STORAGE_PATH).resolve()
-    targets = [storage_root / "projects", LOCAL_UPLOADS_DIR.resolve()]
+    targets = [storage_root / "projects", storage_root / "feedback", LOCAL_UPLOADS_DIR.resolve()]
 
     deleted = 0
     for target in targets:

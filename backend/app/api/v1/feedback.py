@@ -1,12 +1,16 @@
 """Feedback endpoints."""
 
+import tempfile
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlparse
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+import aiofiles
+import structlog
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.dependencies import (
@@ -14,22 +18,30 @@ from app.api.dependencies import (
     CurrentUser,
     CurrentUserOrganization,
     OrganizationContext,
+    RateLimitUser10,
     RateLimitUser30,
     RateLimitUser60,
     SuperAdminOnly,
 )
+from app.core.config import settings
 from app.models.feedback import Feedback
+from app.models.feedback_attachment import FeedbackAttachment
 from app.models.user import User
 from app.schemas.feedback import (
     FeedbackAdminRead,
+    FeedbackAttachmentAdminRead,
+    FeedbackAttachmentRead,
     FeedbackCreate,
     FeedbackPublicCreateResponse,
     FeedbackType,
     FeedbackUpdate,
 )
+from app.services.s3_service import get_presigned_url_with_headers, upload_file_to_s3
+from app.services.storage_delete_service import delete_storage_keys
 
 router = APIRouter()
 admin_router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 FeedbackTypeFilter = Annotated[
     FeedbackType | None,
@@ -38,6 +50,10 @@ FeedbackTypeFilter = Annotated[
         examples=["bug", "incorrect_response", "feature_request", "general"],
     ),
 ]
+
+MAX_ATTACHMENTS_PER_FEEDBACK = 5
+MAX_ATTACHMENT_SIZE = settings.MAX_UPLOAD_SIZE
+STREAM_CHUNK_SIZE = 1024 * 1024
 
 
 def _sanitize_page_path(page_path: str | None) -> str | None:
@@ -54,6 +70,77 @@ def _sanitize_page_path(page_path: str | None) -> str | None:
     if len(path) > 512:
         return None
     return path
+
+
+def _error_detail(message: str, code: str, details: dict | None = None) -> dict:
+    return {"message": message, "code": code, "details": details or {}}
+
+
+def _sanitize_filename(filename: str) -> str:
+    cleaned = Path(filename.replace("\\", "/")).name
+    cleaned = "".join(ch for ch in cleaned if ch.isprintable() and ch not in "\x00")
+    cleaned = cleaned.strip()
+    if len(cleaned) > 200:
+        cleaned = cleaned[:200]
+    return cleaned
+
+
+def _sniff_image_type(path: Path) -> tuple[bool, str | None, str | None]:
+    with path.open("rb") as handle:
+        header = handle.read(16)
+
+    if len(header) >= 3 and header[:3] == b"\xff\xd8\xff":
+        return True, ".jpg", "image/jpeg"
+    if len(header) >= 8 and header[:8] == b"\x89PNG\r\n\x1a\n":
+        return True, ".png", "image/png"
+    if len(header) >= 12 and header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return True, ".webp", "image/webp"
+    return False, None, None
+
+
+async def _stream_upload_to_temp(upload_file: UploadFile) -> tuple[Path, int]:
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_path = Path(tmp_file.name)
+
+    size = 0
+    try:
+        async with aiofiles.open(tmp_path, "wb") as out:
+            while True:
+                chunk = await upload_file.read(STREAM_CHUNK_SIZE)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MAX_ATTACHMENT_SIZE:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=_error_detail(
+                            "File too large",
+                            "FILE_TOO_LARGE",
+                            {"maxSizeBytes": MAX_ATTACHMENT_SIZE},
+                        ),
+                    )
+                await out.write(chunk)
+        return tmp_path, size
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _suffix_from_filename(filename: str) -> str:
+    suffix = Path(filename).suffix
+    return suffix if suffix else ""
+
+
+def _preview_content_type_from_key(storage_key: str) -> str | None:
+    suffix = Path(storage_key).suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".png":
+        return "image/png"
+    if suffix == ".webp":
+        return "image/webp"
+    return None
 
 
 @router.post(
@@ -79,6 +166,150 @@ async def create_feedback(
     await db.commit()
     await db.refresh(feedback)
     return FeedbackPublicCreateResponse(id=feedback.id, created_at=feedback.created_at)
+
+
+@router.post(
+    "/{feedback_id}/attachments",
+    response_model=list[FeedbackAttachmentRead],
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_feedback_attachments(
+    feedback_id: UUID,
+    attachments: Annotated[list[UploadFile], File()],
+    current_user: CurrentUser,
+    org: CurrentUserOrganization,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser10,
+):
+    async def rollback_and_cleanup_uploaded_keys(*, log_message: str) -> None:
+        await db.rollback()
+        if not uploaded_keys:
+            return
+        try:
+            await delete_storage_keys(uploaded_keys)
+        except Exception:
+            logger.warning(log_message, uploaded_key_count=len(uploaded_keys))
+
+    result = await db.execute(
+        select(Feedback)
+        .where(
+            Feedback.id == feedback_id,
+            Feedback.organization_id == org.id,
+            Feedback.user_id == current_user.id,
+        )
+        .with_for_update()
+    )
+    feedback = result.scalar_one_or_none()
+    if not feedback:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_error_detail(
+                "Feedback not found",
+                "NOT_FOUND",
+                {"feedbackId": str(feedback_id)},
+            ),
+        )
+
+    if not attachments:
+        return []
+
+    existing_count = await db.scalar(
+        select(func.count(FeedbackAttachment.id)).where(
+            FeedbackAttachment.organization_id == org.id,
+            FeedbackAttachment.feedback_id == feedback_id,
+        )
+    )
+    existing_total = int(existing_count or 0)
+    if existing_total + len(attachments) > MAX_ATTACHMENTS_PER_FEEDBACK:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_detail(
+                "Too many attachments",
+                "TOO_MANY_ATTACHMENTS",
+                {
+                    "maxAttachments": MAX_ATTACHMENTS_PER_FEEDBACK,
+                    "existing": existing_total,
+                    "incoming": len(attachments),
+                },
+            ),
+        )
+
+    uploaded_keys: list[str] = []
+    created_attachments: list[FeedbackAttachment] = []
+
+    try:
+        for upload in attachments:
+            if not upload.filename:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=_error_detail("Filename is required", "INVALID_FILENAME"),
+                )
+
+            sanitized_name = _sanitize_filename(upload.filename)
+            if not sanitized_name:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=_error_detail("Invalid filename", "INVALID_FILENAME"),
+                )
+
+            tmp_path = None
+            try:
+                tmp_path, size_bytes = await _stream_upload_to_temp(upload)
+                is_previewable, forced_suffix, sniffed_content_type = _sniff_image_type(tmp_path)
+                suffix = forced_suffix if is_previewable else _suffix_from_filename(upload.filename)
+                attachment_id = uuid4()
+                storage_key = f"feedback/{org.id}/{feedback.id}/{attachment_id}{suffix}"
+                stored_content_type = (
+                    sniffed_content_type if is_previewable else (upload.content_type or None)
+                )
+
+                try:
+                    with tmp_path.open("rb") as file_buffer:
+                        await upload_file_to_s3(file_buffer, storage_key, stored_content_type)
+                except Exception as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=_error_detail("Upload failed", "UPLOAD_FAILED"),
+                    ) from exc
+
+                uploaded_keys.append(storage_key)
+
+                attachment = FeedbackAttachment(
+                    id=attachment_id,
+                    organization_id=org.id,
+                    feedback_id=feedback.id,
+                    storage_key=storage_key,
+                    original_filename=sanitized_name,
+                    content_type=stored_content_type,
+                    size_bytes=size_bytes,
+                    is_previewable=is_previewable,
+                    uploaded_by_user_id=current_user.id,
+                )
+                db.add(attachment)
+                created_attachments.append(attachment)
+            finally:
+                if tmp_path and tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+
+        await db.commit()
+        for attachment in created_attachments:
+            await db.refresh(attachment)
+        return [
+            FeedbackAttachmentRead.model_validate(attachment) for attachment in created_attachments
+        ]
+    except HTTPException:
+        await rollback_and_cleanup_uploaded_keys(
+            log_message="Failed to cleanup feedback attachment uploads after HTTP error"
+        )
+        raise
+    except Exception as exc:
+        await rollback_and_cleanup_uploaded_keys(
+            log_message="Failed to cleanup feedback attachment uploads after unexpected error"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_error_detail("Upload failed", "UPLOAD_FAILED"),
+        ) from exc
 
 
 @admin_router.get("", response_model=list[FeedbackAdminRead])
@@ -117,6 +348,61 @@ async def list_feedback(
     result = await db.execute(query)
     feedback_items = result.scalars().all()
     return feedback_items
+
+
+@admin_router.get(
+    "/{feedback_id}/attachments",
+    response_model=list[FeedbackAttachmentAdminRead],
+)
+async def list_feedback_attachments(
+    feedback_id: UUID,
+    current_admin: SuperAdminOnly,
+    org: OrganizationContext,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser60,
+):
+    result = await db.execute(
+        select(FeedbackAttachment)
+        .where(
+            FeedbackAttachment.organization_id == org.id,
+            FeedbackAttachment.feedback_id == feedback_id,
+        )
+        .order_by(FeedbackAttachment.created_at.asc())
+    )
+    attachments = result.scalars().all()
+
+    response_items: list[FeedbackAttachmentAdminRead] = []
+    for attachment in attachments:
+        download_url = await get_presigned_url_with_headers(
+            attachment.storage_key,
+            disposition="attachment",
+            download_name=attachment.original_filename,
+        )
+
+        preview_url = None
+        if attachment.is_previewable:
+            preview_content_type = _preview_content_type_from_key(attachment.storage_key)
+            preview_url = await get_presigned_url_with_headers(
+                attachment.storage_key,
+                disposition="inline",
+                download_name=attachment.original_filename,
+                content_type=preview_content_type,
+            )
+
+        response_items.append(
+            FeedbackAttachmentAdminRead(
+                id=attachment.id,
+                original_filename=attachment.original_filename,
+                size_bytes=attachment.size_bytes,
+                content_type=attachment.content_type,
+                is_previewable=attachment.is_previewable,
+                created_at=attachment.created_at,
+                download_url=download_url,
+                preview_url=preview_url,
+            )
+        )
+
+    return response_items
 
 
 @admin_router.patch("/{feedback_id}", response_model=FeedbackAdminRead)

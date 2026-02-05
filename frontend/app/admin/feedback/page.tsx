@@ -4,10 +4,14 @@ import {
 	Check,
 	ChevronDown,
 	ChevronUp,
+	Download,
+	FileText,
+	Paperclip,
 	RefreshCw,
 	RotateCcw,
 	Search,
 } from "lucide-react";
+import Image from "next/image";
 import React, {
 	useCallback,
 	useEffect,
@@ -37,6 +41,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import {
+	type AdminFeedbackAttachment,
 	type AdminFeedbackItem,
 	FEEDBACK_TYPE_CONFIG,
 	type FeedbackType,
@@ -63,6 +68,13 @@ function truncate(text: string, maxLength: number): string {
 	return `${text.slice(0, maxLength)}...`;
 }
 
+function formatFileSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	const kb = bytes / 1024;
+	if (kb < 1024) return `${kb.toFixed(1)} KB`;
+	return `${(kb / 1024).toFixed(1)} MB`;
+}
+
 export default function AdminFeedbackPage() {
 	const { selectedOrgId } = useOrganizationStore();
 	const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([]);
@@ -72,6 +84,15 @@ export default function AdminFeedbackPage() {
 	);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [attachmentsById, setAttachmentsById] = useState<
+		Record<string, AdminFeedbackAttachment[]>
+	>({});
+	const [attachmentsLoading, setAttachmentsLoading] = useState<
+		Record<string, boolean>
+	>({});
+	const [attachmentsError, setAttachmentsError] = useState<
+		Record<string, string | null>
+	>({});
 
 	// Filters
 	const [daysFilter, setDaysFilter] = useState<DaysFilter>("all");
@@ -115,6 +136,41 @@ export default function AdminFeedbackPage() {
 	useEffect(() => {
 		loadFeedback();
 	}, [loadFeedback]);
+
+	const loadAttachments = useCallback(
+		async (feedbackId: string, force = false) => {
+			if (!force && attachmentsById[feedbackId]) return;
+			if (attachmentsLoading[feedbackId]) return;
+
+			setAttachmentsLoading((prev) => ({ ...prev, [feedbackId]: true }));
+			setAttachmentsError((prev) => ({ ...prev, [feedbackId]: null }));
+			try {
+				const data = await feedbackAPI.listAttachments(feedbackId);
+				setAttachmentsById((prev) => ({ ...prev, [feedbackId]: data }));
+			} catch (_error) {
+				setAttachmentsError((prev) => ({
+					...prev,
+					[feedbackId]: "Failed to load attachments",
+				}));
+			} finally {
+				setAttachmentsLoading((prev) => ({ ...prev, [feedbackId]: false }));
+			}
+		},
+		[attachmentsById, attachmentsLoading],
+	);
+
+	const handleToggleExpand = useCallback(
+		(feedbackId: string) => {
+			setExpandedId((prev) => {
+				const next = prev === feedbackId ? null : feedbackId;
+				if (next) {
+					void loadAttachments(feedbackId);
+				}
+				return next;
+			});
+		},
+		[loadAttachments],
+	);
 
 	/** Consolidated handler for resolve/reopen actions */
 	const handleToggleResolved = useCallback(
@@ -295,7 +351,9 @@ export default function AdminFeedbackPage() {
 									const typeInfo = item.feedbackType
 										? FEEDBACK_TYPE_CONFIG[item.feedbackType as FeedbackType]
 										: null;
-									const needsTruncation = item.content.length > 80;
+									const attachments = attachmentsById[item.id] ?? [];
+									const attachmentsLoadingState = attachmentsLoading[item.id];
+									const attachmentsErrorState = attachmentsError[item.id];
 
 									return (
 										<React.Fragment key={item.id}>
@@ -337,28 +395,24 @@ export default function AdminFeedbackPage() {
 																</span>
 															</p>
 														</div>
-														{needsTruncation && (
-															<Button
-																variant="ghost"
-																size="icon"
-																className="h-6 w-6 shrink-0"
-																onClick={() =>
-																	setExpandedId(isExpanded ? null : item.id)
-																}
-																aria-label={
-																	isExpanded
-																		? "Collapse content"
-																		: "Expand content"
-																}
-																aria-expanded={isExpanded}
-															>
-																{isExpanded ? (
-																	<ChevronUp className="h-4 w-4" />
-																) : (
-																	<ChevronDown className="h-4 w-4" />
-																)}
-															</Button>
-														)}
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-6 w-6 shrink-0"
+															onClick={() => handleToggleExpand(item.id)}
+															aria-label={
+																isExpanded
+																	? "Collapse details"
+																	: "Expand details"
+															}
+															aria-expanded={isExpanded}
+														>
+															{isExpanded ? (
+																<ChevronUp className="h-4 w-4" />
+															) : (
+																<ChevronDown className="h-4 w-4" />
+															)}
+														</Button>
 													</div>
 												</TableCell>
 												<TableCell>
@@ -399,6 +453,92 @@ export default function AdminFeedbackPage() {
 													</Button>
 												</TableCell>
 											</TableRow>
+											{isExpanded ? (
+												<TableRow className="bg-muted/30">
+													<TableCell colSpan={5} className="py-4">
+														<div className="space-y-3">
+															<div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+																<Paperclip className="h-4 w-4" />
+																Attachments
+															</div>
+															{attachmentsLoadingState ? (
+																<div className="space-y-2">
+																	<Skeleton className="h-16 w-full" />
+																	<Skeleton className="h-16 w-full" />
+																</div>
+															) : attachmentsErrorState ? (
+																<div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
+																	<span className="text-destructive">
+																		{attachmentsErrorState}
+																	</span>
+																	<Button
+																		variant="outline"
+																		size="sm"
+																		onClick={() =>
+																			loadAttachments(item.id, true)
+																		}
+																	>
+																		Retry
+																	</Button>
+																</div>
+															) : attachments.length === 0 ? (
+																<p className="text-sm text-muted-foreground">
+																	No attachments.
+																</p>
+															) : (
+																<div className="space-y-2">
+																	{attachments.map((attachment) => (
+																		<div
+																			key={attachment.id}
+																			className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2"
+																		>
+																			{attachment.isPreviewable &&
+																			attachment.previewUrl ? (
+																				<Image
+																					// URL is presigned + short-lived; skip Next optimization to avoid cache/expiry issues.
+																					unoptimized
+																					src={attachment.previewUrl}
+																					alt={attachment.originalFilename}
+																					width={48}
+																					height={48}
+																					className="h-12 w-12 rounded-md object-cover"
+																					referrerPolicy="no-referrer"
+																				/>
+																			) : (
+																				<div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-muted">
+																					<FileText className="h-5 w-5 text-muted-foreground" />
+																				</div>
+																			)}
+																			<div className="min-w-0 flex-1">
+																				<p className="text-sm font-medium truncate">
+																					{attachment.originalFilename}
+																				</p>
+																				<p className="text-xs text-muted-foreground">
+																					{formatFileSize(attachment.sizeBytes)}
+																				</p>
+																			</div>
+																			<Button
+																				variant="outline"
+																				size="sm"
+																				asChild
+																			>
+																				<a
+																					href={attachment.downloadUrl}
+																					target="_blank"
+																					rel="noreferrer noopener"
+																				>
+																					<Download className="h-4 w-4 mr-2" />
+																					Download
+																				</a>
+																			</Button>
+																		</div>
+																	))}
+																</div>
+															)}
+														</div>
+													</TableCell>
+												</TableRow>
+											) : null}
 										</React.Fragment>
 									);
 								})}

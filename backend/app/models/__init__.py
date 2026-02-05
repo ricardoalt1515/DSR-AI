@@ -2,6 +2,7 @@
 
 from app.models.company import Company
 from app.models.feedback import Feedback
+from app.models.feedback_attachment import FeedbackAttachment
 from app.models.file import ProjectFile
 from app.models.incoming_material import IncomingMaterial, IncomingMaterialCategory
 from app.models.intake_note import IntakeNote
@@ -18,6 +19,7 @@ from app.models.user import User
 __all__ = [
     "Company",
     "Feedback",
+    "FeedbackAttachment",
     "IncomingMaterial",
     "IncomingMaterialCategory",
     "IntakeNote",

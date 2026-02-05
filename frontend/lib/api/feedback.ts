@@ -52,6 +52,20 @@ export interface AdminFeedbackItem {
 	createdAt: string;
 }
 
+export interface FeedbackAttachment {
+	id: string;
+	originalFilename: string;
+	sizeBytes: number;
+	contentType: string | null;
+	isPreviewable: boolean;
+	createdAt: string;
+}
+
+export interface AdminFeedbackAttachment extends FeedbackAttachment {
+	downloadUrl: string;
+	previewUrl?: string | null;
+}
+
 export interface ListFeedbackParams {
 	days?: 7 | 30;
 	resolved?: boolean;
@@ -94,5 +108,27 @@ export const feedbackAPI = {
 		return apiClient.patch<AdminFeedbackItem>(`/admin/feedback/${id}`, {
 			resolved: false,
 		} as unknown as Record<string, unknown>);
+	},
+
+	async uploadAttachments(
+		feedbackId: string,
+		files: File[],
+	): Promise<FeedbackAttachment[]> {
+		const formData = new FormData();
+		files.forEach((file) => {
+			formData.append("attachments", file);
+		});
+		return apiClient.post<FeedbackAttachment[]>(
+			`/feedback/${feedbackId}/attachments`,
+			formData,
+		);
+	},
+
+	async listAttachments(
+		feedbackId: string,
+	): Promise<AdminFeedbackAttachment[]> {
+		return apiClient.get<AdminFeedbackAttachment[]>(
+			`/admin/feedback/${feedbackId}/attachments`,
+		);
 	},
 };

@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -25,6 +25,7 @@ class Feedback(BaseModel):
             "('bug', 'incorrect_response', 'feature_request', 'general')",
             name="ck_feedback_type",
         ),
+        UniqueConstraint("id", "organization_id", name="uq_feedback_id_org"),
         Index("ix_feedback_org_created_at", "organization_id", "created_at"),
         Index("ix_feedback_org_resolved_at", "organization_id", "resolved_at"),
     )

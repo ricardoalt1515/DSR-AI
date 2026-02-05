@@ -46,3 +46,17 @@ class FeedbackAdminRead(BaseSchema):
     resolved_at: datetime | None
     resolved_by_user_id: UUID | None
     created_at: datetime
+
+
+class FeedbackAttachmentRead(BaseSchema):
+    id: UUID
+    original_filename: str
+    size_bytes: int
+    content_type: str | None
+    is_previewable: bool
+    created_at: datetime
+
+
+class FeedbackAttachmentAdminRead(FeedbackAttachmentRead):
+    download_url: str
+    preview_url: str | None = None

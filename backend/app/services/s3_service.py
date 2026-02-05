@@ -1,6 +1,8 @@
+import re
+import unicodedata
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from typing import IO
+from typing import IO, Literal
 
 import aioboto3
 import aiofiles
@@ -32,7 +34,28 @@ LOCAL_UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
 USE_S3 = bool(S3_BUCKET and S3_BUCKET.strip())
 
 logger = structlog.get_logger(__name__)
-_ALLOWED_LOCAL_PREFIXES = ("projects/", "proposals/")
+_ALLOWED_LOCAL_PREFIXES = ("projects/", "proposals/", "feedback/")
+ATTACHMENT_PRESIGNED_TTL_SECONDS = 600
+_MAX_HEADER_FILENAME_LENGTH = 150
+
+
+def _ascii_safe_filename(filename: str, fallback: str = "attachment") -> str:
+    if not filename:
+        filename = fallback
+
+    safe_name = Path(filename).name
+    normalized = unicodedata.normalize("NFKD", safe_name)
+    ascii_name = normalized.encode("ascii", "ignore").decode()
+    ascii_name = ascii_name.replace("\x00", "")
+    ascii_name = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_name).strip("._-")
+
+    if not ascii_name:
+        ascii_name = fallback
+
+    if len(ascii_name) > _MAX_HEADER_FILENAME_LENGTH:
+        ascii_name = ascii_name[:_MAX_HEADER_FILENAME_LENGTH]
+
+    return ascii_name
 
 
 def _is_within_root(path: Path, root: Path) -> bool:
@@ -138,6 +161,7 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
     if USE_S3:
         # Production mode: S3 URL
         try:
+            normalized = _normalize_relative_key(filename)
             session = aioboto3.Session()
             if S3_ACCESS_KEY and S3_SECRET_KEY:
                 async with session.client(
@@ -148,14 +172,14 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
                 ) as s3:
                     url = await s3.generate_presigned_url(
                         "get_object",
-                        Params={"Bucket": S3_BUCKET, "Key": filename},
+                        Params={"Bucket": S3_BUCKET, "Key": normalized},
                         ExpiresIn=expires,
                     )
             else:
                 async with session.client("s3", region_name=S3_REGION) as s3:
                     url = await s3.generate_presigned_url(
                         "get_object",
-                        Params={"Bucket": S3_BUCKET, "Key": filename},
+                        Params={"Bucket": S3_BUCKET, "Key": normalized},
                         ExpiresIn=expires,
                     )
             return url
@@ -164,8 +188,6 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
             raise StorageError(f"Failed to generate S3 URL: {e}") from e
 
     # Development/local mode: build static URL
-    from app.core.config import settings
-
     try:
         full_path, rel_path = _resolve_local_file(filename)
     except StorageError as e:
@@ -175,6 +197,56 @@ async def get_presigned_url(filename: str, expires: int = 3600) -> str:
         raise StorageError(f"Local file not found: {full_path}")
 
     return f"{settings.BACKEND_URL}/uploads/{rel_path.as_posix()}"
+
+
+async def get_presigned_url_with_headers(
+    filename: str,
+    *,
+    disposition: Literal["attachment", "inline"] = "attachment",
+    download_name: str | None = None,
+    content_type: str | None = None,
+    expires: int = ATTACHMENT_PRESIGNED_TTL_SECONDS,
+) -> str:
+    """Generate presigned GET URL with response headers (S3) or local URL (dev)."""
+    if not USE_S3:
+        return await get_presigned_url(filename, expires=expires)
+
+    normalized = _normalize_relative_key(filename)
+    response_filename = _ascii_safe_filename(download_name or filename)
+    response_disposition = f'{disposition}; filename="{response_filename}"'
+
+    params: dict[str, object] = {
+        "Bucket": S3_BUCKET,
+        "Key": normalized,
+        "ResponseContentDisposition": response_disposition,
+    }
+    if content_type:
+        params["ResponseContentType"] = content_type
+
+    try:
+        session = aioboto3.Session()
+        if S3_ACCESS_KEY and S3_SECRET_KEY:
+            async with session.client(
+                "s3",
+                region_name=S3_REGION,
+                aws_access_key_id=S3_ACCESS_KEY,
+                aws_secret_access_key=S3_SECRET_KEY,
+            ) as s3:
+                return await s3.generate_presigned_url(
+                    "get_object",
+                    Params=params,
+                    ExpiresIn=expires,
+                )
+
+        async with session.client("s3", region_name=S3_REGION) as s3:
+            return await s3.generate_presigned_url(
+                "get_object",
+                Params=params,
+                ExpiresIn=expires,
+            )
+    except Exception as e:
+        logger.error("S3 presigned URL generation failed", error=str(e), key=filename)
+        raise StorageError(f"Failed to generate S3 URL: {e}") from e
 
 
 async def download_file_content(filename: str) -> bytes:
