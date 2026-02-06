@@ -2,15 +2,25 @@
 
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.api.dependencies import AsyncDB, CurrentSuperUser
+from app.api.dependencies import AsyncDB, CurrentSuperUser, CurrentUser
 from app.core.user_manager import UserManager, get_user_manager
 from app.models.user import User
+from app.schemas.admin_user_transfer import (
+    TransferUserOrganizationRequest,
+    TransferUserOrganizationResponse,
+)
 from app.schemas.user_fastapi import UserCreate, UserRead, UserUpdate
+from app.services.admin_user_transfer_service import (
+    TransferOrganizationError,
+    transfer_user_organization,
+)
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 # Import rate limiter
 from typing import Annotated
@@ -147,3 +157,77 @@ async def update_user(
     # FastAPI Users expects a UserUpdate Pydantic model as first argument
     # and the existing User instance as second argument
     return await user_manager.update(updates, user)
+
+
+@router.post(
+    "/{user_id}/transfer-organization",
+    response_model=TransferUserOrganizationResponse,
+)
+@limiter.limit("20/minute")
+async def transfer_user_to_organization(
+    request: Request,
+    user_id: UUID,
+    payload: TransferUserOrganizationRequest,
+    current_user: CurrentUser,
+    db: AsyncDB,
+):
+    request_id = request.headers.get("x-request-id")
+
+    if not current_user.is_superuser:
+        logger.warning(
+            "admin_user_transfer_attempt",
+            actor_user_id=str(current_user.id),
+            target_user_id=str(user_id),
+            to_organization_id=str(payload.target_organization_id),
+            reason=payload.reason,
+            result="error",
+            error_code="FORBIDDEN_SUPERADMIN_REQUIRED",
+            request_id=request_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "FORBIDDEN_SUPERADMIN_REQUIRED",
+                "message": "Superadmin required",
+            },
+        )
+
+    try:
+        transfer_result = await transfer_user_organization(
+            db=db,
+            user_id=user_id,
+            payload=payload,
+        )
+    except TransferOrganizationError as exc:
+        logger.warning(
+            "admin_user_transfer_attempt",
+            actor_user_id=str(current_user.id),
+            target_user_id=str(user_id),
+            to_organization_id=str(payload.target_organization_id),
+            reason=payload.reason,
+            result="error",
+            error_code=exc.code,
+            error_details=exc.details,
+            request_id=request_id,
+        )
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            },
+        ) from exc
+
+    logger.info(
+        "admin_user_transfer_attempt",
+        actor_user_id=str(current_user.id),
+        target_user_id=str(user_id),
+        from_organization_id=str(transfer_result.from_organization_id),
+        to_organization_id=str(transfer_result.to_organization_id),
+        reason=payload.reason,
+        result="success",
+        reassigned_projects_count=transfer_result.reassigned_projects_count,
+        request_id=request_id,
+    )
+    return transfer_result

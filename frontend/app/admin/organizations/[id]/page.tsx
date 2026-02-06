@@ -69,6 +69,10 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+	adminUsersAPI,
+	type TransferOrganizationInput,
+} from "@/lib/api/admin-users";
+import {
 	type Organization,
 	type OrganizationUpdateInput,
 	type OrgUserCreateInput,
@@ -77,26 +81,38 @@ import {
 import type { User, UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
+const TransferUserModal = dynamic(
+	() =>
+		import("@/components/features/admin/transfer-user-modal").then(
+			(mod) => mod.TransferUserModal,
+		),
+	{ ssr: false, loading: () => null },
+);
+
 export default function OrganizationDetailPage() {
 	const params = useParams();
 	const orgId = params.id as string;
 
 	const [organization, setOrganization] = useState<Organization | null>(null);
+	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [addUserModalOpen, setAddUserModalOpen] = useState(false);
 	const [editOrgModalOpen, setEditOrgModalOpen] = useState(false);
+	const [memberToMove, setMemberToMove] = useState<User | null>(null);
 	const isOrgActive = organization?.isActive ?? true;
 
 	const fetchData = useCallback(async () => {
 		try {
 			setIsLoading(true);
-			const [orgData, usersData] = await Promise.all([
+			const [orgData, usersData, orgList] = await Promise.all([
 				organizationsAPI.get(orgId),
 				organizationsAPI.listOrgUsers(orgId),
+				organizationsAPI.list(),
 			]);
 			setOrganization(orgData);
 			setUsers(usersData);
+			setOrganizations(orgList);
 		} catch {
 			toast.error("Failed to load organization data");
 		} finally {
@@ -179,6 +195,22 @@ export default function OrganizationDetailPage() {
 			toast.error(message);
 			throw error;
 		}
+	};
+
+	const handleMoveMember = async (
+		userId: string,
+		payload: TransferOrganizationInput,
+	) => {
+		const result = await adminUsersAPI.transferOrganization(userId, payload);
+		await fetchData();
+		const movedUser = users.find((entry) => entry.id === userId);
+		const movedUserLabel = movedUser
+			? `${movedUser.firstName} ${movedUser.lastName}`
+			: "Member";
+		toast.success(
+			`${movedUserLabel} moved. Reassigned projects: ${result.reassignedProjectsCount}`,
+		);
+		return result;
 	};
 
 	if (isLoading) {
@@ -349,6 +381,7 @@ export default function OrganizationDetailPage() {
 						canEditStatus={isOrgActive}
 						onRoleChange={handleRoleChange}
 						onStatusChange={handleStatusChange}
+						onMoveMember={isOrgActive ? setMemberToMove : undefined}
 					/>
 				</CardContent>
 			</Card>
@@ -365,6 +398,20 @@ export default function OrganizationDetailPage() {
 				onOpenChange={setEditOrgModalOpen}
 				organization={organization}
 				onSubmit={handleUpdateOrganization}
+			/>
+
+			<TransferUserModal
+				open={memberToMove !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setMemberToMove(null);
+					}
+				}}
+				user={memberToMove}
+				currentOrganizationId={organization.id}
+				availableOrganizations={organizations}
+				organizationMembers={users}
+				onSubmit={handleMoveMember}
 			/>
 		</div>
 	);

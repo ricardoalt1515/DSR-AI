@@ -213,9 +213,6 @@ export function NavBar() {
 					<div className="flex items-center gap-4 md:gap-6">
 						<Link href="/dashboard" className="flex items-center -ml-2">
 							<DSRLogo width={85} height={42} showText={false} />
-							<span className="hidden ml-2 text-lg font-bold tracking-tight md:inline-block">
-								DSR Inc.
-							</span>
 						</Link>
 
 						<div className="hidden items-center gap-2 rounded-full border border-border/40 bg-card/60 px-2 py-1 backdrop-blur-xl shadow-md md:flex">

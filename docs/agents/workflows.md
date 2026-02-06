@@ -20,3 +20,10 @@
 3) Review: `backend/alembic/versions/`
 4) Apply: `alembic upgrade head`
 5) Rollback: `alembic downgrade -1`
+
+### Transfer user between organizations
+1) Authenticate as superadmin (token/session required)
+2) Use `POST /api/v1/admin/users/{user_id}/transfer-organization` as standard path
+3) Include `target_organization_id`, `reason`, and `reassign_to_user_id` when active projects exist
+4) Verify response and audit logs (`admin_user_transfer_attempt`)
+5) Use direct SQL only as break-glass fallback

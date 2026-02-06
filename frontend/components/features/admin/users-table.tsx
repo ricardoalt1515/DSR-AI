@@ -9,7 +9,14 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Search, User as UserIcon, X } from "lucide-react";
+import {
+	ArrowRightLeft,
+	ArrowUpDown,
+	MoreHorizontal,
+	Search,
+	User as UserIcon,
+	X,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import {
 	AlertDialog,
@@ -23,6 +30,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -130,6 +143,7 @@ interface UsersTableProps {
 	onStatusChange?:
 		| ((userId: string, isActive: boolean) => Promise<void>)
 		| undefined;
+	onMoveMember?: ((user: User) => void) | undefined;
 }
 
 type PendingAction =
@@ -152,6 +166,7 @@ export function UsersTable({
 	canEditStatus = false,
 	onRoleChange,
 	onStatusChange,
+	onMoveMember,
 }: UsersTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
@@ -391,6 +406,41 @@ export function UsersTable({
 					);
 				},
 			},
+			{
+				id: "actions",
+				header: "",
+				cell: ({ row }) => {
+					if (!onMoveMember) {
+						return null;
+					}
+					const isSelf = row.original.id === currentUserId;
+					if (isSelf) {
+						return null;
+					}
+					return (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Open member actions"
+								>
+									<MoreHorizontal className="h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem
+									onClick={() => onMoveMember(row.original)}
+									className="text-muted-foreground"
+								>
+									<ArrowRightLeft className="h-4 w-4" />
+									Transfer member to another org
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					);
+				},
+			},
 		],
 		[
 			currentUserId,
@@ -401,6 +451,7 @@ export function UsersTable({
 			updatingUsers,
 			requestRoleChange,
 			requestStatusChange,
+			onMoveMember,
 		],
 	);
 

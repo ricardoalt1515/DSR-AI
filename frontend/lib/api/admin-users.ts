@@ -35,6 +35,64 @@ export interface AdminUpdateUserInput {
 	role?: UserRole;
 }
 
+export interface TransferOrganizationInput {
+	targetOrganizationId: string;
+	reason: string;
+	reassignToUserId?: string | null;
+}
+
+interface TransferOrganizationResponse {
+	user_id?: string;
+	userId?: string;
+	from_organization_id?: string;
+	fromOrganizationId?: string;
+	to_organization_id?: string;
+	toOrganizationId?: string;
+	reassigned_projects_count?: number;
+	reassignedProjectsCount?: number;
+	transferred_at?: string;
+	transferredAt?: string;
+}
+
+export interface TransferOrganizationResult {
+	userId: string;
+	fromOrganizationId: string;
+	toOrganizationId: string;
+	reassignedProjectsCount: number;
+	transferredAt: string;
+}
+
+function transformTransferOrganizationResult(
+	response: TransferOrganizationResponse,
+): TransferOrganizationResult {
+	const userId = response.userId ?? response.user_id;
+	const fromOrganizationId =
+		response.fromOrganizationId ?? response.from_organization_id;
+	const toOrganizationId =
+		response.toOrganizationId ?? response.to_organization_id;
+	const reassignedProjectsCount =
+		response.reassignedProjectsCount ?? response.reassigned_projects_count;
+	const transferredAt = response.transferredAt ?? response.transferred_at;
+
+	if (
+		typeof userId !== "string" ||
+		typeof fromOrganizationId !== "string" ||
+		typeof toOrganizationId !== "string" ||
+		typeof reassignedProjectsCount !== "number" ||
+		typeof transferredAt !== "string"
+	) {
+		throw new Error("Invalid transfer organization response");
+	}
+
+	return {
+		userId,
+		fromOrganizationId,
+		toOrganizationId,
+		reassignedProjectsCount,
+		transferredAt,
+	};
+}
+
 function transformUser(response: AdminUserResponse): User {
 	return {
 		id: response.id,
@@ -91,5 +149,19 @@ export const adminUsersAPI = {
 			body,
 		);
 		return transformUser(response);
+	},
+	async transferOrganization(
+		userId: string,
+		payload: TransferOrganizationInput,
+	): Promise<TransferOrganizationResult> {
+		const response = await apiClient.post<TransferOrganizationResponse>(
+			`/admin/users/${userId}/transfer-organization`,
+			{
+				target_organization_id: payload.targetOrganizationId,
+				reason: payload.reason,
+				reassign_to_user_id: payload.reassignToUserId ?? null,
+			},
+		);
+		return transformTransferOrganizationResult(response);
 	},
 };
