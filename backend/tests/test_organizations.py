@@ -134,6 +134,38 @@ async def test_create_org_user_cannot_create_platform_admin(
 
 
 @pytest.mark.asyncio
+async def test_org_admin_can_update_member_role_via_current_endpoint(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Update Role", "org-update-role")
+    org_admin = await create_user(
+        db_session,
+        email=f"org-admin-update-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    member = await create_user(
+        db_session,
+        email=f"member-update-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+
+    set_current_user(org_admin)
+    response = await client.patch(
+        f"/api/v1/organizations/current/users/{member.id}",
+        json={"role": UserRole.ORG_ADMIN.value},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(member.id)
+    assert data["role"] == UserRole.ORG_ADMIN.value
+
+
+@pytest.mark.asyncio
 async def test_superadmin_list_all_orgs(client: AsyncClient, db_session, set_current_user):
     uid = uuid.uuid4().hex[:8]
     await create_org(db_session, "Org Super 1", "org-super-1")

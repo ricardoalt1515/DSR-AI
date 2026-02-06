@@ -18,13 +18,13 @@ export function FeedbackButton() {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
-						variant="ghost"
-						size="icon"
+						variant="outline"
+						size="sm"
 						onClick={() => setOpen(true)}
-						className="h-9 w-9 rounded-full border border-border/40 bg-card/60 text-foreground transition-colors duration-300 hover:bg-card/80"
+						className="rounded-full gap-2 px-3 border-2 border-primary/50 hover:border-primary hover:bg-primary/10"
 					>
-						<MessageSquarePlus className="h-4 w-4" />
-						<span className="sr-only">Send feedback</span>
+						<MessageSquarePlus className="h-4 w-4 text-primary" />
+						<span className="text-primary font-medium">Feedback</span>
 					</Button>
 				</TooltipTrigger>
 				<TooltipContent>

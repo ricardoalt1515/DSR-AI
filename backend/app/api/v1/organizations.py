@@ -196,62 +196,8 @@ async def delete_organization(
     return None
 
 
-@router.patch("/{org_id}/users/{user_id}", response_model=UserRead)
-async def update_org_user(
-    org_id: UUID,
-    user_id: UUID,
-    data: OrgUserUpdate,
-    admin: SuperAdminOnly,
-    db: AsyncDB,
-):
-    """Update user role or status in a specific organization. Platform Admin only."""
-    org = await db.get(Organization, org_id)
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-
-    user = await db.get(User, user_id)
-    if not user or user.organization_id != org_id:
-        raise HTTPException(status_code=404, detail="User not found in this organization")
-
-    # Block changing to platform admin role
-    if data.role == UserRole.ADMIN.value:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot promote to platform admin from this endpoint.",
-        )
-
-    update_data = data.model_dump(exclude_unset=True, by_alias=False)
-    is_demoting_org_admin = (
-        user.role == UserRole.ORG_ADMIN
-        and update_data.get("role")
-        and update_data["role"] != UserRole.ORG_ADMIN
-    )
-    is_deactivating_org_admin = (
-        user.role == UserRole.ORG_ADMIN and update_data.get("is_active") is False
-    )
-
-    if is_demoting_org_admin or is_deactivating_org_admin:
-        query = select(User.id).where(
-            User.organization_id == org_id,
-            User.is_active,
-            User.role == UserRole.ORG_ADMIN,
-            User.id != user.id,
-        )
-        result = await db.execute(query)
-        if result.first() is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot remove the last active org admin.",
-            )
-
-    for field, value in update_data.items():
-        setattr(user, field, value)
-
-    await db.commit()
-    await db.refresh(user)
-    return user
-
-
+# Keep "/current/..." routes before "/{org_id}/..." routes to avoid
+# path shadowing (e.g. "current" matching dynamic org_id paths).
 @router.patch("/current/users/{user_id}", response_model=UserRead)
 async def update_my_org_user(
     user_id: UUID,
@@ -301,6 +247,62 @@ async def update_my_org_user(
     if is_demoting_org_admin or is_deactivating_org_admin:
         query = select(User.id).where(
             User.organization_id == org.id,
+            User.is_active,
+            User.role == UserRole.ORG_ADMIN,
+            User.id != user.id,
+        )
+        result = await db.execute(query)
+        if result.first() is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove the last active org admin.",
+            )
+
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.patch("/{org_id}/users/{user_id}", response_model=UserRead)
+async def update_org_user(
+    org_id: UUID,
+    user_id: UUID,
+    data: OrgUserUpdate,
+    admin: SuperAdminOnly,
+    db: AsyncDB,
+):
+    """Update user role or status in a specific organization. Platform Admin only."""
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    user = await db.get(User, user_id)
+    if not user or user.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="User not found in this organization")
+
+    # Block changing to platform admin role
+    if data.role == UserRole.ADMIN.value:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot promote to platform admin from this endpoint.",
+        )
+
+    update_data = data.model_dump(exclude_unset=True, by_alias=False)
+    is_demoting_org_admin = (
+        user.role == UserRole.ORG_ADMIN
+        and update_data.get("role")
+        and update_data["role"] != UserRole.ORG_ADMIN
+    )
+    is_deactivating_org_admin = (
+        user.role == UserRole.ORG_ADMIN and update_data.get("is_active") is False
+    )
+
+    if is_demoting_org_admin or is_deactivating_org_admin:
+        query = select(User.id).where(
+            User.organization_id == org_id,
             User.is_active,
             User.role == UserRole.ORG_ADMIN,
             User.id != user.id,
