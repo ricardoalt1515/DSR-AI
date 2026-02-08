@@ -122,7 +122,11 @@ class User(SQLAlchemyBaseUserTableUUID, TimestampMixin, Base):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
-    organization = relationship("Organization", back_populates="users")
+    organization = relationship(
+        "Organization",
+        back_populates="users",
+        foreign_keys=[organization_id],
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"

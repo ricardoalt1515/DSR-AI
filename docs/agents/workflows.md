@@ -27,3 +27,11 @@
 3) Include `target_organization_id`, `reason`, and `reassign_to_user_id` when active projects exist
 4) Verify response and audit logs (`admin_user_transfer_attempt`)
 5) Use direct SQL only as break-glass fallback
+
+### Organization lifecycle (official)
+1) Archive org: `POST /api/v1/organizations/{org_id}/archive`
+2) Optional archive body: `{"forceDeactivateUsers": true}` to bulk deactivate active users in same transaction
+3) Restore org: `POST /api/v1/organizations/{org_id}/restore`
+4) Purge-force org: `POST /api/v1/organizations/{org_id}/purge-force`
+5) Purge-force requires archived org + 30-day retention + strict confirmations; no DELETE alias flow
+6) If purge returns storage cleanup pending, use manifest for manual replay until auto-worker exists

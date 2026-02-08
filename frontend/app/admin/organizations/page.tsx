@@ -45,9 +45,9 @@ import {
 	organizationsAPI,
 } from "@/lib/api/organizations";
 import {
+	isOrgArchiveBlockedError,
 	resolveOrganizationLifecycleErrorMessage,
 	runOrganizationArchiveFlow,
-	runOrganizationArchiveWithForceRetry,
 	showOrganizationPurgeForceResultToast,
 } from "@/lib/errors/organization-lifecycle";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -71,6 +71,7 @@ export default function AdminOrganizationsPage() {
 	const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
 	const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
 	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+	const [archiveForceMode, setArchiveForceMode] = useState(false);
 	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 	const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 	const [lifecycleLoading, setLifecycleLoading] = useState(false);
@@ -213,7 +214,7 @@ export default function AdminOrganizationsPage() {
 		await loadOrganizations();
 	};
 
-	const handleArchive = async () => {
+	const handleArchive = async (force = false) => {
 		if (!selectedOrg) return;
 		setLifecycleLoading(true);
 		try {
@@ -221,21 +222,15 @@ export default function AdminOrganizationsPage() {
 				archive: organizationsAPI.archive,
 				orgId: selectedOrg.id,
 				orgName: selectedOrg.name,
+				forceDeactivateUsers: force,
 			});
 			setArchiveDialogOpen(false);
+			setArchiveForceMode(false);
 			setSelectedOrg(null);
 			await refreshAfterLifecycle();
 		} catch (error: unknown) {
-			const handled = await runOrganizationArchiveWithForceRetry({
-				error,
-				archive: organizationsAPI.archive,
-				orgId: selectedOrg.id,
-				orgName: selectedOrg.name,
-			});
-			if (handled) {
-				setArchiveDialogOpen(false);
-				setSelectedOrg(null);
-				await refreshAfterLifecycle();
+			if (isOrgArchiveBlockedError(error) && !force) {
+				setArchiveForceMode(true);
 				return;
 			}
 			const message = resolveOrganizationLifecycleErrorMessage(error);
@@ -516,12 +511,17 @@ export default function AdminOrganizationsPage() {
 				open={archiveDialogOpen}
 				onOpenChange={(open) => {
 					setArchiveDialogOpen(open);
-					if (!open) setSelectedOrg(null);
+					if (!open) {
+						setSelectedOrg(null);
+						setArchiveForceMode(false);
+					}
 				}}
-				onConfirm={handleArchive}
+				onConfirm={() => handleArchive(false)}
+				onForceConfirm={() => handleArchive(true)}
 				entityType="organization"
 				entityName={selectedOrg?.name ?? ""}
 				loading={lifecycleLoading}
+				hasActiveUsers={archiveForceMode}
 			/>
 
 			<ConfirmRestoreDialog

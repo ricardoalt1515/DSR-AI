@@ -45,8 +45,9 @@ export async function runOrganizationArchiveFlow(options: {
 	orgId: string;
 	orgName: string;
 	onArchived?: (organization: Organization) => void | Promise<void>;
+	forceDeactivateUsers?: boolean;
 }): Promise<void> {
-	const { archive, orgId, orgName, onArchived } = options;
+	const { archive, orgId, orgName, onArchived, forceDeactivateUsers } = options;
 
 	const showArchiveToasts = (deactivatedUsersCount: number) => {
 		toast.success(`Organization "${orgName}" archived`);
@@ -57,42 +58,18 @@ export async function runOrganizationArchiveFlow(options: {
 		}
 	};
 
-	const archived = await archive(orgId);
+	const archived = await archive(
+		orgId,
+		forceDeactivateUsers ? { forceDeactivateUsers: true } : undefined,
+	);
 	await onArchived?.(archived);
 	showArchiveToasts(archived.deactivatedUsersCount ?? 0);
 }
 
-export async function runOrganizationArchiveWithForceRetry(options: {
-	error: unknown;
-	archive: ArchiveFn;
-	orgId: string;
-	orgName: string;
-	onArchived?: (organization: Organization) => void | Promise<void>;
-}): Promise<boolean> {
-	const { error, archive, orgId, orgName, onArchived } = options;
-	if (
-		!(
-			error instanceof APIClientError &&
-			error.code === "ORG_ACTIVE_USERS_BLOCKED"
-		)
-	) {
-		return false;
-	}
-
-	const shouldForceArchive = window.confirm(
-		"This organization has active users. Deactivate active users and archive now?",
+export function isOrgArchiveBlockedError(error: unknown): boolean {
+	return (
+		error instanceof APIClientError && error.code === "ORG_ACTIVE_USERS_BLOCKED"
 	);
-	if (!shouldForceArchive) {
-		return true;
-	}
-
-	const archived = await archive(orgId, { forceDeactivateUsers: true });
-	await onArchived?.(archived);
-	toast.success(`Organization "${orgName}" archived`);
-	toast.success(
-		`${archived.deactivatedUsersCount ?? 0} active user(s) deactivated during archive`,
-	);
-	return true;
 }
 
 export function showOrganizationPurgeForceResultToast(
@@ -104,9 +81,15 @@ export function showOrganizationPurgeForceResultToast(
 		return;
 	}
 
-	toast.warning(
-		result.manifestId
-			? `Organization purged from DB. Storage cleanup pending (manifest: ${result.manifestId}).`
-			: "Organization purged from DB. Storage cleanup pending.",
-	);
+	const baseMessage =
+		"Organization purged from DB. Storage cleanup in progress.";
+	const manifestInfo = result.manifestId
+		? ` Manifest ID: ${result.manifestId}`
+		: "";
+	const followUp =
+		" Contact support if cleanup persists for more than 24 hours.";
+
+	toast.warning(`${baseMessage}${manifestInfo}${followUp}`, {
+		duration: 10000,
+	});
 }

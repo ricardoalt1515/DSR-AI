@@ -19,11 +19,53 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import { AdminStatsCard, OrgAvatar } from "@/components/features/admin";
 import { ConfirmOrgPurgeForceDialog } from "@/components/features/admin/confirm-org-purge-force-dialog";
+import { ArchivedBanner } from "@/components/shared/archived-banner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
 import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+	adminUsersAPI,
+	type TransferOrganizationInput,
+} from "@/lib/api/admin-users";
+import {
+	type Organization,
+	type OrganizationUpdateInput,
+	type OrgUserCreateInput,
+	organizationsAPI,
+} from "@/lib/api/organizations";
+import {
+	isOrgArchiveBlockedError,
+	resolveOrganizationLifecycleErrorMessage,
+	runOrganizationArchiveFlow,
+	showOrganizationPurgeForceResultToast,
+} from "@/lib/errors/organization-lifecycle";
+import type { User, UserRole } from "@/lib/types/user";
+import { cn } from "@/lib/utils";
 
 const AddUserModal = dynamic(
 	() =>
@@ -58,47 +100,6 @@ const UsersTable = dynamic(
 	},
 );
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-	adminUsersAPI,
-	type TransferOrganizationInput,
-} from "@/lib/api/admin-users";
-import {
-	type Organization,
-	type OrganizationUpdateInput,
-	type OrgUserCreateInput,
-	organizationsAPI,
-} from "@/lib/api/organizations";
-import {
-	resolveOrganizationLifecycleErrorMessage,
-	runOrganizationArchiveFlow,
-	runOrganizationArchiveWithForceRetry,
-	showOrganizationPurgeForceResultToast,
-} from "@/lib/errors/organization-lifecycle";
-import type { User, UserRole } from "@/lib/types/user";
-import { cn } from "@/lib/utils";
-
 const TransferUserModal = dynamic(
 	() =>
 		import("@/components/features/admin/transfer-user-modal").then(
@@ -117,6 +118,7 @@ export default function OrganizationDetailPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [lifecycleLoading, setLifecycleLoading] = useState(false);
 	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+	const [archiveForceMode, setArchiveForceMode] = useState(false);
 	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 	const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 	const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -186,7 +188,7 @@ export default function OrganizationDetailPage() {
 		}
 	};
 
-	const handleArchive = async () => {
+	const handleArchive = async (force = false) => {
 		if (!organization) return;
 		setLifecycleLoading(true);
 		try {
@@ -195,20 +197,14 @@ export default function OrganizationDetailPage() {
 				orgId: organization.id,
 				orgName: organization.name,
 				onArchived: setOrganization,
+				forceDeactivateUsers: force,
 			});
 			setArchiveDialogOpen(false);
+			setArchiveForceMode(false);
 			await fetchData();
 		} catch (error: unknown) {
-			const handled = await runOrganizationArchiveWithForceRetry({
-				error,
-				archive: organizationsAPI.archive,
-				orgId: organization.id,
-				orgName: organization.name,
-				onArchived: setOrganization,
-			});
-			if (handled) {
-				setArchiveDialogOpen(false);
-				await fetchData();
+			if (isOrgArchiveBlockedError(error) && !force) {
+				setArchiveForceMode(true);
 				return;
 			}
 			const message = resolveOrganizationLifecycleErrorMessage(error);
@@ -443,15 +439,16 @@ export default function OrganizationDetailPage() {
 				</div>
 			)}
 			{organization.archivedAt && (
-				<p className="text-sm text-muted-foreground">
-					Archived on{" "}
-					{new Date(organization.archivedAt).toLocaleDateString(undefined, {
-						year: "numeric",
-						month: "long",
-						day: "numeric",
-					})}
-					{" · Read-only"}
-				</p>
+				<ArchivedBanner
+					entityType="organization"
+					entityName={organization.name}
+					archivedAt={organization.archivedAt}
+					canRestore={true}
+					canPurge={true}
+					onRestore={() => setRestoreDialogOpen(true)}
+					onPurge={() => setPurgeDialogOpen(true)}
+					loading={lifecycleLoading}
+				/>
 			)}
 
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -532,11 +529,16 @@ export default function OrganizationDetailPage() {
 
 			<ConfirmArchiveDialog
 				open={archiveDialogOpen}
-				onOpenChange={setArchiveDialogOpen}
-				onConfirm={handleArchive}
+				onOpenChange={(open) => {
+					setArchiveDialogOpen(open);
+					if (!open) setArchiveForceMode(false);
+				}}
+				onConfirm={() => handleArchive(false)}
+				onForceConfirm={() => handleArchive(true)}
 				entityType="organization"
 				entityName={organization.name}
 				loading={lifecycleLoading}
+				hasActiveUsers={archiveForceMode}
 			/>
 
 			<ConfirmRestoreDialog

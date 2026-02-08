@@ -2,38 +2,130 @@
 Organization (tenant) endpoints.
 """
 
-from typing import Annotated
+from time import perf_counter
+from typing import Annotated, NoReturn
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from app.api.dependencies import AsyncDB, CurrentUser, OrganizationContext, SuperAdminOnly
 from app.core.user_manager import UserManager, get_user_manager
+from app.main import limiter
 from app.models.organization import Organization
 from app.models.user import User, UserRole
 from app.schemas.org_user import OrgUserCreate, OrgUserCreateRequest, OrgUserUpdate
-from app.schemas.organization import OrganizationCreate, OrganizationRead, OrganizationUpdate
+from app.schemas.organization import (
+    OrganizationArchiveRead,
+    OrganizationArchiveRequest,
+    OrganizationCreate,
+    OrganizationPurgeForceRequest,
+    OrganizationRead,
+    OrganizationUpdate,
+)
 from app.schemas.user_fastapi import UserRead
+from app.services.organization_lifecycle_service import (
+    PURGE_RETENTION_DAYS,
+    OrganizationLifecycleError,
+    archive_organization,
+    cleanup_purged_organization_storage,
+    purge_force_organization,
+    restore_organization,
+)
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
+
+
+def _raise_forbidden_superadmin_required() -> NoReturn:
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "code": "FORBIDDEN_SUPERADMIN_REQUIRED",
+            "message": "Superadmin required",
+        },
+    )
+
+
+def _raise_lifecycle_error(exc: OrganizationLifecycleError) -> NoReturn:
+    raise HTTPException(
+        status_code=exc.status_code,
+        detail={
+            "code": exc.code,
+            "message": exc.message,
+            "details": exc.details,
+        },
+    ) from exc
+
+
+def _raise_org_inactive_for_user_mutation(org_id: UUID) -> NoReturn:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "ORG_NOT_ACTIVE",
+            "message": "Organization is archived; cannot create or activate users",
+            "details": {"org_id": str(org_id)},
+        },
+    )
+
+
+def _ensure_superadmin_global(current_user: User) -> None:
+    if not current_user.is_superuser:
+        _raise_forbidden_superadmin_required()
+    if current_user.organization_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "INVALID_ADMIN_STATE",
+                "message": "Superadmin must not be scoped to an organization",
+                "details": {"actor_user_id": str(current_user.id)},
+            },
+        )
+
+
+async def _get_organization_for_update(db: AsyncDB, org_id: UUID) -> Organization | None:
+    result = await db.execute(
+        select(Organization).where(Organization.id == org_id).with_for_update()
+    )
+    return result.scalar_one_or_none()
 
 
 @router.get("", response_model=list[OrganizationRead])
 async def list_organizations(
-    admin: SuperAdminOnly,
+    current_user: CurrentUser,
     db: AsyncDB,
+    include_inactive: Annotated[bool, Query()] = False,
 ):
-    result = await db.execute(select(Organization).order_by(Organization.name))
+    _ensure_superadmin_global(current_user)
+
+    query = select(Organization)
+    if not include_inactive:
+        query = query.where(Organization.is_active.is_(True))
+    query = query.order_by(Organization.name)
+
+    result = await db.execute(query)
     return result.scalars().all()
 
 
 @router.post("", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
 async def create_organization(
+    request: Request,
     data: OrganizationCreate,
     admin: SuperAdminOnly,
     db: AsyncDB,
 ):
+    raw_payload = await request.json()
+    if isinstance(raw_payload, dict) and ("is_active" in raw_payload or "isActive" in raw_payload):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "ORG_LIFECYCLE_FIELD_IMMUTABLE",
+                "message": "New organizations are created active; use lifecycle endpoints to change state",
+            },
+        )
+
     # BaseSchema serializes with camelCase by default; ORM expects snake_case field names.
     org = Organization(**data.model_dump(by_alias=False))
     db.add(org)
@@ -76,6 +168,12 @@ async def create_user_in_my_org(
     if not current_user.can_manage_org_users():
         raise HTTPException(status_code=403, detail="Not authorized to manage users")
 
+    locked_org = await _get_organization_for_update(db, org.id)
+    if locked_org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    if not locked_org.is_active:
+        _raise_org_inactive_for_user_mutation(locked_org.id)
+
     # Block creating platform admins from this endpoint
     if data.role == UserRole.ADMIN.value:
         raise HTTPException(
@@ -85,7 +183,7 @@ async def create_user_in_my_org(
 
     user_create = OrgUserCreate(
         **data.model_dump(),
-        organization_id=org.id,
+        organization_id=locked_org.id,
         is_superuser=False,
     )
     return await user_manager.create(user_create)
@@ -128,9 +226,11 @@ async def create_org_user(
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ):
     """Create user in a specific organization. Platform Admin only."""
-    org = await db.get(Organization, org_id)
+    org = await _get_organization_for_update(db, org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+    if not org.is_active:
+        _raise_org_inactive_for_user_mutation(org.id)
 
     # Block creating platform admins from this endpoint
     if data.role == UserRole.ADMIN.value:
@@ -150,17 +250,38 @@ async def create_org_user(
 
 @router.patch("/{org_id}", response_model=OrganizationRead)
 async def update_organization(
+    request: Request,
     org_id: UUID,
     data: OrganizationUpdate,
     admin: SuperAdminOnly,
     db: AsyncDB,
 ):
     """Update an organization. Platform Admin only."""
-    org = await db.get(Organization, org_id)
+    raw_payload = await request.json()
+    if isinstance(raw_payload, dict) and ("is_active" in raw_payload or "isActive" in raw_payload):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "ORG_LIFECYCLE_FIELD_IMMUTABLE",
+                "message": "is_active can only be changed via lifecycle endpoints",
+            },
+        )
+
+    org = await _get_organization_for_update(db, org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
     update_data = data.model_dump(exclude_unset=True, by_alias=False)
+    if update_data and not org.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "ORG_NOT_ACTIVE",
+                "message": "Organization is archived; cannot update metadata",
+                "details": {"org_id": str(org.id)},
+            },
+        )
+
     for field, value in update_data.items():
         setattr(org, field, value)
 
@@ -169,31 +290,251 @@ async def update_organization(
     return org
 
 
-@router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_organization(
+@router.post("/{org_id}/archive", response_model=OrganizationArchiveRead)
+@limiter.limit("10/minute")
+async def archive_organization_endpoint(
+    request: Request,
     org_id: UUID,
-    admin: SuperAdminOnly,
+    current_user: CurrentUser,
+    db: AsyncDB,
+    payload: OrganizationArchiveRequest | None = None,
+):
+    started_at = perf_counter()
+    request_id = request.headers.get("x-request-id")
+    force_deactivate_users = bool(payload and payload.force_deactivate_users)
+
+    try:
+        _ensure_superadmin_global(current_user)
+    except HTTPException as exc:
+        logger.warning(
+            "organization_archive_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            forceDeactivateUsers=force_deactivate_users,
+            deactivatedUsersCount=0,
+            request_id=request_id,
+            result="error",
+            error_code=(
+                "FORBIDDEN_SUPERADMIN_REQUIRED"
+                if exc.status_code == status.HTTP_403_FORBIDDEN
+                else "INVALID_ADMIN_STATE"
+            ),
+        )
+        raise
+
+    try:
+        archive_result = await archive_organization(
+            db=db,
+            organization_id=org_id,
+            actor_user_id=current_user.id,
+            force_deactivate_users=force_deactivate_users,
+        )
+    except OrganizationLifecycleError as exc:
+        logger.warning(
+            "organization_archive_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            forceDeactivateUsers=force_deactivate_users,
+            deactivatedUsersCount=0,
+            request_id=request_id,
+            result="error",
+            error_code=exc.code,
+            error_details=exc.details,
+            duration_ms=int((perf_counter() - started_at) * 1000),
+        )
+        _raise_lifecycle_error(exc)
+
+    logger.info(
+        "organization_archive_attempt",
+        actor_user_id=str(current_user.id),
+        org_id=str(archive_result.organization.id),
+        org_slug=archive_result.organization.slug,
+        forceDeactivateUsers=force_deactivate_users,
+        deactivatedUsersCount=archive_result.deactivated_users_count,
+        request_id=request_id,
+        result="success",
+        archived_at=(
+            archive_result.organization.archived_at.isoformat()
+            if archive_result.organization.archived_at
+            else None
+        ),
+        duration_ms=int((perf_counter() - started_at) * 1000),
+    )
+    return {
+        **OrganizationRead.model_validate(archive_result.organization).model_dump(by_alias=True),
+        "deactivatedUsersCount": archive_result.deactivated_users_count,
+    }
+
+
+@router.post("/{org_id}/restore", response_model=OrganizationRead)
+@limiter.limit("10/minute")
+async def restore_organization_endpoint(
+    request: Request,
+    org_id: UUID,
+    current_user: CurrentUser,
     db: AsyncDB,
 ):
-    """Soft-delete an organization. Platform Admin only. Fails if org has active users."""
-    org = await db.get(Organization, org_id)
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
+    started_at = perf_counter()
+    request_id = request.headers.get("x-request-id")
 
-    # Check for active users
-    query = select(User).where(User.organization_id == org_id, User.is_active)
-    result = await db.execute(query)
-    active_users = result.scalars().all()
+    try:
+        _ensure_superadmin_global(current_user)
+    except HTTPException as exc:
+        logger.warning(
+            "organization_restore_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            request_id=request_id,
+            result="error",
+            error_code=(
+                "FORBIDDEN_SUPERADMIN_REQUIRED"
+                if exc.status_code == status.HTTP_403_FORBIDDEN
+                else "INVALID_ADMIN_STATE"
+            ),
+        )
+        raise
 
-    if active_users:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete organization with {len(active_users)} active user(s). Deactivate users first.",
+    try:
+        organization = await restore_organization(
+            db=db,
+            organization_id=org_id,
+        )
+    except OrganizationLifecycleError as exc:
+        logger.warning(
+            "organization_restore_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            request_id=request_id,
+            result="error",
+            error_code=exc.code,
+            error_details=exc.details,
+            duration_ms=int((perf_counter() - started_at) * 1000),
+        )
+        _raise_lifecycle_error(exc)
+
+    logger.info(
+        "organization_restore_attempt",
+        actor_user_id=str(current_user.id),
+        org_id=str(organization.id),
+        org_slug=organization.slug,
+        request_id=request_id,
+        result="success",
+        duration_ms=int((perf_counter() - started_at) * 1000),
+    )
+    return organization
+
+
+@router.post("/{org_id}/purge-force", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+async def purge_force_organization_endpoint(
+    request: Request,
+    org_id: UUID,
+    payload: OrganizationPurgeForceRequest,
+    current_user: CurrentUser,
+    db: AsyncDB,
+):
+    started_at = perf_counter()
+    request_id = request.headers.get("x-request-id")
+
+    try:
+        _ensure_superadmin_global(current_user)
+    except HTTPException as exc:
+        logger.warning(
+            "organization_purge_force_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            request_id=request_id,
+            reason_present=bool(payload.reason),
+            reason_length=len(payload.reason),
+            ticket_id=payload.ticket_id,
+            result="error",
+            error_code=(
+                "FORBIDDEN_SUPERADMIN_REQUIRED"
+                if exc.status_code == status.HTTP_403_FORBIDDEN
+                else "INVALID_ADMIN_STATE"
+            ),
+        )
+        raise
+
+    try:
+        purge_result = await purge_force_organization(
+            db=db,
+            organization_id=org_id,
+            confirm_name=payload.confirm_name,
+            confirm_phrase=payload.confirm_phrase,
+        )
+    except OrganizationLifecycleError as exc:
+        logger.warning(
+            "organization_purge_force_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            request_id=request_id,
+            reason_present=bool(payload.reason),
+            reason_length=len(payload.reason),
+            ticket_id=payload.ticket_id,
+            result="error",
+            error_code=exc.code,
+            error_details=exc.details,
+            duration_ms=int((perf_counter() - started_at) * 1000),
+        )
+        _raise_lifecycle_error(exc)
+
+    try:
+        cleanup_status = await cleanup_purged_organization_storage(
+            db=db,
+            organization_id=org_id,
+            cleanup_manifest_id=purge_result.cleanup_manifest_id,
+            storage_paths=purge_result.storage_paths,
+        )
+    except OrganizationLifecycleError as exc:
+        logger.warning(
+            "organization_purge_force_attempt",
+            actor_user_id=str(current_user.id),
+            org_id=str(org_id),
+            request_id=request_id,
+            reason_present=bool(payload.reason),
+            reason_length=len(payload.reason),
+            ticket_id=payload.ticket_id,
+            retention_days=PURGE_RETENTION_DAYS,
+            result="error",
+            error_code=exc.code,
+            error_details=exc.details,
+            duration_ms=int((perf_counter() - started_at) * 1000),
+        )
+        _raise_lifecycle_error(exc)
+
+    logger.info(
+        "organization_purge_force_attempt",
+        actor_user_id=str(current_user.id),
+        org_id=str(org_id),
+        request_id=request_id,
+        reason_present=bool(payload.reason),
+        reason_length=len(payload.reason),
+        ticket_id=payload.ticket_id,
+        retention_days=PURGE_RETENTION_DAYS,
+        archived_at=purge_result.archived_at.isoformat(),
+        cleanup_status=cleanup_status,
+        cleanup_manifest_id=str(purge_result.cleanup_manifest_id),
+        deleted_counts=purge_result.deleted_counts,
+        result="success" if cleanup_status == "completed" else "pending_cleanup",
+        duration_ms=int((perf_counter() - started_at) * 1000),
+    )
+    if cleanup_status == "failed":
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={
+                "error": {
+                    "code": "ORG_STORAGE_CLEANUP_PENDING",
+                    "message": "Organization purged from DB; storage cleanup pending manual replay",
+                    "details": {
+                        "org_id": str(org_id),
+                        "manifest_id": str(purge_result.cleanup_manifest_id),
+                    },
+                }
+            },
         )
 
-    org.is_active = False
-    await db.commit()
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # Keep "/current/..." routes before "/{org_id}/..." routes to avoid
@@ -214,6 +555,13 @@ async def update_my_org_user(
     if not user or user.organization_id != org.id:
         raise HTTPException(status_code=404, detail="User not found in this organization")
 
+    locked_org = await _get_organization_for_update(db, org.id)
+    if locked_org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    update_data = data.model_dump(exclude_unset=True, by_alias=False)
+    if update_data and not locked_org.is_active:
+        _raise_org_inactive_for_user_mutation(locked_org.id)
+
     # Prevent self-demotion for org admins
     if user.id == current_user.id and data.role and data.role != current_user.role:
         raise HTTPException(
@@ -233,8 +581,6 @@ async def update_my_org_user(
             status_code=400,
             detail="Cannot promote to platform admin from this endpoint.",
         )
-
-    update_data = data.model_dump(exclude_unset=True, by_alias=False)
     is_demoting_org_admin = (
         user.role == UserRole.ORG_ADMIN
         and update_data.get("role")
@@ -246,7 +592,7 @@ async def update_my_org_user(
 
     if is_demoting_org_admin or is_deactivating_org_admin:
         query = select(User.id).where(
-            User.organization_id == org.id,
+            User.organization_id == locked_org.id,
             User.is_active,
             User.role == UserRole.ORG_ADMIN,
             User.id != user.id,
@@ -275,13 +621,17 @@ async def update_org_user(
     db: AsyncDB,
 ):
     """Update user role or status in a specific organization. Platform Admin only."""
-    org = await db.get(Organization, org_id)
-    if not org:
+    locked_org = await _get_organization_for_update(db, org_id)
+    if not locked_org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
     user = await db.get(User, user_id)
     if not user or user.organization_id != org_id:
         raise HTTPException(status_code=404, detail="User not found in this organization")
+
+    update_data = data.model_dump(exclude_unset=True, by_alias=False)
+    if update_data and not locked_org.is_active:
+        _raise_org_inactive_for_user_mutation(locked_org.id)
 
     # Block changing to platform admin role
     if data.role == UserRole.ADMIN.value:
@@ -289,8 +639,6 @@ async def update_org_user(
             status_code=400,
             detail="Cannot promote to platform admin from this endpoint.",
         )
-
-    update_data = data.model_dump(exclude_unset=True, by_alias=False)
     is_demoting_org_admin = (
         user.role == UserRole.ORG_ADMIN
         and update_data.get("role")
@@ -302,7 +650,7 @@ async def update_org_user(
 
     if is_demoting_org_admin or is_deactivating_org_admin:
         query = select(User.id).where(
-            User.organization_id == org_id,
+            User.organization_id == locked_org.id,
             User.is_active,
             User.role == UserRole.ORG_ADMIN,
             User.id != user.id,
