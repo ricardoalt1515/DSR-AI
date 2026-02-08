@@ -1,6 +1,15 @@
 "use client";
 
-import { Calendar, Edit2, Mail, Phone, Users } from "lucide-react";
+import {
+	Archive,
+	Calendar,
+	Edit2,
+	Mail,
+	Phone,
+	RotateCcw,
+	ShieldAlert,
+	Users,
+} from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,9 +22,21 @@ interface OrgCardProps {
 	organization: Organization;
 	userCount?: number;
 	onEdit?: (org: Organization) => void;
+	onArchive?: (org: Organization) => void;
+	onRestore?: (org: Organization) => void;
+	onPurge?: (org: Organization) => void;
+	actionLoading?: boolean;
 }
 
-export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
+export function OrgCard({
+	organization,
+	userCount,
+	onEdit,
+	onArchive,
+	onRestore,
+	onPurge,
+	actionLoading = false,
+}: OrgCardProps) {
 	const createdDate = organization.createdAt
 		? new Date(organization.createdAt).toLocaleDateString("en-US", {
 				month: "short",
@@ -58,7 +79,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 										: "bg-muted text-muted-foreground",
 								)}
 							>
-								{organization.isActive ? "Active" : "Inactive"}
+								{organization.isActive ? "Active" : "Archived"}
 							</Badge>
 						</div>
 					</div>
@@ -117,7 +138,7 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 							Manage Members
 						</Button>
 					</Link>
-					{onEdit && (
+					{onEdit && organization.isActive && (
 						<Button
 							variant="ghost"
 							size="sm"
@@ -133,6 +154,46 @@ export function OrgCard({ organization, userCount, onEdit }: OrgCardProps) {
 						</Button>
 					)}
 				</div>
+
+				{organization.isActive ? (
+					onArchive && (
+						<Button
+							variant="outline"
+							size="sm"
+							className="w-full"
+							onClick={() => onArchive(organization)}
+							disabled={actionLoading}
+						>
+							<Archive className="mr-2 h-3.5 w-3.5" />
+							Archive
+						</Button>
+					)
+				) : (
+					<div className="grid grid-cols-2 gap-2">
+						{onRestore && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => onRestore(organization)}
+								disabled={actionLoading}
+							>
+								<RotateCcw className="mr-2 h-3.5 w-3.5" />
+								Restore
+							</Button>
+						)}
+						{onPurge && (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => onPurge(organization)}
+								disabled={actionLoading}
+							>
+								<ShieldAlert className="mr-2 h-3.5 w-3.5" />
+								Purge
+							</Button>
+						)}
+					</div>
+				)}
 			</CardContent>
 		</Card>
 	);

@@ -1,6 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
+import type { MouseEvent } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -16,7 +17,7 @@ interface ConfirmRestoreDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onConfirm: () => void | Promise<void>;
-	entityType: "project" | "company" | "location";
+	entityType: "project" | "company" | "location" | "organization";
 	entityName: string;
 	loading?: boolean;
 }
@@ -29,7 +30,8 @@ export function ConfirmRestoreDialog({
 	entityName,
 	loading = false,
 }: ConfirmRestoreDialogProps) {
-	const handleConfirm = async () => {
+	const handleConfirm = async (event: MouseEvent<HTMLButtonElement>) => {
+		event.preventDefault();
 		await onConfirm();
 	};
 

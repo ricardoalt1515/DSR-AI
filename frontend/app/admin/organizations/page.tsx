@@ -13,6 +13,9 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminStatsCard, OrgCard } from "@/components/features/admin";
+import { ConfirmOrgPurgeForceDialog } from "@/components/features/admin/confirm-org-purge-force-dialog";
+import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
+import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
 
 const EditOrgModal = dynamic(
 	() =>
@@ -34,12 +37,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
 	type Organization,
 	type OrganizationCreateInput,
 	type OrganizationUpdateInput,
 	organizationsAPI,
 } from "@/lib/api/organizations";
+import {
+	resolveOrganizationLifecycleErrorMessage,
+	runOrganizationArchiveFlow,
+	runOrganizationArchiveWithForceRetry,
+	showOrganizationPurgeForceResultToast,
+} from "@/lib/errors/organization-lifecycle";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 function slugify(text: string): string {
@@ -56,8 +66,14 @@ export default function AdminOrganizationsPage() {
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [showArchived, setShowArchived] = useState(false);
 	const [createModalOpen, setCreateModalOpen] = useState(false);
 	const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+	const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+	const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+	const [lifecycleLoading, setLifecycleLoading] = useState(false);
 	const [form, setForm] = useState({
 		name: "",
 		slug: "",
@@ -70,14 +86,16 @@ export default function AdminOrganizationsPage() {
 	const fetchOrganizations = useCallback(async () => {
 		try {
 			setIsLoading(true);
-			const data = await organizationsAPI.list();
+			const data = await organizationsAPI.list({
+				includeInactive: showArchived,
+			});
 			setOrganizations(data);
 		} catch {
 			toast.error("Failed to load organizations");
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [showArchived]);
 
 	useEffect(() => {
 		fetchOrganizations();
@@ -190,6 +208,82 @@ export default function AdminOrganizationsPage() {
 		}
 	};
 
+	const refreshAfterLifecycle = async () => {
+		await fetchOrganizations();
+		await loadOrganizations();
+	};
+
+	const handleArchive = async () => {
+		if (!selectedOrg) return;
+		setLifecycleLoading(true);
+		try {
+			await runOrganizationArchiveFlow({
+				archive: organizationsAPI.archive,
+				orgId: selectedOrg.id,
+				orgName: selectedOrg.name,
+			});
+			setArchiveDialogOpen(false);
+			setSelectedOrg(null);
+			await refreshAfterLifecycle();
+		} catch (error: unknown) {
+			const handled = await runOrganizationArchiveWithForceRetry({
+				error,
+				archive: organizationsAPI.archive,
+				orgId: selectedOrg.id,
+				orgName: selectedOrg.name,
+			});
+			if (handled) {
+				setArchiveDialogOpen(false);
+				setSelectedOrg(null);
+				await refreshAfterLifecycle();
+				return;
+			}
+			const message = resolveOrganizationLifecycleErrorMessage(error);
+			if (message) toast.error(message);
+		} finally {
+			setLifecycleLoading(false);
+		}
+	};
+
+	const handleRestore = async () => {
+		if (!selectedOrg) return;
+		setLifecycleLoading(true);
+		try {
+			await organizationsAPI.restore(selectedOrg.id);
+			toast.success(`Organization "${selectedOrg.name}" restored`);
+			setRestoreDialogOpen(false);
+			setSelectedOrg(null);
+			await refreshAfterLifecycle();
+		} catch (error: unknown) {
+			const message = resolveOrganizationLifecycleErrorMessage(error);
+			if (message) toast.error(message);
+		} finally {
+			setLifecycleLoading(false);
+		}
+	};
+
+	const handlePurgeForce = async (payload: {
+		confirmName: string;
+		confirmPhrase: string;
+		reason: string;
+		ticketId: string;
+	}) => {
+		if (!selectedOrg) return;
+		setLifecycleLoading(true);
+		try {
+			const result = await organizationsAPI.purgeForce(selectedOrg.id, payload);
+			showOrganizationPurgeForceResultToast(selectedOrg.name, result);
+			setPurgeDialogOpen(false);
+			setSelectedOrg(null);
+			await refreshAfterLifecycle();
+		} catch (error: unknown) {
+			const message = resolveOrganizationLifecycleErrorMessage(error);
+			if (message) toast.error(message);
+		} finally {
+			setLifecycleLoading(false);
+		}
+	};
+
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -250,6 +344,10 @@ export default function AdminOrganizationsPage() {
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="pl-9"
 					/>
+				</div>
+				<div className="flex items-center gap-2 rounded-md border px-3 py-2">
+					<Switch checked={showArchived} onCheckedChange={setShowArchived} />
+					<Label className="text-sm font-normal">Show archived</Label>
 				</div>
 				{searchQuery && (
 					<Button
@@ -313,6 +411,19 @@ export default function AdminOrganizationsPage() {
 							key={org.id}
 							organization={org}
 							onEdit={(org) => setEditingOrg(org)}
+							actionLoading={lifecycleLoading}
+							onArchive={(org) => {
+								setSelectedOrg(org);
+								setArchiveDialogOpen(true);
+							}}
+							onRestore={(org) => {
+								setSelectedOrg(org);
+								setRestoreDialogOpen(true);
+							}}
+							onPurge={(org) => {
+								setSelectedOrg(org);
+								setPurgeDialogOpen(true);
+							}}
 						/>
 					))}
 				</div>
@@ -399,6 +510,42 @@ export default function AdminOrganizationsPage() {
 				onOpenChange={(open) => !open && setEditingOrg(null)}
 				organization={editingOrg}
 				onSubmit={handleUpdateOrganization}
+			/>
+
+			<ConfirmArchiveDialog
+				open={archiveDialogOpen}
+				onOpenChange={(open) => {
+					setArchiveDialogOpen(open);
+					if (!open) setSelectedOrg(null);
+				}}
+				onConfirm={handleArchive}
+				entityType="organization"
+				entityName={selectedOrg?.name ?? ""}
+				loading={lifecycleLoading}
+			/>
+
+			<ConfirmRestoreDialog
+				open={restoreDialogOpen}
+				onOpenChange={(open) => {
+					setRestoreDialogOpen(open);
+					if (!open) setSelectedOrg(null);
+				}}
+				onConfirm={handleRestore}
+				entityType="organization"
+				entityName={selectedOrg?.name ?? ""}
+				loading={lifecycleLoading}
+			/>
+
+			<ConfirmOrgPurgeForceDialog
+				open={purgeDialogOpen}
+				onOpenChange={(open) => {
+					setPurgeDialogOpen(open);
+					if (!open) setSelectedOrg(null);
+				}}
+				onConfirm={handlePurgeForce}
+				orgName={selectedOrg?.name ?? ""}
+				orgSlug={selectedOrg?.slug ?? ""}
+				loading={lifecycleLoading}
 			/>
 		</div>
 	);

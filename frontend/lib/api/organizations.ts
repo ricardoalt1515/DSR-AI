@@ -8,6 +8,9 @@ export interface Organization {
 	contactEmail: string | null;
 	contactPhone: string | null;
 	isActive: boolean;
+	archivedAt?: string | null;
+	archivedByUserId?: string | null;
+	deactivatedUsersCount?: number;
 	createdAt: string;
 }
 
@@ -30,7 +33,21 @@ export interface OrganizationUpdateInput {
 	name?: string;
 	contactEmail?: string | null;
 	contactPhone?: string | null;
-	isActive?: boolean;
+}
+
+export interface OrganizationPurgeForceInput {
+	confirmName: string;
+	confirmPhrase: string;
+	reason: string;
+	ticketId: string;
+}
+
+export type OrganizationPurgeForceResult =
+	| { status: "completed" }
+	| { status: "pending_cleanup"; manifestId?: string };
+
+export interface OrganizationArchiveInput {
+	forceDeactivateUsers?: boolean;
 }
 
 export interface OrgUserUpdateInput {
@@ -48,6 +65,12 @@ interface RawOrganizationResponse {
 	contactPhone?: string | null;
 	is_active?: boolean;
 	isActive?: boolean;
+	archived_at?: string | null;
+	archivedAt?: string | null;
+	archived_by_user_id?: string | null;
+	archivedByUserId?: string | null;
+	deactivated_users_count?: number;
+	deactivatedUsersCount?: number;
 	created_at?: string;
 	createdAt?: string;
 }
@@ -69,6 +92,24 @@ interface RawUserResponse {
 	organization_id?: string | null;
 }
 
+interface RawPurgeForcePendingResponse {
+	error?: {
+		code?: string;
+		details?: {
+			manifest_id?: string;
+			manifestId?: string;
+		};
+	};
+}
+
+function parsePurgeManifestId(
+	response: RawPurgeForcePendingResponse,
+): string | undefined {
+	return (
+		response.error?.details?.manifestId ?? response.error?.details?.manifest_id
+	);
+}
+
 function transformOrganization(
 	response: RawOrganizationResponse,
 ): Organization {
@@ -79,6 +120,11 @@ function transformOrganization(
 		contactEmail: response.contactEmail ?? response.contact_email ?? null,
 		contactPhone: response.contactPhone ?? response.contact_phone ?? null,
 		isActive: response.isActive ?? response.is_active ?? true,
+		archivedAt: response.archivedAt ?? response.archived_at ?? null,
+		archivedByUserId:
+			response.archivedByUserId ?? response.archived_by_user_id ?? null,
+		deactivatedUsersCount:
+			response.deactivatedUsersCount ?? response.deactivated_users_count ?? 0,
 		createdAt:
 			response.createdAt ?? response.created_at ?? new Date().toISOString(),
 	};
@@ -107,9 +153,14 @@ export const organizationsAPI = {
 	/**
 	 * List all organizations (Platform Admin only)
 	 */
-	async list(): Promise<Organization[]> {
-		const data =
-			await apiClient.get<RawOrganizationResponse[]>("/organizations");
+	async list(options?: { includeInactive?: boolean }): Promise<Organization[]> {
+		const searchParams = new URLSearchParams();
+		if (options?.includeInactive) {
+			searchParams.set("include_inactive", "true");
+		}
+		const query = searchParams.toString();
+		const endpoint = query ? `/organizations?${query}` : "/organizations";
+		const data = await apiClient.get<RawOrganizationResponse[]>(endpoint);
 		return data.map(transformOrganization);
 	},
 
@@ -222,7 +273,6 @@ export const organizationsAPI = {
 			body.contact_email = payload.contactEmail;
 		if (payload.contactPhone !== undefined)
 			body.contact_phone = payload.contactPhone;
-		if (payload.isActive !== undefined) body.is_active = payload.isActive;
 
 		const data = await apiClient.patch<RawOrganizationResponse>(
 			`/organizations/${orgId}`,
@@ -231,11 +281,50 @@ export const organizationsAPI = {
 		return transformOrganization(data);
 	},
 
-	/**
-	 * Delete (soft-delete) an organization (Platform Admin only)
-	 */
-	async delete(orgId: string): Promise<void> {
-		await apiClient.delete(`/organizations/${orgId}`);
+	async archive(
+		orgId: string,
+		input?: OrganizationArchiveInput,
+	): Promise<Organization> {
+		const body = input?.forceDeactivateUsers
+			? { force_deactivate_users: true }
+			: undefined;
+		const data = await apiClient.post<RawOrganizationResponse>(
+			`/organizations/${orgId}/archive`,
+			body,
+		);
+		return transformOrganization(data);
+	},
+
+	async restore(orgId: string): Promise<Organization> {
+		const data = await apiClient.post<RawOrganizationResponse>(
+			`/organizations/${orgId}/restore`,
+		);
+		return transformOrganization(data);
+	},
+
+	async purgeForce(
+		orgId: string,
+		payload: OrganizationPurgeForceInput,
+	): Promise<OrganizationPurgeForceResult> {
+		const response = await apiClient.post<RawPurgeForcePendingResponse | null>(
+			`/organizations/${orgId}/purge-force`,
+			{
+				confirm_name: payload.confirmName,
+				confirm_phrase: payload.confirmPhrase,
+				reason: payload.reason,
+				ticket_id: payload.ticketId,
+			},
+		);
+
+		if (response?.error?.code === "ORG_STORAGE_CLEANUP_PENDING") {
+			const manifestId = parsePurgeManifestId(response);
+			return {
+				status: "pending_cleanup",
+				...(manifestId ? { manifestId } : {}),
+			};
+		}
+
+		return { status: "completed" };
 	},
 
 	/**

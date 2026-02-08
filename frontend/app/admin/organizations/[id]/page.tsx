@@ -1,13 +1,16 @@
 "use client";
 
 import {
-	AlertTriangle,
+	Archive,
 	ArrowLeft,
 	CheckCircle,
 	Mail,
+	MoreHorizontal,
 	Phone,
 	Plus,
 	RefreshCcw,
+	RotateCcw,
+	Trash2,
 	Users,
 	XCircle,
 } from "lucide-react";
@@ -17,6 +20,9 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminStatsCard, OrgAvatar } from "@/components/features/admin";
+import { ConfirmOrgPurgeForceDialog } from "@/components/features/admin/confirm-org-purge-force-dialog";
+import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
+import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const AddUserModal = dynamic(
@@ -52,7 +58,6 @@ const UsersTable = dynamic(
 	},
 );
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +67,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Tooltip,
 	TooltipContent,
@@ -78,6 +90,12 @@ import {
 	type OrgUserCreateInput,
 	organizationsAPI,
 } from "@/lib/api/organizations";
+import {
+	resolveOrganizationLifecycleErrorMessage,
+	runOrganizationArchiveFlow,
+	runOrganizationArchiveWithForceRetry,
+	showOrganizationPurgeForceResultToast,
+} from "@/lib/errors/organization-lifecycle";
 import type { User, UserRole } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +115,10 @@ export default function OrganizationDetailPage() {
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [lifecycleLoading, setLifecycleLoading] = useState(false);
+	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+	const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 	const [addUserModalOpen, setAddUserModalOpen] = useState(false);
 	const [editOrgModalOpen, setEditOrgModalOpen] = useState(false);
 	const [memberToMove, setMemberToMove] = useState<User | null>(null);
@@ -161,6 +183,78 @@ export default function OrganizationDetailPage() {
 					: "Failed to update organization";
 			toast.error(message);
 			throw error;
+		}
+	};
+
+	const handleArchive = async () => {
+		if (!organization) return;
+		setLifecycleLoading(true);
+		try {
+			await runOrganizationArchiveFlow({
+				archive: organizationsAPI.archive,
+				orgId: organization.id,
+				orgName: organization.name,
+				onArchived: setOrganization,
+			});
+			setArchiveDialogOpen(false);
+			await fetchData();
+		} catch (error: unknown) {
+			const handled = await runOrganizationArchiveWithForceRetry({
+				error,
+				archive: organizationsAPI.archive,
+				orgId: organization.id,
+				orgName: organization.name,
+				onArchived: setOrganization,
+			});
+			if (handled) {
+				setArchiveDialogOpen(false);
+				await fetchData();
+				return;
+			}
+			const message = resolveOrganizationLifecycleErrorMessage(error);
+			if (message) toast.error(message);
+		} finally {
+			setLifecycleLoading(false);
+		}
+	};
+
+	const handleRestore = async () => {
+		if (!organization) return;
+		setLifecycleLoading(true);
+		try {
+			const updated = await organizationsAPI.restore(organization.id);
+			setOrganization(updated);
+			toast.success(`Organization "${updated.name}" restored`);
+			setRestoreDialogOpen(false);
+		} catch (error: unknown) {
+			const message = resolveOrganizationLifecycleErrorMessage(error);
+			if (message) toast.error(message);
+		} finally {
+			setLifecycleLoading(false);
+		}
+	};
+
+	const handlePurgeForce = async (payload: {
+		confirmName: string;
+		confirmPhrase: string;
+		reason: string;
+		ticketId: string;
+	}) => {
+		if (!organization) return;
+		setLifecycleLoading(true);
+		try {
+			const result = await organizationsAPI.purgeForce(
+				organization.id,
+				payload,
+			);
+			showOrganizationPurgeForceResultToast(organization.name, result);
+			setPurgeDialogOpen(false);
+			window.location.href = "/admin/organizations";
+		} catch (error: unknown) {
+			const message = resolveOrganizationLifecycleErrorMessage(error);
+			if (message) toast.error(message);
+		} finally {
+			setLifecycleLoading(false);
 		}
 	};
 
@@ -272,7 +366,7 @@ export default function OrganizationDetailPage() {
 										: "bg-muted text-muted-foreground",
 								)}
 							>
-								{organization.isActive ? "Active" : "Inactive"}
+								{organization.isActive ? "Active" : "Archived"}
 							</Badge>
 						</div>
 						<p className="text-muted-foreground font-mono text-sm">
@@ -292,9 +386,43 @@ export default function OrganizationDetailPage() {
 							className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
 						/>
 					</Button>
-					<Button variant="outline" onClick={() => setEditOrgModalOpen(true)}>
+					<Button
+						variant="outline"
+						onClick={() => setEditOrgModalOpen(true)}
+						disabled={!organization.isActive}
+					>
 						Edit
 					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="icon" disabled={lifecycleLoading}>
+								<MoreHorizontal className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							{organization.isActive ? (
+								<DropdownMenuItem onClick={() => setArchiveDialogOpen(true)}>
+									<Archive className="mr-2 h-4 w-4" />
+									Archive
+								</DropdownMenuItem>
+							) : (
+								<>
+									<DropdownMenuItem onClick={() => setRestoreDialogOpen(true)}>
+										<RotateCcw className="mr-2 h-4 w-4" />
+										Restore
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+									<DropdownMenuItem
+										onClick={() => setPurgeDialogOpen(true)}
+										className="text-destructive focus:text-destructive"
+									>
+										<Trash2 className="mr-2 h-4 w-4" />
+										Permanently Delete...
+									</DropdownMenuItem>
+								</>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			</div>
 
@@ -314,14 +442,16 @@ export default function OrganizationDetailPage() {
 					)}
 				</div>
 			)}
-			{!isOrgActive && (
-				<Alert className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
-					<AlertTriangle className="h-4 w-4" />
-					<AlertTitle>Organization inactive</AlertTitle>
-					<AlertDescription>
-						User changes are disabled until this organization is reactivated.
-					</AlertDescription>
-				</Alert>
+			{organization.archivedAt && (
+				<p className="text-sm text-muted-foreground">
+					Archived on{" "}
+					{new Date(organization.archivedAt).toLocaleDateString(undefined, {
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+					})}
+					{" · Read-only"}
+				</p>
 			)}
 
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -398,6 +528,33 @@ export default function OrganizationDetailPage() {
 				onOpenChange={setEditOrgModalOpen}
 				organization={organization}
 				onSubmit={handleUpdateOrganization}
+			/>
+
+			<ConfirmArchiveDialog
+				open={archiveDialogOpen}
+				onOpenChange={setArchiveDialogOpen}
+				onConfirm={handleArchive}
+				entityType="organization"
+				entityName={organization.name}
+				loading={lifecycleLoading}
+			/>
+
+			<ConfirmRestoreDialog
+				open={restoreDialogOpen}
+				onOpenChange={setRestoreDialogOpen}
+				onConfirm={handleRestore}
+				entityType="organization"
+				entityName={organization.name}
+				loading={lifecycleLoading}
+			/>
+
+			<ConfirmOrgPurgeForceDialog
+				open={purgeDialogOpen}
+				onOpenChange={setPurgeDialogOpen}
+				onConfirm={handlePurgeForce}
+				orgName={organization.name}
+				orgSlug={organization.slug}
+				loading={lifecycleLoading}
 			/>
 
 			<TransferUserModal

@@ -4,7 +4,7 @@ import { Archive, RotateCcw, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-export type EntityType = "project" | "company" | "location";
+export type EntityType = "project" | "company" | "location" | "organization";
 
 interface ArchivedBannerProps {
 	entityType: EntityType;

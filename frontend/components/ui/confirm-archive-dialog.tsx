@@ -1,6 +1,7 @@
 "use client";
 
 import { Archive } from "lucide-react";
+import type { MouseEvent } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -16,7 +17,7 @@ interface ConfirmArchiveDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onConfirm: () => void | Promise<void>;
-	entityType: "project" | "company" | "location";
+	entityType: "project" | "company" | "location" | "organization";
 	entityName: string;
 	loading?: boolean;
 }
@@ -29,7 +30,8 @@ export function ConfirmArchiveDialog({
 	entityName,
 	loading = false,
 }: ConfirmArchiveDialogProps) {
-	const handleConfirm = async () => {
+	const handleConfirm = async (event: MouseEvent<HTMLButtonElement>) => {
+		event.preventDefault();
 		await onConfirm();
 	};
 
