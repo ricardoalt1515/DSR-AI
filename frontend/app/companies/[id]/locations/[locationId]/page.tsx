@@ -4,6 +4,7 @@ import {
 	Archive,
 	ArrowLeft,
 	Building2,
+	FileUp,
 	FolderKanban,
 	Loader2,
 	MapPin,
@@ -82,7 +83,7 @@ export default function LocationDetailPage() {
 
 	useEffect(() => {
 		if (locationId) {
-			void loadLocation(locationId, projectsFilter).catch(() => {});
+			void loadLocation(locationId, projectsFilter).catch(() => { });
 		}
 	}, [locationId, loadLocation, projectsFilter]);
 
@@ -177,7 +178,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId, projectsFilter).catch(() => {});
+								void loadLocation(locationId, projectsFilter).catch(() => { });
 							}}
 						>
 							Retry
@@ -234,7 +235,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId, projectsFilter).catch(() => {});
+								void loadLocation(locationId, projectsFilter).catch(() => { });
 							}}
 						>
 							Retry
@@ -353,10 +354,23 @@ export default function LocationDetailPage() {
 						Waste Streams
 					</h2>
 					{canCreateProject && !isArchived && (
-						<Button onClick={() => setWizardOpen(true)}>
-							<Plus className="h-4 w-4 mr-2" />
-							New Waste Stream
-						</Button>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								onClick={() =>
+									router.push(
+										`/bulk-import?entrypoint=location&id=${locationId}&step=1`,
+									)
+								}
+							>
+								<FileUp className="h-4 w-4 mr-2" />
+								Import Waste Streams
+							</Button>
+							<Button onClick={() => setWizardOpen(true)}>
+								<Plus className="h-4 w-4 mr-2" />
+								New Waste Stream
+							</Button>
+						</div>
 					)}
 				</div>
 

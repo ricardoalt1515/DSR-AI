@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models."""
 
+from app.models.bulk_import import ImportItem, ImportRun
 from app.models.company import Company
 from app.models.feedback import Feedback
 from app.models.feedback_attachment import FeedbackAttachment
@@ -21,6 +22,8 @@ __all__ = [
     "Company",
     "Feedback",
     "FeedbackAttachment",
+    "ImportItem",
+    "ImportRun",
     "IncomingMaterial",
     "IncomingMaterialCategory",
     "IntakeNote",

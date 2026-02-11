@@ -29,8 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   fontconfig \
   fonts-noto-color-emoji \
   # WeasyPrint dependencies (PDF generation)
+  libglib2.0-0 \
   libpango-1.0-0 \
   libpangoft2-1.0-0 \
+  libharfbuzz-subset0 \
   libfontconfig1 \
   libcairo-gobject2 \
   libgdk-pixbuf-2.0-0 \

@@ -95,12 +95,18 @@ class Settings(BaseSettings):
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB
-    ALLOWED_EXTENSIONS: str = ".pdf,.docx,.xlsx,.xls,.jpg,.jpeg,.png,.txt"
+    ALLOWED_EXTENSIONS: str = ".pdf,.docx,.xlsx,.xls,.csv,.jpg,.jpeg,.png,.txt"
+    BULK_IMPORT_ALLOWED_EXTENSIONS: str = ".pdf,.xlsx"
 
     @property
     def allowed_extensions_list(self) -> list[str]:
         """Parse allowed extensions from comma-separated string."""
         return [ext.strip() for ext in self.ALLOWED_EXTENSIONS.split(",")]
+
+    @property
+    def bulk_import_allowed_extensions_list(self) -> list[str]:
+        """Parse bulk-import allowed extensions from comma-separated string."""
+        return [ext.strip() for ext in self.BULK_IMPORT_ALLOWED_EXTENSIONS.split(",")]
 
     # Background Jobs
     JOB_BACKEND: str = "background"  # 'background' or 'celery'

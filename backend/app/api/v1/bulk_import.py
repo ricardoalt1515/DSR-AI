@@ -1,0 +1,280 @@
+"""Bulk import endpoints."""
+
+from __future__ import annotations
+
+import io
+import re
+import uuid
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Annotated, TypeVar
+from uuid import UUID
+
+import structlog
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+
+from app.api.dependencies import (
+    AsyncDB,
+    CurrentBulkImportUser,
+    OrganizationContext,
+    PageNumber,
+    PageSize,
+)
+from app.core.config import settings
+from app.models.bulk_import import ImportItem, ImportRun
+from app.models.company import Company
+from app.models.location import Location
+from app.schemas.bulk_import import (
+    BulkImportFinalizeResponse,
+    BulkImportFinalizeSummary,
+    BulkImportItemPatchRequest,
+    BulkImportItemResponse,
+    BulkImportRunResponse,
+    BulkImportSummaryResponse,
+    BulkImportUploadResponse,
+    ItemStatus,
+)
+from app.schemas.common import PaginatedResponse
+from app.services.bulk_import_service import MAX_IMPORT_FILE_BYTES, BulkImportService
+from app.services.s3_service import upload_file_to_s3
+from app.services.storage_delete_service import delete_storage_keys
+
+router = APIRouter()
+service = BulkImportService()
+logger = structlog.get_logger(__name__)
+TResult = TypeVar("TResult")
+
+ALLOWED_BULK_IMPORT_EXTENSIONS = {
+    (ext if ext.startswith(".") else f".{ext}").casefold()
+    for ext in settings.bulk_import_allowed_extensions_list
+}
+
+
+@router.post(
+    "/upload", response_model=BulkImportUploadResponse, status_code=status.HTTP_201_CREATED
+)
+async def upload_bulk_import_file(
+    entrypoint_type: Annotated[str, Form()],
+    entrypoint_id: Annotated[UUID, Form()],
+    file: Annotated[UploadFile, File()],
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> BulkImportUploadResponse:
+    file_name = _sanitize_filename(file.filename or "")
+    if not file_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename is required")
+
+    extension = Path(file_name).suffix.casefold()
+    if extension == ".xls":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Legacy .xls is not supported. Use .xlsx instead.",
+        )
+    if extension not in ALLOWED_BULK_IMPORT_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {extension or 'unknown'}",
+        )
+
+    await _validate_entrypoint(
+        db=db, org_id=org.id, entrypoint_type=entrypoint_type, entrypoint_id=entrypoint_id
+    )
+
+    file_bytes = await file.read(MAX_IMPORT_FILE_BYTES + 1)
+    if len(file_bytes) > MAX_IMPORT_FILE_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large")
+
+    run_id = uuid.uuid4()
+    stored_filename = f"{uuid.uuid4()}{extension}"
+    storage_key = f"imports/{run_id}/{stored_filename}"
+
+    try:
+        await upload_file_to_s3(io.BytesIO(file_bytes), storage_key, file.content_type)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store import file",
+        ) from exc
+
+    run = ImportRun(
+        id=run_id,
+        organization_id=org.id,
+        entrypoint_type=entrypoint_type,
+        entrypoint_id=entrypoint_id,
+        source_file_path=storage_key,
+        source_filename=file_name,
+        status="uploaded",
+        processing_attempts=0,
+        processing_available_at=datetime.now(UTC),
+        created_by_user_id=current_user.id,
+    )
+    db.add(run)
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        try:
+            await delete_storage_keys([storage_key])
+        except Exception:
+            logger.warning(
+                "bulk_import_upload_cleanup_failed", storage_key=storage_key, exc_info=True
+            )
+        raise
+    return BulkImportUploadResponse(run_id=run.id, status="uploaded")
+
+
+@router.get("/runs/{run_id}", response_model=BulkImportRunResponse)
+async def get_bulk_import_run(
+    run_id: UUID,
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> BulkImportRunResponse:
+    run = await service.get_run(db, organization_id=org.id, run_id=run_id)
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+    return BulkImportRunResponse.model_validate(run)
+
+
+@router.get("/runs/{run_id}/items", response_model=PaginatedResponse[BulkImportItemResponse])
+async def list_bulk_import_items(
+    run_id: UUID,
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+    page: PageNumber = 1,
+    size: PageSize = 50,
+    status_filter: Annotated[
+        ItemStatus | None,
+        Query(alias="status", description="pending_review, accepted, amended, rejected, invalid"),
+    ] = None,
+) -> PaginatedResponse[BulkImportItemResponse]:
+    run = await service.get_run(db, organization_id=org.id, run_id=run_id)
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+
+    items, total = await service.list_items(
+        db,
+        organization_id=org.id,
+        run_id=run_id,
+        page=page,
+        size=size,
+        status_filter=status_filter,
+    )
+    total_pages = (total + size - 1) // size if total > 0 else 1
+    return PaginatedResponse(
+        items=[BulkImportItemResponse.model_validate(item) for item in items],
+        total=total,
+        page=page,
+        size=size,
+        pages=total_pages,
+    )
+
+
+@router.patch("/items/{item_id}", response_model=BulkImportItemResponse)
+async def patch_bulk_import_item(
+    item_id: UUID,
+    payload: BulkImportItemPatchRequest,
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> BulkImportItemResponse:
+    async def _operation() -> ImportItem:
+        return await service.update_item_decision(
+            db,
+            organization_id=org.id,
+            item_id=item_id,
+            action=payload.action,
+            normalized_data=payload.normalized_data,
+            review_notes=payload.review_notes,
+            confirm_create_new=payload.confirm_create_new,
+        )
+
+    item = await _execute_in_transaction(db, _operation)
+    await db.refresh(item, attribute_names=["updated_at"])
+    return BulkImportItemResponse.model_validate(item)
+
+
+@router.post("/runs/{run_id}/finalize", response_model=BulkImportFinalizeResponse)
+async def finalize_bulk_import_run(
+    run_id: UUID,
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> BulkImportFinalizeResponse:
+    async def _operation() -> BulkImportFinalizeSummary:
+        return await service.finalize_run(
+            db,
+            run_id=run_id,
+            organization_id=org.id,
+            current_user=current_user,
+        )
+
+    summary = await _execute_in_transaction(db, _operation)
+    run = await service.get_run(db, organization_id=org.id, run_id=run_id)
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+    return BulkImportFinalizeResponse(status="completed", summary=summary)
+
+
+@router.get("/runs/{run_id}/summary", response_model=BulkImportSummaryResponse)
+async def get_bulk_import_summary(
+    run_id: UUID,
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> BulkImportSummaryResponse:
+    run = await service.get_run(db, organization_id=org.id, run_id=run_id)
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+    if run.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Run summary not available yet",
+        )
+    summary = service.get_run_summary(run)
+    return BulkImportSummaryResponse(summary=summary)
+
+
+async def _validate_entrypoint(
+    *,
+    db: AsyncDB,
+    org_id: UUID,
+    entrypoint_type: str,
+    entrypoint_id: UUID,
+) -> None:
+    if entrypoint_type == "company":
+        company = await db.get(Company, entrypoint_id)
+        if not company or company.organization_id != org_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+        return
+    if entrypoint_type == "location":
+        location = await db.get(Location, entrypoint_id)
+        if not location or location.organization_id != org_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found")
+        return
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid entrypoint_type"
+    )
+
+
+def _sanitize_filename(filename: str) -> str:
+    cleaned = re.sub(r"[\x00-\x1f\x7f]", "", Path(filename).name).strip()
+    if len(cleaned) > 255:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename too long")
+    return cleaned
+
+
+async def _execute_in_transaction(
+    db: AsyncDB,
+    operation: Callable[[], Awaitable[TResult]],
+) -> TResult:
+    try:
+        result = await operation()
+        await db.commit()
+        return result
+    except Exception:
+        await db.rollback()
+        raise

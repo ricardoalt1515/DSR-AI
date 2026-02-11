@@ -20,7 +20,6 @@ import { OrgAvatar } from "./org-avatar";
 
 interface OrgCardProps {
 	organization: Organization;
-	userCount?: number;
 	onEdit?: (org: Organization) => void;
 	onArchive?: (org: Organization) => void;
 	onRestore?: (org: Organization) => void;
@@ -30,7 +29,6 @@ interface OrgCardProps {
 
 export function OrgCard({
 	organization,
-	userCount,
 	onEdit,
 	onArchive,
 	onRestore,
@@ -87,17 +85,6 @@ export function OrgCard({
 			</CardHeader>
 			<CardContent className="pt-0 space-y-4">
 				<div className="grid grid-cols-2 gap-3">
-					{userCount !== undefined && (
-						<div className="flex items-center gap-2 text-sm">
-							<div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/50">
-								<Users className="h-3.5 w-3.5 text-muted-foreground" />
-							</div>
-							<div>
-								<p className="font-medium tabular-nums">{userCount}</p>
-								<p className="text-xs text-muted-foreground">Members</p>
-							</div>
-						</div>
-					)}
 					{createdDate && (
 						<div className="flex items-center gap-2 text-sm">
 							<div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/50">

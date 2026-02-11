@@ -12,7 +12,7 @@ from app.services.s3_service import LOCAL_UPLOADS_DIR, USE_S3, delete_file_from_
 
 logger = structlog.get_logger(__name__)
 
-_ALLOWED_PREFIXES = ("projects/", "proposals/", "feedback/")
+_ALLOWED_PREFIXES = ("projects/", "proposals/", "feedback/", "imports/")
 
 
 class StorageDeleteError(ValueError):
@@ -57,7 +57,7 @@ def resolve_local_path(key: str) -> Path:
     Resolve a local filesystem path for deletion, ensuring it stays within allowed roots.
 
     Accepts:
-    - Relative keys with allowed prefixes (projects/, proposals/)
+    - Relative keys with allowed prefixes (projects/, proposals/, feedback/, imports/)
     - Absolute paths under LOCAL_STORAGE_PATH or LOCAL_UPLOADS_DIR
 
     Absolute paths are supported only for legacy/internal cleanup; new writes should
@@ -121,6 +121,7 @@ async def delete_storage_keys(keys: Iterable[str], use_s3: bool = USE_S3) -> Non
                 path.unlink()
             except Exception as exc:
                 logger.warning("local_storage_delete_failed", path=str(path), error=str(exc))
+                raise StorageDeleteError(f"Failed to delete local storage path: {path}") from exc
 
 
 def validate_storage_keys(keys: Iterable[str], use_s3: bool = USE_S3) -> None:

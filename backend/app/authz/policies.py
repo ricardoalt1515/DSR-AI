@@ -73,3 +73,7 @@ def can_update_incoming_material(user: User) -> bool:
 
 def can_delete_incoming_material(user: User) -> bool:
     return user.is_superuser or user.is_org_admin()
+
+
+def can_manage_bulk_import(user: User) -> bool:
+    return user.is_superuser or user.role in (UserRole.ORG_ADMIN, UserRole.FIELD_AGENT)

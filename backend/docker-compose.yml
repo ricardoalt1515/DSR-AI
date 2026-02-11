@@ -81,6 +81,41 @@ services:
       retries: 3
       start_period: 30s
 
+  bulk-import-worker:
+    container_name: waste-platform-bulk-import-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+
+    env_file:
+      - .env
+
+    environment:
+      - POSTGRES_SERVER=postgres
+      - REDIS_HOST=redis
+      - LOCAL_STORAGE_PATH=/app/storage
+      - LOG_FILE=/app/logs/app.log
+      - PYTHONPATH=/app
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - python
+      - /app/scripts/bulk_import_worker.py
+    healthcheck:
+      test: ["CMD", "python", "/app/scripts/healthcheck_bulk_import_worker.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   postgres:
     container_name: waste-platform-postgres
     image: postgres:14

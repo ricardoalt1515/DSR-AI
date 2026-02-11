@@ -5,6 +5,7 @@ import {
 	ArrowLeft,
 	Building2,
 	Edit,
+	FileUp,
 	Loader2,
 	MapPin,
 	MoreVertical,
@@ -116,8 +117,8 @@ export default function CompanyDetailPage() {
 
 	useEffect(() => {
 		if (companyId) {
-			void loadCompany(companyId).catch(() => {});
-			void loadLocationsByCompany(companyId, locationsFilter).catch(() => {});
+			void loadCompany(companyId).catch(() => { });
+			void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
 		}
 	}, [companyId, loadCompany, loadLocationsByCompany, locationsFilter]);
 
@@ -135,8 +136,8 @@ export default function CompanyDetailPage() {
 			setDeleting(false);
 
 			// Reload data in background (non-blocking)
-			void loadCompany(companyId).catch(() => {});
-			void loadLocationsByCompany(companyId, locationsFilter).catch(() => {});
+			void loadCompany(companyId).catch(() => { });
+			void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
@@ -249,9 +250,9 @@ export default function CompanyDetailPage() {
 							onClick={() => {
 								clearCompanyError();
 								clearLocationsError();
-								void loadCompany(companyId).catch(() => {});
+								void loadCompany(companyId).catch(() => { });
 								void loadLocationsByCompany(companyId, locationsFilter).catch(
-									() => {},
+									() => { },
 								);
 							}}
 						>
@@ -429,15 +430,28 @@ export default function CompanyDetailPage() {
 							onChange={setLocationsFilter}
 						/>
 						{canCreateClientData && !isArchived && (
-							<CreateLocationDialog
-								companyId={companyId}
-								onSuccess={() => {
-									void loadCompany(companyId).catch(() => {});
-									void loadLocationsByCompany(companyId, locationsFilter).catch(
-										() => {},
-									);
-								}}
-							/>
+							<>
+								<Button
+									variant="outline"
+									onClick={() =>
+										router.push(
+											`/bulk-import?entrypoint=company&id=${companyId}&step=1`,
+										)
+									}
+								>
+									<FileUp className="h-4 w-4 mr-2" />
+									Import Waste Streams
+								</Button>
+								<CreateLocationDialog
+									companyId={companyId}
+									onSuccess={() => {
+										void loadCompany(companyId).catch(() => { });
+										void loadLocationsByCompany(companyId, locationsFilter).catch(
+											() => { },
+										);
+									}}
+								/>
+							</>
 						)}
 					</div>
 				</div>
@@ -470,11 +484,11 @@ export default function CompanyDetailPage() {
 											</Button>
 										}
 										onSuccess={() => {
-											void loadCompany(companyId).catch(() => {});
+											void loadCompany(companyId).catch(() => { });
 											void loadLocationsByCompany(
 												companyId,
 												locationsFilter,
-											).catch(() => {});
+											).catch(() => { });
 										}}
 									/>
 								)}

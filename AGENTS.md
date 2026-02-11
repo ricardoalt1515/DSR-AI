@@ -28,9 +28,13 @@ Isolation for risky changes or checks
 
 ALWAYS check the Context7 API/skills when working with any framework or library.
 
+### TDD (Critical backend only)
+Always test first, before writing any code, you must always check the tests. Before writing any code, you must always check the tests. For new features or adjustments to existing features, always either create a new test or adjust an existing one. Following existing testing patterns. Confirm the test with the user before implementing it.
+
 ## Before starting
 
 Read the relevant doc in `docs/agents/`:
+
 
 - [development-commands.md](docs/agents/development-commands.md) - all commands
 - [workflows.md](docs/agents/workflows.md) - adding endpoints, features, migrations

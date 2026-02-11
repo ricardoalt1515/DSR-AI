@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.database import get_async_db
 from app.core.fastapi_users_instance import current_active_user
 from app.main import app
+from app.models.bulk_import import ImportItem, ImportRun
 from app.models.company import Company
 from app.models.file import ProjectFile
 from app.models.intake_note import IntakeNote
@@ -292,6 +293,8 @@ async def create_project(
 async def cleanup_org(session: AsyncSession, org_id: uuid.UUID) -> None:
     """Clean up all data for an organization (use at end of tests)."""
     await session.execute(delete(TimelineEvent).where(TimelineEvent.organization_id == org_id))
+    await session.execute(delete(ImportItem).where(ImportItem.organization_id == org_id))
+    await session.execute(delete(ImportRun).where(ImportRun.organization_id == org_id))
     await session.execute(
         delete(IntakeSuggestion).where(IntakeSuggestion.organization_id == org_id)
     )

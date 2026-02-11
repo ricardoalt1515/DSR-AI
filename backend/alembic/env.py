@@ -22,6 +22,8 @@ from app.models import (  # noqa: F401
     Organization,
     OrganizationPurgeManifest,
     User,
+    ImportRun,
+    ImportItem,
     Company,
     Feedback,
     IntakeNote,

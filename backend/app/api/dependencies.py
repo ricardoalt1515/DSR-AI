@@ -559,6 +559,20 @@ async def get_current_incoming_materials_deleter(
 CurrentIncomingMaterialsDeleter = Annotated[User, Depends(get_current_incoming_materials_deleter)]
 
 
+async def get_current_bulk_import_user(
+    current_user: User = Depends(current_active_user),
+) -> User:
+    if not policies.can_manage_bulk_import(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to use bulk import",
+        )
+    return current_user
+
+
+CurrentBulkImportUser = Annotated[User, Depends(get_current_bulk_import_user)]
+
+
 async def get_active_location(
     location_id: UUID,
     org: Organization = Depends(get_organization_context),
