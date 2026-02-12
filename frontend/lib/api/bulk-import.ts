@@ -142,6 +142,18 @@ export const bulkImportAPI = {
 	},
 
 	/**
+	 * Get the latest review_ready run for an entrypoint, or null.
+	 */
+	async getPendingRun(
+		entrypointType: EntrypointType,
+		entrypointId: string,
+	): Promise<BulkImportRun | null> {
+		return apiClient.get<BulkImportRun | null>(
+			`${BASE}/runs/pending?entrypoint_type=${entrypointType}&entrypoint_id=${entrypointId}`,
+		);
+	},
+
+	/**
 	 * List items for review (paginated, filterable by status).
 	 */
 	async listItems(

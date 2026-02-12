@@ -12,12 +12,16 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react";
+import { ImportDrawer } from "@/components/features/bulk-import/import-drawer";
+import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
+import type { BulkImportRun } from "@/lib/api/bulk-import";
+import { bulkImportAPI } from "@/lib/api/bulk-import";
 import { useParams, useRouter } from "next/navigation";
 /**
  * Company detail page - Shows company info and locations
  * Combines company details and location management in one view
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
@@ -99,6 +103,51 @@ export default function CompanyDetailPage() {
 	const [editCompanyDialogOpen, setEditCompanyDialogOpen] = useState(false);
 	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
+	// Bulk import state
+	const [showImportDrawer, setShowImportDrawer] = useState(false);
+	const [activeImportRun, setActiveImportRun] = useState<BulkImportRun | null>(null);
+	const [showReviewSection, setShowReviewSection] = useState(false);
+	// Global drag & drop (#1)
+	const [droppedFile, setDroppedFile] = useState<File | null>(null);
+	const [dragActive, setDragActive] = useState(false);
+	const dragCounterRef = useRef(0);
+	const isArchived = Boolean(currentCompany?.archivedAt);
+
+	const handlePageDragEnter = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounterRef.current++;
+		if (e.dataTransfer.types.includes("Files")) {
+			setDragActive(true);
+		}
+	}, []);
+
+	const handlePageDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+	}, []);
+
+	const handlePageDragLeave = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounterRef.current--;
+		if (dragCounterRef.current === 0) {
+			setDragActive(false);
+		}
+	}, []);
+
+	const handlePageDrop = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setDragActive(false);
+		dragCounterRef.current = 0;
+		const file = e.dataTransfer.files?.[0];
+		if (file && canCreateClientData && !isArchived && !showReviewSection) {
+			setDroppedFile(file);
+			setShowImportDrawer(true);
+		}
+	}, [canCreateClientData, isArchived, showReviewSection]);
+
 	// Archive dialog states
 	const [showArchiveDialog, setShowArchiveDialog] = useState(false);
 	const [showRestoreDialog, setShowRestoreDialog] = useState(false);
@@ -106,8 +155,6 @@ export default function CompanyDetailPage() {
 	const [isArchiving, setIsArchiving] = useState(false);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [isPurging, setIsPurging] = useState(false);
-
-	const isArchived = Boolean(currentCompany?.archivedAt);
 
 	useEffect(() => {
 		if (isArchived && locationsFilter === "active") {
@@ -121,6 +168,21 @@ export default function CompanyDetailPage() {
 			void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
 		}
 	}, [companyId, loadCompany, loadLocationsByCompany, locationsFilter]);
+
+	// Auto-resume pending import on page load
+	useEffect(() => {
+		if (!companyId || !canCreateClientData || isArchived) return;
+		let cancelled = false;
+		bulkImportAPI.getPendingRun("company", companyId)
+			.then((run) => {
+				if (!cancelled && run) {
+					setActiveImportRun(run);
+					setShowReviewSection(true);
+				}
+			})
+			.catch(() => { /* silent */ });
+		return () => { cancelled = true; };
+	}, [companyId, canCreateClientData, isArchived]);
 
 	const handleConfirmDelete = async () => {
 		if (!locationToDelete) return;
@@ -215,7 +277,27 @@ export default function CompanyDetailPage() {
 	}
 
 	return (
-		<div className="container mx-auto py-8 space-y-6">
+		<div
+			className="container mx-auto py-8 space-y-6 relative"
+			onDragEnter={handlePageDragEnter}
+			onDragOver={handlePageDragOver}
+			onDragLeave={handlePageDragLeave}
+			onDrop={handlePageDrop}
+		>
+			{/* Global drag & drop overlay (#1) */}
+			{dragActive && canCreateClientData && !isArchived && !showReviewSection && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-150">
+					<div className="flex flex-col items-center gap-4 p-10 rounded-2xl border-2 border-dashed border-primary bg-primary/5">
+						<div className="p-4 rounded-full bg-primary/10">
+							<FileUp className="h-10 w-10 text-primary" />
+						</div>
+						<div className="text-center">
+							<p className="text-lg font-semibold">Drop your file to import</p>
+							<p className="text-sm text-muted-foreground mt-1">XLSX, CSV, PDF, or DOCX</p>
+						</div>
+					</div>
+				</div>
+			)}
 			{/* Breadcrumb */}
 			<Breadcrumb
 				items={[
@@ -417,6 +499,25 @@ export default function CompanyDetailPage() {
 				</CardContent>
 			</Card>
 
+			{/* Import Review Section — appears when items are ready */}
+			{showReviewSection && activeImportRun && (
+				<ImportReviewSection
+					run={activeImportRun}
+					onRunUpdated={setActiveImportRun}
+					onFinalized={() => {
+						setShowReviewSection(false);
+						setActiveImportRun(null);
+						// Reload locations to show newly created items
+						void loadCompany(companyId).catch(() => { });
+						void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
+					}}
+					onDismiss={() => {
+						setShowReviewSection(false);
+						setActiveImportRun(null);
+					}}
+				/>
+			)}
+
 			{/* Locations Section */}
 			<div className="space-y-4">
 				<div className="flex items-center justify-between flex-wrap gap-4">
@@ -433,14 +534,11 @@ export default function CompanyDetailPage() {
 							<>
 								<Button
 									variant="outline"
-									onClick={() =>
-										router.push(
-											`/bulk-import?entrypoint=company&id=${companyId}&step=1`,
-										)
-									}
+									disabled={showReviewSection}
+									onClick={() => setShowImportDrawer(true)}
 								>
 									<FileUp className="h-4 w-4 mr-2" />
-									Import Waste Streams
+									Import from Document
 								</Button>
 								<CreateLocationDialog
 									companyId={companyId}
@@ -699,6 +797,23 @@ export default function CompanyDetailPage() {
 					}}
 				/>
 			)}
+
+			{/* Import Drawer */}
+			<ImportDrawer
+				open={showImportDrawer}
+				onOpenChange={(open) => {
+					setShowImportDrawer(open);
+					if (!open) setDroppedFile(null);
+				}}
+				companyId={companyId}
+				entrypointType="company"
+				initialFile={droppedFile}
+				onReviewReady={(run) => {
+					setActiveImportRun(run);
+					setShowReviewSection(true);
+					setDroppedFile(null);
+				}}
+			/>
 		</div>
 	);
 }

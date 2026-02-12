@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import csv
 import hashlib
 import io
@@ -38,6 +39,7 @@ from app.services.bulk_import_ai_extractor import (
 )
 from app.services.s3_service import download_file_content
 from app.services.storage_delete_service import delete_storage_keys
+from app.templates.assessment_questionnaire import get_assessment_questionnaire
 
 logger = structlog.get_logger(__name__)
 
@@ -537,7 +539,9 @@ class BulkImportService:
                     detail="Target location has no company",
                 )
 
-            project_data: dict[str, object] = {}
+            project_data: dict[str, object] = {
+                "technical_sections": copy.deepcopy(get_assessment_questionnaire())
+            }
             if normalized.category and normalized.category.strip():
                 project_data["bulk_import_category"] = normalized.category.strip()
 

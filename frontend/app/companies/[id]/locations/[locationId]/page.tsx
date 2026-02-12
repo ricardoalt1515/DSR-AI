@@ -358,13 +358,11 @@ export default function LocationDetailPage() {
 							<Button
 								variant="outline"
 								onClick={() =>
-									router.push(
-										`/bulk-import?entrypoint=location&id=${locationId}&step=1`,
-									)
+									router.push(`/companies/${companyId}`)
 								}
 							>
 								<FileUp className="h-4 w-4 mr-2" />
-								Import Waste Streams
+								Import from Document
 							</Button>
 							<Button onClick={() => setWizardOpen(true)}>
 								<Plus className="h-4 w-4 mr-2" />

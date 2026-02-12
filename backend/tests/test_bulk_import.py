@@ -30,6 +30,7 @@ from app.models.user import UserRole
 from app.services.bulk_import_ai_extractor import BulkImportAIExtractor, ParsedRow
 from app.services.bulk_import_service import BulkImportService
 from app.services.storage_delete_service import StorageDeleteError, delete_storage_keys
+from app.templates.assessment_questionnaire import get_assessment_questionnaire
 from scripts.healthcheck_bulk_import_worker import _cmdline_matches_worker
 
 
@@ -281,6 +282,10 @@ async def test_project_without_category_can_accept_and_finalize(
     project_data = created_project.project_data
     assert isinstance(project_data, dict)
     assert "bulk_import_category" not in project_data
+    technical_sections = project_data.get("technical_sections")
+    assert isinstance(technical_sections, list)
+    assert len(technical_sections) == len(get_assessment_questionnaire())
+    assert len(technical_sections) > 0
 
 
 @pytest.mark.asyncio
@@ -411,6 +416,10 @@ async def test_project_with_category_persists_bulk_import_category(
     project_data = created_project.project_data
     assert isinstance(project_data, dict)
     assert project_data.get("bulk_import_category") == "paper"
+    technical_sections = project_data.get("technical_sections")
+    assert isinstance(technical_sections, list)
+    assert len(technical_sections) == len(get_assessment_questionnaire())
+    assert len(technical_sections) > 0
 
 
 @pytest.mark.asyncio

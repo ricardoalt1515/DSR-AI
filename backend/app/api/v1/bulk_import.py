@@ -125,6 +125,33 @@ async def upload_bulk_import_file(
     return BulkImportUploadResponse(run_id=run.id, status="uploaded")
 
 
+@router.get("/runs/pending", response_model=BulkImportRunResponse | None)
+async def get_pending_run(
+    entrypoint_type: Annotated[str, Query(description="company or location")],
+    entrypoint_id: Annotated[UUID, Query(description="Company or location UUID")],
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> BulkImportRunResponse | None:
+    """Return the latest review_ready run for an entrypoint, or null."""
+    from sqlalchemy import select
+
+    run = await db.scalar(
+        select(ImportRun)
+        .where(
+            ImportRun.organization_id == org.id,
+            ImportRun.entrypoint_type == entrypoint_type,
+            ImportRun.entrypoint_id == entrypoint_id,
+            ImportRun.status == "review_ready",
+        )
+        .order_by(ImportRun.created_at.desc())
+        .limit(1)
+    )
+    if not run:
+        return None
+    return BulkImportRunResponse.model_validate(run)
+
+
 @router.get("/runs/{run_id}", response_model=BulkImportRunResponse)
 async def get_bulk_import_run(
     run_id: UUID,
