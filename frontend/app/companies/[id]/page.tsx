@@ -12,10 +12,6 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react";
-import { ImportDrawer } from "@/components/features/bulk-import/import-drawer";
-import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
-import type { BulkImportRun } from "@/lib/api/bulk-import";
-import { bulkImportAPI } from "@/lib/api/bulk-import";
 import { useParams, useRouter } from "next/navigation";
 /**
  * Company detail page - Shows company info and locations
@@ -23,6 +19,9 @@ import { useParams, useRouter } from "next/navigation";
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ImportDrawer } from "@/components/features/bulk-import/import-drawer";
+import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
+import { InlineImportProgress } from "@/components/features/bulk-import/inline-import-progress";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
 import { ArchivedBanner } from "@/components/shared/archived-banner";
@@ -49,6 +48,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { BulkImportRun } from "@/lib/api/bulk-import";
+import { bulkImportAPI } from "@/lib/api/bulk-import";
 import type { ArchivedFilter } from "@/lib/api/companies";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -105,12 +106,16 @@ export default function CompanyDetailPage() {
 
 	// Bulk import state
 	const [showImportDrawer, setShowImportDrawer] = useState(false);
-	const [activeImportRun, setActiveImportRun] = useState<BulkImportRun | null>(null);
+	const [activeImportRun, setActiveImportRun] = useState<BulkImportRun | null>(
+		null,
+	);
 	const [showReviewSection, setShowReviewSection] = useState(false);
-	// Global drag & drop (#1)
-	const [droppedFile, setDroppedFile] = useState<File | null>(null);
+	// Global drag & drop
 	const [dragActive, setDragActive] = useState(false);
 	const dragCounterRef = useRef(0);
+	// Inline progress (drag & drop flow — no sidebar)
+	const [inlineRunId, setInlineRunId] = useState<string | null>(null);
+	const [inlineFilename, setInlineFilename] = useState<string | null>(null);
 	const isArchived = Boolean(currentCompany?.archivedAt);
 
 	const handlePageDragEnter = useCallback((e: React.DragEvent) => {
@@ -136,17 +141,38 @@ export default function CompanyDetailPage() {
 		}
 	}, []);
 
-	const handlePageDrop = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setDragActive(false);
-		dragCounterRef.current = 0;
-		const file = e.dataTransfer.files?.[0];
-		if (file && canCreateClientData && !isArchived && !showReviewSection) {
-			setDroppedFile(file);
-			setShowImportDrawer(true);
-		}
-	}, [canCreateClientData, isArchived, showReviewSection]);
+	const handlePageDrop = useCallback(
+		async (e: React.DragEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setDragActive(false);
+			dragCounterRef.current = 0;
+			const file = e.dataTransfer.files?.[0];
+			if (
+				file &&
+				canCreateClientData &&
+				!isArchived &&
+				!showReviewSection &&
+				!inlineRunId
+			) {
+				try {
+					setInlineFilename(file.name);
+					const result = await bulkImportAPI.upload(file, "company", companyId);
+					setInlineRunId(result.runId);
+				} catch (error) {
+					toast.error(error instanceof Error ? error.message : "Upload failed");
+					setInlineFilename(null);
+				}
+			}
+		},
+		[
+			canCreateClientData,
+			isArchived,
+			showReviewSection,
+			inlineRunId,
+			companyId,
+		],
+	);
 
 	// Archive dialog states
 	const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -156,6 +182,13 @@ export default function CompanyDetailPage() {
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [isPurging, setIsPurging] = useState(false);
 
+	const reloadCompanyData = useCallback(async () => {
+		await Promise.all([
+			loadCompany(companyId),
+			loadLocationsByCompany(companyId, locationsFilter),
+		]);
+	}, [companyId, loadCompany, loadLocationsByCompany, locationsFilter]);
+
 	useEffect(() => {
 		if (isArchived && locationsFilter === "active") {
 			setLocationsFilter("archived");
@@ -164,24 +197,28 @@ export default function CompanyDetailPage() {
 
 	useEffect(() => {
 		if (companyId) {
-			void loadCompany(companyId).catch(() => { });
-			void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
+			void reloadCompanyData().catch(() => {});
 		}
-	}, [companyId, loadCompany, loadLocationsByCompany, locationsFilter]);
+	}, [companyId, reloadCompanyData]);
 
 	// Auto-resume pending import on page load
 	useEffect(() => {
 		if (!companyId || !canCreateClientData || isArchived) return;
 		let cancelled = false;
-		bulkImportAPI.getPendingRun("company", companyId)
+		bulkImportAPI
+			.getPendingRun("company", companyId)
 			.then((run) => {
 				if (!cancelled && run) {
 					setActiveImportRun(run);
 					setShowReviewSection(true);
 				}
 			})
-			.catch(() => { /* silent */ });
-		return () => { cancelled = true; };
+			.catch(() => {
+				/* silent */
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, [companyId, canCreateClientData, isArchived]);
 
 	const handleConfirmDelete = async () => {
@@ -198,8 +235,7 @@ export default function CompanyDetailPage() {
 			setDeleting(false);
 
 			// Reload data in background (non-blocking)
-			void loadCompany(companyId).catch(() => { });
-			void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
+			void reloadCompanyData().catch(() => {});
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
@@ -277,27 +313,38 @@ export default function CompanyDetailPage() {
 	}
 
 	return (
-		<div
+		/* biome-ignore lint/a11y/noStaticElementInteractions: page-level drag-and-drop target */
+		<section
 			className="container mx-auto py-8 space-y-6 relative"
 			onDragEnter={handlePageDragEnter}
 			onDragOver={handlePageDragOver}
 			onDragLeave={handlePageDragLeave}
 			onDrop={handlePageDrop}
 		>
-			{/* Global drag & drop overlay (#1) */}
-			{dragActive && canCreateClientData && !isArchived && !showReviewSection && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-150">
-					<div className="flex flex-col items-center gap-4 p-10 rounded-2xl border-2 border-dashed border-primary bg-primary/5">
-						<div className="p-4 rounded-full bg-primary/10">
-							<FileUp className="h-10 w-10 text-primary" />
-						</div>
-						<div className="text-center">
-							<p className="text-lg font-semibold">Drop your file to import</p>
-							<p className="text-sm text-muted-foreground mt-1">XLSX, CSV, PDF, or DOCX</p>
+			{/* Global drag & drop overlay — glassmorphic */}
+			{dragActive &&
+				canCreateClientData &&
+				!isArchived &&
+				!showReviewSection &&
+				!inlineRunId && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-md animate-in fade-in duration-200">
+						<div className="flex flex-col items-center gap-5 p-12 rounded-2xl bg-card/80 backdrop-blur-xl border border-primary/20 shadow-2xl animate-in zoom-in-95 duration-200">
+							<div className="p-5 rounded-full bg-primary/10 shadow-[0_0_40px_hsl(var(--primary)/0.15)]">
+								<FileUp className="h-10 w-10 text-primary animate-bounce" />
+							</div>
+							<div className="text-center space-y-2">
+								<p className="text-xl font-semibold tracking-tight">
+									Drop to import
+								</p>
+								<div className="flex gap-2 justify-center">
+									<Badge variant="secondary">.xlsx</Badge>
+									<Badge variant="secondary">.pdf</Badge>
+									<Badge variant="secondary">.docx</Badge>
+								</div>
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
+				)}
 			{/* Breadcrumb */}
 			<Breadcrumb
 				items={[
@@ -332,10 +379,7 @@ export default function CompanyDetailPage() {
 							onClick={() => {
 								clearCompanyError();
 								clearLocationsError();
-								void loadCompany(companyId).catch(() => { });
-								void loadLocationsByCompany(companyId, locationsFilter).catch(
-									() => { },
-								);
+								void reloadCompanyData().catch(() => {});
 							}}
 						>
 							Retry
@@ -499,6 +543,32 @@ export default function CompanyDetailPage() {
 				</CardContent>
 			</Card>
 
+			{/* Inline import progress (drag & drop flow) */}
+			{inlineRunId && inlineFilename && !showReviewSection && (
+				<InlineImportProgress
+					runId={inlineRunId}
+					filename={inlineFilename}
+					onComplete={(run) => {
+						setInlineRunId(null);
+						setInlineFilename(null);
+						setActiveImportRun(run);
+						setShowReviewSection(true);
+					}}
+					onFailed={(error) => {
+						toast.error("Import failed", { description: error });
+					}}
+					onNoData={() => {
+						toast.info("No data found in your file. Try another one.");
+						setInlineRunId(null);
+						setInlineFilename(null);
+					}}
+					onDismiss={() => {
+						setInlineRunId(null);
+						setInlineFilename(null);
+					}}
+				/>
+			)}
+
 			{/* Import Review Section — appears when items are ready */}
 			{showReviewSection && activeImportRun && (
 				<ImportReviewSection
@@ -508,8 +578,7 @@ export default function CompanyDetailPage() {
 						setShowReviewSection(false);
 						setActiveImportRun(null);
 						// Reload locations to show newly created items
-						void loadCompany(companyId).catch(() => { });
-						void loadLocationsByCompany(companyId, locationsFilter).catch(() => { });
+						void reloadCompanyData().catch(() => {});
 					}}
 					onDismiss={() => {
 						setShowReviewSection(false);
@@ -534,7 +603,7 @@ export default function CompanyDetailPage() {
 							<>
 								<Button
 									variant="outline"
-									disabled={showReviewSection}
+									disabled={showReviewSection || !!inlineRunId}
 									onClick={() => setShowImportDrawer(true)}
 								>
 									<FileUp className="h-4 w-4 mr-2" />
@@ -543,10 +612,7 @@ export default function CompanyDetailPage() {
 								<CreateLocationDialog
 									companyId={companyId}
 									onSuccess={() => {
-										void loadCompany(companyId).catch(() => { });
-										void loadLocationsByCompany(companyId, locationsFilter).catch(
-											() => { },
-										);
+										void reloadCompanyData().catch(() => {});
 									}}
 								/>
 							</>
@@ -582,11 +648,7 @@ export default function CompanyDetailPage() {
 											</Button>
 										}
 										onSuccess={() => {
-											void loadCompany(companyId).catch(() => { });
-											void loadLocationsByCompany(
-												companyId,
-												locationsFilter,
-											).catch(() => { });
+											void reloadCompanyData().catch(() => {});
 										}}
 									/>
 								)}
@@ -798,22 +860,17 @@ export default function CompanyDetailPage() {
 				/>
 			)}
 
-			{/* Import Drawer */}
+			{/* Import Drawer (button-triggered flow only) */}
 			<ImportDrawer
 				open={showImportDrawer}
-				onOpenChange={(open) => {
-					setShowImportDrawer(open);
-					if (!open) setDroppedFile(null);
-				}}
+				onOpenChange={setShowImportDrawer}
 				companyId={companyId}
 				entrypointType="company"
-				initialFile={droppedFile}
 				onReviewReady={(run) => {
 					setActiveImportRun(run);
 					setShowReviewSection(true);
-					setDroppedFile(null);
 				}}
 			/>
-		</div>
+		</section>
 	);
 }

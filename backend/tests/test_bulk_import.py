@@ -27,7 +27,11 @@ from app.models.bulk_import_ai_output import (
 from app.models.location import Location
 from app.models.project import Project
 from app.models.user import UserRole
-from app.services.bulk_import_ai_extractor import BulkImportAIExtractor, ParsedRow
+from app.services.bulk_import_ai_extractor import (
+    BulkImportAIExtractor,
+    BulkImportAIExtractorError,
+    ParsedRow,
+)
 from app.services.bulk_import_service import BulkImportService
 from app.services.storage_delete_service import StorageDeleteError, delete_storage_keys
 from app.templates.assessment_questionnaire import get_assessment_questionnaire
@@ -973,6 +977,165 @@ async def test_superuser_can_finalize_bulk_import(
 
 
 @pytest.mark.asyncio
+async def test_pending_run_rejects_invalid_entrypoint_type(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import G6", "org-import-g6")
+    user = await create_user(
+        db_session,
+        email=f"import-g6-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co G6")
+
+    set_current_user(user)
+    response = await client.get(
+        f"/api/v1/bulk-import/runs/pending?entrypoint_type=site&entrypoint_id={company.id}"
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_pending_run_does_not_leak_cross_org(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    org_a = await create_org(db_session, "Org Import G7A", "org-import-g7a")
+    org_b = await create_org(db_session, "Org Import G7B", "org-import-g7b")
+    user_a = await create_user(
+        db_session,
+        email=f"import-g7a-{uid}@example.com",
+        org_id=org_a.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    user_b = await create_user(
+        db_session,
+        email=f"import-g7b-{uid}@example.com",
+        org_id=org_b.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company_b = await create_company(db_session, org_id=org_b.id, name="Import Co G7B")
+    await _create_run(
+        db_session,
+        org_id=org_b.id,
+        user_id=user_b.id,
+        entrypoint_type="company",
+        entrypoint_id=company_b.id,
+        status="review_ready",
+    )
+
+    set_current_user(user_a)
+    response = await client.get(
+        f"/api/v1/bulk-import/runs/pending?entrypoint_type=company&entrypoint_id={company_b.id}"
+    )
+    assert response.status_code == 200
+    assert response.json() is None
+
+
+@pytest.mark.asyncio
+async def test_pending_run_returns_only_review_ready(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import G8", "org-import-g8")
+    user = await create_user(
+        db_session,
+        email=f"import-g8-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co G8")
+
+    await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="uploaded",
+    )
+    expected_run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="review_ready",
+    )
+    await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="completed",
+    )
+
+    set_current_user(user)
+    response = await client.get(
+        f"/api/v1/bulk-import/runs/pending?entrypoint_type=company&entrypoint_id={company.id}"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload is not None
+    assert payload["id"] == str(expected_run.id)
+    assert payload["status"] == "review_ready"
+
+
+@pytest.mark.asyncio
+async def test_pending_run_returns_latest_review_ready(
+    client: AsyncClient, db_session, set_current_user
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import G9", "org-import-g9")
+    user = await create_user(
+        db_session,
+        email=f"import-g9-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co G9")
+
+    older_run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="review_ready",
+    )
+    latest_run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="review_ready",
+    )
+
+    older_run.created_at = datetime.now(UTC) - timedelta(minutes=10)
+    latest_run.created_at = datetime.now(UTC)
+    await db_session.commit()
+
+    set_current_user(user)
+    response = await client.get(
+        f"/api/v1/bulk-import/runs/pending?entrypoint_type=company&entrypoint_id={company.id}"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload is not None
+    assert payload["id"] == str(latest_run.id)
+    assert payload["status"] == "review_ready"
+
+
+@pytest.mark.asyncio
 async def test_cross_org_tampering_blocked(client: AsyncClient, db_session, set_current_user):
     uid = uuid.uuid4().hex[:8]
     org_a = await create_org(db_session, "Org Import H1", "org-import-h1")
@@ -1771,6 +1934,20 @@ def test_xlsx_matrix_collapse_by_concept_ignores_empty_or_distinct_category() ->
     assert project_rows[0].project_data["category"] == "paper"
 
 
+def test_media_type_mapping_supports_docx() -> None:
+    extractor = BulkImportAIExtractor()
+    assert (
+        extractor._media_type_for_extension(".docx")
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_media_type_mapping_rejects_legacy_doc() -> None:
+    extractor = BulkImportAIExtractor()
+    with pytest.raises(BulkImportAIExtractorError, match="unsupported_file_type"):
+        extractor._media_type_for_extension(".doc")
+
+
 @pytest.mark.asyncio
 async def test_scanned_pdf_happy_path(db_session, monkeypatch):
     uid = uuid.uuid4().hex[:8]
@@ -2142,6 +2319,154 @@ async def test_upload_rejects_legacy_xls(client: AsyncClient, db_session, set_cu
     )
     assert response.status_code == 400
     assert "legacy .xls" in response.json()["error"]["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_upload_accepts_docx(client: AsyncClient, db_session, set_current_user, monkeypatch):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import K2", "org-import-k2")
+    user = await create_user(
+        db_session,
+        email=f"import-k2-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co K2")
+
+    async def _noop_upload(_stream, _storage_key: str, _content_type: str | None):
+        return None
+
+    monkeypatch.setattr(bulk_import_api, "upload_file_to_s3", _noop_upload)
+
+    set_current_user(user)
+    response = await client.post(
+        "/api/v1/bulk-import/upload",
+        data={
+            "entrypoint_type": "company",
+            "entrypoint_id": str(company.id),
+        },
+        files={
+            "file": (
+                "import.docx",
+                BytesIO(b"fake-docx"),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_legacy_doc(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import K3", "org-import-k3")
+    user = await create_user(
+        db_session,
+        email=f"import-k3-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co K3")
+
+    set_current_user(user)
+    response = await client.post(
+        "/api/v1/bulk-import/upload",
+        data={
+            "entrypoint_type": "company",
+            "entrypoint_id": str(company.id),
+        },
+        files={
+            "file": (
+                "legacy.doc",
+                BytesIO(b"fake-doc"),
+                "application/msword",
+            )
+        },
+    )
+    assert response.status_code == 400
+    assert "unsupported file type" in response.json()["error"]["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_csv(client: AsyncClient, db_session, set_current_user):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import K4", "org-import-k4")
+    user = await create_user(
+        db_session,
+        email=f"import-k4-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co K4")
+
+    set_current_user(user)
+    response = await client.post(
+        "/api/v1/bulk-import/upload",
+        data={
+            "entrypoint_type": "company",
+            "entrypoint_id": str(company.id),
+        },
+        files={
+            "file": (
+                "legacy.csv",
+                BytesIO(b"name,city\nA,Monterrey\n"),
+                "text/csv",
+            )
+        },
+    )
+    assert response.status_code == 400
+    assert "unsupported file type" in response.json()["error"]["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_process_run_allows_docx_extension(db_session, monkeypatch):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import K5", "org-import-k5")
+    user = await create_user(
+        db_session,
+        email=f"import-k5-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co K5")
+    run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="processing",
+    )
+    run.source_filename = "input.docx"
+    run.source_file_path = "imports/input.docx"
+    await db_session.commit()
+
+    import app.services.bulk_import_service as bulk_import_module
+
+    async def _fake_download(_: str) -> bytes:
+        return b"fake-docx"
+
+    async def _fake_extract(*, file_bytes: bytes, filename: str) -> list[ParsedRow]:
+        assert file_bytes == b"fake-docx"
+        assert filename.endswith(".docx")
+        return []
+
+    monkeypatch.setattr(bulk_import_module, "download_file_content", _fake_download)
+    monkeypatch.setattr(
+        bulk_import_module.bulk_import_ai_extractor,
+        "extract_parsed_rows",
+        _fake_extract,
+    )
+
+    service = BulkImportService()
+    await service.process_run(db_session, run)
+    await db_session.refresh(run)
+
+    assert run.status == "no_data"
 
 
 @pytest.mark.asyncio

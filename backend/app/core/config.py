@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     # File Upload
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB
     ALLOWED_EXTENSIONS: str = ".pdf,.docx,.xlsx,.xls,.csv,.jpg,.jpeg,.png,.txt"
-    BULK_IMPORT_ALLOWED_EXTENSIONS: str = ".pdf,.xlsx"
+    BULK_IMPORT_ALLOWED_EXTENSIONS: str = ".pdf,.xlsx,.docx"
 
     @property
     def allowed_extensions_list(self) -> list[str]:

@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, TypeVar
+from typing import Annotated, Literal, TypeVar
 from uuid import UUID
 
 import structlog
@@ -127,7 +127,9 @@ async def upload_bulk_import_file(
 
 @router.get("/runs/pending", response_model=BulkImportRunResponse | None)
 async def get_pending_run(
-    entrypoint_type: Annotated[str, Query(description="company or location")],
+    entrypoint_type: Annotated[
+        Literal["company", "location"], Query(description="company or location")
+    ],
     entrypoint_id: Annotated[UUID, Query(description="Company or location UUID")],
     current_user: CurrentBulkImportUser,
     org: OrganizationContext,

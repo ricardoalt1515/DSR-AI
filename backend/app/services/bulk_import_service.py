@@ -25,6 +25,7 @@ from PyPDF2 import PdfReader
 from sqlalchemy import case, delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.bulk_import import ImportItem, ImportRun
 from app.models.bulk_import_output import NormalizedLocationDataV1, NormalizedProjectDataV1
 from app.models.company import Company
@@ -59,6 +60,11 @@ MAX_TEXT_LEN = 4000
 PARSER_WORKER_NAME = "bulk-import-parse-worker"
 
 RETENTION_DAYS_UNFINALIZED = 90
+
+ALLOWED_BULK_IMPORT_EXTENSIONS = {
+    (ext if ext.startswith(".") else f".{ext}").casefold()
+    for ext in settings.bulk_import_allowed_extensions_list
+}
 
 
 class ParserLimitError(ValueError):
@@ -353,7 +359,7 @@ class BulkImportService:
 
             await self._persist_progress_checkpoint(db, run, "identifying_locations")
             extension = Path(run.source_filename).suffix.casefold()
-            if extension not in {".pdf", ".xlsx"}:
+            if extension not in ALLOWED_BULK_IMPORT_EXTENSIONS:
                 raise ValueError("unsupported_file_type")
             if extension == ".xlsx":
                 self._assert_xlsx_parser_available()

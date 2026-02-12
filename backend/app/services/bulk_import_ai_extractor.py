@@ -1,4 +1,4 @@
-"""AI-first extractor adapter for bulk import (PDF/XLSX)."""
+"""AI-first extractor adapter for bulk import (PDF/XLSX/DOCX)."""
 
 from __future__ import annotations
 
@@ -84,6 +84,8 @@ class BulkImportAIExtractor:
             return "application/pdf"
         if extension == ".xlsx":
             return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        if extension == ".docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         raise BulkImportAIExtractorError("unsupported_file_type")
 
     def _to_parsed_rows(self, output: BulkImportAIOutput) -> list[ParsedRow]:

@@ -10,7 +10,7 @@
  */
 
 import { CheckCircle2, FileUp, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { FileDropZone } from "./file-drop-zone";
 import { ProcessingAnimation } from "./processing-animation";
@@ -34,8 +34,6 @@ interface ImportDrawerProps {
     entrypointType: EntrypointType;
     /** Called when items are ready — passes the run so the parent can show inline review */
     onReviewReady: (run: BulkImportRun) => void;
-    /** Optional file to pre-load (from global drag & drop) */
-    initialFile?: File | null;
 }
 
 export function ImportDrawer({
@@ -44,7 +42,6 @@ export function ImportDrawer({
     companyId,
     entrypointType,
     onReviewReady,
-    initialFile,
 }: ImportDrawerProps) {
     const [step, setStep] = useState<DrawerStep>("upload");
     const [runId, setRunId] = useState<string | null>(null);
@@ -75,12 +72,7 @@ export function ImportDrawer({
         [entrypointType, companyId],
     );
 
-    // (#1) Auto-upload when initialFile is provided
-    useEffect(() => {
-        if (initialFile && open && step === "upload" && !uploading) {
-            void handleFileSelected(initialFile);
-        }
-    }, [initialFile, open, step, uploading, handleFileSelected]);
+
 
     const handleProcessingComplete = useCallback((run: BulkImportRun) => {
         setCompletedRun(run);
