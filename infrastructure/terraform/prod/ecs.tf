@@ -150,6 +150,66 @@ resource "aws_ecs_task_definition" "intake_worker" {
   }
 }
 
+# ECS Task Definition (Bulk Import Worker)
+resource "aws_ecs_task_definition" "bulk_import_worker" {
+  family                   = "${local.name_prefix}-bulk-import-worker"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_worker_cpu
+  memory                   = var.ecs_worker_memory
+
+  # IAM roles
+  execution_role_arn = aws_iam_role.ecs_task_execution.arn
+  task_role_arn      = aws_iam_role.ecs_task.arn
+
+  # Runtime platform (explicit for clarity and future ARM64/Graviton migration)
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "X86_64"
+  }
+
+  # Container definition
+  container_definitions = jsonencode([
+    {
+      name      = "bulk-import-worker"
+      image     = var.container_image
+      essential = true
+
+      # Environment variables (non-sensitive)
+      environment = local.container_environment
+
+      # Secrets (from Secrets Manager)
+      secrets = local.container_secrets
+
+      # Command override
+      command = ["python", "/app/scripts/bulk_import_worker.py"]
+
+      # Logging
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "bulk-import-worker"
+        }
+      }
+
+      # Health check (ensure worker process is running)
+      healthCheck = {
+        command     = ["CMD", "python", "/app/scripts/healthcheck_bulk_import_worker.py"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 30
+      }
+    }
+  ])
+
+  tags = {
+    Name = "${local.name_prefix}-bulk-import-worker-task"
+  }
+}
+
 # ECS Service
 resource "aws_ecs_service" "backend" {
   name                   = "${local.name_prefix}-backend"
@@ -240,6 +300,44 @@ resource "aws_ecs_service" "intake_worker" {
 
   tags = {
     Name = "${local.name_prefix}-intake-worker-service"
+  }
+
+}
+
+# ECS Service (Bulk Import Worker)
+resource "aws_ecs_service" "bulk_import_worker" {
+  name                   = "${local.name_prefix}-bulk-import-worker"
+  cluster                = aws_ecs_cluster.main.id
+  task_definition        = aws_ecs_task_definition.bulk_import_worker.arn
+  desired_count          = var.ecs_bulk_import_worker_desired_count
+  launch_type            = "FARGATE"
+  enable_execute_command = true
+
+  # Platform version (latest)
+  platform_version = "LATEST"
+
+  # Network configuration
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = false # Private subnets
+  }
+
+  # Deployment configuration
+  deployment_maximum_percent         = 200 # Allow double capacity during deploy
+  deployment_minimum_healthy_percent = 0   # Allow replacement when desired_count = 1
+
+  # Circuit breaker (auto-rollback on failure)
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  # Tags propagation
+  propagate_tags = "SERVICE"
+
+  tags = {
+    Name = "${local.name_prefix}-bulk-import-worker-service"
   }
 
 }

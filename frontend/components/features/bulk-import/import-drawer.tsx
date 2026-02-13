@@ -30,7 +30,7 @@ type DrawerStep = "upload" | "processing" | "done" | "error";
 interface ImportDrawerProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    companyId: string;
+    entrypointId: string;
     entrypointType: EntrypointType;
     /** Called when items are ready — passes the run so the parent can show inline review */
     onReviewReady: (run: BulkImportRun) => void;
@@ -39,7 +39,7 @@ interface ImportDrawerProps {
 export function ImportDrawer({
     open,
     onOpenChange,
-    companyId,
+    entrypointId,
     entrypointType,
     onReviewReady,
 }: ImportDrawerProps) {
@@ -59,7 +59,11 @@ export function ImportDrawer({
         async (file: File) => {
             setUploading(true);
             try {
-                const result = await bulkImportAPI.upload(file, entrypointType, companyId);
+                const result = await bulkImportAPI.upload(
+                    file,
+                    entrypointType,
+                    entrypointId,
+                );
                 setRunId(result.runId);
                 setStep("processing");
                 toast.success("File uploaded", { description: "AI is processing your file..." });
@@ -69,7 +73,7 @@ export function ImportDrawer({
                 setUploading(false);
             }
         },
-        [entrypointType, companyId],
+        [entrypointType, entrypointId],
     );
 
 

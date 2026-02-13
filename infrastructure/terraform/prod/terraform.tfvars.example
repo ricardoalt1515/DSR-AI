@@ -34,6 +34,7 @@ ecs_worker_cpu    = 512   # 0.5 vCPU (worker cheaper than backend)
 ecs_worker_memory = 1024  # 1 GB (worker cheaper than backend)
 ecs_desired_count = 2
 ecs_intake_worker_desired_count = 0
+ecs_bulk_import_worker_desired_count = 1
 ecs_min_capacity  = 1
 ecs_max_capacity  = 3
 

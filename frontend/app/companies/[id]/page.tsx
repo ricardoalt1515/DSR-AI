@@ -864,7 +864,7 @@ export default function CompanyDetailPage() {
 			<ImportDrawer
 				open={showImportDrawer}
 				onOpenChange={setShowImportDrawer}
-				companyId={companyId}
+				entrypointId={companyId}
 				entrypointType="company"
 				onReviewReady={(run) => {
 					setActiveImportRun(run);

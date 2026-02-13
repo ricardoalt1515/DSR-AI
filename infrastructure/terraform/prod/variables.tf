@@ -112,6 +112,12 @@ variable "ecs_intake_worker_desired_count" {
   default     = 1
 }
 
+variable "ecs_bulk_import_worker_desired_count" {
+  description = "Desired number of bulk import worker tasks"
+  type        = number
+  default     = 1
+}
+
 variable "ecs_min_capacity" {
   description = "Minimum number of ECS tasks (auto-scaling)"
   type        = number

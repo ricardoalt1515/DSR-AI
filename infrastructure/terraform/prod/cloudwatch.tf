@@ -89,6 +89,27 @@ resource "aws_cloudwatch_metric_alarm" "ecs_intake_worker_down" {
   }
 }
 
+# Bulk import worker down (RunningTaskCount < 1)
+resource "aws_cloudwatch_metric_alarm" "ecs_bulk_import_worker_down" {
+  count               = var.environment == "prod" && var.ecs_bulk_import_worker_desired_count > 0 ? 1 : 0
+  alarm_name          = "${local.name_prefix}-bulk-import-worker-down"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "RunningTaskCount"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 1
+  alarm_description   = "Bulk import worker RunningTaskCount < 1 for 10 minutes"
+  alarm_actions       = local.alarm_actions
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.bulk_import_worker.name
+  }
+}
+
 # -----------------------------------------------------------------------------
 # RDS Alarms
 # -----------------------------------------------------------------------------

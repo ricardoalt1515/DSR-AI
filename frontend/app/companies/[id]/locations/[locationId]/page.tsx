@@ -15,8 +15,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 /**
  * Location detail page - Shows location info and projects
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ImportDrawer } from "@/components/features/bulk-import/import-drawer";
+import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
+import { InlineImportProgress } from "@/components/features/bulk-import/inline-import-progress";
 
 const PremiumProjectWizard = dynamic(
 	() =>
@@ -38,6 +41,8 @@ import { ConfirmArchiveDialog } from "@/components/ui/confirm-archive-dialog";
 import { ConfirmPurgeDialog } from "@/components/ui/confirm-purge-dialog";
 import { ConfirmRestoreDialog } from "@/components/ui/confirm-restore-dialog";
 import { Separator } from "@/components/ui/separator";
+import type { BulkImportRun } from "@/lib/api/bulk-import";
+import { bulkImportAPI } from "@/lib/api/bulk-import";
 import type { ArchivedFilter } from "@/lib/api/companies";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -79,11 +84,22 @@ export default function LocationDetailPage() {
 	const [projectsFilter, setProjectsFilter] =
 		useState<ArchivedFilter>("active");
 
+	// Bulk import state
+	const [showImportDrawer, setShowImportDrawer] = useState(false);
+	const [activeImportRun, setActiveImportRun] = useState<BulkImportRun | null>(
+		null,
+	);
+	const [showReviewSection, setShowReviewSection] = useState(false);
+	const [dragActive, setDragActive] = useState(false);
+	const dragCounterRef = useRef(0);
+	const [inlineRunId, setInlineRunId] = useState<string | null>(null);
+	const [inlineFilename, setInlineFilename] = useState<string | null>(null);
+
 	const isArchived = Boolean(currentLocation?.archivedAt);
 
 	useEffect(() => {
 		if (locationId) {
-			void loadLocation(locationId, projectsFilter).catch(() => { });
+			void loadLocation(locationId, projectsFilter).catch(() => {});
 		}
 	}, [locationId, loadLocation, projectsFilter]);
 
@@ -106,6 +122,92 @@ export default function LocationDetailPage() {
 			router.replace(`/companies/${companyId}/locations/${locationId}`);
 		}
 	}, [searchParams, companyId, locationId, router]);
+
+	// Auto-resume pending import
+	useEffect(() => {
+		if (!locationId || !canCreateClientData || isArchived) return;
+		let cancelled = false;
+		bulkImportAPI
+			.getPendingRun("location", locationId)
+			.then((run) => {
+				if (!cancelled && run) {
+					setActiveImportRun(run);
+					setShowReviewSection(true);
+				}
+			})
+			.catch(() => {
+				/* silent */
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [locationId, canCreateClientData, isArchived]);
+
+	// Drag & drop handlers
+	const handleDragEnter = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounterRef.current += 1;
+		if (dragCounterRef.current === 1) setDragActive(true);
+	}, []);
+
+	const handleDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+	}, []);
+
+	const handleDragLeave = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounterRef.current -= 1;
+		if (dragCounterRef.current === 0) setDragActive(false);
+	}, []);
+
+	const handleDrop = useCallback(
+		async (e: React.DragEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setDragActive(false);
+			dragCounterRef.current = 0;
+			const file = e.dataTransfer.files?.[0];
+			if (
+				file &&
+				canCreateClientData &&
+				!isArchived &&
+				!showReviewSection &&
+				!inlineRunId
+			) {
+				try {
+					setInlineFilename(file.name);
+					const result = await bulkImportAPI.upload(
+						file,
+						"location",
+						locationId,
+					);
+					setInlineRunId(result.runId);
+				} catch (error) {
+					toast.error(error instanceof Error ? error.message : "Upload failed");
+					setInlineFilename(null);
+				}
+			}
+		},
+		[
+			canCreateClientData,
+			isArchived,
+			showReviewSection,
+			inlineRunId,
+			locationId,
+		],
+	);
+
+	const reloadLocationData = useCallback(async () => {
+		await loadLocation(locationId, projectsFilter);
+	}, [locationId, projectsFilter, loadLocation]);
+
+	const locationContext = useMemo(() => {
+		if (!currentLocation) return undefined;
+		return { id: currentLocation.id, name: currentLocation.name };
+	}, [currentLocation]);
 
 	const handleArchive = async () => {
 		setIsArchiving(true);
@@ -178,7 +280,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId, projectsFilter).catch(() => { });
+								void loadLocation(locationId, projectsFilter).catch(() => {});
 							}}
 						>
 							Retry
@@ -198,7 +300,38 @@ export default function LocationDetailPage() {
 	}
 
 	return (
-		<div className="container mx-auto py-8 space-y-6">
+		/* biome-ignore lint/a11y/noStaticElementInteractions: page-level drag-and-drop target */
+		<div
+			className="container mx-auto py-8 space-y-6 relative"
+			onDragEnter={handleDragEnter}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+		>
+			{/* Glassmorphic drag overlay */}
+			{dragActive &&
+				canCreateClientData &&
+				!isArchived &&
+				!showReviewSection &&
+				!inlineRunId && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-md animate-in fade-in duration-200">
+						<div className="flex flex-col items-center gap-5 p-12 rounded-2xl bg-card/80 backdrop-blur-xl border border-primary/20 shadow-2xl animate-in zoom-in-95 duration-200">
+							<div className="p-5 rounded-full bg-primary/10 shadow-[0_0_40px_hsl(var(--primary)/0.15)]">
+								<FileUp className="h-10 w-10 text-primary animate-bounce" />
+							</div>
+							<div className="text-center space-y-2">
+								<p className="text-xl font-semibold tracking-tight">
+									Drop to import
+								</p>
+								<div className="flex gap-2 justify-center">
+									<Badge variant="secondary">.xlsx</Badge>
+									<Badge variant="secondary">.pdf</Badge>
+									<Badge variant="secondary">.docx</Badge>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
 			{/* Breadcrumb */}
 			<Breadcrumb
 				items={[
@@ -235,7 +368,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId, projectsFilter).catch(() => { });
+								void loadLocation(locationId, projectsFilter).catch(() => {});
 							}}
 						>
 							Retry
@@ -346,7 +479,6 @@ export default function LocationDetailPage() {
 				onMaterialsUpdated={() => loadLocation(locationId, projectsFilter)}
 			/>
 
-			{/* Projects Section */}
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h2 className="text-xl font-semibold flex items-center gap-2">
@@ -357,9 +489,8 @@ export default function LocationDetailPage() {
 						<div className="flex items-center gap-2">
 							<Button
 								variant="outline"
-								onClick={() =>
-									router.push(`/companies/${companyId}`)
-								}
+								disabled={showReviewSection || !!inlineRunId}
+								onClick={() => setShowImportDrawer(true)}
 							>
 								<FileUp className="h-4 w-4 mr-2" />
 								Import from Document
@@ -445,6 +576,51 @@ export default function LocationDetailPage() {
 				loading={isPurging}
 			/>
 
+			{/* Inline import progress (drag & drop flow) */}
+			{inlineRunId && inlineFilename && !showReviewSection && (
+				<InlineImportProgress
+					runId={inlineRunId}
+					filename={inlineFilename}
+					onComplete={(run) => {
+						setInlineRunId(null);
+						setInlineFilename(null);
+						setActiveImportRun(run);
+						setShowReviewSection(true);
+					}}
+					onFailed={(error) => {
+						toast.error("Import failed", { description: error });
+					}}
+					onNoData={() => {
+						toast.info("No data found in your file. Try another one.");
+						setInlineRunId(null);
+						setInlineFilename(null);
+					}}
+					onDismiss={() => {
+						setInlineRunId(null);
+						setInlineFilename(null);
+					}}
+				/>
+			)}
+
+			{/* Import Review Section */}
+			{showReviewSection && activeImportRun && (
+				<ImportReviewSection
+					run={activeImportRun}
+					reviewMode="location"
+					locationContext={locationContext}
+					onRunUpdated={setActiveImportRun}
+					onFinalized={() => {
+						setShowReviewSection(false);
+						setActiveImportRun(null);
+						void reloadLocationData().catch(() => {});
+					}}
+					onDismiss={() => {
+						setShowReviewSection(false);
+						setActiveImportRun(null);
+					}}
+				/>
+			)}
+
 			{/* Contextual Wizard */}
 			{!isArchived && (
 				<PremiumProjectWizard
@@ -453,17 +629,27 @@ export default function LocationDetailPage() {
 					defaultCompanyId={companyId}
 					defaultLocationId={locationId}
 					onProjectCreated={async (projectId) => {
-						// Reload location to show new assessment
 						try {
 							await loadLocation(locationId, projectsFilter);
 						} catch {
 							// Location store already captures error state for the UI
 						}
-						// Then navigate to project
 						router.push(`/project/${projectId}`);
 					}}
 				/>
 			)}
+
+			{/* Import Drawer (button-triggered flow) */}
+			<ImportDrawer
+				open={showImportDrawer}
+				onOpenChange={setShowImportDrawer}
+				entrypointId={locationId}
+				entrypointType="location"
+				onReviewReady={(run) => {
+					setActiveImportRun(run);
+					setShowReviewSection(true);
+				}}
+			/>
 		</div>
 	);
 }

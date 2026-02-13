@@ -47,6 +47,11 @@ output "ecs_intake_worker_service_name" {
   value       = aws_ecs_service.intake_worker.name
 }
 
+output "ecs_bulk_import_worker_service_name" {
+  description = "ECS bulk import worker service name"
+  value       = aws_ecs_service.bulk_import_worker.name
+}
+
 output "ecs_task_definition_family" {
   description = "ECS task definition family"
   value       = aws_ecs_task_definition.backend.family
@@ -55,6 +60,11 @@ output "ecs_task_definition_family" {
 output "ecs_intake_worker_task_definition_family" {
   description = "ECS intake worker task definition family"
   value       = aws_ecs_task_definition.intake_worker.family
+}
+
+output "ecs_bulk_import_worker_task_definition_family" {
+  description = "ECS bulk import worker task definition family"
+  value       = aws_ecs_task_definition.bulk_import_worker.family
 }
 
 # -----------------------------------------------------------------------------

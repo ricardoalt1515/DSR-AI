@@ -40,6 +40,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { BulkImportItem, BulkImportRun } from "@/lib/api/bulk-import";
 import { bulkImportAPI } from "@/lib/api/bulk-import";
 import { EditItemDrawer } from "./edit-item-drawer";
@@ -51,6 +56,7 @@ import { EditItemDrawer } from "./edit-item-drawer";
 interface LocationGroup {
 	location: BulkImportItem;
 	projects: BulkImportItem[];
+	isSynthetic?: boolean;
 }
 
 type CardState = "pending" | "added" | "skipped";
@@ -60,6 +66,83 @@ interface ImportReviewSectionProps {
 	onRunUpdated: (run: BulkImportRun) => void;
 	onFinalized: () => void;
 	onDismiss: () => void;
+	reviewMode?: "company" | "location";
+	locationContext?: { id: string; name: string } | undefined;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GROUP BUILDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function buildReviewGroups(
+	items: BulkImportItem[],
+	mode: "company" | "location",
+	locationContext?: { id: string; name: string },
+): LocationGroup[] {
+	const locs = items.filter((i) => i.itemType === "location");
+	const projs = items.filter((i) => i.itemType === "project");
+
+	const buildSyntheticGroup = (
+		projects: BulkImportItem[],
+		context: { id: string; name: string },
+	): LocationGroup | null => {
+		const firstProj = projects[0];
+		if (!firstProj) {
+			return null;
+		}
+		const synthetic: BulkImportItem = {
+			id: `synthetic-${context.id}`,
+			runId: firstProj.runId,
+			itemType: "location",
+			status: "pending_review",
+			needsReview: false,
+			confidence: null,
+			extractedData: {},
+			normalizedData: { name: context.name },
+			userAmendments: null,
+			reviewNotes: null,
+			duplicateCandidates: null,
+			confirmCreateNew: false,
+			parentItemId: null,
+			createdLocationId: context.id,
+			createdProjectId: null,
+			createdAt: firstProj.createdAt,
+			updatedAt: firstProj.updatedAt,
+		};
+		return { location: synthetic, projects, isSynthetic: true };
+	};
+
+	if (mode === "company") {
+		return locs.map((loc) => ({
+			location: loc,
+			projects: projs.filter((p) => p.parentItemId === loc.id),
+		}));
+	}
+
+	// Location mode: prefer real location item if backend returned one
+	if (locs.length > 0) {
+		const loc = locs[0];
+		if (!loc) {
+			return [];
+		}
+		const directProjects = projs.filter((p) => p.parentItemId === loc.id);
+		if (directProjects.length > 0) {
+			return [{ location: loc, projects: directProjects }];
+		}
+		if (projs.length > 0 && locationContext) {
+			const fallback = buildSyntheticGroup(projs, locationContext);
+			return fallback ? [fallback] : [];
+		}
+		return [{ location: loc, projects: [] }];
+	}
+
+	// Fallback: only projects, no location item → synthetic shell
+	if (projs.length > 0 && locationContext) {
+		const fallback = buildSyntheticGroup(projs, locationContext);
+		return fallback ? [fallback] : [];
+	}
+
+	return [];
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -202,6 +285,8 @@ export function ImportReviewSection({
 	onRunUpdated,
 	onFinalized,
 	onDismiss,
+	reviewMode = "company",
+	locationContext,
 }: ImportReviewSectionProps) {
 	const [items, setItems] = useState<BulkImportItem[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -258,6 +343,25 @@ export function ImportReviewSection({
 				selected[loc.id] = new Set(childIds);
 				duplicateConfirm[loc.id] = Boolean(loc.confirmCreateNew);
 			}
+
+			// Initialize synthetic groups (location mode fallback)
+			const builtGroups = buildReviewGroups(
+				allItems,
+				reviewMode,
+				locationContext,
+			);
+			for (const group of builtGroups) {
+				if (group.isSynthetic) {
+					const locId = group.location.id;
+					states[locId] = "pending";
+					const validIds = group.projects
+						.filter((p) => p.status !== "invalid")
+						.map((p) => p.id);
+					selected[locId] = new Set(validIds);
+					duplicateConfirm[locId] = false;
+				}
+			}
+
 			setCardStates(states);
 			setSelectedProjects(selected);
 			setDuplicateConfirmByLocation(duplicateConfirm);
@@ -266,21 +370,17 @@ export function ImportReviewSection({
 		} finally {
 			setLoading(false);
 		}
-	}, [run.id]);
+	}, [run.id, reviewMode, locationContext]);
 
 	useEffect(() => {
 		void loadItems();
 	}, [loadItems]);
 
 	// Group items
-	const groups = useMemo((): LocationGroup[] => {
-		const locationItems = items.filter((i) => i.itemType === "location");
-		const projectItems = items.filter((i) => i.itemType === "project");
-		return locationItems.map((loc) => ({
-			location: loc,
-			projects: projectItems.filter((p) => p.parentItemId === loc.id),
-		}));
-	}, [items]);
+	const groups = useMemo(
+		() => buildReviewGroups(items, reviewMode, locationContext),
+		[items, reviewMode, locationContext],
+	);
 
 	// Counts
 	const addedCount = Object.values(cardStates).filter(
@@ -316,11 +416,11 @@ export function ImportReviewSection({
 				const confirmCreateNew = duplicateConfirmByLocation[locId];
 				const options =
 					confirmCreateNew === undefined ? undefined : { confirmCreateNew };
-				const updatedLoc = await bulkImportAPI.patchItem(
-					locId,
-					"accept",
-					options,
-				);
+				// Skip patching synthetic location (it's a frontend-only shell)
+				let updatedLoc = group.location;
+				if (!group.isSynthetic) {
+					updatedLoc = await bulkImportAPI.patchItem(locId, "accept", options);
+				}
 				const updatedProjects: BulkImportItem[] = [];
 				for (const proj of group.projects) {
 					if (proj.status === "invalid") continue;
@@ -359,7 +459,9 @@ export function ImportReviewSection({
 			const locId = group.location.id;
 			setActionLoadingId(locId);
 			try {
-				await bulkImportAPI.patchItem(locId, "reset");
+				if (!group.isSynthetic) {
+					await bulkImportAPI.patchItem(locId, "reset");
+				}
 				for (const proj of group.projects) {
 					if (proj.status !== "invalid") {
 						await bulkImportAPI.patchItem(proj.id, "reset");
@@ -393,7 +495,16 @@ export function ImportReviewSection({
 			const locId = group.location.id;
 			setActionLoadingId(locId);
 			try {
-				await bulkImportAPI.patchItem(locId, "reject");
+				if (!group.isSynthetic) {
+					await bulkImportAPI.patchItem(locId, "reject");
+				} else {
+					// For synthetic: reject all child projects
+					for (const proj of group.projects) {
+						if (proj.status !== "invalid") {
+							await bulkImportAPI.patchItem(proj.id, "reject");
+						}
+					}
+				}
 				setCardStates((prev) => ({ ...prev, [locId]: "skipped" }));
 
 				const updatedRun = await bulkImportAPI.getRun(run.id);
@@ -470,22 +581,28 @@ export function ImportReviewSection({
 	const handleFinalize = useCallback(async () => {
 		setFinalizing(true);
 		try {
-			await bulkImportAPI.finalize(run.id);
-			setSuccessCount(addedCount);
+			const result = await bulkImportAPI.finalize(run.id);
+			const createdCount =
+				reviewMode === "location"
+					? result.summary.projectsCreated
+					: result.summary.locationsCreated;
+			setSuccessCount(createdCount);
 			setShowSuccess(true);
 			// onFinalized will be called after animation completes
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Import failed");
 			setFinalizing(false);
 		}
-	}, [run.id, addedCount]);
+	}, [run.id, reviewMode]);
 
 	const handleSuccessDone = useCallback(() => {
+		const label = reviewMode === "location" ? "waste stream" : "location";
+		const plural = successCount === 1 ? label : `${label}s`;
 		toast.success("Import complete!", {
-			description: `${successCount} ${successCount === 1 ? "location" : "locations"} added successfully.`,
+			description: `${successCount} ${plural} added successfully.`,
 		});
 		onFinalized();
-	}, [successCount, onFinalized]);
+	}, [successCount, onFinalized, reviewMode]);
 
 	// ── Render ───────────────────────────────────────────
 
@@ -512,6 +629,10 @@ export function ImportReviewSection({
 
 	// (#6) Better empty state
 	if (groups.length === 0) {
+		// Check for orphan projects (company mode: projects with no location context)
+		const hasOrphanProjects =
+			reviewMode === "company" && items.some((i) => i.itemType === "project");
+
 		return (
 			<Card className="border-dashed border-muted-foreground/30">
 				<CardContent className="py-10 text-center space-y-4">
@@ -520,23 +641,28 @@ export function ImportReviewSection({
 					</div>
 					<div>
 						<h3 className="text-base font-semibold">
-							No locations found in your file
+							{hasOrphanProjects
+								? "Waste streams found, but missing location context"
+								: "No locations found in your file"}
 						</h3>
 						<p className="text-sm text-muted-foreground mt-1">
-							Make sure your document contains location names, addresses, or
-							waste stream details.
+							{hasOrphanProjects
+								? "Import from a specific Location page, or include location columns in your file."
+								: "Make sure your document contains location names, addresses, or waste stream details."}
 						</p>
 					</div>
-					<div className="flex items-center justify-center gap-2 flex-wrap">
-						{["XLSX", "PDF", "DOCX"].map((f) => (
-							<span
-								key={f}
-								className="px-2 py-0.5 rounded-md bg-muted text-xs font-medium text-muted-foreground"
-							>
-								.{f.toLowerCase()}
-							</span>
-						))}
-					</div>
+					{!hasOrphanProjects && (
+						<div className="flex items-center justify-center gap-2 flex-wrap">
+							{["XLSX", "PDF", "DOCX"].map((f) => (
+								<span
+									key={f}
+									className="px-2 py-0.5 rounded-md bg-muted text-xs font-medium text-muted-foreground"
+								>
+									.{f.toLowerCase()}
+								</span>
+							))}
+						</div>
+					)}
 					<Button variant="outline" size="sm" onClick={onDismiss}>
 						Try Another File
 					</Button>
@@ -552,11 +678,27 @@ export function ImportReviewSection({
 				<div className="flex items-center gap-2">
 					<Sparkles className="h-5 w-5 text-primary" />
 					<h3 className="text-lg font-semibold">
-						We found {totalCount} {totalCount === 1 ? "location" : "locations"}{" "}
-						in{" "}
-						<span className="text-primary">
-							&ldquo;{run.sourceFilename}&rdquo;
-						</span>
+						{reviewMode === "location" ? (
+							<>
+								We found {groups.reduce((sum, g) => sum + g.projects.length, 0)}{" "}
+								waste stream
+								{groups.reduce((sum, g) => sum + g.projects.length, 0) === 1
+									? ""
+									: "s"}{" "}
+								in{" "}
+								<span className="text-primary">
+									&ldquo;{run.sourceFilename}&rdquo;
+								</span>
+							</>
+						) : (
+							<>
+								We found {totalCount}{" "}
+								{totalCount === 1 ? "location" : "locations"} in{" "}
+								<span className="text-primary">
+									&ldquo;{run.sourceFilename}&rdquo;
+								</span>
+							</>
+						)}
 					</h3>
 				</div>
 				<Button
@@ -584,7 +726,11 @@ export function ImportReviewSection({
 						onAdd={() => handleAdd(group)}
 						onSkip={() => handleSkip(group)}
 						onUndo={() => handleUndo(group)}
-						onEdit={() => setEditingItem(group.location)}
+						onEdit={() => {
+							if (!group.isSynthetic) {
+								setEditingItem(group.location);
+							}
+						}}
 						onConfirmDuplicate={handleConfirmDuplicate}
 						duplicateConfirmed={Boolean(
 							duplicateConfirmByLocation[group.location.id],
@@ -603,7 +749,14 @@ export function ImportReviewSection({
 								<strong>
 									<AnimatedCount value={addedCount} />
 								</strong>{" "}
-								{addedCount === 1 ? "location" : "locations"} ready to add
+								{reviewMode === "location"
+									? addedCount === 1
+										? "group"
+										: "groups"
+									: addedCount === 1
+										? "location"
+										: "locations"}{" "}
+								ready to add
 							</>
 						) : (
 							<>
@@ -710,6 +863,19 @@ function SuggestionCard({
 	const isAdded = state === "added";
 	const isSkipped = state === "skipped";
 	const isPending = state === "pending";
+	const isSynthetic = Boolean(group.isSynthetic);
+	const editButton = (
+		<Button
+			variant="outline"
+			size="sm"
+			className="flex-1"
+			onClick={onEdit}
+			disabled={isSynthetic}
+		>
+			<Edit3 className="h-3.5 w-3.5 mr-1.5" />
+			Edit
+		</Button>
+	);
 
 	return (
 		<Card
@@ -892,15 +1058,18 @@ function SuggestionCard({
 									<SkipForward className="h-3.5 w-3.5 mr-1.5" />
 									Skip
 								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									className="flex-1"
-									onClick={onEdit}
-								>
-									<Edit3 className="h-3.5 w-3.5 mr-1.5" />
-									Edit
-								</Button>
+								{isSynthetic ? (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<span className="flex-1">{editButton}</span>
+										</TooltipTrigger>
+										<TooltipContent>
+											Edit individual waste streams not location shell
+										</TooltipContent>
+									</Tooltip>
+								) : (
+									editButton
+								)}
 								<Button
 									size="sm"
 									className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
