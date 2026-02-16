@@ -216,4 +216,27 @@ export const bulkImportAPI = {
 			`${BASE}/runs/${runId}/summary`,
 		);
 	},
+
+	/**
+	 * Import orphan waste streams directly to a location (no re-analysis).
+	 */
+	async importOrphanProjects(
+		runId: string,
+		locationId: string,
+		itemIds: string[],
+	): Promise<AssignOrphansResponse> {
+		return apiClient.post<AssignOrphansResponse>(
+			`${BASE}/runs/${runId}/orphan-projects/import`,
+			{
+				location_id: locationId,
+				item_ids: itemIds,
+			},
+		);
+	},
 };
+
+export interface AssignOrphansResponse {
+	projectsCreated: number;
+	createdProjectIds: Record<string, string>;
+	skipped: number;
+}

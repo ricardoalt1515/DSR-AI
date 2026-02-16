@@ -22,6 +22,7 @@
 
 import {
 	AlertTriangle,
+	ArrowRight,
 	Check,
 	ChevronDown,
 	ChevronUp,
@@ -45,6 +46,13 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import type { BulkImportItem, BulkImportRun } from "@/lib/api/bulk-import";
 import { bulkImportAPI } from "@/lib/api/bulk-import";
 import { EditItemDrawer } from "./edit-item-drawer";
@@ -68,6 +76,10 @@ interface ImportReviewSectionProps {
 	onDismiss: () => void;
 	reviewMode?: "company" | "location";
 	locationContext?: { id: string; name: string } | undefined;
+	/** Company locations for orphan-project picker (company mode only) */
+	companyLocations?: Array<{ id: string; name: string; city?: string | undefined }> | undefined;
+	/** Called when user assigns orphan waste streams to a location */
+	onAssignOrphans?: (locationId: string, locationName: string, itemIds: string[]) => Promise<void>;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -277,6 +289,166 @@ function SuccessAnimation({
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ORPHAN LOCATION PICKER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function OrphanLocationPicker({
+	orphanItems,
+	filename,
+	locations,
+	onAssignOrphans,
+	onDismiss,
+}: {
+	orphanItems: BulkImportItem[];
+	filename: string;
+	locations: Array<{ id: string; name: string; city?: string | undefined }>;
+	onAssignOrphans: (locationId: string, locationName: string, itemIds: string[]) => Promise<void>;
+	onDismiss: () => void;
+}) {
+	const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+	const [submitting, setSubmitting] = useState(false);
+	const [excluded, setExcluded] = useState<Set<string>>(new Set());
+	const selectedLocation = locations.find((l) => l.id === selectedLocationId);
+
+	const toggleItem = useCallback((id: string) => {
+		setExcluded((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	}, []);
+
+	const includedCount = orphanItems.length - excluded.size;
+
+	return (
+		<Card className="border-primary/20 bg-primary/[0.02] animate-in fade-in slide-in-from-top-2 duration-300">
+			<CardContent className="py-6 space-y-4">
+				{/* Header */}
+				<div className="flex items-start gap-3">
+					<div className="p-2.5 rounded-full bg-primary/10 shrink-0">
+						<Sparkles className="h-5 w-5 text-primary" />
+					</div>
+					<div>
+						<h3 className="text-base font-semibold">
+							Found{" "}
+							<span className="text-primary">{orphanItems.length}</span>{" "}
+							waste stream{orphanItems.length === 1 ? "" : "s"} in &ldquo;{filename}&rdquo;
+						</h3>
+						<p className="text-sm text-muted-foreground mt-1">
+							We detected waste stream data but couldn&rsquo;t identify a location.
+							Select where to import them:
+						</p>
+					</div>
+				</div>
+
+				{/* Location selector */}
+				<div className="pl-11">
+					<Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+						<SelectTrigger className="w-full">
+							<SelectValue placeholder="Choose a location…" />
+						</SelectTrigger>
+						<SelectContent>
+							{locations.map((loc) => (
+								<SelectItem key={loc.id} value={loc.id}>
+									<span className="flex items-center gap-2">
+										<MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+										{loc.name}
+										{loc.city && (
+											<span className="text-muted-foreground">
+												— {loc.city}
+											</span>
+										)}
+									</span>
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+
+				{/* Waste stream preview list — appears after location selection */}
+				{selectedLocationId && (
+					<div className="pl-11 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+						<div className="flex items-center justify-between">
+							<p className="text-sm font-medium text-muted-foreground">
+								Waste streams to import to &ldquo;{selectedLocation?.name}&rdquo;
+							</p>
+							<Badge variant="secondary" className="text-xs">
+								{includedCount} of {orphanItems.length} selected
+							</Badge>
+						</div>
+
+						<div className="rounded-lg border divide-y max-h-[280px] overflow-y-auto">
+							{orphanItems.map((item) => {
+								const nd = item.normalizedData as Record<string, string>;
+								const name = nd.name || "Unnamed stream";
+								const category = nd.category;
+								const volume = nd.estimated_volume;
+								const isExcluded = excluded.has(item.id);
+
+								return (
+									<label
+										key={item.id}
+										className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-muted/50 ${isExcluded ? "opacity-50 bg-muted/20" : ""
+											}`}
+									>
+										<Checkbox
+											checked={!isExcluded}
+											onCheckedChange={() => toggleItem(item.id)}
+										/>
+										<div className="flex-1 min-w-0">
+											<span className={`text-sm font-medium ${isExcluded ? "line-through" : ""}`}>
+												{name}
+											</span>
+											{(category || volume) && (
+												<span className="text-xs text-muted-foreground ml-2">
+													{[category, volume].filter(Boolean).join(" · ")}
+												</span>
+											)}
+										</div>
+										<Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+									</label>
+								);
+							})}
+						</div>
+					</div>
+				)}
+
+				{/* Actions */}
+				<div className="pl-11 flex items-center gap-2">
+					<Button
+						disabled={!selectedLocationId || submitting || includedCount === 0}
+						onClick={async () => {
+							if (selectedLocationId && selectedLocation) {
+								setSubmitting(true);
+								try {
+									const selectedIds = orphanItems.filter((i) => !excluded.has(i.id)).map((i) => i.id);
+									await onAssignOrphans(selectedLocationId, selectedLocation.name, selectedIds);
+								} finally {
+									setSubmitting(false);
+								}
+							}
+						}}
+					>
+						{submitting ? (
+							<Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+						) : (
+							<ArrowRight className="h-4 w-4 mr-1.5" />
+						)}
+						{submitting
+							? "Importing…"
+							: `Import ${includedCount} stream${includedCount === 1 ? "" : "s"} to "${selectedLocation?.name ?? "…"}"`}
+					</Button>
+					<Button variant="ghost" size="sm" onClick={onDismiss}>
+						Dismiss
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
+	);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MAIN COMPONENT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -287,6 +459,8 @@ export function ImportReviewSection({
 	onDismiss,
 	reviewMode = "company",
 	locationContext,
+	companyLocations,
+	onAssignOrphans,
 }: ImportReviewSectionProps) {
 	const [items, setItems] = useState<BulkImportItem[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -629,9 +803,20 @@ export function ImportReviewSection({
 
 	// (#6) Better empty state
 	if (groups.length === 0) {
-		// Check for orphan projects (company mode: projects with no location context)
-		const hasOrphanProjects =
-			reviewMode === "company" && items.some((i) => i.itemType === "project");
+		// Orphan projects: waste streams found but no location context
+		const orphanProjects = items.filter((i) => i.itemType === "project" && !i.createdProjectId);
+		const hasOrphanProjects = reviewMode === "company" && orphanProjects.length > 0;
+
+		// Location picker for orphan projects
+		if (hasOrphanProjects && companyLocations && companyLocations.length > 0 && onAssignOrphans) {
+			return <OrphanLocationPicker
+				orphanItems={orphanProjects}
+				filename={run.sourceFilename}
+				locations={companyLocations}
+				onAssignOrphans={onAssignOrphans}
+				onDismiss={onDismiss}
+			/>;
+		}
 
 		return (
 			<Card className="border-dashed border-muted-foreground/30">
@@ -642,12 +827,12 @@ export function ImportReviewSection({
 					<div>
 						<h3 className="text-base font-semibold">
 							{hasOrphanProjects
-								? "Waste streams found, but missing location context"
+								? "Waste streams found, but no locations available"
 								: "No locations found in your file"}
 						</h3>
 						<p className="text-sm text-muted-foreground mt-1">
 							{hasOrphanProjects
-								? "Import from a specific Location page, or include location columns in your file."
+								? "Create a location first, then import your file from that location page."
 								: "Make sure your document contains location names, addresses, or waste stream details."}
 						</p>
 					</div>
@@ -664,7 +849,7 @@ export function ImportReviewSection({
 						</div>
 					)}
 					<Button variant="outline" size="sm" onClick={onDismiss}>
-						Try Another File
+						{hasOrphanProjects ? "Dismiss" : "Try Another File"}
 					</Button>
 				</CardContent>
 			</Card>
@@ -896,9 +1081,8 @@ function SuggestionCard({
 			{/* Status ribbon */}
 			{!isPending && (
 				<div
-					className={`absolute top-0 left-0 right-0 h-1 ${
-						isAdded ? "bg-emerald-500" : "bg-muted-foreground/30"
-					}`}
+					className={`absolute top-0 left-0 right-0 h-1 ${isAdded ? "bg-emerald-500" : "bg-muted-foreground/30"
+						}`}
 				/>
 			)}
 
@@ -990,11 +1174,10 @@ function SuggestionCard({
 									return (
 										<span
 											key={proj.id}
-											className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border transition-opacity ${
-												isSelected
-													? "bg-muted"
-													: "bg-muted/40 opacity-50 line-through"
-											}`}
+											className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border transition-opacity ${isSelected
+												? "bg-muted"
+												: "bg-muted/40 opacity-50 line-through"
+												}`}
 										>
 											<Package className="h-3 w-3 text-muted-foreground" />
 											{String(proj.normalizedData.name ?? "Unnamed")}

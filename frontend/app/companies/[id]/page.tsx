@@ -110,6 +110,7 @@ export default function CompanyDetailPage() {
 		null,
 	);
 	const [showReviewSection, setShowReviewSection] = useState(false);
+	const dismissedRunsKey = `dismissed_import_runs_${companyId}`;
 	// Global drag & drop
 	const [dragActive, setDragActive] = useState(false);
 	const dragCounterRef = useRef(0);
@@ -197,7 +198,7 @@ export default function CompanyDetailPage() {
 
 	useEffect(() => {
 		if (companyId) {
-			void reloadCompanyData().catch(() => {});
+			void reloadCompanyData().catch(() => { });
 		}
 	}, [companyId, reloadCompanyData]);
 
@@ -209,6 +210,11 @@ export default function CompanyDetailPage() {
 			.getPendingRun("company", companyId)
 			.then((run) => {
 				if (!cancelled && run) {
+					// Skip if user dismissed this run before
+					try {
+						const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+						if (dismissed.includes(run.id)) return;
+					} catch { /* ignore */ }
 					setActiveImportRun(run);
 					setShowReviewSection(true);
 				}
@@ -235,7 +241,7 @@ export default function CompanyDetailPage() {
 			setDeleting(false);
 
 			// Reload data in background (non-blocking)
-			void reloadCompanyData().catch(() => {});
+			void reloadCompanyData().catch(() => { });
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
@@ -379,7 +385,7 @@ export default function CompanyDetailPage() {
 							onClick={() => {
 								clearCompanyError();
 								clearLocationsError();
-								void reloadCompanyData().catch(() => {});
+								void reloadCompanyData().catch(() => { });
 							}}
 						>
 							Retry
@@ -578,11 +584,39 @@ export default function CompanyDetailPage() {
 						setShowReviewSection(false);
 						setActiveImportRun(null);
 						// Reload locations to show newly created items
-						void reloadCompanyData().catch(() => {});
+						void reloadCompanyData().catch(() => { });
 					}}
 					onDismiss={() => {
 						setShowReviewSection(false);
+						if (activeImportRun) {
+							try {
+								const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+								if (!dismissed.includes(activeImportRun.id)) {
+									dismissed.push(activeImportRun.id);
+									localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+								}
+							} catch { /* ignore */ }
+						}
 						setActiveImportRun(null);
+					}}
+					reviewMode="company"
+					companyLocations={locations.map((l) => ({ id: l.id, name: l.name, city: l.city }))}
+					onAssignOrphans={async (locationId, _locationName, itemIds) => {
+						try {
+							const result = await bulkImportAPI.importOrphanProjects(
+								activeImportRun.id,
+								locationId,
+								itemIds,
+							);
+							toast.success(`${result.projectsCreated} waste stream${result.projectsCreated === 1 ? "" : "s"} imported successfully`);
+							setShowReviewSection(false);
+							setActiveImportRun(null);
+							void reloadCompanyData().catch(() => { });
+						} catch (error) {
+							toast.error(
+								error instanceof Error ? error.message : "Failed to import waste streams",
+							);
+						}
 					}}
 				/>
 			)}
@@ -612,7 +646,7 @@ export default function CompanyDetailPage() {
 								<CreateLocationDialog
 									companyId={companyId}
 									onSuccess={() => {
-										void reloadCompanyData().catch(() => {});
+										void reloadCompanyData().catch(() => { });
 									}}
 								/>
 							</>
@@ -648,7 +682,7 @@ export default function CompanyDetailPage() {
 											</Button>
 										}
 										onSuccess={() => {
-											void reloadCompanyData().catch(() => {});
+											void reloadCompanyData().catch(() => { });
 										}}
 									/>
 								)}

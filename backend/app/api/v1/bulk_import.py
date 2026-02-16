@@ -26,6 +26,8 @@ from app.models.bulk_import import ImportItem, ImportRun
 from app.models.company import Company
 from app.models.location import Location
 from app.schemas.bulk_import import (
+    AssignOrphansRequest,
+    AssignOrphansResponse,
     BulkImportFinalizeResponse,
     BulkImportFinalizeSummary,
     BulkImportItemPatchRequest,
@@ -265,6 +267,31 @@ async def get_bulk_import_summary(
         )
     summary = service.get_run_summary(run)
     return BulkImportSummaryResponse(summary=summary)
+
+
+@router.post(
+    "/runs/{run_id}/orphan-projects/import",
+    response_model=AssignOrphansResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_orphan_projects(
+    run_id: UUID,
+    body: AssignOrphansRequest,
+    current_user: CurrentBulkImportUser,
+    org: OrganizationContext,
+    db: AsyncDB,
+) -> AssignOrphansResponse:
+    """Create projects directly from orphan items without re-analysis."""
+    result = await service.import_orphan_projects(
+        db,
+        organization_id=org.id,
+        run_id=run_id,
+        location_id=body.location_id,
+        item_ids=body.item_ids,
+        user_id=current_user.id,
+    )
+    await db.commit()
+    return AssignOrphansResponse(**result)
 
 
 async def _validate_entrypoint(

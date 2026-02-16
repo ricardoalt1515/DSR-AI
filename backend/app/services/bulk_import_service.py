@@ -903,6 +903,163 @@ class BulkImportService:
         await db.flush()
         return item
 
+    async def import_orphan_projects(
+        self,
+        db: AsyncSession,
+        *,
+        organization_id: UUID,
+        run_id: UUID,
+        location_id: UUID,
+        item_ids: list[UUID],
+        user_id: UUID,
+    ) -> dict[str, object]:
+        """Create Projects directly from orphan items' normalizedData.
+
+        No re-analysis — reads the already-extracted data and creates entities.
+        """
+        # Lock the run
+        result = await db.execute(
+            select(ImportRun)
+            .where(
+                ImportRun.id == run_id,
+                ImportRun.organization_id == organization_id,
+            )
+            .with_for_update()
+        )
+        run = result.scalar_one_or_none()
+        if not run:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+        if run.status != "review_ready":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Run must be in review_ready status",
+            )
+        if run.entrypoint_type != "company":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only company-entrypoint runs can have orphan projects",
+            )
+
+        # Validate location
+        location = await db.get(Location, location_id)
+        if not location or location.organization_id != organization_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found")
+        if location.company_id != run.entrypoint_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Location does not belong to the run's company",
+            )
+
+        # Load company for project fields
+        company = await db.get(Company, location.company_id)
+        if not company:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Company not found")
+
+        # Load requested items (locked)
+        items_result = await db.execute(
+            select(ImportItem)
+            .where(
+                ImportItem.run_id == run.id,
+                ImportItem.id.in_(item_ids),
+            )
+            .with_for_update()
+        )
+        items = items_result.scalars().all()
+
+        # Ensure all requested IDs were found in this run
+        if len(items) != len(item_ids):
+            found_ids = {i.id for i in items}
+            missing = [str(uid) for uid in item_ids if uid not in found_ids]
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Items not found in this run: {', '.join(missing)}",
+            )
+
+        # Process each item
+        created_project_ids: dict[str, str] = {}
+        skipped = 0
+        for item in items:
+            if item.item_type != "project":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Item {item.id} is not a project",
+                )
+            if item.status != "invalid":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Item {item.id} is not an orphan (status={item.status})",
+                )
+            if item.created_project_id is not None:
+                skipped += 1
+                continue  # already imported, skip
+
+            normalized = self._validated_project_data(item)
+
+            # Duplicate guard: same name in same location
+            existing = await db.execute(
+                select(Project.id).where(
+                    Project.location_id == location.id,
+                    func.lower(Project.name) == normalized.name.strip().lower(),
+                )
+            )
+            if existing.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"A project named '{normalized.name}' already exists in this location",
+                )
+
+            # Create project (same mapping as finalize_run)
+            project_data: dict[str, object] = {
+                "technical_sections": copy.deepcopy(get_assessment_questionnaire())
+            }
+            if normalized.category and normalized.category.strip():
+                project_data["bulk_import_category"] = normalized.category.strip()
+
+            project = Project(
+                organization_id=organization_id,
+                user_id=user_id,
+                location_id=location.id,
+                name=normalized.name,
+                client=company.name,
+                sector=normalized.sector or company.sector,
+                subsector=normalized.subsector or company.subsector,
+                location=f"{location.name}, {location.city}",
+                project_type=normalized.project_type,
+                description=normalized.description,
+                budget=0.0,
+                schedule_summary="To be defined",
+                tags=[],
+                status="In Preparation",
+                progress=0,
+                project_data=project_data,
+            )
+            db.add(project)
+            await db.flush()
+            item.created_project_id = project.id
+            created_project_ids[str(item.id)] = str(project.id)
+
+        await self.refresh_run_counters(db, run)
+
+        # If all invalid project items now have created_project_id, mark run completed
+        unresolved = await db.execute(
+            select(func.count()).where(
+                ImportItem.run_id == run.id,
+                ImportItem.item_type == "project",
+                ImportItem.status == "invalid",
+                ImportItem.created_project_id.is_(None),
+            )
+        )
+        if unresolved.scalar_one() == 0:
+            run.status = "completed"
+            run.finalized_at = datetime.now(UTC)
+            await db.flush()
+
+        return {
+            "projects_created": len(created_project_ids),
+            "created_project_ids": created_project_ids,
+            "skipped": skipped,
+        }
+
     async def get_run(
         self, db: AsyncSession, *, organization_id: UUID, run_id: UUID
     ) -> ImportRun | None:

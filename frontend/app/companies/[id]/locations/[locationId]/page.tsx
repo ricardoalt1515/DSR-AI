@@ -99,7 +99,7 @@ export default function LocationDetailPage() {
 
 	useEffect(() => {
 		if (locationId) {
-			void loadLocation(locationId, projectsFilter).catch(() => {});
+			void loadLocation(locationId, projectsFilter).catch(() => { });
 		}
 	}, [locationId, loadLocation, projectsFilter]);
 
@@ -280,7 +280,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId, projectsFilter).catch(() => {});
+								void loadLocation(locationId, projectsFilter).catch(() => { });
 							}}
 						>
 							Retry
@@ -368,7 +368,7 @@ export default function LocationDetailPage() {
 							variant="outline"
 							onClick={() => {
 								clearError();
-								void loadLocation(locationId, projectsFilter).catch(() => {});
+								void loadLocation(locationId, projectsFilter).catch(() => { });
 							}}
 						>
 							Retry
@@ -612,7 +612,7 @@ export default function LocationDetailPage() {
 					onFinalized={() => {
 						setShowReviewSection(false);
 						setActiveImportRun(null);
-						void reloadLocationData().catch(() => {});
+						void reloadLocationData().catch(() => { });
 					}}
 					onDismiss={() => {
 						setShowReviewSection(false);

@@ -98,3 +98,14 @@ class BulkImportFinalizeResponse(BaseSchema):
 
 class BulkImportSummaryResponse(BaseSchema):
     summary: BulkImportFinalizeSummary
+
+
+class AssignOrphansRequest(BaseSchema):
+    location_id: UUID
+    item_ids: list[UUID]
+
+
+class AssignOrphansResponse(BaseSchema):
+    projects_created: int
+    created_project_ids: dict[str, str]  # item_id → project_id
+    skipped: int = 0
