@@ -582,6 +582,14 @@ export default function CompanyDetailPage() {
 					onRunUpdated={setActiveImportRun}
 					onFinalized={() => {
 						setShowReviewSection(false);
+						// Persist so picker doesn't reappear on navigation/refresh
+						try {
+							const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+							if (!dismissed.includes(activeImportRun.id)) {
+								dismissed.push(activeImportRun.id);
+								localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+							}
+						} catch { /* ignore */ }
 						setActiveImportRun(null);
 						// Reload locations to show newly created items
 						void reloadCompanyData().catch(() => { });
@@ -610,6 +618,14 @@ export default function CompanyDetailPage() {
 							);
 							toast.success(`${result.projectsCreated} waste stream${result.projectsCreated === 1 ? "" : "s"} imported successfully`);
 							setShowReviewSection(false);
+							// Persist so picker won't reappear on navigation/refresh
+							try {
+								const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+								if (!dismissed.includes(activeImportRun.id)) {
+									dismissed.push(activeImportRun.id);
+									localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+								}
+							} catch { /* ignore */ }
 							setActiveImportRun(null);
 							void reloadCompanyData().catch(() => { });
 						} catch (error) {

@@ -801,23 +801,13 @@ export function ImportReviewSection({
 		);
 	}
 
-	// (#6) Better empty state
-	if (groups.length === 0) {
-		// Orphan projects: waste streams found but no location context
-		const orphanProjects = items.filter((i) => i.itemType === "project" && !i.createdProjectId);
-		const hasOrphanProjects = reviewMode === "company" && orphanProjects.length > 0;
+	// Orphan projects: waste streams found but no location context (visible in any mode)
+	const orphanProjects = items.filter((i) => i.itemType === "project" && !i.createdProjectId && !i.parentItemId);
+	const hasOrphanProjects = reviewMode === "company" && orphanProjects.length > 0;
+	const showOrphanPicker = hasOrphanProjects && companyLocations && companyLocations.length > 0 && onAssignOrphans;
 
-		// Location picker for orphan projects
-		if (hasOrphanProjects && companyLocations && companyLocations.length > 0 && onAssignOrphans) {
-			return <OrphanLocationPicker
-				orphanItems={orphanProjects}
-				filename={run.sourceFilename}
-				locations={companyLocations}
-				onAssignOrphans={onAssignOrphans}
-				onDismiss={onDismiss}
-			/>;
-		}
-
+	// (#6) Empty state (no groups AND no orphans)
+	if (groups.length === 0 && !showOrphanPicker) {
 		return (
 			<Card className="border-dashed border-muted-foreground/30">
 				<CardContent className="py-10 text-center space-y-4">
@@ -854,6 +844,17 @@ export function ImportReviewSection({
 				</CardContent>
 			</Card>
 		);
+	}
+
+	// Pure orphan case: only orphans, no location groups
+	if (groups.length === 0 && showOrphanPicker) {
+		return <OrphanLocationPicker
+			orphanItems={orphanProjects}
+			filename={run.sourceFilename}
+			locations={companyLocations!}
+			onAssignOrphans={onAssignOrphans!}
+			onDismiss={onDismiss}
+		/>;
 	}
 
 	return (
@@ -924,6 +925,17 @@ export function ImportReviewSection({
 					/>
 				))}
 			</div>
+
+			{/* Unassigned waste streams (orphans alongside location groups) */}
+			{showOrphanPicker && (
+				<OrphanLocationPicker
+					orphanItems={orphanProjects}
+					filename={run.sourceFilename}
+					locations={companyLocations!}
+					onAssignOrphans={onAssignOrphans!}
+					onDismiss={onDismiss}
+				/>
+			)}
 
 			{/* Bottom bar */}
 			<div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
