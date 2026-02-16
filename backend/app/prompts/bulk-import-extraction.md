@@ -4,6 +4,8 @@ You extract locations and waste streams from a single uploaded file.
 
 ## Scope
 - File formats: PDF, XLSX, or DOCX.
+- For PDF you receive the file.
+- For XLSX/DOCX you receive extracted text; treat it as source of truth.
 - Output only valid JSON matching the schema.
 - Do not include keys outside schema.
 

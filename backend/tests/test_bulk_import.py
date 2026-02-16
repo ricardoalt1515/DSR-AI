@@ -33,6 +33,7 @@ from app.services.bulk_import_ai_extractor import (
     ParsedRow,
 )
 from app.services.bulk_import_service import BulkImportService
+from app.services.document_text_extractor import ExtractedTextResult
 from app.services.storage_delete_service import StorageDeleteError, delete_storage_keys
 from app.templates.assessment_questionnaire import get_assessment_questionnaire
 from scripts.healthcheck_bulk_import_worker import _cmdline_matches_worker
@@ -1354,21 +1355,15 @@ async def test_process_run_xlsx_without_openpyxl_marks_run_failed(db_session, mo
     async def _fake_download(_: str) -> bytes:
         return b"fake-xlsx"
 
-    ai_called = False
-
-    async def _fake_extract(*, file_bytes: bytes, filename: str) -> list[ParsedRow]:
-        nonlocal ai_called
-        ai_called = True
-        assert file_bytes == b"fake-xlsx"
-        assert filename.endswith(".xlsx")
-        return []
+    async def _fail_extract_xlsx(*, file_bytes: bytes, filename: str) -> list[ParsedRow]:
+        raise bulk_import_module.BulkImportAIExtractorError("xlsx_parse_failed")
 
     monkeypatch.setattr(builtins, "__import__", _fake_import)
     monkeypatch.setattr(bulk_import_module, "download_file_content", _fake_download)
     monkeypatch.setattr(
         bulk_import_module.bulk_import_ai_extractor,
         "extract_parsed_rows",
-        _fake_extract,
+        _fail_extract_xlsx,
     )
 
     service = BulkImportService()
@@ -1376,8 +1371,130 @@ async def test_process_run_xlsx_without_openpyxl_marks_run_failed(db_session, mo
     await db_session.refresh(run)
 
     assert run.status == "failed"
-    assert run.processing_error == "xlsx_parser_unavailable"
-    assert ai_called is False
+    assert run.processing_error == "xlsx_parse_failed"
+
+
+@pytest.mark.asyncio
+async def test_process_run_docx_parse_failure_marks_run_failed(db_session, monkeypatch):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import Docx Fail", "org-import-docx-fail")
+    user = await create_user(
+        db_session,
+        email=f"import-docx-fail-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co Docx Fail")
+    run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="processing",
+    )
+    run.source_filename = "input.docx"
+    run.source_file_path = "imports/input.docx"
+    await db_session.commit()
+
+    import app.services.bulk_import_service as bulk_import_module
+
+    async def _fake_download(_: str) -> bytes:
+        return b"fake-docx"
+
+    async def _fail_extract_docx(*, file_bytes: bytes, filename: str) -> list[ParsedRow]:
+        raise bulk_import_module.BulkImportAIExtractorError("docx_parse_failed")
+
+    monkeypatch.setattr(bulk_import_module, "download_file_content", _fake_download)
+    monkeypatch.setattr(
+        bulk_import_module.bulk_import_ai_extractor,
+        "extract_parsed_rows",
+        _fail_extract_docx,
+    )
+
+    service = BulkImportService()
+    await service.process_run(db_session, run)
+    await db_session.refresh(run)
+
+    assert run.status == "failed"
+    assert run.processing_error == "docx_parse_failed"
+
+
+@pytest.mark.asyncio
+async def test_process_run_xlsx_empty_text_results_in_no_data(db_session, monkeypatch):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import Xlsx Empty", "org-import-xlsx-empty")
+    user = await create_user(
+        db_session,
+        email=f"import-xlsx-empty-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co Xlsx Empty")
+    run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="processing",
+    )
+    run.source_filename = "input.xlsx"
+    run.source_file_path = "imports/input.xlsx"
+    await db_session.commit()
+
+    import app.services.bulk_import_service as bulk_import_module
+
+    async def _fake_download(_: str) -> bytes:
+        return b"fake-xlsx"
+
+    monkeypatch.setattr(bulk_import_module, "download_file_content", _fake_download)
+
+    service = BulkImportService()
+    await service.process_run(db_session, run)
+    await db_session.refresh(run)
+
+    assert run.status == "no_data"
+
+
+@pytest.mark.asyncio
+async def test_process_run_docx_empty_text_results_in_no_data(db_session, monkeypatch):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Import Docx Empty", "org-import-docx-empty")
+    user = await create_user(
+        db_session,
+        email=f"import-docx-empty-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Import Co Docx Empty")
+    run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="processing",
+    )
+    run.source_filename = "input.docx"
+    run.source_file_path = "imports/input.docx"
+    await db_session.commit()
+
+    import app.services.bulk_import_service as bulk_import_module
+
+    async def _fake_download(_: str) -> bytes:
+        return b"fake-docx"
+
+    monkeypatch.setattr(bulk_import_module, "download_file_content", _fake_download)
+
+    service = BulkImportService()
+    await service.process_run(db_session, run)
+    await db_session.refresh(run)
+
+    assert run.status == "no_data"
 
 
 @pytest.mark.asyncio
@@ -1934,18 +2051,236 @@ def test_xlsx_matrix_collapse_by_concept_ignores_empty_or_distinct_category() ->
     assert project_rows[0].project_data["category"] == "paper"
 
 
-def test_media_type_mapping_supports_docx() -> None:
-    extractor = BulkImportAIExtractor()
-    assert (
-        extractor._media_type_for_extension(".docx")
-        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-
-
 def test_media_type_mapping_rejects_legacy_doc() -> None:
     extractor = BulkImportAIExtractor()
     with pytest.raises(BulkImportAIExtractorError, match="unsupported_file_type"):
         extractor._media_type_for_extension(".doc")
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_routes_pdf_to_binary_agent(monkeypatch):
+    extractor = BulkImportAIExtractor()
+    received: dict[str, object] = {}
+
+    async def _fake_binary(
+        *, file_bytes: bytes, filename: str, media_type: str
+    ) -> BulkImportAIOutput:
+        received["file_bytes"] = file_bytes
+        received["filename"] = filename
+        received["media_type"] = media_type
+        return BulkImportAIOutput(locations=[], waste_streams=[])
+
+    async def _fail_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        raise AssertionError("text agent should not be called")
+
+    def _fail_xlsx(_: bytes) -> ExtractedTextResult:
+        raise AssertionError("xlsx extractor should not be called")
+
+    def _fail_docx(_: bytes) -> ExtractedTextResult:
+        raise AssertionError("docx extractor should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent",
+        _fake_binary,
+    )
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fail_text,
+    )
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_xlsx_text", _fail_xlsx)
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_docx_text", _fail_docx)
+
+    rows = await extractor.extract_parsed_rows(file_bytes=b"fake-pdf", filename="input.pdf")
+
+    assert rows == []
+    assert received == {
+        "file_bytes": b"fake-pdf",
+        "filename": "input.pdf",
+        "media_type": "application/pdf",
+    }
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_routes_xlsx_to_text_agent(monkeypatch):
+    extractor = BulkImportAIExtractor()
+    received: dict[str, object] = {}
+    extracted = ExtractedTextResult(text="A\tB", char_count=3, truncated=False)
+
+    def _fake_xlsx(file_bytes: bytes) -> ExtractedTextResult:
+        assert file_bytes == b"fake-xlsx"
+        return extracted
+
+    async def _fake_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        received["extracted_text"] = extracted_text
+        received["filename"] = filename
+        return BulkImportAIOutput(locations=[], waste_streams=[])
+
+    async def _fail_binary(
+        *, file_bytes: bytes, filename: str, media_type: str
+    ) -> BulkImportAIOutput:
+        raise AssertionError("binary agent should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_xlsx_text", _fake_xlsx)
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fake_text,
+    )
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent",
+        _fail_binary,
+    )
+
+    rows = await extractor.extract_parsed_rows(file_bytes=b"fake-xlsx", filename="input.xlsx")
+
+    assert rows == []
+    assert received == {"extracted_text": extracted.text, "filename": "input.xlsx"}
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_routes_docx_to_text_agent(monkeypatch):
+    extractor = BulkImportAIExtractor()
+    received: dict[str, object] = {}
+    extracted = ExtractedTextResult(text="Line 1\nLine 2", char_count=13, truncated=False)
+
+    def _fake_docx(file_bytes: bytes) -> ExtractedTextResult:
+        assert file_bytes == b"fake-docx"
+        return extracted
+
+    async def _fake_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        received["extracted_text"] = extracted_text
+        received["filename"] = filename
+        return BulkImportAIOutput(locations=[], waste_streams=[])
+
+    async def _fail_binary(
+        *, file_bytes: bytes, filename: str, media_type: str
+    ) -> BulkImportAIOutput:
+        raise AssertionError("binary agent should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_docx_text", _fake_docx)
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fake_text,
+    )
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent",
+        _fail_binary,
+    )
+
+    rows = await extractor.extract_parsed_rows(file_bytes=b"fake-docx", filename="input.docx")
+
+    assert rows == []
+    assert received == {"extracted_text": extracted.text, "filename": "input.docx"}
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_empty_xlsx_text_returns_no_rows(monkeypatch):
+    extractor = BulkImportAIExtractor()
+
+    def _fake_xlsx(_: bytes) -> ExtractedTextResult:
+        return ExtractedTextResult(text="   ", char_count=0, truncated=False)
+
+    async def _fail_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        raise AssertionError("text agent should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_xlsx_text", _fake_xlsx)
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fail_text,
+    )
+
+    rows = await extractor.extract_parsed_rows(file_bytes=b"fake-xlsx", filename="input.xlsx")
+
+    assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_empty_docx_text_returns_no_rows(monkeypatch):
+    extractor = BulkImportAIExtractor()
+
+    def _fake_docx(_: bytes) -> ExtractedTextResult:
+        return ExtractedTextResult(text="\n\n", char_count=0, truncated=False)
+
+    async def _fail_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        raise AssertionError("text agent should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_docx_text", _fake_docx)
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fail_text,
+    )
+
+    rows = await extractor.extract_parsed_rows(file_bytes=b"fake-docx", filename="input.docx")
+
+    assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_xlsx_parse_failure_maps_error(monkeypatch):
+    extractor = BulkImportAIExtractor()
+
+    def _fail_xlsx(_: bytes) -> ExtractedTextResult:
+        raise RuntimeError("parse_failed")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_xlsx_text", _fail_xlsx)
+
+    with pytest.raises(BulkImportAIExtractorError, match="xlsx_parse_failed"):
+        await extractor.extract_parsed_rows(file_bytes=b"fake-xlsx", filename="input.xlsx")
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_docx_parse_failure_maps_error(monkeypatch):
+    extractor = BulkImportAIExtractor()
+
+    def _fail_docx(_: bytes) -> ExtractedTextResult:
+        raise RuntimeError("parse_failed")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(bulk_import_ai_extractor_module, "extract_docx_text", _fail_docx)
+
+    with pytest.raises(BulkImportAIExtractorError, match="docx_parse_failed"):
+        await extractor.extract_parsed_rows(file_bytes=b"fake-docx", filename="input.docx")
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_rejects_legacy_doc(monkeypatch):
+    extractor = BulkImportAIExtractor()
+
+    async def _fail_binary(
+        *, file_bytes: bytes, filename: str, media_type: str
+    ) -> BulkImportAIOutput:
+        raise AssertionError("binary agent should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent",
+        _fail_binary,
+    )
+
+    with pytest.raises(BulkImportAIExtractorError, match="unsupported_file_type"):
+        await extractor.extract_parsed_rows(file_bytes=b"fake-doc", filename="input.doc")
 
 
 @pytest.mark.asyncio
@@ -2823,10 +3158,10 @@ async def test_upload_commit_failure_cleans_up_storage_key(monkeypatch):
             entrypoint_type="company",
             entrypoint_id=entrypoint_id,
             file=upload,
-            current_user=SimpleNamespace(id=user_id),
-            org=SimpleNamespace(id=organization_id),
-            db=db_stub,
-        )
+            current_user=SimpleNamespace(id=user_id),  # type: ignore[arg-type]
+            org=SimpleNamespace(id=organization_id),  # type: ignore[arg-type]
+            db=db_stub,  # type: ignore[arg-type]
+        )  # type: ignore[arg-type]
 
     assert db_stub.rollback_called is True
     assert len(uploaded_keys) == 1

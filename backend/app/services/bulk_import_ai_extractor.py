@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,11 +15,17 @@ from pydantic import ValidationError
 from app.agents.bulk_import_extraction_agent import (
     BulkImportExtractionAgentError,
     run_bulk_import_extraction_agent,
+    run_bulk_import_extraction_agent_on_text,
 )
 from app.models.bulk_import_ai_output import (
     BulkImportAILocationOutput,
     BulkImportAIOutput,
     BulkImportAIWasteStreamOutput,
+)
+from app.services.document_text_extractor import (
+    ExtractedTextResult,
+    extract_docx_text,
+    extract_xlsx_text,
 )
 
 AI_EXTRACTION_TIMEOUT_SECONDS = 120.0
@@ -40,9 +47,23 @@ class ParsedRow:
 class BulkImportAIExtractorError(Exception):
     """Typed AI extraction error with normalized code."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, *, diagnostics: ExtractionDiagnostics | None = None) -> None:
         super().__init__(code)
         self.code = code
+        self.diagnostics = diagnostics
+
+
+@dataclass(frozen=True)
+class ExtractionDiagnostics:
+    route: str
+    char_count: int | None
+    truncated: bool | None
+
+
+@dataclass(frozen=True)
+class ExtractionResult:
+    rows: list[ParsedRow]
+    diagnostics: ExtractionDiagnostics
 
 
 class BulkImportAIExtractor:
@@ -53,20 +74,104 @@ class BulkImportAIExtractor:
         *,
         file_bytes: bytes,
         filename: str,
-    ) -> list[ParsedRow]:
+    ) -> ExtractionResult:
         extension = Path(filename).suffix.casefold()
-        media_type = self._media_type_for_extension(extension)
 
+        if extension == ".pdf":
+            diagnostics = ExtractionDiagnostics(
+                route="pdf_binary",
+                char_count=None,
+                truncated=None,
+            )
+            try:
+                rows = await self._extract_from_binary(file_bytes=file_bytes, filename=filename)
+            except BulkImportAIExtractorError as exc:
+                raise BulkImportAIExtractorError(exc.code, diagnostics=diagnostics) from exc
+            return ExtractionResult(rows=rows, diagnostics=diagnostics)
+
+        if extension == ".xlsx":
+            extracted = self._extract_local_text(
+                file_bytes=file_bytes,
+                route="xlsx_text",
+                parser=extract_xlsx_text,
+                error_code="xlsx_parse_failed",
+            )
+            diagnostics = ExtractionDiagnostics(
+                route="xlsx_text",
+                char_count=extracted.char_count,
+                truncated=extracted.truncated,
+            )
+            if not extracted.text.strip():
+                return ExtractionResult(rows=[], diagnostics=diagnostics)
+            try:
+                rows = await self._extract_from_text(
+                    extracted_text=extracted.text,
+                    filename=filename,
+                )
+            except BulkImportAIExtractorError as exc:
+                raise BulkImportAIExtractorError(exc.code, diagnostics=diagnostics) from exc
+            return ExtractionResult(rows=rows, diagnostics=diagnostics)
+
+        if extension == ".docx":
+            extracted = self._extract_local_text(
+                file_bytes=file_bytes,
+                route="docx_text",
+                parser=extract_docx_text,
+                error_code="docx_parse_failed",
+            )
+            diagnostics = ExtractionDiagnostics(
+                route="docx_text",
+                char_count=extracted.char_count,
+                truncated=extracted.truncated,
+            )
+            if not extracted.text.strip():
+                return ExtractionResult(rows=[], diagnostics=diagnostics)
+            try:
+                rows = await self._extract_from_text(
+                    extracted_text=extracted.text,
+                    filename=filename,
+                )
+            except BulkImportAIExtractorError as exc:
+                raise BulkImportAIExtractorError(exc.code, diagnostics=diagnostics) from exc
+            return ExtractionResult(rows=rows, diagnostics=diagnostics)
+
+        raise BulkImportAIExtractorError("unsupported_file_type")
+
+    async def _extract_from_binary(self, *, file_bytes: bytes, filename: str) -> list[ParsedRow]:
+        media_type = self._media_type_for_extension(Path(filename).suffix.casefold())
+        output = await self._run_agent(
+            lambda: run_bulk_import_extraction_agent(
+                file_bytes=file_bytes,
+                filename=filename,
+                media_type=media_type,
+            )
+        )
+        return self._to_parsed_rows(output)
+
+    async def _extract_from_text(
+        self,
+        *,
+        extracted_text: str,
+        filename: str,
+    ) -> list[ParsedRow]:
+        output = await self._run_agent(
+            lambda: run_bulk_import_extraction_agent_on_text(
+                extracted_text=extracted_text,
+                filename=filename,
+            )
+        )
+        return self._to_parsed_rows(output)
+
+    async def _run_agent(
+        self,
+        runner: Callable[[], Awaitable[BulkImportAIOutput]],
+    ) -> BulkImportAIOutput:
         try:
             output = await asyncio.wait_for(
-                run_bulk_import_extraction_agent(
-                    file_bytes=file_bytes,
-                    filename=filename,
-                    media_type=media_type,
-                ),
+                runner(),
                 timeout=AI_EXTRACTION_TIMEOUT_SECONDS,
             )
-            validated = BulkImportAIOutput.model_validate(output)
+            return BulkImportAIOutput.model_validate(output)
         except TimeoutError as exc:
             raise BulkImportAIExtractorError("ai_timeout") from exc
         except ValidationError as exc:
@@ -77,15 +182,39 @@ class BulkImportAIExtractor:
                 raise BulkImportAIExtractorError("ai_schema_invalid") from exc
             raise BulkImportAIExtractorError("ai_provider_error") from exc
 
-        return self._to_parsed_rows(validated)
+    def _extract_local_text(
+        self,
+        *,
+        file_bytes: bytes,
+        route: str,
+        parser: Callable[[bytes], ExtractedTextResult],
+        error_code: str,
+    ) -> ExtractedTextResult:
+        try:
+            return parser(file_bytes)
+        except Exception as exc:
+            message = str(exc)
+            if message in {"xlsx_parser_unavailable", "docx_parser_unavailable"}:
+                raise BulkImportAIExtractorError(
+                    message,
+                    diagnostics=ExtractionDiagnostics(
+                        route=route,
+                        char_count=None,
+                        truncated=None,
+                    ),
+                ) from exc
+            raise BulkImportAIExtractorError(
+                error_code,
+                diagnostics=ExtractionDiagnostics(
+                    route=route,
+                    char_count=None,
+                    truncated=None,
+                ),
+            ) from exc
 
     def _media_type_for_extension(self, extension: str) -> str:
         if extension == ".pdf":
             return "application/pdf"
-        if extension == ".xlsx":
-            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        if extension == ".docx":
-            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         raise BulkImportAIExtractorError("unsupported_file_type")
 
     def _to_parsed_rows(self, output: BulkImportAIOutput) -> list[ParsedRow]:

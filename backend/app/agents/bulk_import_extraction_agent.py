@@ -1,4 +1,4 @@
-"""AI agent for bulk import extraction (PDF/XLSX)."""
+"""AI agent for bulk import extraction (PDF/XLSX/DOCX)."""
 
 from __future__ import annotations
 
@@ -84,6 +84,32 @@ async def run_bulk_import_extraction_agent(
             [
                 "Extract bulk import locations and waste streams from this file:",
                 BinaryContent(data=file_bytes, media_type=media_type),
+            ],
+            deps=context,
+        )
+        return BulkImportAIOutput.model_validate(result.output)
+    except Exception as exc:
+        raise BulkImportExtractionAgentError("agent_run_failed") from exc
+
+
+async def run_bulk_import_extraction_agent_on_text(
+    *,
+    extracted_text: str,
+    filename: str,
+) -> BulkImportAIOutput:
+    if not extracted_text.strip():
+        raise BulkImportExtractionAgentError("empty_text")
+
+    context = BulkImportExtractionContext(
+        filename=filename,
+        extension=Path(filename).suffix.casefold(),
+    )
+
+    try:
+        result = await bulk_import_extraction_agent.run(
+            [
+                "Extract bulk import locations and waste streams from this text:",
+                extracted_text,
             ],
             deps=context,
         )

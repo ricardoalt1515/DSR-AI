@@ -35,6 +35,7 @@ from app.models.user import User
 from app.schemas.bulk_import import BulkImportFinalizeSummary
 from app.services.bulk_import_ai_extractor import (
     BulkImportAIExtractorError,
+    ExtractionDiagnostics,
     ParsedRow,
     bulk_import_ai_extractor,
 )
@@ -217,6 +218,16 @@ def _load_json_parse_result(path: Path) -> Any:
         return json.load(temp_file)
 
 
+def _log_diagnostics(diagnostics: ExtractionDiagnostics | None) -> dict[str, object]:
+    if diagnostics is None:
+        return {}
+    return {
+        "route": diagnostics.route,
+        "char_count": diagnostics.char_count,
+        "truncated": diagnostics.truncated,
+    }
+
+
 class BulkImportService:
     """Bulk import orchestration across worker and API layers."""
 
@@ -361,13 +372,11 @@ class BulkImportService:
             extension = Path(run.source_filename).suffix.casefold()
             if extension not in ALLOWED_BULK_IMPORT_EXTENSIONS:
                 raise ValueError("unsupported_file_type")
-            if extension == ".xlsx":
-                self._assert_xlsx_parser_available()
 
             await self._persist_progress_checkpoint(db, run, "extracting_streams")
             ai_started = time.perf_counter()
             try:
-                parsed_rows = await bulk_import_ai_extractor.extract_parsed_rows(
+                extraction_result = await bulk_import_ai_extractor.extract_parsed_rows(
                     file_bytes=file_bytes,
                     filename=run.source_filename,
                 )
@@ -378,7 +387,9 @@ class BulkImportService:
                     filename=run.source_filename,
                     status="success",
                     duration_ms=ai_call_duration_ms,
+                    **_log_diagnostics(extraction_result.diagnostics),
                 )
+                parsed_rows = extraction_result.rows
             except BulkImportAIExtractorError as exc:
                 ai_call_duration_ms = round((time.perf_counter() - ai_started) * 1000, 2)
                 logger.info(
@@ -388,6 +399,7 @@ class BulkImportService:
                     status="failed",
                     duration_ms=ai_call_duration_ms,
                     error_code=exc.code,
+                    **_log_diagnostics(exc.diagnostics),
                 )
                 raise ValueError(exc.code) from exc
 
@@ -1281,7 +1293,10 @@ class BulkImportService:
         load_workbook = self._get_openpyxl_load_workbook()
         workbook = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
         try:
-            sheet = workbook.active
+            sheets = workbook.worksheets
+            if not sheets:
+                return []
+            sheet = sheets[0]
             rows_iter = sheet.iter_rows(values_only=True)
             header_row = next(rows_iter, None)
             if not header_row:
