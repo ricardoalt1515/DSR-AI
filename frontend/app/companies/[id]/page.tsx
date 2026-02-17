@@ -18,8 +18,8 @@ import { useParams, useRouter } from "next/navigation";
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { InlineDropZone } from "@/components/features/bulk-import/inline-drop-zone";
 import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
+import { InlineDropZone } from "@/components/features/bulk-import/inline-drop-zone";
 import { InlineImportProgress } from "@/components/features/bulk-import/inline-import-progress";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
@@ -111,7 +111,7 @@ export default function CompanyDetailPage() {
 	const [showReviewSection, setShowReviewSection] = useState(false);
 	const dismissedRunsKey = `dismissed_import_runs_${companyId}`;
 	// Global drag & drop
-	const [dragActive, setDragActive] = useState(false);
+	const [_dragActive, setDragActive] = useState(false);
 	const dragCounterRef = useRef(0);
 	// Inline progress (drag & drop flow — no sidebar)
 	const [inlineRunId, setInlineRunId] = useState<string | null>(null);
@@ -197,7 +197,7 @@ export default function CompanyDetailPage() {
 
 	useEffect(() => {
 		if (companyId) {
-			void reloadCompanyData().catch(() => { });
+			void reloadCompanyData().catch(() => {});
 		}
 	}, [companyId, reloadCompanyData]);
 
@@ -211,9 +211,13 @@ export default function CompanyDetailPage() {
 				if (!cancelled && run) {
 					// Skip if user dismissed this run before
 					try {
-						const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+						const dismissed = JSON.parse(
+							localStorage.getItem(dismissedRunsKey) || "[]",
+						) as string[];
 						if (dismissed.includes(run.id)) return;
-					} catch { /* ignore */ }
+					} catch {
+						/* ignore */
+					}
 					setActiveImportRun(run);
 					setShowReviewSection(true);
 				}
@@ -224,7 +228,7 @@ export default function CompanyDetailPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [companyId, canCreateClientData, isArchived]);
+	}, [companyId, canCreateClientData, isArchived, dismissedRunsKey]);
 
 	const handleConfirmDelete = async () => {
 		if (!locationToDelete) return;
@@ -240,7 +244,7 @@ export default function CompanyDetailPage() {
 			setDeleting(false);
 
 			// Reload data in background (non-blocking)
-			void reloadCompanyData().catch(() => { });
+			void reloadCompanyData().catch(() => {});
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete location",
@@ -326,7 +330,6 @@ export default function CompanyDetailPage() {
 			onDragLeave={handlePageDragLeave}
 			onDrop={handlePageDrop}
 		>
-
 			{/* Breadcrumb */}
 			<Breadcrumb
 				items={[
@@ -361,7 +364,7 @@ export default function CompanyDetailPage() {
 							onClick={() => {
 								clearCompanyError();
 								clearLocationsError();
-								void reloadCompanyData().catch(() => { });
+								void reloadCompanyData().catch(() => {});
 							}}
 						>
 							Retry
@@ -525,6 +528,34 @@ export default function CompanyDetailPage() {
 				</CardContent>
 			</Card>
 
+			{canCreateClientData &&
+				!isArchived &&
+				!showReviewSection &&
+				!inlineRunId && (
+					<InlineDropZone
+						uploading={inlineUploading}
+						onFileSelected={async (file) => {
+							setInlineUploading(true);
+							try {
+								setInlineFilename(file.name);
+								const result = await bulkImportAPI.upload(
+									file,
+									"company",
+									companyId,
+								);
+								setInlineRunId(result.runId);
+							} catch (error) {
+								toast.error(
+									error instanceof Error ? error.message : "Upload failed",
+								);
+								setInlineFilename(null);
+							} finally {
+								setInlineUploading(false);
+							}
+						}}
+					/>
+				)}
+
 			{/* Inline import progress (drag & drop flow) */}
 			{inlineRunId && inlineFilename && !showReviewSection && (
 				<InlineImportProgress
@@ -560,31 +591,49 @@ export default function CompanyDetailPage() {
 						setShowReviewSection(false);
 						// Persist so picker doesn't reappear on navigation/refresh
 						try {
-							const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+							const dismissed = JSON.parse(
+								localStorage.getItem(dismissedRunsKey) || "[]",
+							) as string[];
 							if (!dismissed.includes(activeImportRun.id)) {
 								dismissed.push(activeImportRun.id);
-								localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+								localStorage.setItem(
+									dismissedRunsKey,
+									JSON.stringify(dismissed),
+								);
 							}
-						} catch { /* ignore */ }
+						} catch {
+							/* ignore */
+						}
 						setActiveImportRun(null);
 						// Reload locations to show newly created items
-						void reloadCompanyData().catch(() => { });
+						void reloadCompanyData().catch(() => {});
 					}}
 					onDismiss={() => {
 						setShowReviewSection(false);
 						if (activeImportRun) {
 							try {
-								const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+								const dismissed = JSON.parse(
+									localStorage.getItem(dismissedRunsKey) || "[]",
+								) as string[];
 								if (!dismissed.includes(activeImportRun.id)) {
 									dismissed.push(activeImportRun.id);
-									localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+									localStorage.setItem(
+										dismissedRunsKey,
+										JSON.stringify(dismissed),
+									);
 								}
-							} catch { /* ignore */ }
+							} catch {
+								/* ignore */
+							}
 						}
 						setActiveImportRun(null);
 					}}
 					reviewMode="company"
-					companyLocations={locations.map((l) => ({ id: l.id, name: l.name, city: l.city }))}
+					companyLocations={locations.map((l) => ({
+						id: l.id,
+						name: l.name,
+						city: l.city,
+					}))}
 					onAssignOrphans={async (locationId, _locationName, itemIds) => {
 						try {
 							const result = await bulkImportAPI.importOrphanProjects(
@@ -592,21 +641,32 @@ export default function CompanyDetailPage() {
 								locationId,
 								itemIds,
 							);
-							toast.success(`${result.projectsCreated} waste stream${result.projectsCreated === 1 ? "" : "s"} imported successfully`);
+							toast.success(
+								`${result.projectsCreated} waste stream${result.projectsCreated === 1 ? "" : "s"} imported successfully`,
+							);
 							setShowReviewSection(false);
 							// Persist so picker won't reappear on navigation/refresh
 							try {
-								const dismissed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]") as string[];
+								const dismissed = JSON.parse(
+									localStorage.getItem(dismissedRunsKey) || "[]",
+								) as string[];
 								if (!dismissed.includes(activeImportRun.id)) {
 									dismissed.push(activeImportRun.id);
-									localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+									localStorage.setItem(
+										dismissedRunsKey,
+										JSON.stringify(dismissed),
+									);
 								}
-							} catch { /* ignore */ }
+							} catch {
+								/* ignore */
+							}
 							setActiveImportRun(null);
-							void reloadCompanyData().catch(() => { });
+							void reloadCompanyData().catch(() => {});
 						} catch (error) {
 							toast.error(
-								error instanceof Error ? error.message : "Failed to import waste streams",
+								error instanceof Error
+									? error.message
+									: "Failed to import waste streams",
 							);
 						}
 					}}
@@ -629,32 +689,12 @@ export default function CompanyDetailPage() {
 							<CreateLocationDialog
 								companyId={companyId}
 								onSuccess={() => {
-									void reloadCompanyData().catch(() => { });
+									void reloadCompanyData().catch(() => {});
 								}}
 							/>
 						)}
 					</div>
 				</div>
-
-				{/* Inline drop zone for file import */}
-				{canCreateClientData && !isArchived && !showReviewSection && !inlineRunId && (
-					<InlineDropZone
-						uploading={inlineUploading}
-						onFileSelected={async (file) => {
-							setInlineUploading(true);
-							try {
-								setInlineFilename(file.name);
-								const result = await bulkImportAPI.upload(file, "company", companyId);
-								setInlineRunId(result.runId);
-							} catch (error) {
-								toast.error(error instanceof Error ? error.message : "Upload failed");
-								setInlineFilename(null);
-							} finally {
-								setInlineUploading(false);
-							}
-						}}
-					/>
-				)}
 
 				{locations.length === 0 ? (
 					<Card>
@@ -684,7 +724,7 @@ export default function CompanyDetailPage() {
 											</Button>
 										}
 										onSuccess={() => {
-											void reloadCompanyData().catch(() => { });
+											void reloadCompanyData().catch(() => {});
 										}}
 									/>
 								)}
@@ -895,7 +935,6 @@ export default function CompanyDetailPage() {
 					}}
 				/>
 			)}
-
 		</section>
 	);
 }

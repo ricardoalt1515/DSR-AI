@@ -123,7 +123,7 @@ export function InlineDropZone({
 				isInteractive &&
 					!dragActive && [
 						"bg-gradient-to-r from-primary/[0.03] to-transparent",
-						"hover:border-primary/30 active:scale-[0.995]",
+						"active:scale-[0.995]",
 						"cursor-pointer",
 					],
 				!isInteractive && "opacity-50 cursor-not-allowed",
@@ -193,7 +193,7 @@ export function InlineDropZone({
 			{uploading && (
 				<div
 					aria-hidden="true"
-					className="absolute inset-x-0 bottom-0 h-px motion-safe:animate-shimmer"
+					className="absolute inset-x-0 bottom-0 h-px animate-shimmer"
 					style={{
 						background:
 							"linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--primary) 40%, transparent) 50%, transparent 100%)",
