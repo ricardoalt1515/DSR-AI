@@ -16,8 +16,16 @@ AWS_REGION="us-east-1"
 AWS_ACCOUNT_ID="882816896907"
 ECR_REPO="dsr-waste-platform-prod-backend"
 ECS_CLUSTER="dsr-waste-platform-prod-cluster"
-ECS_SERVICE="dsr-waste-platform-prod-backend"
+ECS_BACKEND_SERVICE="dsr-waste-platform-prod-backend"
+ECS_BULK_IMPORT_WORKER_SERVICE="dsr-waste-platform-prod-bulk-import-worker"
+ECS_INTAKE_WORKER_SERVICE="dsr-waste-platform-prod-intake-worker"
 IMAGE_NAME="dsr-waste-platform-backend"
+
+ECS_SERVICES=(
+  "$ECS_BACKEND_SERVICE"
+  "$ECS_BULK_IMPORT_WORKER_SERVICE"
+  "$ECS_INTAKE_WORKER_SERVICE"
+)
 
 # Colors for output
 RED='\033[0;31m'
@@ -68,7 +76,7 @@ if [ "$1" == "migrate" ]; then
     # Get network config from existing service
     NETWORK_CONFIG=$(aws ecs describe-services \
         --cluster $ECS_CLUSTER \
-        --services $ECS_SERVICE \
+        --services $ECS_BACKEND_SERVICE \
         --region $AWS_REGION \
         --query 'services[0].networkConfiguration.awsvpcConfiguration' \
         --output json)
@@ -79,7 +87,7 @@ if [ "$1" == "migrate" ]; then
     # Run migration task
     TASK_ARN=$(aws ecs run-task \
         --cluster $ECS_CLUSTER \
-        --task-definition $ECS_SERVICE \
+        --task-definition $ECS_BACKEND_SERVICE \
         --launch-type FARGATE \
         --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=DISABLED}" \
         --overrides '{"containerOverrides":[{"name":"backend","command":["alembic","upgrade","head"]}]}' \
@@ -124,41 +132,46 @@ if [ "$1" == "migrate" ]; then
 fi
 
 # ─────────────────────────────────────────────────────
-# Step 5: Force new ECS deployment
+# Step 5: Force new ECS deployments
 # ─────────────────────────────────────────────────────
-log_info "Triggering ECS deployment..."
-aws ecs update-service \
-    --cluster $ECS_CLUSTER \
-    --service $ECS_SERVICE \
-    --force-new-deployment \
-    --region $AWS_REGION \
-    --output json > /dev/null
-
-log_success "ECS deployment triggered"
-
-# ─────────────────────────────────────────────────────
-# Step 6: Wait for deployment to complete
-# ─────────────────────────────────────────────────────
-log_info "Waiting for deployment to complete..."
-
-while true; do
-    DEPLOYMENTS=$(aws ecs describe-services \
+log_info "Triggering ECS deployments (backend + workers)..."
+for SERVICE in "${ECS_SERVICES[@]}"; do
+    log_info "Triggering deployment: $SERVICE"
+    aws ecs update-service \
         --cluster $ECS_CLUSTER \
-        --services $ECS_SERVICE \
+        --service $SERVICE \
+        --force-new-deployment \
         --region $AWS_REGION \
-        --query 'services[0].deployments' \
-        --output json)
-    
-    PRIMARY_STATE=$(echo $DEPLOYMENTS | jq -r '.[] | select(.status=="PRIMARY") | .rolloutState')
-    PRIMARY_RUNNING=$(echo $DEPLOYMENTS | jq -r '.[] | select(.status=="PRIMARY") | .runningCount')
-    
-    if [ "$PRIMARY_STATE" == "COMPLETED" ]; then
-        log_success "Deployment completed! Running tasks: $PRIMARY_RUNNING"
-        break
-    fi
-    
-    echo -n "."
-    sleep 10
+        --output json > /dev/null
+done
+
+log_success "ECS deployments triggered"
+
+# ─────────────────────────────────────────────────────
+# Step 6: Wait for deployments to complete
+# ─────────────────────────────────────────────────────
+for SERVICE in "${ECS_SERVICES[@]}"; do
+    log_info "Waiting for deployment to complete: $SERVICE"
+
+    while true; do
+        DEPLOYMENTS=$(aws ecs describe-services \
+            --cluster $ECS_CLUSTER \
+            --services $SERVICE \
+            --region $AWS_REGION \
+            --query 'services[0].deployments' \
+            --output json)
+
+        PRIMARY_STATE=$(echo $DEPLOYMENTS | jq -r '.[] | select(.status=="PRIMARY") | .rolloutState')
+        PRIMARY_RUNNING=$(echo $DEPLOYMENTS | jq -r '.[] | select(.status=="PRIMARY") | .runningCount')
+
+        if [ "$PRIMARY_STATE" == "COMPLETED" ]; then
+            log_success "Deployment completed for $SERVICE (running tasks: $PRIMARY_RUNNING)"
+            break
+        fi
+
+        echo -n "."
+        sleep 10
+    done
 done
 
 # ─────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ImportDrawer } from "@/components/features/bulk-import/import-drawer";
+
 import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
 import { InlineImportProgress } from "@/components/features/bulk-import/inline-import-progress";
 
@@ -85,7 +85,7 @@ export default function LocationDetailPage() {
 		useState<ArchivedFilter>("active");
 
 	// Bulk import state
-	const [showImportDrawer, setShowImportDrawer] = useState(false);
+
 	const [activeImportRun, setActiveImportRun] = useState<BulkImportRun | null>(
 		null,
 	);
@@ -487,14 +487,6 @@ export default function LocationDetailPage() {
 					</h2>
 					{canCreateProject && !isArchived && (
 						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								disabled={showReviewSection || !!inlineRunId}
-								onClick={() => setShowImportDrawer(true)}
-							>
-								<FileUp className="h-4 w-4 mr-2" />
-								Import from Document
-							</Button>
 							<Button onClick={() => setWizardOpen(true)}>
 								<Plus className="h-4 w-4 mr-2" />
 								New Waste Stream
@@ -639,17 +631,7 @@ export default function LocationDetailPage() {
 				/>
 			)}
 
-			{/* Import Drawer (button-triggered flow) */}
-			<ImportDrawer
-				open={showImportDrawer}
-				onOpenChange={setShowImportDrawer}
-				entrypointId={locationId}
-				entrypointType="location"
-				onReviewReady={(run) => {
-					setActiveImportRun(run);
-					setShowReviewSection(true);
-				}}
-			/>
+
 		</div>
 	);
 }

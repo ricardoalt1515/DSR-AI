@@ -5,7 +5,6 @@ import {
 	ArrowLeft,
 	Building2,
 	Edit,
-	FileUp,
 	Loader2,
 	MapPin,
 	MoreVertical,
@@ -19,7 +18,7 @@ import { useParams, useRouter } from "next/navigation";
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ImportDrawer } from "@/components/features/bulk-import/import-drawer";
+import { InlineDropZone } from "@/components/features/bulk-import/inline-drop-zone";
 import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
 import { InlineImportProgress } from "@/components/features/bulk-import/inline-import-progress";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
@@ -105,7 +104,7 @@ export default function CompanyDetailPage() {
 	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
 	// Bulk import state
-	const [showImportDrawer, setShowImportDrawer] = useState(false);
+	const [inlineUploading, setInlineUploading] = useState(false);
 	const [activeImportRun, setActiveImportRun] = useState<BulkImportRun | null>(
 		null,
 	);
@@ -327,30 +326,7 @@ export default function CompanyDetailPage() {
 			onDragLeave={handlePageDragLeave}
 			onDrop={handlePageDrop}
 		>
-			{/* Global drag & drop overlay — glassmorphic */}
-			{dragActive &&
-				canCreateClientData &&
-				!isArchived &&
-				!showReviewSection &&
-				!inlineRunId && (
-					<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-md animate-in fade-in duration-200">
-						<div className="flex flex-col items-center gap-5 p-12 rounded-2xl bg-card/80 backdrop-blur-xl border border-primary/20 shadow-2xl animate-in zoom-in-95 duration-200">
-							<div className="p-5 rounded-full bg-primary/10 shadow-[0_0_40px_hsl(var(--primary)/0.15)]">
-								<FileUp className="h-10 w-10 text-primary animate-bounce" />
-							</div>
-							<div className="text-center space-y-2">
-								<p className="text-xl font-semibold tracking-tight">
-									Drop to import
-								</p>
-								<div className="flex gap-2 justify-center">
-									<Badge variant="secondary">.xlsx</Badge>
-									<Badge variant="secondary">.pdf</Badge>
-									<Badge variant="secondary">.docx</Badge>
-								</div>
-							</div>
-						</div>
-					</div>
-				)}
+
 			{/* Breadcrumb */}
 			<Breadcrumb
 				items={[
@@ -650,25 +626,35 @@ export default function CompanyDetailPage() {
 							onChange={setLocationsFilter}
 						/>
 						{canCreateClientData && !isArchived && (
-							<>
-								<Button
-									variant="outline"
-									disabled={showReviewSection || !!inlineRunId}
-									onClick={() => setShowImportDrawer(true)}
-								>
-									<FileUp className="h-4 w-4 mr-2" />
-									Import from Document
-								</Button>
-								<CreateLocationDialog
-									companyId={companyId}
-									onSuccess={() => {
-										void reloadCompanyData().catch(() => { });
-									}}
-								/>
-							</>
+							<CreateLocationDialog
+								companyId={companyId}
+								onSuccess={() => {
+									void reloadCompanyData().catch(() => { });
+								}}
+							/>
 						)}
 					</div>
 				</div>
+
+				{/* Inline drop zone for file import */}
+				{canCreateClientData && !isArchived && !showReviewSection && !inlineRunId && (
+					<InlineDropZone
+						uploading={inlineUploading}
+						onFileSelected={async (file) => {
+							setInlineUploading(true);
+							try {
+								setInlineFilename(file.name);
+								const result = await bulkImportAPI.upload(file, "company", companyId);
+								setInlineRunId(result.runId);
+							} catch (error) {
+								toast.error(error instanceof Error ? error.message : "Upload failed");
+								setInlineFilename(null);
+							} finally {
+								setInlineUploading(false);
+							}
+						}}
+					/>
+				)}
 
 				{locations.length === 0 ? (
 					<Card>
@@ -910,17 +896,6 @@ export default function CompanyDetailPage() {
 				/>
 			)}
 
-			{/* Import Drawer (button-triggered flow only) */}
-			<ImportDrawer
-				open={showImportDrawer}
-				onOpenChange={setShowImportDrawer}
-				entrypointId={companyId}
-				entrypointType="company"
-				onReviewReady={(run) => {
-					setActiveImportRun(run);
-					setShowReviewSection(true);
-				}}
-			/>
 		</section>
 	);
 }
