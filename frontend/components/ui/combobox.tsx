@@ -23,7 +23,9 @@ export interface ComboboxProps {
 	onChange: (value: string) => void;
 	options: string[];
 	placeholder?: string;
+	searchPlaceholder?: string;
 	emptyMessage?: string;
+	helperText?: string;
 	className?: string;
 	disabled?: boolean;
 }
@@ -37,8 +39,10 @@ export function Combobox({
 	value,
 	onChange,
 	options = [],
-	placeholder = "Select or type...",
+	placeholder = "Search or type...",
+	searchPlaceholder = "Type to filter or create...",
 	emptyMessage = "No results found.",
+	helperText,
 	className,
 	disabled = false,
 }: ComboboxProps) {
@@ -63,14 +67,16 @@ export function Combobox({
 	}, [options, searchQuery]);
 
 	// Check if search query would create a new value
+	const trimmedQuery = searchQuery.trim();
+
 	const canCreateNew = React.useMemo(() => {
-		if (!searchQuery.trim()) return false;
+		if (!trimmedQuery) return false;
 
 		// Don't allow creating if exact match exists (case insensitive)
 		return !options.some(
-			(option) => option.toLowerCase() === searchQuery.toLowerCase(),
+			(option) => option.toLowerCase() === trimmedQuery.toLowerCase(),
 		);
-	}, [options, searchQuery]);
+	}, [options, trimmedQuery]);
 
 	// Handle selection from list
 	const handleSelect = (selectedValue: string) => {
@@ -80,8 +86,8 @@ export function Combobox({
 
 	// Handle creating new value
 	const handleCreateNew = () => {
-		if (searchQuery.trim()) {
-			onChange(searchQuery.trim());
+		if (trimmedQuery) {
+			onChange(trimmedQuery);
 			handleOpenChange(false);
 		}
 	};
@@ -90,80 +96,85 @@ export function Combobox({
 	const displayValue = value || placeholder;
 
 	return (
-		<Popover open={open} onOpenChange={handleOpenChange}>
-			<PopoverTrigger asChild>
-				<Button
-					type="button"
-					variant="outline"
-					role="combobox"
-					aria-expanded={open}
-					disabled={disabled}
-					className={cn(
-						"w-full justify-between font-normal",
-						!value && "text-muted-foreground",
-						className,
-					)}
+		<div className="space-y-1">
+			<Popover open={open} onOpenChange={handleOpenChange}>
+				<PopoverTrigger asChild>
+					<Button
+						type="button"
+						variant="outline"
+						role="combobox"
+						aria-expanded={open}
+						disabled={disabled}
+						className={cn(
+							"w-full justify-between font-normal",
+							!value && "text-muted-foreground",
+							className,
+						)}
+					>
+						<span className="truncate">{displayValue}</span>
+						<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+					</Button>
+				</PopoverTrigger>
+				<PopoverContent
+					className="p-0"
+					align="start"
+					style={{ width: "var(--radix-popover-trigger-width)" }}
 				>
-					<span className="truncate">{displayValue}</span>
-					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-				</Button>
-			</PopoverTrigger>
-			<PopoverContent
-				className="p-0"
-				align="start"
-				style={{ width: "var(--radix-popover-trigger-width)" }}
-			>
-				<Command shouldFilter={false}>
-					<CommandInput
-						placeholder={placeholder}
-						value={searchQuery}
-						onValueChange={setSearchQuery}
-						autoFocus
-					/>
-					<CommandList>
-						{/* Show existing options */}
-						{filteredOptions.length > 0 && (
-							<CommandGroup>
-								{filteredOptions.map((option) => (
+					<Command shouldFilter={false}>
+						<CommandInput
+							placeholder={searchPlaceholder}
+							value={searchQuery}
+							onValueChange={setSearchQuery}
+							autoFocus
+						/>
+						<CommandList>
+							{/* Show existing options */}
+							{filteredOptions.length > 0 && (
+								<CommandGroup>
+									{filteredOptions.map((option) => (
+										<CommandItem
+											key={option}
+											value={option}
+											onSelect={() => handleSelect(option)}
+										>
+											<Check
+												className={cn(
+													"mr-2 h-4 w-4",
+													value === option ? "opacity-100" : "opacity-0",
+												)}
+											/>
+											{option}
+										</CommandItem>
+									))}
+								</CommandGroup>
+							)}
+
+							{/* Show "no results" if no matches and can't create */}
+							{filteredOptions.length === 0 && !canCreateNew && (
+								<CommandEmpty>{emptyMessage}</CommandEmpty>
+							)}
+
+							{/* Show "create new" option if user typed something not in list */}
+							{canCreateNew && (
+								<CommandGroup>
 									<CommandItem
-										key={option}
-										value={option}
-										onSelect={() => handleSelect(option)}
+										value={`create-${trimmedQuery}`}
+										onSelect={handleCreateNew}
+										className="text-primary"
 									>
-										<Check
-											className={cn(
-												"mr-2 h-4 w-4",
-												value === option ? "opacity-100" : "opacity-0",
-											)}
-										/>
-										{option}
+										<Check className="mr-2 h-4 w-4 opacity-0" />
+										<span className="font-medium">Use custom answer:</span>{" "}
+										<span className="ml-1 truncate">"{trimmedQuery}"</span>
 									</CommandItem>
-								))}
-							</CommandGroup>
-						)}
-
-						{/* Show "no results" if no matches and can't create */}
-						{filteredOptions.length === 0 && !canCreateNew && (
-							<CommandEmpty>{emptyMessage}</CommandEmpty>
-						)}
-
-						{/* Show "create new" option if user typed something not in list */}
-						{canCreateNew && (
-							<CommandGroup>
-								<CommandItem
-									value={searchQuery}
-									onSelect={handleCreateNew}
-									className="text-primary"
-								>
-									<Check className="mr-2 h-4 w-4 opacity-0" />
-									<span className="font-medium">Create:</span>{" "}
-									<span className="ml-1 truncate">"{searchQuery}"</span>
-								</CommandItem>
-							</CommandGroup>
-						)}
-					</CommandList>
-				</Command>
-			</PopoverContent>
-		</Popover>
+								</CommandGroup>
+							)}
+						</CommandList>
+					</Command>
+				</PopoverContent>
+			</Popover>
+			{helperText && (
+				<p className="text-xs text-muted-foreground">{helperText}</p>
+			)}
+		</div>
 	);
 }

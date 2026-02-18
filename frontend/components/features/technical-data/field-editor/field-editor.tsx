@@ -100,7 +100,20 @@ export function FieldEditor({
 
 	// ✅ Keyboard shortcuts
 	const handleKeyDown = (e: KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey && !field.multiline) {
+		const isInteractiveSelectionField =
+			field.type === "combobox" ||
+			field.type === "tags" ||
+			field.type === "select" ||
+			field.type === "radio";
+
+		if (
+			e.key === "Enter" &&
+			!e.shiftKey &&
+			!field.multiline &&
+			!e.defaultPrevented &&
+			!e.nativeEvent.isComposing &&
+			!isInteractiveSelectionField
+		) {
 			e.preventDefault();
 			actions.save();
 		} else if (e.key === "Escape") {
@@ -131,16 +144,22 @@ export function FieldEditor({
 					</Select>
 				);
 
-			case "combobox":
+			case "combobox": {
+				const comboboxHelperText =
+					mode === "inline" ? "Can't find it? Type your own answer." : null;
+
 				return (
 					<Combobox
 						value={state.value?.toString() ?? ""}
 						onChange={(v) => actions.updateValue(v)}
 						options={field.options || []}
-						placeholder={field.placeholder || "Select or type..."}
-						className={mode === "table" ? "h-8" : "h-8"}
+						placeholder={field.placeholder || "Search or type..."}
+						searchPlaceholder="Type to filter or create..."
+						{...(comboboxHelperText ? { helperText: comboboxHelperText } : {})}
+						className="h-8"
 					/>
 				);
+			}
 
 			case "unit":
 				return (
@@ -178,7 +197,7 @@ export function FieldEditor({
 					<TagInput
 						tags={Array.isArray(state.value) ? state.value : []}
 						onChange={(tags) => actions.updateValue(tags)}
-						placeholder={field.placeholder || "Seleccione opciones..."}
+						placeholder={field.placeholder || "Select options..."}
 						suggestions={field.options || []}
 						className="min-h-[32px]"
 					/>
@@ -294,8 +313,21 @@ export function FieldEditor({
 		);
 	}
 
-	const hasValue =
-		field.value !== undefined && field.value !== "" && field.value !== null;
+	const hasValue = (() => {
+		if (field.value === undefined || field.value === null) {
+			return false;
+		}
+
+		if (Array.isArray(field.value)) {
+			return field.value.length > 0;
+		}
+
+		if (typeof field.value === "string") {
+			return field.value.trim().length > 0;
+		}
+
+		return true;
+	})();
 
 	// ✅ MODE: INLINE - Vista completa para dynamic-section
 	return (
@@ -398,11 +430,11 @@ export function FieldEditor({
 							<span className="font-medium">{state.error}</span>
 						</div>
 					)}
-					{/* ✅ FIX: Solo mostrar "Válido" si NO hay autoSave */}
+					{/* Only show "Valid" when autoSave is disabled */}
 					{validationStatus === "valid" && !state.error && !autoSave && (
 						<div className="flex items-center gap-1.5 text-xs text-success">
 							<CheckCircle2 className="h-3 w-3" />
-							<span>Válido</span>
+							<span>Valid</span>
 						</div>
 					)}
 					{!autoSave && (
@@ -412,7 +444,7 @@ export function FieldEditor({
 								size="sm"
 								variant="ghost"
 								onClick={() => actions.cancel()}
-								title="Esc para cancelar"
+								title="Press Esc to cancel"
 							>
 								<X className="h-3 w-3" />
 							</Button>
@@ -420,7 +452,7 @@ export function FieldEditor({
 								type="button"
 								size="sm"
 								onClick={() => actions.save()}
-								title="Enter para guardar"
+								title="Press Enter to save"
 								disabled={validationStatus === "invalid"}
 							>
 								<Edit3 className="h-3 w-3" />
@@ -477,7 +509,7 @@ export function FieldEditor({
 					<div className="flex items-center justify-between">
 						<Label className="text-xs font-medium">Field notes</Label>
 						<span className="text-xs text-muted-foreground">
-							Contexto, supuestos, fuente
+							Context, assumptions, source
 						</span>
 					</div>
 					<Textarea
