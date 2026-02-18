@@ -1,5 +1,9 @@
 import type { ProjectDataSyncResult } from "@/lib/api/project-data";
 import { getParameterById } from "@/lib/parameters";
+import {
+	hasFieldValue,
+	normalizeLegacyFieldType,
+} from "@/lib/technical-data-field-utils";
 import type {
 	DataSource,
 	TableField,
@@ -44,6 +48,8 @@ function rehydrateSingleField(field: TableField): TableField {
 
 	// Custom field (not in parameter-library) - use minimal defaults
 	if (!param) {
+		const normalizedType = normalizeLegacyFieldType(field.type);
+
 		logger.warn(
 			`Field "${field.id}" not in parameter library - using defaults`,
 			"TechnicalSheet",
@@ -54,13 +60,16 @@ function rehydrateSingleField(field: TableField): TableField {
 			// Apply defaults only if not present
 			id: field.id,
 			label: field.label || field.id, // Fallback to ID as label
-			type: field.type || "text",
+			type: normalizedType.type,
+			multiline: field.multiline ?? normalizedType.multiline,
 			value: field.value ?? null,
 			source: field.source ?? "manual",
 			required: field.required ?? false,
 			importance: field.importance ?? "optional",
 		} as TableField;
 	}
+
+	const normalizedType = normalizeLegacyFieldType(param.type);
 
 	// Build rehydrated field: library metadata + user state
 	const rehydrated: TableField = {
@@ -71,12 +80,12 @@ function rehydrateSingleField(field: TableField): TableField {
 
 		// --- METADATA (from parameter-library) ---
 		label: param.label,
-		type: param.type,
+		type: normalizedType.type,
 		required: param.required ?? false,
 		importance: param.importance ?? "optional",
 		description: param.description,
 		placeholder: param.placeholder,
-		multiline: param.multiline,
+		multiline: param.multiline ?? normalizedType.multiline,
 		options: param.options,
 
 		// --- VALIDATION (from parameter-library) ---
@@ -245,12 +254,9 @@ export const applyFieldUpdates = (
 
 export const sectionCompletion = (section: TableSection) => {
 	const total = section.fields.length;
-	const completed = section.fields.filter((field) => {
-		const value = field.value;
-		if (value === undefined || value === null || value === "") return false;
-		if (Array.isArray(value)) return value.length > 0;
-		return true;
-	}).length;
+	const completed = section.fields.filter((field) =>
+		hasFieldValue(field.value),
+	).length;
 	const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 	return { total, completed, percentage };
 };
@@ -310,7 +316,7 @@ export const sourceBreakdown = (sections: TableSection[]) => {
 		(acc, section) => {
 			section.fields.forEach((field) => {
 				const key = field.source || "manual";
-				acc[key] = (acc[key] || 0) + (field.value ? 1 : 0);
+				acc[key] = (acc[key] || 0) + (hasFieldValue(field.value) ? 1 : 0);
 			});
 			return acc;
 		},

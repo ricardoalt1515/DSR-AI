@@ -1,10 +1,11 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { SectionErrorBoundary } from "@/components/features/proposals/overview/section-error-boundary";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { hasFieldValue } from "@/lib/technical-data-field-utils";
 import { isFixedSection } from "@/lib/technical-sheet-data";
 import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
@@ -33,14 +34,14 @@ export const FlexibleDataCapture = memo(function FlexibleDataCapture({
 	className,
 	focusSectionId,
 }: FlexibleDataCaptureProps) {
+	const hasInitializedAccordions = useRef(false);
+
 	// State for custom sections accordion
 	const [accordionValue, setAccordionValue] = useState<string[]>(() => {
 		const incompleteSections = sections
 			.filter((s) => !isFixedSection(s.id))
 			.filter((s) => {
-				const completed = s.fields.filter(
-					(f) => f.value && f.value !== "",
-				).length;
+				const completed = s.fields.filter((f) => hasFieldValue(f.value)).length;
 				const total = s.fields.length;
 				return total > 0 && completed < total;
 			})
@@ -60,27 +61,28 @@ export const FlexibleDataCapture = memo(function FlexibleDataCapture({
 
 	// Rehidratar accordion cuando sections cambia de vacío a poblado
 	useEffect(() => {
-		if (sections.length > 0) {
-			// Expandir secciones fijas
-			const fixedIds = sections
-				.filter((s) => isFixedSection(s.id))
-				.map((s) => s.id);
-			setFixedAccordionValue(fixedIds);
-
-			// Expandir secciones custom incompletas (primeras 3)
-			const incompleteCustomIds = sections
-				.filter((s) => !isFixedSection(s.id))
-				.filter((s) => {
-					const completed = s.fields.filter(
-						(f) => f.value && f.value !== "",
-					).length;
-					const total = s.fields.length;
-					return total > 0 && completed < total;
-				})
-				.slice(0, 3)
-				.map((s) => s.id);
-			setAccordionValue(incompleteCustomIds);
+		if (sections.length === 0 || hasInitializedAccordions.current) {
+			return;
 		}
+
+		// Expandir secciones fijas
+		const fixedIds = sections
+			.filter((s) => isFixedSection(s.id))
+			.map((s) => s.id);
+		setFixedAccordionValue(fixedIds);
+
+		// Expandir secciones custom incompletas (primeras 3)
+		const incompleteCustomIds = sections
+			.filter((s) => !isFixedSection(s.id))
+			.filter((s) => {
+				const completed = s.fields.filter((f) => hasFieldValue(f.value)).length;
+				const total = s.fields.length;
+				return total > 0 && completed < total;
+			})
+			.slice(0, 3)
+			.map((s) => s.id);
+		setAccordionValue(incompleteCustomIds);
+		hasInitializedAccordions.current = true;
 	}, [sections]);
 
 	useEffect(() => {

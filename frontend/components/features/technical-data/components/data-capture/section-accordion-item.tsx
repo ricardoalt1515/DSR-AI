@@ -13,6 +13,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { hasFieldValue } from "@/lib/technical-data-field-utils";
 import type { TableSection } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 import { DynamicSection } from "./dynamic-section";
@@ -79,8 +80,8 @@ export const SectionAccordionItem = memo(function SectionAccordionItem({
 }: SectionAccordionItemProps) {
 	const { completedFields, totalFields, percentage, isComplete, isEmpty } =
 		useMemo(() => {
-			const completed = section.fields.filter(
-				(f) => f.value && f.value !== "",
+			const completed = section.fields.filter((f) =>
+				hasFieldValue(f.value),
 			).length;
 			const total = section.fields.length;
 			const pct = total > 0 ? Math.round((completed / total) * 100) : 0;

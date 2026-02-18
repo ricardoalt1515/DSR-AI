@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { hasFieldValue } from "@/lib/technical-data-field-utils";
 import type { TableField } from "@/lib/types/technical-data";
 import { useDebounce } from "./use-debounce";
 
@@ -47,10 +48,7 @@ export function useFieldEditor({
 	const validateValue = useCallback(
 		(val: string | number | string[] | null): string | null => {
 			// Required field validation
-			if (
-				field.required &&
-				(!val || val === "" || (Array.isArray(val) && val.length === 0))
-			) {
+			if (field.required && !hasFieldValue(val)) {
 				return "This field is required";
 			}
 
@@ -69,7 +67,7 @@ export function useFieldEditor({
 
 	// ✅ Validación en tiempo real
 	const validationStatus = useMemo(() => {
-		if (!value && value !== 0) return null;
+		if (!hasFieldValue(value)) return null;
 		const err = validateValue(value);
 		return err ? "invalid" : "valid";
 	}, [value, validateValue]);

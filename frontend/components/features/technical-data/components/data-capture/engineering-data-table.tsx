@@ -58,6 +58,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { IMPORTANCE_CONFIG, SOURCE_CONFIG } from "@/lib/constants";
+import { hasFieldValue } from "@/lib/technical-data-field-utils";
 import type {
 	DataSource,
 	TableField,
@@ -248,7 +249,7 @@ export function EngineeringDataTable({
 		},
 		{
 			accessorKey: "source",
-			header: "Origen",
+			header: "Source",
 			cell: ({ row }) => {
 				const source = row.getValue("source") as DataSource;
 				const config = sourceConfig[source];
@@ -264,7 +265,7 @@ export function EngineeringDataTable({
 		},
 		{
 			id: "actions",
-			header: "Acciones",
+			header: "Actions",
 			cell: ({ row }) => {
 				const field = row.original;
 
@@ -315,8 +316,8 @@ export function EngineeringDataTable({
 		},
 	});
 
-	const completedFields = data.filter(
-		(field) => field.value || field.value === 0,
+	const completedFields = data.filter((field) =>
+		hasFieldValue(field.value),
 	).length;
 	const totalFields = data.length;
 	const completionPercentage =
@@ -369,12 +370,12 @@ export function EngineeringDataTable({
 						<DropdownMenuTrigger asChild>
 							<Button variant="outline" size="sm">
 								<Filter className="mr-2 h-4 w-4" />
-								Origen
+								Source
 								<ChevronDown className="ml-2 h-4 w-4" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
-							<DropdownMenuLabel>Filtrar por origen</DropdownMenuLabel>
+							<DropdownMenuLabel>Filter by source</DropdownMenuLabel>
 							<DropdownMenuSeparator />
 							{Object.entries(sourceConfig).map(([key, config]) => (
 								<DropdownMenuCheckboxItem

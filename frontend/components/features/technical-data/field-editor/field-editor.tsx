@@ -37,6 +37,10 @@ import { TagInput } from "@/components/ui/tag-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useClickOutside } from "@/lib/hooks/use-click-outside";
 import { useFieldEditor } from "@/lib/hooks/use-field-editor";
+import {
+	hasFieldValue,
+	shouldSaveOnEnter,
+} from "@/lib/technical-data-field-utils";
 import type { TableField } from "@/lib/types/technical-data";
 import { cn } from "@/lib/utils";
 
@@ -100,19 +104,15 @@ export function FieldEditor({
 
 	// ✅ Keyboard shortcuts
 	const handleKeyDown = (e: KeyboardEvent) => {
-		const isInteractiveSelectionField =
-			field.type === "combobox" ||
-			field.type === "tags" ||
-			field.type === "select" ||
-			field.type === "radio";
-
 		if (
 			e.key === "Enter" &&
 			!e.shiftKey &&
-			!field.multiline &&
-			!e.defaultPrevented &&
-			!e.nativeEvent.isComposing &&
-			!isInteractiveSelectionField
+			shouldSaveOnEnter({
+				fieldType: field.type,
+				multiline: Boolean(field.multiline),
+				defaultPrevented: e.defaultPrevented,
+				isComposing: e.nativeEvent.isComposing,
+			})
 		) {
 			e.preventDefault();
 			actions.save();
@@ -313,21 +313,7 @@ export function FieldEditor({
 		);
 	}
 
-	const hasValue = (() => {
-		if (field.value === undefined || field.value === null) {
-			return false;
-		}
-
-		if (Array.isArray(field.value)) {
-			return field.value.length > 0;
-		}
-
-		if (typeof field.value === "string") {
-			return field.value.trim().length > 0;
-		}
-
-		return true;
-	})();
+	const hasValue = hasFieldValue(field.value);
 
 	// ✅ MODE: INLINE - Vista completa para dynamic-section
 	return (
