@@ -488,6 +488,7 @@ async def root():
 
 # Import and include routers
 from app.api.v1 import (
+    admin_proposal_ratings,
     admin_users,
     auth,
     bulk_import,
@@ -572,6 +573,12 @@ app.include_router(
     feedback.admin_router,
     prefix=f"{settings.API_V1_PREFIX}/admin/feedback",
     tags=["Admin Feedback"],
+)
+
+app.include_router(
+    admin_proposal_ratings.router,
+    prefix=f"{settings.API_V1_PREFIX}/admin/proposal-ratings",
+    tags=["Admin Proposal Ratings"],
 )
 
 app.include_router(

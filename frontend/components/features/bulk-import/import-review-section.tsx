@@ -42,17 +42,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { BulkImportItem, BulkImportRun } from "@/lib/api/bulk-import";
 import { bulkImportAPI } from "@/lib/api/bulk-import";
 import { EditItemDrawer } from "./edit-item-drawer";
@@ -77,9 +77,15 @@ interface ImportReviewSectionProps {
 	reviewMode?: "company" | "location";
 	locationContext?: { id: string; name: string } | undefined;
 	/** Company locations for orphan-project picker (company mode only) */
-	companyLocations?: Array<{ id: string; name: string; city?: string | undefined }> | undefined;
+	companyLocations?:
+		| Array<{ id: string; name: string; city?: string | undefined }>
+		| undefined;
 	/** Called when user assigns orphan waste streams to a location */
-	onAssignOrphans?: (locationId: string, locationName: string, itemIds: string[]) => Promise<void>;
+	onAssignOrphans?: (
+		locationId: string,
+		locationName: string,
+		itemIds: string[],
+	) => Promise<void>;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -302,7 +308,11 @@ function OrphanLocationPicker({
 	orphanItems: BulkImportItem[];
 	filename: string;
 	locations: Array<{ id: string; name: string; city?: string | undefined }>;
-	onAssignOrphans: (locationId: string, locationName: string, itemIds: string[]) => Promise<void>;
+	onAssignOrphans: (
+		locationId: string,
+		locationName: string,
+		itemIds: string[],
+	) => Promise<void>;
 	onDismiss: () => void;
 }) {
 	const [selectedLocationId, setSelectedLocationId] = useState<string>("");
@@ -331,20 +341,23 @@ function OrphanLocationPicker({
 					</div>
 					<div>
 						<h3 className="text-base font-semibold">
-							Found{" "}
-							<span className="text-primary">{orphanItems.length}</span>{" "}
-							waste stream{orphanItems.length === 1 ? "" : "s"} in &ldquo;{filename}&rdquo;
+							Found <span className="text-primary">{orphanItems.length}</span>{" "}
+							waste stream{orphanItems.length === 1 ? "" : "s"} in &ldquo;
+							{filename}&rdquo;
 						</h3>
 						<p className="text-sm text-muted-foreground mt-1">
-							We detected waste stream data but couldn&rsquo;t identify a location.
-							Select where to import them:
+							We detected waste stream data but couldn&rsquo;t identify a
+							location. Select where to import them:
 						</p>
 					</div>
 				</div>
 
 				{/* Location selector */}
 				<div className="pl-11">
-					<Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+					<Select
+						value={selectedLocationId}
+						onValueChange={setSelectedLocationId}
+					>
 						<SelectTrigger className="w-full">
 							<SelectValue placeholder="Choose a location…" />
 						</SelectTrigger>
@@ -371,7 +384,8 @@ function OrphanLocationPicker({
 					<div className="pl-11 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
 						<div className="flex items-center justify-between">
 							<p className="text-sm font-medium text-muted-foreground">
-								Waste streams to import to &ldquo;{selectedLocation?.name}&rdquo;
+								Waste streams to import to &ldquo;{selectedLocation?.name}
+								&rdquo;
 							</p>
 							<Badge variant="secondary" className="text-xs">
 								{includedCount} of {orphanItems.length} selected
@@ -387,17 +401,24 @@ function OrphanLocationPicker({
 								const isExcluded = excluded.has(item.id);
 
 								return (
-									<label
+									// <label> can't associate with a <button> (Checkbox renders button); use button row
+									<button
 										key={item.id}
-										className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-muted/50 ${isExcluded ? "opacity-50 bg-muted/20" : ""
-											}`}
+										type="button"
+										onClick={() => toggleItem(item.id)}
+										className={`flex w-full items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-muted/50 text-left ${
+											isExcluded ? "opacity-50 bg-muted/20" : ""
+										}`}
 									>
 										<Checkbox
 											checked={!isExcluded}
 											onCheckedChange={() => toggleItem(item.id)}
+											tabIndex={-1}
 										/>
 										<div className="flex-1 min-w-0">
-											<span className={`text-sm font-medium ${isExcluded ? "line-through" : ""}`}>
+											<span
+												className={`text-sm font-medium ${isExcluded ? "line-through" : ""}`}
+											>
 												{name}
 											</span>
 											{(category || volume) && (
@@ -407,7 +428,7 @@ function OrphanLocationPicker({
 											)}
 										</div>
 										<Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-									</label>
+									</button>
 								);
 							})}
 						</div>
@@ -422,8 +443,14 @@ function OrphanLocationPicker({
 							if (selectedLocationId && selectedLocation) {
 								setSubmitting(true);
 								try {
-									const selectedIds = orphanItems.filter((i) => !excluded.has(i.id)).map((i) => i.id);
-									await onAssignOrphans(selectedLocationId, selectedLocation.name, selectedIds);
+									const selectedIds = orphanItems
+										.filter((i) => !excluded.has(i.id))
+										.map((i) => i.id);
+									await onAssignOrphans(
+										selectedLocationId,
+										selectedLocation.name,
+										selectedIds,
+									);
 								} finally {
 									setSubmitting(false);
 								}
@@ -802,9 +829,20 @@ export function ImportReviewSection({
 	}
 
 	// Orphan projects: waste streams found but no location context (visible in any mode)
-	const orphanProjects = items.filter((i) => i.itemType === "project" && !i.createdProjectId && !i.parentItemId);
-	const hasOrphanProjects = reviewMode === "company" && orphanProjects.length > 0;
-	const showOrphanPicker = hasOrphanProjects && companyLocations && companyLocations.length > 0 && onAssignOrphans;
+	const orphanProjects = items.filter(
+		(i) => i.itemType === "project" && !i.createdProjectId && !i.parentItemId,
+	);
+	const hasOrphanProjects =
+		reviewMode === "company" && orphanProjects.length > 0;
+	// Both props must be present for the orphan picker to render; narrow here to avoid `!` later.
+	const orphanPickerProps =
+		hasOrphanProjects &&
+		companyLocations &&
+		companyLocations.length > 0 &&
+		onAssignOrphans
+			? { locations: companyLocations, onAssignOrphans }
+			: null;
+	const showOrphanPicker = orphanPickerProps !== null;
 
 	// (#6) Empty state (no groups AND no orphans)
 	if (groups.length === 0 && !showOrphanPicker) {
@@ -847,14 +885,16 @@ export function ImportReviewSection({
 	}
 
 	// Pure orphan case: only orphans, no location groups
-	if (groups.length === 0 && showOrphanPicker) {
-		return <OrphanLocationPicker
-			orphanItems={orphanProjects}
-			filename={run.sourceFilename}
-			locations={companyLocations!}
-			onAssignOrphans={onAssignOrphans!}
-			onDismiss={onDismiss}
-		/>;
+	if (groups.length === 0 && orphanPickerProps) {
+		return (
+			<OrphanLocationPicker
+				orphanItems={orphanProjects}
+				filename={run.sourceFilename}
+				locations={orphanPickerProps.locations}
+				onAssignOrphans={orphanPickerProps.onAssignOrphans}
+				onDismiss={onDismiss}
+			/>
+		);
 	}
 
 	return (
@@ -927,12 +967,12 @@ export function ImportReviewSection({
 			</div>
 
 			{/* Unassigned waste streams (orphans alongside location groups) */}
-			{showOrphanPicker && (
+			{orphanPickerProps && (
 				<OrphanLocationPicker
 					orphanItems={orphanProjects}
 					filename={run.sourceFilename}
-					locations={companyLocations!}
-					onAssignOrphans={onAssignOrphans!}
+					locations={orphanPickerProps.locations}
+					onAssignOrphans={orphanPickerProps.onAssignOrphans}
 					onDismiss={onDismiss}
 				/>
 			)}
@@ -1093,8 +1133,9 @@ function SuggestionCard({
 			{/* Status ribbon */}
 			{!isPending && (
 				<div
-					className={`absolute top-0 left-0 right-0 h-1 ${isAdded ? "bg-emerald-500" : "bg-muted-foreground/30"
-						}`}
+					className={`absolute top-0 left-0 right-0 h-1 ${
+						isAdded ? "bg-emerald-500" : "bg-muted-foreground/30"
+					}`}
 				/>
 			)}
 
@@ -1186,10 +1227,11 @@ function SuggestionCard({
 									return (
 										<span
 											key={proj.id}
-											className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border transition-opacity ${isSelected
-												? "bg-muted"
-												: "bg-muted/40 opacity-50 line-through"
-												}`}
+											className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border transition-opacity ${
+												isSelected
+													? "bg-muted"
+													: "bg-muted/40 opacity-50 line-through"
+											}`}
 										>
 											<Package className="h-3 w-3 text-muted-foreground" />
 											{String(proj.normalizedData.name ?? "Unnamed")}

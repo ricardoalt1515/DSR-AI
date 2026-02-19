@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Download, FileText, ListChecks } from "lucide-react";
 import Link from "next/link";
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
@@ -19,10 +19,18 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/format";
+import type { ProposalRatingStats } from "@/lib/types/proposal-rating";
 import { ExternalReportView } from "./external-report-view";
 import { SectionErrorBoundary } from "./overview/section-error-boundary";
 import { ProposalOverview } from "./proposal-overview";
+import { ProposalRatingWidget } from "./proposal-rating-widget";
 import {
 	type ReportAudience,
 	ReportAudienceToggle,
@@ -56,6 +64,13 @@ export const ProposalPage = memo(function ProposalPage({
 }: ProposalPageProps) {
 	const [isChecklistOpen, setIsChecklistOpen] = useState(false);
 	const [audience, setAudience] = useState<ReportAudience>("internal");
+	const [ratingStats, setRatingStats] = useState<ProposalRatingStats | null>(
+		null,
+	);
+	const handleStatsLoaded = useCallback(
+		(stats: ProposalRatingStats | null) => setRatingStats(stats),
+		[],
+	);
 
 	if (isLoading) {
 		return <ProposalPageSkeleton />;
@@ -90,6 +105,50 @@ export const ProposalPage = memo(function ProposalPage({
 										{proposal.status}
 									</Badge>
 									<Badge variant="secondary">{proposal.proposalType}</Badge>
+									{ratingStats?.visible && ratingStats.criteriaAvg ? (
+										<>
+											<Badge variant="success">
+												Overall {ratingStats.overallAvg?.toFixed(2)}
+											</Badge>
+											<Badge variant="outline">
+												{ratingStats.ratingCount} ratings
+											</Badge>
+											<TooltipProvider delayDuration={150}>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<Badge variant="muted" className="cursor-help">
+															Criteria Avg
+														</Badge>
+													</TooltipTrigger>
+													<TooltipContent>
+														<p>
+															Coverage:{" "}
+															{ratingStats.criteriaAvg.coverageNeedsAvg.toFixed(
+																2,
+															)}
+														</p>
+														<p>
+															Info quality:{" "}
+															{ratingStats.criteriaAvg.qualityInfoAvg.toFixed(
+																2,
+															)}
+														</p>
+														<p>
+															Business data:{" "}
+															{ratingStats.criteriaAvg.businessDataAvg.toFixed(
+																2,
+															)}
+														</p>
+													</TooltipContent>
+												</Tooltip>
+											</TooltipProvider>
+										</>
+									) : ratingStats ? (
+										<Badge variant="muted">
+											{ratingStats.ratingCount}/
+											{ratingStats.minimumRequiredCount} ratings
+										</Badge>
+									) : null}
 								</div>
 							</div>
 							<div className="mt-1 text-xs text-muted-foreground md:text-sm">
@@ -164,8 +223,15 @@ export const ProposalPage = memo(function ProposalPage({
 				</div>
 			</header>
 
-			{/* Main Content - Conditional View */}
+			{/* Main Content */}
 			<main className="container mx-auto px-4 py-6 lg:py-8">
+				<ProposalRatingWidget
+					projectId={project.id}
+					proposalId={proposal.id}
+					isWriteBlocked={proposal.status === "Archived"}
+					onStatsLoaded={handleStatsLoaded}
+				/>
+
 				<SectionErrorBoundary sectionName="Proposal Content">
 					{audience === "internal" ? (
 						<ProposalOverview proposal={proposal} />

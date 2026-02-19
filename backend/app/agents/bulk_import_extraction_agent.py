@@ -89,7 +89,12 @@ async def run_bulk_import_extraction_agent(
         )
         return BulkImportAIOutput.model_validate(result.output)
     except Exception as exc:
-        logger.error("bulk_import_agent_binary_failed", error=str(exc), error_type=type(exc).__name__, exc_info=True)
+        logger.error(
+            "bulk_import_agent_binary_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
         raise BulkImportExtractionAgentError("agent_run_failed") from exc
 
 
@@ -116,5 +121,10 @@ async def run_bulk_import_extraction_agent_on_text(
         )
         return BulkImportAIOutput.model_validate(result.output)
     except Exception as exc:
-        logger.error("bulk_import_agent_text_failed", error=str(exc), error_type=type(exc).__name__, exc_info=True)
+        logger.error(
+            "bulk_import_agent_text_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
         raise BulkImportExtractionAgentError("agent_run_failed") from exc

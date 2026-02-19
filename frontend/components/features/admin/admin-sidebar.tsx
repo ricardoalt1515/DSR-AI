@@ -6,6 +6,7 @@ import {
 	MessageSquare,
 	Settings,
 	ShieldCheck,
+	Star,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -38,6 +39,12 @@ const NAV_ITEMS = [
 		label: "User Feedback",
 		icon: MessageSquare,
 		description: "Review user feedback",
+	},
+	{
+		href: "/admin/proposal-ratings",
+		label: "Proposal Ratings",
+		icon: Star,
+		description: "Audit proposal quality",
 	},
 ];
 

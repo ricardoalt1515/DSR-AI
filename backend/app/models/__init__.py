@@ -15,6 +15,7 @@ from app.models.organization import Organization
 from app.models.organization_purge_manifest import OrganizationPurgeManifest
 from app.models.project import Project
 from app.models.proposal import Proposal
+from app.models.proposal_rating import ProposalRating
 from app.models.timeline import TimelineEvent
 from app.models.user import User
 
@@ -36,6 +37,7 @@ __all__ = [
     "Project",
     "ProjectFile",
     "Proposal",
+    "ProposalRating",
     "TimelineEvent",
     "User",
 ]

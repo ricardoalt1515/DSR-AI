@@ -10,26 +10,40 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import (
     ActiveProjectDep,
+    AsyncDB,
     CurrentUser,
     OrganizationContext,
     ProjectDep,
+    RateLimitUser30,
     require_not_archived,
 )
 from app.core.database import get_async_db
 from app.main import limiter
 from app.models.file import ProjectFile
+from app.models.organization import Organization
 from app.models.project import Project
+from app.models.proposal import Proposal
+from app.models.proposal_rating import ProposalRating
+from app.models.user import User
 from app.schemas.common import ErrorResponse
 from app.schemas.proposal import (
     AIMetadataResponse,
     ProposalGenerationRequest,
     ProposalJobStatus,
     ProposalResponse,
+)
+from app.schemas.proposal_rating import (
+    ProposalRatingCriteriaAvg,
+    ProposalRatingEnvelope,
+    ProposalRatingRead,
+    ProposalRatingStatsRead,
+    ProposalRatingUpsert,
 )
 from app.services.proposal_service import (
     ProposalService,
@@ -48,6 +62,298 @@ from app.visualization.pdf_generator import pdf_generator
 logger = structlog.get_logger(__name__)
 
 router = APIRouter()
+
+
+MIN_RATINGS_FOR_PUBLIC_STATS = 3
+
+
+def _round_two_decimals(value: float) -> float:
+    return round(value, 2)
+
+
+def _map_rating_read(rating: ProposalRating) -> ProposalRatingRead:
+    return ProposalRatingRead(
+        coverage_needs_score=rating.coverage_needs_score,
+        quality_info_score=rating.quality_info_score,
+        business_data_score=rating.business_data_score,
+        comment=rating.comment,
+        updated_at=rating.updated_at,
+    )
+
+
+async def _resolve_user_organization_for_ratings(
+    *,
+    db: AsyncSession,
+    current_user: User,
+) -> Organization:
+    if current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superadmin cannot access user rating endpoints",
+        )
+
+    if not current_user.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User not assigned to any organization",
+        )
+
+    org = await db.get(Organization, current_user.organization_id)
+    if not org or not org.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User's organization is inactive",
+        )
+
+    return org
+
+
+async def _get_accessible_project_for_ratings(
+    *,
+    db: AsyncSession,
+    project_id: UUID,
+    current_user: User,
+    organization_id: UUID,
+) -> Project:
+    conditions = [
+        Project.id == project_id,
+        Project.organization_id == organization_id,
+    ]
+    if not current_user.can_see_all_org_projects():
+        conditions.append(Project.user_id == current_user.id)
+
+    result = await db.execute(select(Project).where(*conditions))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    return project
+
+
+async def _get_project_proposal_for_ratings(
+    *,
+    db: AsyncSession,
+    project_id: UUID,
+    proposal_id: UUID,
+    organization_id: UUID,
+) -> Proposal:
+    result = await db.execute(
+        select(Proposal).where(
+            Proposal.id == proposal_id,
+            Proposal.project_id == project_id,
+            Proposal.organization_id == organization_id,
+        )
+    )
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Proposal not found",
+        )
+
+    return proposal
+
+
+def _resolve_comment(
+    *,
+    payload: ProposalRatingUpsert,
+) -> tuple[bool, str | None]:
+    if "comment" not in payload.model_fields_set:
+        return False, None
+
+    if payload.comment is None or payload.comment == "":
+        return True, None
+
+    return True, payload.comment
+
+
+@router.put(
+    "/{project_id}/proposals/{proposal_id}/rating",
+    response_model=ProposalRatingEnvelope,
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+    summary="Upsert current user proposal rating",
+)
+async def upsert_proposal_rating(
+    project_id: UUID,
+    proposal_id: UUID,
+    payload: ProposalRatingUpsert,
+    current_user: CurrentUser,
+    db: AsyncDB,
+    _rate_limit: RateLimitUser30,
+):
+    org = await _resolve_user_organization_for_ratings(db=db, current_user=current_user)
+    project = await _get_accessible_project_for_ratings(
+        db=db,
+        project_id=project_id,
+        current_user=current_user,
+        organization_id=org.id,
+    )
+    proposal = await _get_project_proposal_for_ratings(
+        db=db,
+        project_id=project.id,
+        proposal_id=proposal_id,
+        organization_id=org.id,
+    )
+
+    if project.archived_at is not None or proposal.status == "Archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project or proposal is archived",
+        )
+
+    comment_provided, comment = _resolve_comment(payload=payload)
+
+    insert_values: dict[str, object | None] = {
+        "organization_id": org.id,
+        "proposal_id": proposal.id,
+        "user_id": current_user.id,
+        "coverage_needs_score": payload.coverage_needs_score,
+        "quality_info_score": payload.quality_info_score,
+        "business_data_score": payload.business_data_score,
+        "comment": comment if comment_provided else None,
+    }
+    update_values: dict[str, object | None] = {
+        "coverage_needs_score": payload.coverage_needs_score,
+        "quality_info_score": payload.quality_info_score,
+        "business_data_score": payload.business_data_score,
+        "updated_at": func.now(),
+    }
+    if comment_provided:
+        update_values["comment"] = comment
+
+    stmt = (
+        insert(ProposalRating)
+        .values(**insert_values)
+        .on_conflict_do_update(
+            index_elements=[
+                ProposalRating.organization_id,
+                ProposalRating.proposal_id,
+                ProposalRating.user_id,
+            ],
+            set_=update_values,
+        )
+        .returning(ProposalRating)
+    )
+    result = await db.execute(stmt)
+    rating = result.scalar_one()
+
+    await db.commit()
+
+    return ProposalRatingEnvelope(rating=_map_rating_read(rating))
+
+
+@router.get(
+    "/{project_id}/proposals/{proposal_id}/rating",
+    response_model=ProposalRatingEnvelope,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get current user proposal rating",
+)
+async def get_proposal_rating(
+    project_id: UUID,
+    proposal_id: UUID,
+    current_user: CurrentUser,
+    db: AsyncDB,
+):
+    org = await _resolve_user_organization_for_ratings(db=db, current_user=current_user)
+    project = await _get_accessible_project_for_ratings(
+        db=db,
+        project_id=project_id,
+        current_user=current_user,
+        organization_id=org.id,
+    )
+    proposal = await _get_project_proposal_for_ratings(
+        db=db,
+        project_id=project.id,
+        proposal_id=proposal_id,
+        organization_id=org.id,
+    )
+
+    result = await db.execute(
+        select(ProposalRating).where(
+            ProposalRating.organization_id == org.id,
+            ProposalRating.proposal_id == proposal.id,
+            ProposalRating.user_id == current_user.id,
+        )
+    )
+    rating = result.scalar_one_or_none()
+
+    return ProposalRatingEnvelope(rating=_map_rating_read(rating) if rating else None)
+
+
+@router.get(
+    "/{project_id}/proposals/{proposal_id}/rating/stats",
+    response_model=ProposalRatingStatsRead,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get proposal rating aggregate stats",
+)
+async def get_proposal_rating_stats(
+    project_id: UUID,
+    proposal_id: UUID,
+    current_user: CurrentUser,
+    db: AsyncDB,
+):
+    org = await _resolve_user_organization_for_ratings(db=db, current_user=current_user)
+    project = await _get_accessible_project_for_ratings(
+        db=db,
+        project_id=project_id,
+        current_user=current_user,
+        organization_id=org.id,
+    )
+    proposal = await _get_project_proposal_for_ratings(
+        db=db,
+        project_id=project.id,
+        proposal_id=proposal_id,
+        organization_id=org.id,
+    )
+
+    aggregates = await db.execute(
+        select(
+            func.count(ProposalRating.id).label("rating_count"),
+            func.avg(ProposalRating.coverage_needs_score).label("coverage_needs_avg"),
+            func.avg(ProposalRating.quality_info_score).label("quality_info_avg"),
+            func.avg(ProposalRating.business_data_score).label("business_data_avg"),
+        ).where(
+            ProposalRating.organization_id == org.id,
+            ProposalRating.proposal_id == proposal.id,
+        )
+    )
+    row = aggregates.one()
+    rating_count = int(row.rating_count or 0)
+
+    if rating_count < MIN_RATINGS_FOR_PUBLIC_STATS:
+        return ProposalRatingStatsRead(
+            visible=False,
+            rating_count=rating_count,
+            minimum_required_count=MIN_RATINGS_FOR_PUBLIC_STATS,
+            overall_avg=None,
+            criteria_avg=None,
+        )
+
+    coverage_needs_avg_raw = float(row.coverage_needs_avg or 0.0)
+    quality_info_avg_raw = float(row.quality_info_avg or 0.0)
+    business_data_avg_raw = float(row.business_data_avg or 0.0)
+
+    coverage_needs_avg = _round_two_decimals(coverage_needs_avg_raw)
+    quality_info_avg = _round_two_decimals(quality_info_avg_raw)
+    business_data_avg = _round_two_decimals(business_data_avg_raw)
+    overall_avg = _round_two_decimals(
+        (coverage_needs_avg_raw + quality_info_avg_raw + business_data_avg_raw) / 3
+    )
+
+    return ProposalRatingStatsRead(
+        visible=True,
+        rating_count=rating_count,
+        minimum_required_count=MIN_RATINGS_FOR_PUBLIC_STATS,
+        overall_avg=overall_avg,
+        criteria_avg=ProposalRatingCriteriaAvg(
+            coverage_needs_avg=coverage_needs_avg,
+            quality_info_avg=quality_info_avg,
+            business_data_avg=business_data_avg,
+        ),
+    )
 
 
 @router.post(
