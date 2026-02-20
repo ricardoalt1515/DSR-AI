@@ -304,9 +304,9 @@ export default function AdminProposalRatingsPage() {
 					<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Total
 					</p>
-					<p className="mt-1.5 text-3xl font-semibold tabular-nums">
+					<div className="mt-1.5 text-3xl font-semibold tabular-nums">
 						{loading ? <Skeleton className="h-8 w-12" /> : total}
-					</p>
+					</div>
 				</div>
 
 				<div
@@ -320,7 +320,7 @@ export default function AdminProposalRatingsPage() {
 					<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Low-rated{totalPages > 1 ? " *" : ""}
 					</p>
-					<p
+					<div
 						className={cn(
 							"mt-1.5 text-3xl font-semibold tabular-nums",
 							!loading && lowRatedCount > 0
@@ -329,16 +329,16 @@ export default function AdminProposalRatingsPage() {
 						)}
 					>
 						{loading ? <Skeleton className="h-8 w-10" /> : lowRatedCount}
-					</p>
+					</div>
 				</div>
 
 				<div className="rounded-xl border border-border/60 bg-card px-5 py-4">
 					<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						With comments{totalPages > 1 ? " *" : ""}
 					</p>
-					<p className="mt-1.5 text-3xl font-semibold tabular-nums">
+					<div className="mt-1.5 text-3xl font-semibold tabular-nums">
 						{loading ? <Skeleton className="h-8 w-10" /> : withCommentsCount}
-					</p>
+					</div>
 				</div>
 			</div>
 			{totalPages > 1 && (

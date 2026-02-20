@@ -25,6 +25,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAuth } from "@/lib/contexts";
 import { formatDateTime } from "@/lib/format";
 import type { ProposalRatingStats } from "@/lib/types/proposal-rating";
 import { ExternalReportView } from "./external-report-view";
@@ -62,6 +63,7 @@ export const ProposalPage = memo(function ProposalPage({
 	onStatusChange,
 	onDownloadPDF,
 }: ProposalPageProps) {
+	const { isSuperAdmin } = useAuth();
 	const [isChecklistOpen, setIsChecklistOpen] = useState(false);
 	const [audience, setAudience] = useState<ReportAudience>("internal");
 	const [ratingStats, setRatingStats] = useState<ProposalRatingStats | null>(
@@ -225,12 +227,18 @@ export const ProposalPage = memo(function ProposalPage({
 
 			{/* Main Content */}
 			<main className="container mx-auto px-4 py-6 lg:py-8">
-				<ProposalRatingWidget
-					projectId={project.id}
-					proposalId={proposal.id}
-					isWriteBlocked={proposal.status === "Archived"}
-					onStatsLoaded={handleStatsLoaded}
-				/>
+				{isSuperAdmin ? (
+					<p className="mb-6 text-sm text-muted-foreground">
+						Ratings are available for organization users.
+					</p>
+				) : (
+					<ProposalRatingWidget
+						projectId={project.id}
+						proposalId={proposal.id}
+						isWriteBlocked={proposal.status === "Archived"}
+						onStatsLoaded={handleStatsLoaded}
+					/>
+				)}
 
 				<SectionErrorBoundary sectionName="Proposal Content">
 					{audience === "internal" ? (
