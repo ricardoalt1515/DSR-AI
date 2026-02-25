@@ -545,6 +545,7 @@ class BulkImportService:
             result = await bulk_import_ai_extractor.extract_parsed_rows_from_text(
                 extracted_text=chunk,
                 filename=f"voice-chunk-{index + 1}-{source_filename}.txt",
+                source_type="voice_interview",
             )
             all_rows.extend(result.rows)
 
@@ -1566,6 +1567,20 @@ class BulkImportService:
                 detail="Only company-entrypoint runs can have orphan projects",
             )
 
+        voice: VoiceInterview | None = None
+        if run.source_type == "voice_interview":
+            voice_result = await db.execute(
+                select(VoiceInterview)
+                .where(VoiceInterview.bulk_import_run_id == run.id)
+                .with_for_update()
+            )
+            voice = voice_result.scalar_one_or_none()
+            if voice is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Voice interview not found",
+                )
+
         # Validate location
         location = await db.get(Location, location_id)
         if not location or location.organization_id != organization_id:
@@ -1676,9 +1691,15 @@ class BulkImportService:
             )
         )
         if unresolved.scalar_one() == 0:
-            run.status = "completed"
+            if voice is not None:
+                voice.status = "finalized"
+                sync_import_run_status_for_voice(run=run, voice_status=voice.status)
+            else:
+                run.status = "completed"
             run.finalized_at = datetime.now(UTC)
             await db.flush()
+        elif voice is not None:
+            sync_import_run_status_for_voice(run=run, voice_status=voice.status)
 
         return {
             "projects_created": len(created_project_ids),
@@ -2411,9 +2432,11 @@ class BulkImportService:
 
         # Build name-only lookup for location_ref fallback matching
         _location_by_name: dict[str, ImportItem] = {}
-        for _key, loc_item in location_items_by_key.items():
+        for loc_item in location_items_by_key.values():
             loc_name = _normalize_token(
-                str(loc_item.normalized_data.get("name") or "") if isinstance(loc_item.normalized_data, dict) else ""
+                str(loc_item.normalized_data.get("name") or "")
+                if isinstance(loc_item.normalized_data, dict)
+                else ""
             )
             if loc_name and loc_name not in _location_by_name:
                 _location_by_name[loc_name] = loc_item

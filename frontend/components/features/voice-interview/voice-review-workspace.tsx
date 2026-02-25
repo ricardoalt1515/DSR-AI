@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Info, Loader2, MapPin, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
 	type BulkImportItem,
 	type BulkImportRun,
 	bulkImportAPI,
@@ -22,13 +28,14 @@ import type { VoiceInterviewTranscriptSegment } from "@/lib/api/voice-interviews
 import { voiceInterviewsApi } from "@/lib/api/voice-interviews";
 import { EditItemDrawer } from "../bulk-import/edit-item-drawer";
 import { OrphanStreamPicker } from "../shared/orphan-stream-picker";
+import { ConfirmImportDialog } from "./confirm-import-dialog";
 import { type LocationAction, LocationGroupCard } from "./location-group-card";
 import { StreamCard } from "./stream-card";
 import { TranscriptPanel } from "./transcript-panel";
 import {
+	getFinalizeDisabledReason,
 	type MapBlockedReason,
 	shouldBlockMapAction,
-	shouldDisableFinalizeAction,
 } from "./voice-review-guards";
 import { VoiceSuccessScreen } from "./voice-success-screen";
 
@@ -46,6 +53,59 @@ interface VoiceReviewWorkspaceProps {
 interface VoiceGroup {
 	groupId: string;
 	items: BulkImportItem[];
+}
+
+export const VOICE_RUN_LOCKED_MESSAGE =
+	"This run is no longer editable. Refresh or reopen review.";
+
+export function isVoiceRunEditable(status: BulkImportRun["status"]): boolean {
+	return status === "review_ready";
+}
+
+export function getVoiceConflictMessage(error: unknown): string | null {
+	const code =
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		typeof (error as { code?: unknown }).code === "string"
+			? (error as { code: string }).code
+			: null;
+
+	if (code !== "HTTP_409") {
+		return null;
+	}
+
+	const messageValue =
+		error instanceof Error
+			? error.message
+			: typeof error === "object" &&
+					error !== null &&
+					"message" in error &&
+					typeof (error as { message?: unknown }).message === "string"
+				? (error as { message: string }).message
+				: "";
+	const message = messageValue.toLowerCase();
+	if (
+		message.includes("run must be in review_ready status") ||
+		message.includes("run is not ready for finalize") ||
+		message.includes("voice run is not ready for finalize") ||
+		message.includes("run already finalizing")
+	) {
+		return VOICE_RUN_LOCKED_MESSAGE;
+	}
+
+	return null;
+}
+
+export function getActiveOrphanItems(
+	items: BulkImportItem[],
+): BulkImportItem[] {
+	return items.filter(
+		(i) =>
+			i.status === "invalid" &&
+			i.createdProjectId == null &&
+			i.reviewNotes?.startsWith(REVIEW_NOTE_MISSING_LOCATION),
+	);
 }
 
 export function getMapBlockedToast(reason: MapBlockedReason): string {
@@ -114,11 +174,11 @@ const REVIEW_NOTE_EXTERNAL_LOCATION =
 const REVIEW_NOTE_INVALID_LOCATION =
 	"Location items invalid for location entrypoint";
 
-/** User-friendly status label mapping */
+/** User-friendly status label mapping (3 primary states) */
 function _statusLabel(status: string, reviewNotes?: string | null): string {
 	if (status === "invalid") {
 		if (reviewNotes?.startsWith(REVIEW_NOTE_MISSING_LOCATION))
-			return "Needs mapping";
+			return "Needs location";
 		if (reviewNotes?.startsWith(REVIEW_NOTE_EXTERNAL_LOCATION))
 			return "Wrong location";
 		if (reviewNotes?.startsWith(REVIEW_NOTE_INVALID_LOCATION))
@@ -127,13 +187,13 @@ function _statusLabel(status: string, reviewNotes?: string | null): string {
 	}
 	switch (status) {
 		case "pending_review":
-			return "Pending";
+			return "Needs review";
 		case "accepted":
-			return "Accepted";
+			return "Approved";
 		case "amended":
-			return "Amended";
+			return "Approved";
 		case "rejected":
-			return "Rejected";
+			return "Skipped";
 		default:
 			return status;
 	}
@@ -223,7 +283,6 @@ export function VoiceReviewWorkspace({
 	const isDesktop = useIsDesktop();
 
 	const [loading, setLoading] = useState(true);
-	const [orphansDismissed, setOrphansDismissed] = useState(false);
 	const [editingItem, setEditingItem] = useState<BulkImportItem | null>(null);
 	const [items, setItems] = useState<BulkImportItem[]>([]);
 	const [transcriptText, setTranscriptText] = useState("");
@@ -235,14 +294,24 @@ export function VoiceReviewWorkspace({
 		Set<string>
 	>(new Set());
 	const [finalizing, setFinalizing] = useState(false);
+	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [seekToSec, setSeekToSec] = useState<number | null>(null);
 	const [success, setSuccess] = useState<{
-		created: number;
+		streamsCreated: number;
+		locationsCreated: number;
 		pending: number;
 	} | null>(null);
 	const [successTargetProjectId, setSuccessTargetProjectId] = useState<
 		string | null
 	>(null);
+	const [mobileTab, setMobileTab] = useState<string>("extracted");
+	const [runStatus, setRunStatus] = useState<BulkImportRun["status"]>(
+		run.status,
+	);
+
+	useEffect(() => {
+		setRunStatus(run.status);
+	}, [run.status]);
 
 	/* ── Load data ── */
 	const loadItems = useCallback(async (): Promise<BulkImportItem[]> => {
@@ -322,20 +391,114 @@ export function VoiceReviewWorkspace({
 		[groups],
 	);
 
+	/** Streams missing a location — candidates for orphan assignment */
+	const orphanItems = useMemo(() => getActiveOrphanItems(items), [items]);
+
+	/** IDs of orphan items — used to exclude orphan-only groups from actionable set */
+	const orphanItemIds = useMemo(
+		() => new Set(orphanItems.map((i) => i.id)),
+		[orphanItems],
+	);
+
+	/**
+	 * Groups that contain at least one non-location, non-orphan item.
+	 * Orphan-only groups (all project items are orphans) are excluded —
+	 * they render misleading LocationGroupCards with "Import 0 streams".
+	 */
+	const actionableGroups = useMemo(
+		() =>
+			pendingGroups.filter((g) =>
+				g.items.some(
+					(i) => i.itemType !== "location" && !orphanItemIds.has(i.id),
+				),
+			),
+		[pendingGroups, orphanItemIds],
+	);
+
+	/** Location names detected in orphan-only groups (for mention card context) */
+	const orphanGroupNames = useMemo(() => {
+		const orphanOnlyGroups = pendingGroups.filter(
+			(g) =>
+				!g.items.some(
+					(i) => i.itemType !== "location" && !orphanItemIds.has(i.id),
+				),
+		);
+		return orphanOnlyGroups
+			.map((g) => _groupLocationName(g))
+			.filter((n) => n !== "Location group");
+	}, [pendingGroups, orphanItemIds]);
+
 	const resolvedGroupIds = useMemo(
 		() =>
-			pendingGroups
-				.filter((g) => g.items.every((i) => !_isPending(i)))
+			actionableGroups
+				.filter((g) => {
+					const visible = g.items.filter(
+						(i) => i.itemType !== "location" && !orphanItemIds.has(i.id),
+					);
+					return visible.length > 0 && visible.every((i) => !_isPending(i));
+				})
 				.map((g) => g.groupId),
-		[pendingGroups],
+		[actionableGroups, orphanItemIds],
 	);
 
 	useEffect(() => {
 		setSelectedResolvedGroupIds(new Set(resolvedGroupIds));
 	}, [resolvedGroupIds]);
 
-	const resolvedCount = resolvedGroupIds.length;
-	const totalGroups = pendingGroups.length;
+	const totalGroups = actionableGroups.length;
+
+	/** Count of streams (non-location items) that will actually be imported from selected groups */
+	const importableStreamCount = useMemo(() => {
+		return actionableGroups
+			.filter((g) => selectedResolvedGroupIds.has(g.groupId))
+			.flatMap((g) => g.items)
+			.filter(
+				(i) =>
+					i.itemType !== "location" &&
+					(i.status === "accepted" || i.status === "amended"),
+			).length;
+	}, [actionableGroups, selectedResolvedGroupIds]);
+
+	const selectedGroupCount = selectedResolvedGroupIds.size;
+	const runEditable = isVoiceRunEditable(runStatus);
+
+	/** Rejected/invalid items in selected groups that won't be imported */
+	const skippedItemCount = useMemo(() => {
+		return actionableGroups
+			.filter((g) => selectedResolvedGroupIds.has(g.groupId))
+			.flatMap((g) => g.items)
+			.filter(
+				(i) =>
+					i.itemType !== "location" &&
+					(i.status === "rejected" || i.status === "invalid"),
+			).length;
+	}, [actionableGroups, selectedResolvedGroupIds]);
+
+	/** Total non-location items across all groups (for context banner) */
+	const totalStreamCount = useMemo(
+		() => items.filter((i) => i.itemType !== "location").length,
+		[items],
+	);
+
+	/** How many non-location items have been approved so far */
+	const approvedStreamCount = useMemo(
+		() =>
+			items.filter(
+				(i) =>
+					i.itemType !== "location" &&
+					(i.status === "accepted" || i.status === "amended"),
+			).length,
+		[items],
+	);
+
+	/** How many items still need review (pending) */
+	const pendingItemCount = useMemo(
+		() =>
+			items.filter(
+				(i) => i.itemType !== "location" && i.status === "pending_review",
+			).length,
+		[items],
+	);
 
 	/* ── Actions ── */
 	const setItemAction = useCallback(
@@ -370,6 +533,10 @@ export function VoiceReviewWorkspace({
 	);
 
 	const finalizeSelected = useCallback(async () => {
+		if (!runEditable) {
+			toast.error(VOICE_RUN_LOCKED_MESSAGE);
+			return;
+		}
 		if (totalGroups > 0 && selectedResolvedGroupIds.size === 0) {
 			toast.error("Select at least one resolved group");
 			return;
@@ -377,7 +544,8 @@ export function VoiceReviewWorkspace({
 		const selectedGroupIds = Array.from(selectedResolvedGroupIds.values());
 		setFinalizing(true);
 		try {
-			const closeReason = totalGroups === 0 ? "empty_extraction" : undefined;
+			// empty_extraction only valid when run truly has zero groups (not just zero actionable)
+			const closeReason = groups.length === 0 ? "empty_extraction" : undefined;
 			const response = await bulkImportAPI.finalize(run.id, {
 				resolvedGroupIds: selectedGroupIds,
 				idempotencyKey: crypto.randomUUID(),
@@ -385,11 +553,23 @@ export function VoiceReviewWorkspace({
 			});
 
 			const updatedRun = await bulkImportAPI.getRun(run.id);
+			setRunStatus(updatedRun.status);
 			onRunUpdated(updatedRun);
 			const refreshedItems = await loadItems();
 
 			if (updatedRun.status !== "completed") {
-				toast.success("Resolved groups finalized. Unresolved groups remain.");
+				const orphanCount = refreshedItems.filter(
+					(i) =>
+						i.status === "invalid" &&
+						i.reviewNotes?.startsWith(REVIEW_NOTE_MISSING_LOCATION),
+				).length;
+				const orphanSuffix =
+					orphanCount > 0
+						? ` ${orphanCount} stream${orphanCount === 1 ? "" : "s"} still need a location.`
+						: "";
+				toast.success(
+					`Resolved groups finalized. Unresolved groups remain.${orphanSuffix}`,
+				);
 				return;
 			}
 
@@ -418,22 +598,45 @@ export function VoiceReviewWorkspace({
 			}
 
 			setSuccess({
-				created: response.summary.projectsCreated,
+				streamsCreated: response.summary.projectsCreated,
+				locationsCreated: response.summary.locationsCreated,
 				pending: pendingSuggestions,
 			});
 			setSuccessTargetProjectId(targetProjectId);
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Finalize failed");
+			const conflictMessage = getVoiceConflictMessage(error);
+			if (conflictMessage) {
+				toast.error(conflictMessage);
+				try {
+					const latestRun = await bulkImportAPI.getRun(run.id);
+					setRunStatus(latestRun.status);
+					onRunUpdated(latestRun);
+					await loadItems();
+				} catch {
+					// best effort refresh
+				}
+			} else {
+				toast.error(error instanceof Error ? error.message : "Finalize failed");
+			}
 		} finally {
 			setFinalizing(false);
 		}
-	}, [totalGroups, loadItems, onRunUpdated, run.id, selectedResolvedGroupIds]);
+	}, [
+		groups.length,
+		loadItems,
+		onRunUpdated,
+		run.id,
+		runEditable,
+		selectedResolvedGroupIds,
+		totalGroups,
+	]);
 
 	/* ── Success screen ── */
 	if (success) {
 		return (
 			<VoiceSuccessScreen
-				createdStreams={success.created}
+				createdStreams={success.streamsCreated}
+				createdLocations={success.locationsCreated}
 				pendingSuggestions={success.pending}
 				targetProjectId={successTargetProjectId}
 				onReviewSuggestions={() => {
@@ -488,28 +691,93 @@ export function VoiceReviewWorkspace({
 
 	const extractedContent = (
 		<ScrollArea className="flex-1 min-h-0">
-			<div className="space-y-3 p-4">
-				{pendingGroups.length === 0 && importedGroups.length === 0 && (
-					<div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+			{!runEditable && (
+				<div className="mx-4 mt-4 mb-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
+					{VOICE_RUN_LOCKED_MESSAGE}
+				</div>
+			)}
+			{/* Context banner */}
+			{totalStreamCount > 0 && (
+				<div className="flex items-start gap-2.5 mx-4 mt-4 mb-1 rounded-lg border bg-muted/30 px-3 py-2.5">
+					<Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+					<div className="space-y-1">
 						<p className="text-sm text-muted-foreground">
-							No items were extracted from this interview.
-						</p>
-						<p className="text-xs text-muted-foreground/60">
-							You can close this as finalized or retry extraction.
+							<span className="font-medium text-foreground">
+								{totalStreamCount}
+							</span>{" "}
+							stream{totalStreamCount === 1 ? "" : "s"} extracted.{" "}
+							{actionableGroups.length === 0 && orphanItems.length > 0 ? (
+								<>
+									All streams need a location — assign below to import.{" "}
+									<span className="text-amber-400">
+										{orphanItems.length} need location
+									</span>
+								</>
+							) : pendingItemCount > 0 ? (
+								<>
+									Review each group, then import.{" "}
+									<span className="text-emerald-400">
+										{approvedStreamCount} approved
+									</span>
+									{orphanItems.length > 0 && (
+										<>
+											{" · "}
+											<span className="text-amber-400">
+												{orphanItems.length} need location
+											</span>
+										</>
+									)}
+								</>
+							) : (
+								<>
+									All items reviewed.{" "}
+									<span className="text-emerald-400">
+										{approvedStreamCount} approved
+									</span>
+									{orphanItems.length > 0 && (
+										<>
+											{" · "}
+											<span className="text-amber-400">
+												{orphanItems.length} need location
+											</span>
+										</>
+									)}
+								</>
+							)}
 						</p>
 					</div>
-				)}
-				{pendingGroups.map((group) => {
-					const resolved = group.items.every((i) => !_isPending(i));
+				</div>
+			)}
+			<div className="space-y-3 p-4">
+				{pendingGroups.length === 0 &&
+					importedGroups.length === 0 &&
+					orphanItems.length === 0 && (
+						<div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+							<p className="text-sm text-muted-foreground">
+								No items were extracted from this interview.
+							</p>
+							<p className="text-xs text-muted-foreground/60">
+								You can close this as finalized or retry extraction.
+							</p>
+						</div>
+					)}
+				{actionableGroups.map((group, index) => {
+					const nonLocationItems = group.items.filter(
+						(i) => i.itemType !== "location" && !orphanItemIds.has(i.id),
+					);
+					const resolved = nonLocationItems.every((i) => !_isPending(i));
+					const empty =
+						resolved &&
+						nonLocationItems.every(
+							(i) => i.status === "rejected" || i.status === "invalid",
+						);
 					const mapBlock = shouldBlockMapAction(group.items);
 					return (
 						<LocationGroupCard
 							key={group.groupId}
 							groupId={group.groupId}
 							locationName={_groupLocationName(group)}
-							streamCount={
-								group.items.filter((i) => i.itemType !== "location").length
-							}
+							streamCount={nonLocationItems.length}
 							duplicateCandidates={
 								group.items
 									.find((i) => i.itemType === "location")
@@ -521,6 +789,8 @@ export function VoiceReviewWorkspace({
 							canUseExistingMatch={!mapBlock.blocked}
 							mapBlockedReason={mapBlock.reason}
 							resolved={resolved}
+							empty={empty}
+							animationIndex={index}
 							selected={selectedResolvedGroupIds.has(group.groupId)}
 							onSelectedChange={(sel) => {
 								setSelectedResolvedGroupIds((prev) => {
@@ -532,81 +802,72 @@ export function VoiceReviewWorkspace({
 							}}
 							onResolve={(action) => void resolveGroup(group, action)}
 						>
-							{group.items
-								.filter((item) => item.itemType !== "location")
-								.map((item) => {
-									const start = _evidenceNum(item, "start_sec");
-									const end = _evidenceNum(item, "end_sec");
-									return (
-										<StreamCard
-											key={item.id}
-											name={_itemName(item)}
-											category={String(item.normalizedData.category ?? "")}
-											status={item.status}
-											statusLabel={_statusLabel(item.status, item.reviewNotes)}
-											reviewNotes={item.reviewNotes ?? undefined}
-											confidence={_confidence(item)}
-											evidenceQuote={
-												typeof item.extractedData.quote === "string"
-													? item.extractedData.quote
-													: undefined
-											}
-											evidenceStartSec={start}
-											evidenceEndSec={end}
-											onPlayEvidence={(sec) => setSeekToSec(sec)}
-											isPending={_isPending(item)}
-											itemType={item.itemType as "location" | "project"}
-											onEdit={() => setEditingItem(item)}
-											onAccept={() =>
-												void setItemAction(item, "accept", {
-													confirmCreateNew: false,
+							{nonLocationItems.map((item) => {
+								const start = _evidenceNum(item, "start_sec");
+								const end = _evidenceNum(item, "end_sec");
+								return (
+									<StreamCard
+										key={item.id}
+										name={_itemName(item)}
+										category={String(item.normalizedData.category ?? "")}
+										status={item.status}
+										statusLabel={_statusLabel(item.status, item.reviewNotes)}
+										reviewNotes={item.reviewNotes ?? undefined}
+										confidence={_confidence(item)}
+										evidenceQuote={
+											typeof item.extractedData.quote === "string"
+												? item.extractedData.quote
+												: undefined
+										}
+										evidenceStartSec={start}
+										evidenceEndSec={end}
+										onPlayEvidence={(sec) => setSeekToSec(sec)}
+										isPending={_isPending(item)}
+										itemType={item.itemType as "location" | "project"}
+										onEdit={() => setEditingItem(item)}
+										onAccept={() =>
+											void setItemAction(item, "accept", {
+												confirmCreateNew: false,
+											})
+										}
+										onReject={() => {
+											const name = _itemName(item);
+											setItemAction(item, "reject")
+												.then(() => {
+													toast(`"${name}" rejected`, {
+														action: {
+															label: "Undo",
+															onClick: () => void setItemAction(item, "reset"),
+														},
+														duration: 5000,
+													});
 												})
-											}
-											onReject={() => {
-												const name = _itemName(item);
-												setItemAction(item, "reject")
-													.then(() => {
-														toast(`"${name}" rejected`, {
-															action: {
-																label: "Undo",
-																onClick: () =>
-																	void setItemAction(item, "reset"),
-															},
-															duration: 5000,
-														});
-													})
-													.catch(() =>
-														toast.error(`Failed to reject "${name}"`),
-													);
-											}}
-										/>
-									);
-								})}
+												.catch(() => toast.error(`Failed to reject "${name}"`));
+										}}
+									/>
+								);
+							})}
 						</LocationGroupCard>
 					);
 				})}
 			</div>
 
-			{/* Orphan streams — items with no location match */}
-			{(() => {
-				const unresolvedItems = items.filter(
-					(i) =>
-						i.status === "invalid" &&
-						i.reviewNotes?.startsWith(REVIEW_NOTE_MISSING_LOCATION),
-				);
-				if (
-					unresolvedItems.length > 0 &&
-					companyLocations &&
-					companyLocations.length > 0 &&
-					!orphansDismissed
-				) {
-					return (
-						<div className="px-4 pb-4">
-							<OrphanStreamPicker
-								orphanItems={unresolvedItems}
-								sourceLabel="Voice interview"
-								locations={companyLocations}
-								onAssign={async (locationId, locationName, itemIds) => {
+			{/* Orphan streams — inline picker (no Collapsible) */}
+			{orphanItems.length > 0 &&
+				companyLocations &&
+				companyLocations.length > 0 && (
+					<div className="px-4 pb-4 space-y-2">
+						<OrphanStreamPicker
+							orphanItems={orphanItems}
+							sourceLabel="Voice interview"
+							locations={companyLocations}
+							disabled={!runEditable}
+							onAssign={async (locationId, locationName, itemIds) => {
+								if (!runEditable) {
+									toast.error(VOICE_RUN_LOCKED_MESSAGE);
+									return;
+								}
+								try {
 									await bulkImportAPI.importOrphanProjects(
 										run.id,
 										locationId,
@@ -616,16 +877,41 @@ export function VoiceReviewWorkspace({
 										`${itemIds.length} stream${itemIds.length === 1 ? "" : "s"} imported to "${locationName}"`,
 									);
 									const updatedRun = await bulkImportAPI.getRun(run.id);
+									setRunStatus(updatedRun.status);
 									onRunUpdated(updatedRun);
 									await loadItems();
-								}}
-								onDismiss={() => setOrphansDismissed(true)}
-							/>
-						</div>
-					);
-				}
-				return null;
-			})()}
+								} catch (error) {
+									const conflictMessage = getVoiceConflictMessage(error);
+									if (conflictMessage) {
+										toast.error(conflictMessage);
+										try {
+											const latestRun = await bulkImportAPI.getRun(run.id);
+											setRunStatus(latestRun.status);
+											onRunUpdated(latestRun);
+											await loadItems();
+										} catch {
+											// best effort refresh
+										}
+										return;
+									}
+									throw error;
+								}
+							}}
+						/>
+						{/* Mention card: show detected location names from orphan groups */}
+						{orphanGroupNames.length > 0 && (
+							<div className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
+								<MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+								<p className="text-xs text-muted-foreground">
+									Mentioned location{orphanGroupNames.length === 1 ? "" : "s"}:{" "}
+									<span className="font-medium text-foreground">
+										{orphanGroupNames.join(", ")}
+									</span>
+								</p>
+							</div>
+						)}
+					</div>
+				)}
 			{/* Already imported groups (read-only, collapsed) */}
 			{importedGroups.length > 0 && (
 				<div className="px-4 pb-4">
@@ -673,6 +959,44 @@ export function VoiceReviewWorkspace({
 		</ScrollArea>
 	);
 
+	const finalizeDisabledReason = getFinalizeDisabledReason({
+		groupsCount: totalGroups,
+		selectedResolvedCount: selectedGroupCount,
+		importableStreamCount,
+		finalizing,
+		orphanCount: orphanItems.length,
+		totalBackendGroups: groups.length,
+	});
+	const isFinalizeDisabled = finalizeDisabledReason !== null;
+	const runLockedFinalizeDisabled = !runEditable;
+
+	const finalizeTooltip: string | null = (() => {
+		if (runLockedFinalizeDisabled) {
+			return VOICE_RUN_LOCKED_MESSAGE;
+		}
+		switch (finalizeDisabledReason) {
+			case "finalizing":
+				return null;
+			case "no_selection":
+				return "Select at least one resolved group";
+			case "no_importable_streams":
+				return "Approve at least 1 stream to enable import";
+			case "orphans_need_location":
+				return "Assign locations to orphan streams first";
+			case "no_actionable_streams":
+				return "No importable streams in this extraction";
+			default:
+				return null;
+		}
+	})();
+
+	const finalizeButtonLabel =
+		finalizeDisabledReason === "orphans_need_location"
+			? "Assign locations first"
+			: totalGroups === 0
+				? "Close as empty"
+				: `Import ${importableStreamCount} stream${importableStreamCount === 1 ? "" : "s"} from ${selectedGroupCount} group${selectedGroupCount === 1 ? "" : "s"}`;
+
 	const finalizeBar = (
 		<div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
 			<div className="flex items-center gap-2">
@@ -680,38 +1004,69 @@ export function VoiceReviewWorkspace({
 					variant="outline"
 					className="text-xs border-emerald-500/30 text-emerald-400"
 				>
-					{selectedResolvedGroupIds.size}
+					{selectedGroupCount}
 				</Badge>
 				<span className="text-sm text-muted-foreground">
-					resolved group{selectedResolvedGroupIds.size === 1 ? "" : "s"}{" "}
-					selected
+					group{selectedGroupCount === 1 ? "" : "s"} selected
 				</span>
 			</div>
-			<Button
-				onClick={() => void finalizeSelected()}
-				disabled={shouldDisableFinalizeAction({
-					groupsCount: totalGroups,
-					selectedResolvedCount: selectedResolvedGroupIds.size,
-					finalizing,
-				})}
-				className="bg-emerald-600 hover:bg-emerald-700 text-white"
-			>
-				{finalizing ? (
-					<>
-						<Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-						Finalizing…
-					</>
-				) : (
-					"Finalize resolved groups"
-				)}
-			</Button>
+			<TooltipProvider>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<span className="inline-flex">
+							<Button
+								onClick={() => {
+									if (!runEditable) {
+										toast.error(VOICE_RUN_LOCKED_MESSAGE);
+										return;
+									}
+									if (totalGroups === 0) {
+										void finalizeSelected();
+									} else {
+										setConfirmOpen(true);
+									}
+								}}
+								disabled={isFinalizeDisabled || runLockedFinalizeDisabled}
+								className="bg-emerald-600 hover:bg-emerald-700 text-white"
+							>
+								{finalizing ? (
+									<>
+										<Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+										Importing…
+									</>
+								) : (
+									finalizeButtonLabel
+								)}
+							</Button>
+						</span>
+					</TooltipTrigger>
+					{finalizeTooltip && (
+						<TooltipContent>
+							<p>{finalizeTooltip}</p>
+						</TooltipContent>
+					)}
+				</Tooltip>
+			</TooltipProvider>
 		</div>
 	);
 
+	/**
+	 * Hide finalize bar when there's nothing actionable to do:
+	 * - All actionable groups gone + no orphans + already have imports (partial finalize done)
+	 * - OR groups exist in backend but none are actionable (location-only groups, no streams)
+	 */
+	const runEffectivelyComplete =
+		(actionableGroups.length === 0 &&
+			orphanItems.length === 0 &&
+			importedGroups.length > 0) ||
+		finalizeDisabledReason === "no_actionable_streams";
+
 	/* ── Header ── */
+	const allReviewed = pendingItemCount === 0 && totalStreamCount > 0;
+
 	const header = (
 		<div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center gap-3">
 				<div className="flex items-center justify-center rounded-full bg-emerald-500/10 p-1.5">
 					<svg
 						className="h-3.5 w-3.5 text-emerald-400"
@@ -729,9 +1084,42 @@ export function VoiceReviewWorkspace({
 					</svg>
 				</div>
 				<h3 className="text-sm font-semibold">Voice Review</h3>
-				<Badge variant="outline" className="text-[10px] ml-1">
-					{resolvedCount}/{totalGroups} resolved
-				</Badge>
+				{/* Step indicator */}
+				<div className="flex items-center gap-1.5 text-[11px]">
+					<span
+						className={
+							allReviewed ? "text-emerald-400" : "text-foreground font-medium"
+						}
+					>
+						{allReviewed ? (
+							<Check className="h-3 w-3 inline mr-0.5 -mt-px" />
+						) : (
+							<span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground mr-1 -mt-px align-middle" />
+						)}
+						Review
+					</span>
+					<span className="text-muted-foreground/40">—</span>
+					<span
+						className={
+							allReviewed
+								? "text-foreground font-medium"
+								: "text-muted-foreground/60"
+						}
+					>
+						{allReviewed && (
+							<span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground mr-1 -mt-px align-middle" />
+						)}
+						Import
+					</span>
+					{orphanItems.length > 0 && (
+						<Badge
+							variant="outline"
+							className="text-[9px] px-1 py-0 border-amber-500/30 text-amber-400 ml-1"
+						>
+							{orphanItems.length} need location
+						</Badge>
+					)}
+				</div>
 			</div>
 			<Button
 				variant="ghost"
@@ -762,6 +1150,24 @@ export function VoiceReviewWorkspace({
 		/>
 	);
 
+	const confirmDialog = (
+		<ConfirmImportDialog
+			open={confirmOpen}
+			onOpenChange={setConfirmOpen}
+			onConfirm={async () => {
+				setConfirmOpen(false);
+				await finalizeSelected();
+			}}
+			summary={{
+				importableStreams: importableStreamCount,
+				groupCount: selectedGroupCount,
+				skippedItems: skippedItemCount,
+				orphanCount: orphanItems.length,
+			}}
+			loading={finalizing}
+		/>
+	);
+
 	/* ── Desktop: Split Panel ── */
 	if (isDesktop) {
 		return (
@@ -781,14 +1187,17 @@ export function VoiceReviewWorkspace({
 									</p>
 								</div>
 								{extractedContent}
-								<div className="border-t border-border/50 p-3">
-									{finalizeBar}
-								</div>
+								{!runEffectivelyComplete && (
+									<div className="border-t border-border/50 p-3">
+										{finalizeBar}
+									</div>
+								)}
 							</div>
 						</ResizablePanel>
 					</ResizablePanelGroup>
 				</div>
 				{editDrawer}
+				{confirmDialog}
 			</div>
 		);
 	}
@@ -797,7 +1206,7 @@ export function VoiceReviewWorkspace({
 	return (
 		<div className="rounded-xl border overflow-hidden bg-background">
 			{header}
-			<Tabs defaultValue="extracted" className="w-full">
+			<Tabs value={mobileTab} onValueChange={setMobileTab} className="w-full">
 				<div className="px-4 pt-2">
 					<TabsList className="w-full">
 						<TabsTrigger value="extracted" className="flex-1">
@@ -814,7 +1223,9 @@ export function VoiceReviewWorkspace({
 					style={{ minHeight: 300 }}
 				>
 					{extractedContent}
-					<div className="p-3 border-t border-border/50">{finalizeBar}</div>
+					{!runEffectivelyComplete && (
+						<div className="p-3 border-t border-border/50">{finalizeBar}</div>
+					)}
 				</TabsContent>
 				<TabsContent
 					value="transcript"
@@ -825,6 +1236,7 @@ export function VoiceReviewWorkspace({
 				</TabsContent>
 			</Tabs>
 			{editDrawer}
+			{confirmDialog}
 		</div>
 	);
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface VoiceSuccessScreenProps {
 	createdStreams: number;
+	createdLocations: number;
 	pendingSuggestions: number;
 	targetProjectId: string | null;
 	onReviewSuggestions: () => void;
@@ -14,43 +15,101 @@ interface VoiceSuccessScreenProps {
 
 export function VoiceSuccessScreen({
 	createdStreams,
+	createdLocations,
 	pendingSuggestions,
 	targetProjectId,
 	onReviewSuggestions,
 	onClose,
 }: VoiceSuccessScreenProps) {
+	const headline =
+		createdStreams > 0
+			? `${createdStreams} stream${createdStreams === 1 ? "" : "s"} imported to ${createdLocations} location${createdLocations === 1 ? "" : "s"}`
+			: "Interview closed";
+
 	return (
-		<div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6">
-			{/* Animated check */}
+		<div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6 animate-in zoom-in-50 fade-in duration-500">
+			{/* SVG animated checkmark */}
 			<div className="relative">
-				<div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
-				<div className="relative flex items-center justify-center rounded-full bg-emerald-500/10 p-4">
-					<CheckCircle2 className="h-10 w-10 text-emerald-400 animate-in zoom-in-50 duration-500" />
-				</div>
+				<svg className="h-20 w-20" viewBox="0 0 80 80">
+					<title>Import success</title>
+					<circle
+						cx="40"
+						cy="40"
+						r="36"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="3"
+						className="text-emerald-200 dark:text-emerald-900"
+					/>
+					<circle
+						cx="40"
+						cy="40"
+						r="36"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="3"
+						strokeLinecap="round"
+						className="text-emerald-500"
+						style={{
+							strokeDasharray: "226",
+							strokeDashoffset: "226",
+							animation: "voice-draw-circle 0.6s ease-out forwards",
+						}}
+					/>
+					<path
+						d="M24 42 L35 53 L56 30"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="3.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						className="text-emerald-500"
+						style={{
+							strokeDasharray: "50",
+							strokeDashoffset: "50",
+							animation: "voice-draw-check 0.4s ease-out 0.5s forwards",
+						}}
+					/>
+				</svg>
+				{/* Keyframe styles for SVG animation */}
+				<style>{`
+					@keyframes voice-draw-circle { to { stroke-dashoffset: 0; } }
+					@keyframes voice-draw-check { to { stroke-dashoffset: 0; } }
+				`}</style>
 			</div>
 
 			<div className="space-y-1">
-				<h3 className="text-lg font-semibold">Voice Interview Complete</h3>
-				<p className="text-sm text-muted-foreground">
-					All resolved groups have been finalized.
-				</p>
+				<h3
+					className="text-lg font-semibold animate-in fade-in slide-in-from-bottom-2 duration-300"
+					style={{ animationDelay: "0.7s", animationFillMode: "backwards" }}
+				>
+					{headline}
+				</h3>
+				{pendingSuggestions > 0 && (
+					<p className="text-sm text-muted-foreground">
+						{pendingSuggestions} suggestion
+						{pendingSuggestions === 1 ? "" : "s"} pending review.
+					</p>
+				)}
 			</div>
 
 			{/* Stats */}
 			<div className="flex items-center gap-4">
 				<StatCard
 					value={createdStreams}
-					label={createdStreams === 1 ? "stream created" : "streams created"}
+					label={createdStreams === 1 ? "stream" : "streams"}
 				/>
 				<StatCard
-					value={pendingSuggestions}
-					label={
-						pendingSuggestions === 1
-							? "suggestion pending"
-							: "suggestions pending"
-					}
-					accent={pendingSuggestions > 0}
+					value={createdLocations}
+					label={createdLocations === 1 ? "location" : "locations"}
 				/>
+				{pendingSuggestions > 0 && (
+					<StatCard
+						value={pendingSuggestions}
+						label={pendingSuggestions === 1 ? "suggestion" : "suggestions"}
+						accent
+					/>
+				)}
 			</div>
 
 			{/* Actions */}
@@ -88,7 +147,7 @@ function StatCard({
 	return (
 		<div
 			className={cn(
-				"rounded-lg border px-5 py-3 text-center min-w-[120px]",
+				"rounded-lg border px-5 py-3 text-center min-w-[100px]",
 				accent
 					? "border-emerald-500/20 bg-emerald-500/[0.03]"
 					: "border-border",

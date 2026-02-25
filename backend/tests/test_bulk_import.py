@@ -2284,6 +2284,179 @@ async def test_ai_extractor_rejects_legacy_doc(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_ai_extractor_text_router_uses_bulk_runner_by_default(monkeypatch):
+    extractor = BulkImportAIExtractor()
+    called: dict[str, bool] = {"bulk": False, "voice": False}
+
+    async def _fake_bulk_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        called["bulk"] = True
+        assert extracted_text == "transcript"
+        assert filename == "input.txt"
+        return BulkImportAIOutput(locations=[], waste_streams=[])
+
+    async def _fake_voice_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        called["voice"] = True
+        raise AssertionError("voice runner should not be called")
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fake_bulk_text,
+    )
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_voice_interview_extraction_agent_on_text",
+        _fake_voice_text,
+    )
+
+    result = await extractor.extract_parsed_rows_from_text(
+        extracted_text="transcript",
+        filename="input.txt",
+    )
+
+    assert result.rows == []
+    assert result.diagnostics.route == "bulk_text"
+    assert called == {"bulk": True, "voice": False}
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_text_router_uses_voice_runner_for_voice_source(monkeypatch):
+    extractor = BulkImportAIExtractor()
+    called: dict[str, bool] = {"bulk": False, "voice": False}
+
+    async def _fake_bulk_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        called["bulk"] = True
+        raise AssertionError("bulk runner should not be called")
+
+    async def _fake_voice_text(*, extracted_text: str, filename: str) -> BulkImportAIOutput:
+        called["voice"] = True
+        assert extracted_text == "voice transcript"
+        assert filename == "voice.txt"
+        return BulkImportAIOutput(locations=[], waste_streams=[])
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_bulk_import_extraction_agent_on_text",
+        _fake_bulk_text,
+    )
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_voice_interview_extraction_agent_on_text",
+        _fake_voice_text,
+    )
+
+    result = await extractor.extract_parsed_rows_from_text(
+        extracted_text="voice transcript",
+        filename="voice.txt",
+        source_type="voice_interview",
+    )
+
+    assert result.rows == []
+    assert result.diagnostics.route == "voice_text"
+    assert called == {"bulk": False, "voice": True}
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_text_router_rejects_invalid_source_type():
+    extractor = BulkImportAIExtractor()
+
+    with pytest.raises(BulkImportAIExtractorError, match="unsupported_source_type"):
+        await extractor.extract_parsed_rows_from_text(
+            extracted_text="voice transcript",
+            filename="voice.txt",
+            source_type="invalid_source",
+        )
+
+
+@pytest.mark.asyncio
+async def test_ai_extractor_voice_text_runner_schema_validation(monkeypatch):
+    extractor = BulkImportAIExtractor()
+
+    async def _fake_voice_text(*, extracted_text: str, filename: str):
+        return {"locations": [{"name": "Plant"}], "waste_streams": []}
+
+    import app.services.bulk_import_ai_extractor as bulk_import_ai_extractor_module
+
+    monkeypatch.setattr(
+        bulk_import_ai_extractor_module,
+        "run_voice_interview_extraction_agent_on_text",
+        _fake_voice_text,
+    )
+
+    with pytest.raises(BulkImportAIExtractorError, match="ai_schema_invalid"):
+        await extractor.extract_parsed_rows_from_text(
+            extracted_text="voice transcript",
+            filename="voice.txt",
+            source_type="voice_interview",
+        )
+
+
+@pytest.mark.asyncio
+async def test_import_orphan_projects_non_voice_still_completes_run(db_session):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Orphan Non Voice", "org-orphan-non-voice")
+    user = await create_user(
+        db_session,
+        email=f"orphan-non-voice-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Orphan Non Voice Co")
+    location = await create_location(
+        db_session,
+        org_id=org.id,
+        company_id=company.id,
+        name="Plant Orphan",
+        city="Monterrey",
+        state="NL",
+        address="A",
+    )
+    run = await _create_run(
+        db_session,
+        org_id=org.id,
+        user_id=user.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        status="review_ready",
+    )
+    orphan_item = await _create_item(
+        db_session,
+        run=run,
+        item_type="project",
+        status="invalid",
+        normalized_data={
+            "name": "Orphan Stream",
+            "category": "paper",
+            "project_type": "Assessment",
+            "description": "desc",
+            "sector": "industrial",
+            "subsector": "other",
+            "estimated_volume": "",
+        },
+    )
+
+    service = BulkImportService()
+    result = await service.import_orphan_projects(
+        db_session,
+        organization_id=org.id,
+        run_id=run.id,
+        location_id=location.id,
+        item_ids=[orphan_item.id],
+        user_id=user.id,
+    )
+    await db_session.commit()
+    await db_session.refresh(run)
+
+    assert result["projects_created"] == 1
+    assert run.status == "completed"
+
+
+@pytest.mark.asyncio
 async def test_scanned_pdf_happy_path(db_session, monkeypatch):
     uid = uuid.uuid4().hex[:8]
     org = await create_org(db_session, "Org Import AI5", "org-import-ai5")

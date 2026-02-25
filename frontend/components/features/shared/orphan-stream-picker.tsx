@@ -33,8 +33,12 @@ interface OrphanStreamPickerProps {
 		locationName: string,
 		itemIds: string[],
 	) => Promise<void>;
-	/** Called when user dismisses the picker */
-	onDismiss: () => void;
+	/** Called when user dismisses the picker (optional — omit to hide dismiss button) */
+	onDismiss?: (() => void) | undefined;
+	/** Disable all editing actions when run is locked */
+	disabled?: boolean;
+	/** Test seam: default selected location */
+	initialSelectedLocationId?: string;
 }
 
 export function OrphanStreamPicker({
@@ -43,8 +47,12 @@ export function OrphanStreamPicker({
 	locations,
 	onAssign,
 	onDismiss,
+	disabled = false,
+	initialSelectedLocationId = "",
 }: OrphanStreamPickerProps) {
-	const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+	const [selectedLocationId, setSelectedLocationId] = useState<string>(
+		initialSelectedLocationId,
+	);
 	const [submitting, setSubmitting] = useState(false);
 	const [excluded, setExcluded] = useState<Set<string>>(new Set());
 	const selectedLocation = locations.find((l) => l.id === selectedLocationId);
@@ -99,6 +107,7 @@ export function OrphanStreamPicker({
 					<Select
 						value={selectedLocationId}
 						onValueChange={setSelectedLocationId}
+						disabled={disabled || submitting}
 					>
 						<SelectTrigger className="w-full">
 							<SelectValue placeholder="Choose a location…" />
@@ -141,21 +150,31 @@ export function OrphanStreamPicker({
 								const category = nd.category;
 								const isExcluded = excluded.has(item.id);
 
+								const checkboxId = `orphan-${item.id}`;
+
 								return (
-									<button
+									<div
 										key={item.id}
-										type="button"
-										onClick={() => toggleItem(item.id)}
-										className={`flex w-full items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-muted/50 text-left ${
-											isExcluded ? "opacity-50 bg-muted/20" : ""
+										className={`flex w-full items-center gap-3 px-3 py-2.5 transition-colors ${
+											isExcluded
+												? "opacity-50 bg-muted/20"
+												: "hover:bg-muted/50"
 										}`}
 									>
 										<Checkbox
+											id={checkboxId}
 											checked={!isExcluded}
 											onCheckedChange={() => toggleItem(item.id)}
-											tabIndex={-1}
+											disabled={disabled || submitting}
 										/>
-										<div className="flex-1 min-w-0">
+										<label
+											htmlFor={checkboxId}
+											className={`flex-1 min-w-0 ${
+												disabled || submitting
+													? "cursor-not-allowed"
+													: "cursor-pointer"
+											}`}
+										>
 											<span
 												className={`text-sm font-medium ${isExcluded ? "line-through" : ""}`}
 											>
@@ -166,9 +185,9 @@ export function OrphanStreamPicker({
 													{category}
 												</span>
 											)}
-										</div>
+										</label>
 										<Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-									</button>
+									</div>
 								);
 							})}
 						</div>
@@ -178,7 +197,12 @@ export function OrphanStreamPicker({
 				{/* Actions */}
 				<div className="pl-11 flex items-center gap-2">
 					<Button
-						disabled={!selectedLocationId || submitting || includedCount === 0}
+						disabled={
+							disabled ||
+							!selectedLocationId ||
+							submitting ||
+							includedCount === 0
+						}
 						onClick={() => void handleAssign()}
 					>
 						{submitting ? (
@@ -190,9 +214,11 @@ export function OrphanStreamPicker({
 							? "Importing…"
 							: `Import ${includedCount} stream${includedCount === 1 ? "" : "s"} to "${selectedLocation?.name ?? "…"}"`}
 					</Button>
-					<Button variant="ghost" size="sm" onClick={onDismiss}>
-						Dismiss
-					</Button>
+					{onDismiss && (
+						<Button variant="ghost" size="sm" onClick={onDismiss}>
+							Dismiss
+						</Button>
+					)}
 				</div>
 			</CardContent>
 		</Card>

@@ -30,6 +30,12 @@ interface StreamCardProps {
 	itemType: "location" | "project";
 }
 
+/** Pure helper — testable confidence chip label */
+export function formatConfidenceLabel(value: number): string {
+	const pct = Math.round(value * 100);
+	return `${pct}% match · AI-suggested`;
+}
+
 function ConfidenceChip({ value }: { value: number }) {
 	const pct = Math.round(value * 100);
 	return (
@@ -42,7 +48,7 @@ function ConfidenceChip({ value }: { value: number }) {
 				pct < 50 && "border-red-500/30 text-red-400",
 			)}
 		>
-			{pct}%
+			{formatConfidenceLabel(value)}
 		</Badge>
 	);
 }
@@ -76,8 +82,7 @@ export function StreamCard({
 				"rounded-lg border p-3 space-y-2 transition-colors",
 				status === "accepted" && "border-emerald-500/20 bg-emerald-500/[0.02]",
 				status === "amended" && "border-emerald-500/20 bg-emerald-500/[0.02]",
-				status === "rejected" &&
-					"border-red-500/20 bg-red-500/[0.02] opacity-60",
+				status === "rejected" && "border-muted-foreground/20 opacity-60",
 				status === "invalid" && "border-amber-500/20 bg-amber-500/[0.02]",
 				isPending && "border-border",
 			)}
@@ -100,12 +105,14 @@ export function StreamCard({
 						variant="outline"
 						className={cn(
 							"text-[10px] px-1.5 py-0",
-							status === "accepted" && "border-emerald-500/30 text-emerald-400",
-							status === "amended" && "border-emerald-500/30 text-emerald-400",
-							status === "rejected" && "border-red-500/30 text-red-400",
+							(status === "accepted" || status === "amended") &&
+								"border-emerald-500/30 text-emerald-400",
+							status === "rejected" &&
+								"border-muted-foreground/30 text-muted-foreground",
 							status === "invalid" && "border-amber-500/30 text-amber-400",
 						)}
 					>
+						{status === "amended" && <Pencil className="h-2.5 w-2.5 mr-0.5" />}
 						{statusLabel ?? status}
 					</Badge>
 				</div>

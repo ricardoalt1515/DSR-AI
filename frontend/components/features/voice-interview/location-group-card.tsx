@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Link2, MapPin, Plus, X } from "lucide-react";
+import { Check, ChevronDown, Link2, MapPin, Plus, X } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,13 @@ import { cn } from "@/lib/utils";
 import type { MapBlockedReason } from "./voice-review-guards";
 
 export type LocationAction = "map" | "create" | "reject";
+
+/** Pure helper — testable label for group badge */
+export function getGroupBadgeLabel(resolved: boolean, empty: boolean): string {
+	if (!resolved) return "Review needed";
+	if (empty) return "Empty — all skipped";
+	return "Ready to import";
+}
 
 interface DuplicateInfo {
 	id: string;
@@ -24,6 +32,12 @@ interface LocationGroupCardProps {
 	canUseExistingMatch: boolean;
 	mapBlockedReason: MapBlockedReason | null;
 	resolved: boolean;
+	/** When resolved=true and all non-location items are rejected/invalid (nothing to import) */
+	empty: boolean;
+	/** Whether children should start expanded (default: true for pending, false for resolved) */
+	defaultExpanded?: boolean | undefined;
+	/** Index for staggered entrance animation (80ms delay per card) */
+	animationIndex?: number | undefined;
 	selected: boolean;
 	onSelectedChange: (selected: boolean) => void;
 	onResolve: (action: LocationAction) => void;
@@ -39,6 +53,9 @@ export function LocationGroupCard({
 	canUseExistingMatch,
 	mapBlockedReason,
 	resolved,
+	empty,
+	defaultExpanded,
+	animationIndex,
 	selected,
 	onSelectedChange,
 	onResolve,
@@ -48,24 +65,55 @@ export function LocationGroupCard({
 	const hasCandidates = duplicateCandidates && duplicateCandidates.length > 0;
 	const bestMatch = hasCandidates ? duplicateCandidates[0] : null;
 	const candidateCount = duplicateCandidates?.length ?? 0;
+	const [expanded, setExpanded] = useState(defaultExpanded ?? !resolved);
 
 	return (
 		<Card
 			className={cn(
-				"transition-all duration-200",
+				"transition-all duration-200 animate-in fade-in slide-in-from-right-4",
 				resolved &&
+					!empty &&
 					selected &&
 					"ring-1 ring-emerald-500/20 bg-emerald-500/[0.02]",
+				resolved && empty && "opacity-60",
 			)}
+			style={
+				animationIndex !== undefined
+					? {
+							animationDelay: `${animationIndex * 80}ms`,
+							animationFillMode: "backwards",
+							animationDuration: "400ms",
+						}
+					: undefined
+			}
 		>
 			<CardHeader className="pb-3 space-y-3">
 				{/* Header row */}
 				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={() => resolved && setExpanded((prev) => !prev)}
+						className={cn(
+							"flex items-center gap-2 min-w-0",
+							resolved && "cursor-pointer",
+						)}
+					>
+						{resolved && (
+							<ChevronDown
+								className={cn(
+									"h-3 w-3 text-muted-foreground transition-transform shrink-0",
+									!expanded && "-rotate-90",
+								)}
+							/>
+						)}
 						<div
 							className={cn(
 								"flex items-center justify-center rounded-full p-1",
-								resolved ? "bg-emerald-500/10" : "bg-amber-500/10",
+								resolved
+									? empty
+										? "bg-muted"
+										: "bg-emerald-500/10"
+									: "bg-amber-500/10",
 							)}
 						>
 							<MapPin
@@ -81,23 +129,21 @@ export function LocationGroupCard({
 								· {streamCount} stream{streamCount === 1 ? "" : "s"}
 							</span>
 						)}
-					</div>
+					</button>
 					<div className="flex items-center gap-2">
 						<Badge
-							variant={resolved ? "default" : "secondary"}
+							variant={
+								resolved ? (empty ? "secondary" : "default") : "secondary"
+							}
 							className={cn(
 								"text-[10px] px-1.5 py-0",
-								resolved && "bg-emerald-600/80 hover:bg-emerald-600/80",
+								resolved &&
+									!empty &&
+									"bg-emerald-600/80 hover:bg-emerald-600/80",
 							)}
 						>
-							{resolved ? (
-								<>
-									<Check className="h-2.5 w-2.5 mr-0.5" />
-									Resolved
-								</>
-							) : (
-								"Pending"
-							)}
+							{resolved && !empty && <Check className="h-2.5 w-2.5 mr-0.5" />}
+							{getGroupBadgeLabel(resolved, empty)}
 						</Badge>
 						{resolved && (
 							<button
@@ -186,7 +232,13 @@ export function LocationGroupCard({
 					</RadioGroup>
 				)}
 			</CardHeader>
-			<CardContent className="space-y-2 pt-0">{children}</CardContent>
+			{resolved ? (
+				expanded && (
+					<CardContent className="space-y-2 pt-0">{children}</CardContent>
+				)
+			) : (
+				<CardContent className="space-y-2 pt-0">{children}</CardContent>
+			)}
 		</Card>
 	);
 }

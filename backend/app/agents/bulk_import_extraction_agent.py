@@ -1,4 +1,4 @@
-"""AI agent for bulk import extraction (PDF/XLSX/DOCX)."""
+"""AI agents for bulk/voice extraction."""
 
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ if not os.getenv("OPENAI_API_KEY") and settings.OPENAI_API_KEY:
     os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 
 
-def load_bulk_import_extraction_prompt() -> str:
-    prompt_path = Path(__file__).parent.parent / "prompts" / "bulk-import-extraction.md"
+def _load_prompt(prompt_filename: str) -> str:
+    prompt_path = Path(__file__).parent.parent / "prompts" / prompt_filename
     try:
         content = prompt_path.read_text(encoding="utf-8").strip()
         if not content:
@@ -43,7 +43,8 @@ def load_bulk_import_extraction_prompt() -> str:
         raise
 
 
-_BASE_PROMPT = load_bulk_import_extraction_prompt()
+_BULK_BASE_PROMPT = _load_prompt("bulk-import-extraction.md")
+_VOICE_BASE_PROMPT = _load_prompt("voice-interview-extraction.md")
 
 
 bulk_import_extraction_agent = Agent(
@@ -52,7 +53,17 @@ bulk_import_extraction_agent = Agent(
     output_type=BulkImportAIOutput,
     model_settings=ModelSettings(temperature=0.1),
     retries=2,
-    system_prompt=_BASE_PROMPT,
+    system_prompt=_BULK_BASE_PROMPT,
+)
+
+
+voice_interview_extraction_agent = Agent(
+    settings.AI_DOCUMENT_MODEL,
+    deps_type=BulkImportExtractionContext,
+    output_type=BulkImportAIOutput,
+    model_settings=ModelSettings(temperature=0.1),
+    retries=2,
+    system_prompt=_VOICE_BASE_PROMPT,
 )
 
 
@@ -62,6 +73,15 @@ def inject_context(ctx: RunContext[BulkImportExtractionContext]) -> str:
         f"Filename: {ctx.deps.filename}\n"
         f"Extension: {ctx.deps.extension}\n"
         "Extract locations and waste streams as strict schema output."
+    )
+
+
+@voice_interview_extraction_agent.system_prompt
+def inject_voice_context(ctx: RunContext[BulkImportExtractionContext]) -> str:
+    return (
+        f"Filename: {ctx.deps.filename}\n"
+        f"Extension: {ctx.deps.extension}\n"
+        "Extract locations and waste streams from transcript text as strict schema output."
     )
 
 
@@ -123,6 +143,38 @@ async def run_bulk_import_extraction_agent_on_text(
     except Exception as exc:
         logger.error(
             "bulk_import_agent_text_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise BulkImportExtractionAgentError("agent_run_failed") from exc
+
+
+async def run_voice_interview_extraction_agent_on_text(
+    *,
+    extracted_text: str,
+    filename: str,
+) -> BulkImportAIOutput:
+    if not extracted_text.strip():
+        raise BulkImportExtractionAgentError("empty_text")
+
+    context = BulkImportExtractionContext(
+        filename=filename,
+        extension=Path(filename).suffix.casefold(),
+    )
+
+    try:
+        result = await voice_interview_extraction_agent.run(
+            [
+                "Extract voice interview locations and waste streams from this transcript text:",
+                extracted_text,
+            ],
+            deps=context,
+        )
+        return BulkImportAIOutput.model_validate(result.output)
+    except Exception as exc:
+        logger.error(
+            "voice_agent_text_failed",
             error=str(exc),
             error_type=type(exc).__name__,
             exc_info=True,

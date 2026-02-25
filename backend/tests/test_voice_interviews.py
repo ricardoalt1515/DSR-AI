@@ -1727,7 +1727,16 @@ async def test_voice_no_data_path_uses_status_sync_and_not_no_data(db_session, m
     async def _fake_transcribe(*, audio_bytes: bytes, filename: str, content_type: str):
         return _FakeTranscription()
 
-    async def _fake_extract_text(*, extracted_text: str, filename: str):
+    extract_calls: list[dict[str, str]] = []
+
+    async def _fake_extract_text(*, extracted_text: str, filename: str, source_type: str):
+        extract_calls.append(
+            {
+                "extracted_text": extracted_text,
+                "filename": filename,
+                "source_type": source_type,
+            }
+        )
         return SimpleNamespace(rows=[])
 
     async def _fake_upload(_stream, _key: str, _content_type: str | None):
@@ -1754,3 +1763,105 @@ async def test_voice_no_data_path_uses_status_sync_and_not_no_data(db_session, m
     assert interview.status == "review_ready"
     assert run.status == "review_ready"
     assert run.status != "no_data"
+    assert len(extract_calls) == 1
+    assert extract_calls[0]["source_type"] == "voice_interview"
+
+
+@pytest.mark.asyncio
+async def test_voice_import_orphan_projects_syncs_voice_and_run_status(
+    db_session, set_current_user
+) -> None:
+    org = await create_org(db_session, "Voice Orphan Sync Org", "voice-orphan-sync-org")
+    user = await create_user(
+        db_session,
+        email=f"voice-orphan-sync-{uuid.uuid4().hex[:6]}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Voice Orphan Sync Co")
+    location = await create_location(
+        db_session,
+        org_id=org.id,
+        company_id=company.id,
+        name="Plant Sync",
+        city="Monterrey",
+        state="NL",
+        address="A",
+    )
+    set_current_user(user)
+
+    run = ImportRun(
+        organization_id=org.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        source_file_path="voice-interviews/sync/audio.wav",
+        source_filename="audio.wav",
+        source_type="voice_interview",
+        status="review_ready",
+        processing_attempts=0,
+        created_by_user_id=user.id,
+    )
+    interview = VoiceInterview(
+        organization_id=org.id,
+        company_id=company.id,
+        location_id=None,
+        bulk_import_run_id=run.id,
+        audio_object_key="voice-interviews/sync/audio.wav",
+        transcript_object_key="voice-interviews/sync/transcript.txt",
+        status="partial_finalized",
+        error_code=None,
+        failed_stage=None,
+        processing_attempts=1,
+        consent_at=datetime.now(UTC),
+        consent_by_user_id=user.id,
+        consent_copy_version="v1",
+        audio_retention_expires_at=datetime.now(UTC) + timedelta(days=180),
+        transcript_retention_expires_at=datetime.now(UTC) + timedelta(days=730),
+        created_by_user_id=user.id,
+    )
+    db_session.add(run)
+    db_session.add(interview)
+    await db_session.flush()
+
+    item = ImportItem(
+        organization_id=org.id,
+        run_id=run.id,
+        item_type="project",
+        status="invalid",
+        needs_review=False,
+        confidence=82,
+        extracted_data={},
+        normalized_data={
+            "name": "Unmapped Stream",
+            "category": "paper",
+            "project_type": "Assessment",
+            "description": "desc",
+            "sector": "industrial",
+            "subsector": "other",
+            "estimated_volume": "",
+        },
+        review_notes="Project row missing location context",
+        confirm_create_new=False,
+    )
+    db_session.add(item)
+    await db_session.commit()
+
+    service = BulkImportService()
+    result = await service.import_orphan_projects(
+        db_session,
+        organization_id=org.id,
+        run_id=run.id,
+        location_id=location.id,
+        item_ids=[item.id],
+        user_id=user.id,
+    )
+    await db_session.commit()
+    await db_session.refresh(run)
+    await db_session.refresh(interview)
+    await db_session.refresh(item)
+
+    assert result["projects_created"] == 1
+    assert item.created_project_id is not None
+    assert interview.status == "finalized"
+    assert run.status == "completed"

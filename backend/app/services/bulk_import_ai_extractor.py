@@ -16,6 +16,7 @@ from app.agents.bulk_import_extraction_agent import (
     BulkImportExtractionAgentError,
     run_bulk_import_extraction_agent,
     run_bulk_import_extraction_agent_on_text,
+    run_voice_interview_extraction_agent_on_text,
 )
 from app.models.bulk_import_ai_output import (
     BulkImportAILocationOutput,
@@ -142,16 +143,30 @@ class BulkImportAIExtractor:
         *,
         extracted_text: str,
         filename: str,
+        source_type: str = "bulk_import",
     ) -> ExtractionResult:
+        if source_type == "voice_interview":
+            route = "voice_text"
+        elif source_type == "bulk_import":
+            route = "bulk_text"
+        else:
+            route = "unknown_text"
+
         diagnostics = ExtractionDiagnostics(
-            route="voice_text",
+            route=route,
             char_count=len(extracted_text),
             truncated=False,
         )
+        if source_type not in {"bulk_import", "voice_interview"}:
+            raise BulkImportAIExtractorError("unsupported_source_type", diagnostics=diagnostics)
         if not extracted_text.strip():
             return ExtractionResult(rows=[], diagnostics=diagnostics)
         try:
-            rows = await self._extract_from_text(extracted_text=extracted_text, filename=filename)
+            rows = await self._extract_from_text(
+                extracted_text=extracted_text,
+                filename=filename,
+                source_type=source_type,
+            )
         except BulkImportAIExtractorError as exc:
             raise BulkImportAIExtractorError(exc.code, diagnostics=diagnostics) from exc
         return ExtractionResult(rows=rows, diagnostics=diagnostics)
@@ -172,9 +187,15 @@ class BulkImportAIExtractor:
         *,
         extracted_text: str,
         filename: str,
+        source_type: str = "bulk_import",
     ) -> list[ParsedRow]:
+        text_runner = run_bulk_import_extraction_agent_on_text
+        if source_type == "voice_interview":
+            text_runner = run_voice_interview_extraction_agent_on_text
+        elif source_type != "bulk_import":
+            raise BulkImportAIExtractorError("unsupported_source_type")
         output = await self._run_agent(
-            lambda: run_bulk_import_extraction_agent_on_text(
+            lambda: text_runner(
                 extracted_text=extracted_text,
                 filename=filename,
             )
