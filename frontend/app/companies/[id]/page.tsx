@@ -24,6 +24,7 @@ import { InlineImportProgress } from "@/components/features/bulk-import/inline-i
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
 import { VoiceInterviewLauncher } from "@/components/features/voice-interview/voice-interview-launcher";
+import { VoiceProcessingProgress } from "@/components/features/voice-interview/voice-processing-progress";
 import { VoiceReviewWorkspace } from "@/components/features/voice-interview/voice-review-workspace";
 import { ArchivedBanner } from "@/components/shared/archived-banner";
 import { formatSubsector } from "@/components/shared/forms/compact-sector-select";
@@ -115,6 +116,10 @@ export default function CompanyDetailPage() {
 	const [activeVoiceInterviewId, setActiveVoiceInterviewId] = useState<
 		string | null
 	>(null);
+	const [voiceProcessing, setVoiceProcessing] = useState<{
+		voiceInterviewId: string;
+		filename?: string;
+	} | null>(null);
 	const dismissedRunsKey = `dismissed_import_runs_${companyId}`;
 	// Global drag & drop
 	const [_dragActive, setDragActive] = useState(false);
@@ -462,17 +467,6 @@ export default function CompanyDetailPage() {
 						Archive
 					</Button>
 				)}
-				{canCreateClientData && !isArchived && (
-					<VoiceInterviewLauncher
-						companyId={companyId}
-						onRunReady={async ({ runId, voiceInterviewId }) => {
-							const run = await bulkImportAPI.getRun(runId);
-							setActiveImportRun(run);
-							setActiveVoiceInterviewId(voiceInterviewId);
-							setShowReviewSection(true);
-						}}
-					/>
-				)}
 			</div>
 
 			{/* Company Info */}
@@ -567,30 +561,55 @@ export default function CompanyDetailPage() {
 			{canCreateClientData &&
 				!isArchived &&
 				!showReviewSection &&
-				!inlineRunId && (
-					<InlineDropZone
-						uploading={inlineUploading}
-						onFileSelected={async (file) => {
-							setInlineUploading(true);
-							try {
-								setInlineFilename(file.name);
-								const result = await bulkImportAPI.upload(
-									file,
-									"company",
-									companyId,
-								);
-								setInlineRunId(result.runId);
-							} catch (error) {
-								toast.error(
-									error instanceof Error ? error.message : "Upload failed",
-								);
-								setInlineFilename(null);
-							} finally {
-								setInlineUploading(false);
-							}
-						}}
-					/>
+				!inlineRunId &&
+				!voiceProcessing && (
+					<>
+						<InlineDropZone
+							uploading={inlineUploading}
+							onFileSelected={async (file) => {
+								setInlineUploading(true);
+								try {
+									setInlineFilename(file.name);
+									const result = await bulkImportAPI.upload(
+										file,
+										"company",
+										companyId,
+									);
+									setInlineRunId(result.runId);
+								} catch (error) {
+									toast.error(
+										error instanceof Error ? error.message : "Upload failed",
+									);
+									setInlineFilename(null);
+								} finally {
+									setInlineUploading(false);
+								}
+							}}
+						/>
+						<VoiceInterviewLauncher
+							companyId={companyId}
+							onUploaded={({ voiceInterviewId }) => {
+								setVoiceProcessing({ voiceInterviewId });
+							}}
+						/>
+					</>
 				)}
+
+			{/* Voice interview processing progress */}
+			{voiceProcessing && !showReviewSection && (
+				<VoiceProcessingProgress
+					voiceInterviewId={voiceProcessing.voiceInterviewId}
+					filename={voiceProcessing.filename}
+					onReady={async ({ voiceInterviewId, bulkImportRunId }) => {
+						const run = await bulkImportAPI.getRun(bulkImportRunId);
+						setActiveImportRun(run);
+						setActiveVoiceInterviewId(voiceInterviewId);
+						setShowReviewSection(true);
+						setVoiceProcessing(null);
+					}}
+					onDismiss={() => setVoiceProcessing(null)}
+				/>
+			)}
 
 			{/* Inline import progress (drag & drop flow) */}
 			{inlineRunId && inlineFilename && !showReviewSection && (
@@ -631,13 +650,20 @@ export default function CompanyDetailPage() {
 							setShowReviewSection(false);
 							setActiveImportRun(null);
 							setActiveVoiceInterviewId(null);
+							setVoiceProcessing(null);
 						}}
 						onDone={() => {
 							setShowReviewSection(false);
 							setActiveImportRun(null);
 							setActiveVoiceInterviewId(null);
+							setVoiceProcessing(null);
 							void reloadCompanyData().catch(() => {});
 						}}
+						companyLocations={locations.map((l) => ({
+							id: l.id,
+							name: l.name,
+							city: l.city,
+						}))}
 					/>
 				)}
 

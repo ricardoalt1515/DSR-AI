@@ -1126,6 +1126,282 @@ async def test_voice_finalize_group_resolver_map_create_reject(
 
 
 @pytest.mark.asyncio
+async def test_voice_accept_location_with_duplicates_and_confirm_create_new_false_allowed(
+    client: AsyncClient, db_session, set_current_user
+) -> None:
+    org = await create_org(db_session, "Voice Accept Loc Org", "voice-accept-loc-org")
+    user = await create_user(
+        db_session,
+        email=f"voice-accept-loc-{uuid.uuid4().hex[:6]}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Voice Accept Loc Co")
+    set_current_user(user)
+
+    run = ImportRun(
+        organization_id=org.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        source_file_path="voice-interviews/accept-loc/audio.wav",
+        source_filename="audio.wav",
+        source_type="voice_interview",
+        status="review_ready",
+        processing_attempts=0,
+        created_by_user_id=user.id,
+    )
+    interview = VoiceInterview(
+        organization_id=org.id,
+        company_id=company.id,
+        location_id=None,
+        bulk_import_run_id=run.id,
+        audio_object_key="voice-interviews/accept-loc/audio.wav",
+        transcript_object_key="voice-interviews/accept-loc/transcript.txt",
+        status="review_ready",
+        error_code=None,
+        failed_stage=None,
+        processing_attempts=1,
+        consent_at=datetime.now(UTC),
+        consent_by_user_id=user.id,
+        consent_copy_version="v1",
+        audio_retention_expires_at=datetime.now(UTC) + timedelta(days=180),
+        transcript_retention_expires_at=datetime.now(UTC) + timedelta(days=730),
+        created_by_user_id=user.id,
+    )
+    db_session.add(run)
+    db_session.add(interview)
+    await db_session.flush()
+
+    location_item = ImportItem(
+        organization_id=org.id,
+        run_id=run.id,
+        item_type="location",
+        status="pending_review",
+        needs_review=True,
+        confidence=80,
+        extracted_data={},
+        normalized_data={"name": "Plant A", "city": "MTY", "state": "NL", "address": "A"},
+        duplicate_candidates=[
+            {"id": str(uuid.uuid4()), "name": "Plant A"},
+            {"id": str(uuid.uuid4()), "name": "Plant A Annex"},
+        ],
+        confirm_create_new=False,
+        group_id="grp_loc",
+    )
+    db_session.add(location_item)
+    await db_session.commit()
+
+    response = await client.patch(
+        f"/api/v1/bulk-import/items/{location_item.id}",
+        json={"action": "accept", "confirm_create_new": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+
+
+@pytest.mark.asyncio
+async def test_voice_accept_project_with_duplicates_and_confirm_create_new_false_allowed(
+    client: AsyncClient, db_session, set_current_user
+) -> None:
+    org = await create_org(db_session, "Voice Accept Proj Org", "voice-accept-proj-org")
+    user = await create_user(
+        db_session,
+        email=f"voice-accept-proj-{uuid.uuid4().hex[:6]}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Voice Accept Proj Co")
+    set_current_user(user)
+
+    run = ImportRun(
+        organization_id=org.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        source_file_path="voice-interviews/accept-proj/audio.wav",
+        source_filename="audio.wav",
+        source_type="voice_interview",
+        status="review_ready",
+        processing_attempts=0,
+        created_by_user_id=user.id,
+    )
+    interview = VoiceInterview(
+        organization_id=org.id,
+        company_id=company.id,
+        location_id=None,
+        bulk_import_run_id=run.id,
+        audio_object_key="voice-interviews/accept-proj/audio.wav",
+        transcript_object_key="voice-interviews/accept-proj/transcript.txt",
+        status="review_ready",
+        error_code=None,
+        failed_stage=None,
+        processing_attempts=1,
+        consent_at=datetime.now(UTC),
+        consent_by_user_id=user.id,
+        consent_copy_version="v1",
+        audio_retention_expires_at=datetime.now(UTC) + timedelta(days=180),
+        transcript_retention_expires_at=datetime.now(UTC) + timedelta(days=730),
+        created_by_user_id=user.id,
+    )
+    db_session.add(run)
+    db_session.add(interview)
+    await db_session.flush()
+
+    location_item = ImportItem(
+        organization_id=org.id,
+        run_id=run.id,
+        item_type="location",
+        status="accepted",
+        needs_review=False,
+        confidence=95,
+        extracted_data={},
+        normalized_data={"name": "Plant B", "city": "MTY", "state": "NL", "address": "B"},
+        duplicate_candidates=[{"id": str(uuid.uuid4()), "name": "Plant B"}],
+        confirm_create_new=False,
+        group_id="grp_proj",
+    )
+    db_session.add(location_item)
+    await db_session.flush()
+
+    project_item = ImportItem(
+        organization_id=org.id,
+        run_id=run.id,
+        item_type="project",
+        status="pending_review",
+        needs_review=True,
+        confidence=84,
+        extracted_data={},
+        normalized_data={
+            "name": "Stream B",
+            "category": "plastic",
+            "project_type": "Assessment",
+            "description": "desc",
+            "sector": "industrial",
+            "subsector": "other",
+        },
+        duplicate_candidates=[
+            {"id": str(uuid.uuid4()), "name": "Stream B"},
+            {"id": str(uuid.uuid4()), "name": "Stream B 2"},
+        ],
+        parent_item_id=location_item.id,
+        confirm_create_new=False,
+        group_id="grp_proj",
+    )
+    db_session.add(project_item)
+    await db_session.commit()
+
+    response = await client.patch(
+        f"/api/v1/bulk-import/items/{project_item.id}",
+        json={"action": "accept", "confirm_create_new": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+
+
+@pytest.mark.asyncio
+async def test_voice_finalize_with_ambiguous_duplicates_returns_409(
+    client: AsyncClient, db_session, set_current_user
+) -> None:
+    org = await create_org(db_session, "Voice Finalize Dup Org", "voice-finalize-dup-org")
+    user = await create_user(
+        db_session,
+        email=f"voice-finalize-dup-{uuid.uuid4().hex[:6]}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Voice Finalize Dup Co")
+    set_current_user(user)
+
+    run = ImportRun(
+        organization_id=org.id,
+        entrypoint_type="company",
+        entrypoint_id=company.id,
+        source_file_path="voice-interviews/finalize-dup/audio.wav",
+        source_filename="audio.wav",
+        source_type="voice_interview",
+        status="review_ready",
+        processing_attempts=0,
+        created_by_user_id=user.id,
+    )
+    interview = VoiceInterview(
+        organization_id=org.id,
+        company_id=company.id,
+        location_id=None,
+        bulk_import_run_id=run.id,
+        audio_object_key="voice-interviews/finalize-dup/audio.wav",
+        transcript_object_key="voice-interviews/finalize-dup/transcript.txt",
+        status="review_ready",
+        error_code=None,
+        failed_stage=None,
+        processing_attempts=1,
+        consent_at=datetime.now(UTC),
+        consent_by_user_id=user.id,
+        consent_copy_version="v1",
+        audio_retention_expires_at=datetime.now(UTC) + timedelta(days=180),
+        transcript_retention_expires_at=datetime.now(UTC) + timedelta(days=730),
+        created_by_user_id=user.id,
+    )
+    db_session.add(run)
+    db_session.add(interview)
+    await db_session.flush()
+
+    location_item = ImportItem(
+        organization_id=org.id,
+        run_id=run.id,
+        item_type="location",
+        status="accepted",
+        needs_review=False,
+        confidence=90,
+        extracted_data={},
+        normalized_data={"name": "Plant C", "city": "MTY", "state": "NL", "address": "C"},
+        duplicate_candidates=[
+            {"id": str(uuid.uuid4()), "name": "Plant C"},
+            {"id": str(uuid.uuid4()), "name": "Plant C Annex"},
+        ],
+        confirm_create_new=False,
+        group_id="grp_ambiguous",
+    )
+    db_session.add(location_item)
+    await db_session.flush()
+
+    db_session.add(
+        ImportItem(
+            organization_id=org.id,
+            run_id=run.id,
+            item_type="project",
+            status="accepted",
+            needs_review=False,
+            confidence=86,
+            extracted_data={},
+            normalized_data={
+                "name": "Stream C",
+                "category": "plastic",
+                "project_type": "Assessment",
+                "description": "desc",
+                "sector": "industrial",
+                "subsector": "other",
+            },
+            duplicate_candidates=[
+                {"id": str(uuid.uuid4()), "name": "Stream C"},
+                {"id": str(uuid.uuid4()), "name": "Stream C Alt"},
+            ],
+            parent_item_id=location_item.id,
+            confirm_create_new=False,
+            group_id="grp_ambiguous",
+        )
+    )
+    await db_session.commit()
+
+    response = await client.post(
+        f"/api/v1/bulk-import/runs/{run.id}/finalize",
+        json={"resolved_group_ids": ["grp_ambiguous"], "idempotency_key": "voice-dup-409-k1"},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_voice_retry_idempotent_under_parallel_requests(
     client: AsyncClient, db_session, set_current_user
 ) -> None:

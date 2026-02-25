@@ -290,9 +290,9 @@ export default function LocationDetailPage() {
 					<VoiceInterviewLauncher
 						companyId={companyId}
 						locationId={locationId}
-						onRunReady={async ({ runId, voiceInterviewId }) => {
+						onUploaded={({ voiceInterviewId }) => {
 							router.push(
-								`/companies/${companyId}?voiceRunId=${runId}&voiceInterviewId=${voiceInterviewId}`,
+								`/companies/${companyId}?voiceInterviewId=${voiceInterviewId}`,
 							);
 						}}
 					/>

@@ -1481,7 +1481,12 @@ class BulkImportService:
             item.confirm_create_new = confirm_create_new
 
         if action == "accept":
-            self._ensure_duplicate_confirmation(item, target_status="accepted")
+            if not (
+                run.source_type == "voice_interview"
+                and item.duplicate_candidates
+                and not item.confirm_create_new
+            ):
+                self._ensure_duplicate_confirmation(item, target_status="accepted")
             item.status = "accepted"
             item.needs_review = self._needs_review(item.item_type, item.normalized_data)
         elif action == "amend":
@@ -1495,7 +1500,12 @@ class BulkImportService:
             merged.update(sanitized_patch)
             item.normalized_data = merged
             item.user_amendments = sanitized_patch
-            self._ensure_duplicate_confirmation(item, target_status="amended")
+            if not (
+                run.source_type == "voice_interview"
+                and item.duplicate_candidates
+                and not item.confirm_create_new
+            ):
+                self._ensure_duplicate_confirmation(item, target_status="amended")
             item.status = "amended"
             item.needs_review = self._needs_review(item.item_type, item.normalized_data)
         elif action == "reject":
@@ -2399,10 +2409,33 @@ class BulkImportService:
             location_ids=all_candidate_location_ids,
         )
 
+        # Build name-only lookup for location_ref fallback matching
+        _location_by_name: dict[str, ImportItem] = {}
+        for _key, loc_item in location_items_by_key.items():
+            loc_name = _normalize_token(
+                str(loc_item.normalized_data.get("name") or "") if isinstance(loc_item.normalized_data, dict) else ""
+            )
+            if loc_name and loc_name not in _location_by_name:
+                _location_by_name[loc_name] = loc_item
+
         for payload in project_defs:
             normalized = payload["normalized_data"]
             location_key = payload["location_key"]
             parent_item = location_items_by_key.get(location_key) if location_key else None
+
+            # Fallback: try matching stream_location_ref by name
+            if parent_item is None:
+                raw_ref = str(payload.get("raw", {}).get("stream_location_ref") or "")
+                if raw_ref:
+                    ref_name = _normalize_token(raw_ref)
+                    parent_item = _location_by_name.get(ref_name)
+                    if parent_item is not None:
+                        # Update location_key so duplicate matching uses correct location_ids
+                        location_key = self._location_key(
+                            parent_item.normalized_data
+                            if isinstance(parent_item.normalized_data, dict)
+                            else {}
+                        )
 
             if parent_item is None:
                 confidence = int(payload.get("confidence", 50))
