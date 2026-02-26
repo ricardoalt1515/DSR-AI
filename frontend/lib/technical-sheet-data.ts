@@ -185,22 +185,12 @@ export const calculateDerivedValues = (sections: TableSection[]) => {
 	};
 };
 
-/** Save technical sheet data to localStorage and backend */
+/** Save technical sheet data to backend */
 export const saveTechnicalSheetData = async (
 	projectId: string,
 	sections: TableSection[],
 ): Promise<ProjectDataSyncResult | null> => {
 	if (typeof window === "undefined") return null;
-
-	// localStorage backup (non-critical)
-	try {
-		window.localStorage.setItem(
-			`technical-sheet-data:${projectId}`,
-			JSON.stringify(sections),
-		);
-	} catch (_error) {
-		logger.warn("localStorage save failed", "TechnicalSheet");
-	}
 
 	// Backend sync (critical) - errors propagate to caller
 	const { projectDataAPI } = await import("@/lib/api/project-data");

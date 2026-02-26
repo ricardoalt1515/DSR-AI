@@ -28,6 +28,10 @@ import {
 } from "@/lib/validation/template-schema";
 import { projectDataAPI } from "../api/project-data";
 import { useProjectStore } from "./project-store";
+import {
+	createTechnicalDataStateStorage,
+	TECHNICAL_DATA_STORE_KEY,
+} from "./technical-data-persistence";
 
 type FieldValue = TableField["value"];
 
@@ -129,6 +133,7 @@ interface TechnicalDataState {
 // Stable empty arrays to prevent unnecessary re-renders
 const EMPTY_SECTIONS: TableSection[] = [];
 const EMPTY_VERSIONS: TechnicalDataVersion[] = [];
+export const MAX_VERSIONS = 20;
 
 const deepCloneSections = (sections: TableSection[]): TableSection[] =>
 	JSON.parse(JSON.stringify(sections));
@@ -418,13 +423,10 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 						);
 
 						// Backend applies template automatically in background (1-2 seconds)
-						// Don't create frontend template - wait for backend
-						// SILENT MODE: Don't clear existing data to prevent UI flicker during animations
-						if (!opts.silent) {
-							set((state) => {
-								state.technicalData[projectId] = [];
-							});
-						}
+						// Backend is source of truth: empty means clear local cache too
+						set((state) => {
+							state.technicalData[projectId] = [];
+						});
 						set((state) => {
 							if (shouldSetLoading) {
 								state.loading = false;
@@ -470,12 +472,8 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 						"TechnicalDataStore",
 					);
 
-					// Set error state
-					// SILENT MODE: Don't clear existing data to prevent UI flicker during animations
+					// Set error state and preserve last-known sections
 					set((state) => {
-						if (!opts.silent) {
-							state.technicalData[projectId] = [];
-						}
 						if (shouldSetLoading) {
 							state.loading = false;
 						}
@@ -751,7 +749,10 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 
 				set((state) => {
 					const existing = state.versions[projectId] || [];
-					state.versions[projectId] = [version, ...existing];
+					state.versions[projectId] = [version, ...existing].slice(
+						0,
+						MAX_VERSIONS,
+					);
 				});
 
 				return version;
@@ -822,14 +823,15 @@ export const useTechnicalDataStore = create<TechnicalDataState>()(
 			},
 		})),
 		{
-			name: "h2o-technical-data-store",
+			name: TECHNICAL_DATA_STORE_KEY,
 			storage:
 				typeof window === "undefined"
 					? undefined
-					: createJSONStorage(() => localStorage),
+					: createJSONStorage(() =>
+							createTechnicalDataStateStorage(window.localStorage),
+						),
 			partialize: (state) => ({
 				technicalData: state.technicalData,
-				versions: state.versions,
 			}),
 		},
 	),

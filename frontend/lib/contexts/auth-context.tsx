@@ -10,6 +10,7 @@ import { isPublicRoute } from "@/lib/constants";
 import { SELECTED_ORG_STORAGE_KEY } from "@/lib/constants/storage";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProjectStore } from "@/lib/stores/project-store";
+import { clearTechnicalStorageKeys } from "@/lib/stores/technical-data-persistence";
 import type { User } from "@/lib/types/user";
 import { logger } from "@/lib/utils/logger";
 
@@ -40,7 +41,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function clearUserData(): void {
 	localStorage.removeItem("h2o-project-store");
-	localStorage.removeItem("h2o-technical-data-store");
+	clearTechnicalStorageKeys();
 	localStorage.removeItem("active-proposal-generation");
 	localStorage.removeItem("waste-company-store");
 	localStorage.removeItem("waste-location-store");
