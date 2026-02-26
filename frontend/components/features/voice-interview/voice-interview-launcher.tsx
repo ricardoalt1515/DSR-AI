@@ -36,7 +36,6 @@ const FORMAT_BADGES = ACCEPTED_EXTENSIONS.map((ext) => (
 
 interface VoiceInterviewLauncherProps {
 	companyId: string;
-	locationId?: string;
 	disabled?: boolean;
 	onUploaded: (payload: {
 		voiceInterviewId: string;
@@ -46,7 +45,6 @@ interface VoiceInterviewLauncherProps {
 
 export function VoiceInterviewLauncher({
 	companyId,
-	locationId,
 	disabled,
 	onUploaded,
 }: VoiceInterviewLauncherProps) {
@@ -145,7 +143,6 @@ export function VoiceInterviewLauncher({
 				audioFile: selectedFile,
 				companyId,
 				consentGiven: true,
-				...(locationId ? { locationId } : {}),
 			});
 			onUploaded({
 				voiceInterviewId: created.voiceInterviewId,
@@ -160,7 +157,7 @@ export function VoiceInterviewLauncher({
 		} finally {
 			setUploading(false);
 		}
-	}, [selectedFile, consentGiven, companyId, locationId, onUploaded, reset]);
+	}, [selectedFile, consentGiven, companyId, onUploaded, reset]);
 
 	const fileSizeLabel = useMemo(() => {
 		if (!selectedFile) return null;

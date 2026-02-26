@@ -24,7 +24,6 @@ const PremiumProjectWizard = dynamic(
 
 import { IncomingMaterialsCard } from "@/components/features/locations/incoming-materials-card";
 import { LocationContactsCard } from "@/components/features/locations/location-contacts-card";
-import { VoiceInterviewLauncher } from "@/components/features/voice-interview/voice-interview-launcher";
 import { ArchivedBanner } from "@/components/shared/archived-banner";
 import { Breadcrumb } from "@/components/shared/navigation/breadcrumb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -285,17 +284,6 @@ export default function LocationDetailPage() {
 						<Archive className="mr-2 h-4 w-4" />
 						Archive
 					</Button>
-				)}
-				{canCreateProject && !isArchived && (
-					<VoiceInterviewLauncher
-						companyId={companyId}
-						locationId={locationId}
-						onUploaded={({ voiceInterviewId }) => {
-							router.push(
-								`/companies/${companyId}?voiceInterviewId=${voiceInterviewId}`,
-							);
-						}}
-					/>
 				)}
 			</div>
 

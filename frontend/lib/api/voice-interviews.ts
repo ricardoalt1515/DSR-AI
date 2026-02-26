@@ -57,16 +57,12 @@ export const voiceInterviewsApi = {
 	async create(payload: {
 		audioFile: File;
 		companyId: string;
-		locationId?: string;
 		consentGiven: boolean;
 	}): Promise<VoiceInterviewCreateResponse> {
 		const formData = new FormData();
 		formData.append("audio_file", payload.audioFile);
 		formData.append("company_id", payload.companyId);
 		formData.append("consent_given", String(payload.consentGiven));
-		if (payload.locationId) {
-			formData.append("location_id", payload.locationId);
-		}
 		return apiClient.post<VoiceInterviewCreateResponse>(BASE, formData);
 	},
 
