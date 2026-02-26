@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, Lock, Mic, Upload } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -57,6 +57,7 @@ export function VoiceInterviewLauncher({
 	const [dragActive, setDragActive] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const dragCounterRef = useRef(0);
+	const consentCheckboxId = useId();
 
 	const reset = useCallback(() => {
 		setConsentGiven(false);
@@ -239,17 +240,21 @@ export function VoiceInterviewLauncher({
 
 					<div className="space-y-4">
 						{/* Consent */}
-						<label className="flex items-start gap-3 cursor-pointer group/consent">
+						<div className="flex items-start gap-3 group/consent">
 							<Checkbox
+								id={consentCheckboxId}
 								checked={consentGiven}
 								onCheckedChange={(checked) => setConsentGiven(checked === true)}
 								className="mt-0.5 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
 							/>
-							<span className="text-sm leading-snug text-muted-foreground group-hover/consent:text-foreground transition-colors">
+							<label
+								htmlFor={consentCheckboxId}
+								className="cursor-pointer text-sm leading-snug text-muted-foreground group-hover/consent:text-foreground transition-colors"
+							>
 								I confirm this recording was made with consent of all
 								participants.
-							</span>
-						</label>
+							</label>
+						</div>
 
 						{/* Retention notice */}
 						<div className="flex items-start gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
@@ -261,41 +266,23 @@ export function VoiceInterviewLauncher({
 						</div>
 
 						{/* Drop zone */}
-						<div
+						<button
+							type="button"
 							onDragEnter={handleDragEnter}
 							onDragOver={handleDragOver}
 							onDragLeave={handleDragLeave}
 							onDrop={handleDrop}
 							onClick={() => !uploading && fileInputRef.current?.click()}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									fileInputRef.current?.click();
-								}
-							}}
-							role="button"
-							tabIndex={0}
+							disabled={uploading}
 							className={cn(
 								"flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-8",
 								"transition-all duration-200 cursor-pointer",
 								dragActive
 									? "border-emerald-500/40 bg-emerald-500/5"
 									: "border-muted-foreground/20 hover:border-emerald-500/30 hover:bg-emerald-500/[0.02]",
-								uploading && "pointer-events-none opacity-50",
+								uploading && "opacity-50",
 							)}
 						>
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept={ACCEPTED_MIME}
-								onChange={(event) => {
-									const file = event.target.files?.[0];
-									if (file) handleFile(file);
-									if (fileInputRef.current) fileInputRef.current.value = "";
-								}}
-								className="hidden"
-							/>
-
 							{selectedFile ? (
 								<>
 									<div className="flex items-center justify-center rounded-full bg-emerald-500/10 p-2">
@@ -304,17 +291,9 @@ export function VoiceInterviewLauncher({
 									<p className="text-sm font-medium text-foreground/80">
 										{fileSizeLabel}
 									</p>
-									<button
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											setSelectedFile(null);
-											if (fileInputRef.current) fileInputRef.current.value = "";
-										}}
-										className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-									>
-										change file
-									</button>
+									<span className="text-xs text-muted-foreground/80">
+										click to change file
+									</span>
 								</>
 							) : (
 								<>
@@ -333,9 +312,23 @@ export function VoiceInterviewLauncher({
 											Max 25 MB
 										</span>
 									</div>
+									<span className="text-xs text-emerald-400/90 underline underline-offset-2 decoration-emerald-400/40">
+										browse files
+									</span>
 								</>
 							)}
-						</div>
+						</button>
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept={ACCEPTED_MIME}
+							onChange={(event) => {
+								const file = event.target.files?.[0];
+								if (file) handleFile(file);
+								if (fileInputRef.current) fileInputRef.current.value = "";
+							}}
+							className="hidden"
+						/>
 
 						{/* Device helpers */}
 						<div className="space-y-1">

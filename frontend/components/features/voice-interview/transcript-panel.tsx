@@ -33,7 +33,7 @@ export function TranscriptPanel({
 	const [playing, setPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
-	const activeSegmentRef = useRef<HTMLDivElement | null>(null);
+	const activeSegmentRef = useRef<HTMLButtonElement | null>(null);
 
 	/* ── Audio event handlers ── */
 	const onTimeUpdate = useCallback(() => {
@@ -69,7 +69,7 @@ export function TranscriptPanel({
 
 	/* ── Auto-scroll to active segment ── */
 	useEffect(() => {
-		if (playing && activeSegmentRef.current) {
+		if (activeIndex >= 0 && playing && activeSegmentRef.current) {
 			activeSegmentRef.current.scrollIntoView({
 				behavior: "smooth",
 				block: "center",
@@ -115,17 +115,13 @@ export function TranscriptPanel({
 				<div className="space-y-0.5 p-4">
 					{hasSegments ? (
 						segments.map((seg, i) => (
-							<div
+							<button
 								key={`${seg.startSec}-${i}`}
+								type="button"
 								ref={i === activeIndex ? activeSegmentRef : null}
 								onClick={() => seekTo(seg.startSec)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") seekTo(seg.startSec);
-								}}
-								role="button"
-								tabIndex={0}
 								className={cn(
-									"flex gap-3 px-2 py-1.5 rounded-md cursor-pointer transition-colors duration-150",
+									"flex w-full gap-3 px-2 py-1.5 rounded-md cursor-pointer transition-colors duration-150 text-left",
 									i === activeIndex ? "bg-emerald-500/10" : "hover:bg-muted/50",
 								)}
 							>
@@ -147,7 +143,7 @@ export function TranscriptPanel({
 									)}
 									{seg.text}
 								</p>
-							</div>
+							</button>
 						))
 					) : (
 						<p className="text-sm text-muted-foreground whitespace-pre-wrap px-2">

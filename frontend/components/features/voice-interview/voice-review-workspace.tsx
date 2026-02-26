@@ -1,8 +1,18 @@
 "use client";
 
-import { Check, Info, Loader2, MapPin, X } from "lucide-react";
+import { AudioLines, Check, Info, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +43,7 @@ import { type LocationAction, LocationGroupCard } from "./location-group-card";
 import { StreamCard } from "./stream-card";
 import { TranscriptPanel } from "./transcript-panel";
 import {
+	categorizeVoiceConflict,
 	getFinalizeDisabledReason,
 	type MapBlockedReason,
 	shouldBlockMapAction,
@@ -62,41 +73,6 @@ export function isVoiceRunEditable(status: BulkImportRun["status"]): boolean {
 	return status === "review_ready";
 }
 
-export function getVoiceConflictMessage(error: unknown): string | null {
-	const code =
-		typeof error === "object" &&
-		error !== null &&
-		"code" in error &&
-		typeof (error as { code?: unknown }).code === "string"
-			? (error as { code: string }).code
-			: null;
-
-	if (code !== "HTTP_409") {
-		return null;
-	}
-
-	const messageValue =
-		error instanceof Error
-			? error.message
-			: typeof error === "object" &&
-					error !== null &&
-					"message" in error &&
-					typeof (error as { message?: unknown }).message === "string"
-				? (error as { message: string }).message
-				: "";
-	const message = messageValue.toLowerCase();
-	if (
-		message.includes("run must be in review_ready status") ||
-		message.includes("run is not ready for finalize") ||
-		message.includes("voice run is not ready for finalize") ||
-		message.includes("run already finalizing")
-	) {
-		return VOICE_RUN_LOCKED_MESSAGE;
-	}
-
-	return null;
-}
-
 export function getActiveOrphanItems(
 	items: BulkImportItem[],
 ): BulkImportItem[] {
@@ -106,6 +82,25 @@ export function getActiveOrphanItems(
 			i.createdProjectId == null &&
 			i.reviewNotes?.startsWith(REVIEW_NOTE_MISSING_LOCATION),
 	);
+}
+
+export function getNextSelectedResolvedGroupIds(params: {
+	previous: Set<string>;
+	resolvedGroupIds: string[];
+	autoInitialize: boolean;
+}): Set<string> {
+	const { previous, resolvedGroupIds, autoInitialize } = params;
+	if (autoInitialize) {
+		return new Set(resolvedGroupIds);
+	}
+	const resolvedSet = new Set(resolvedGroupIds);
+	const next = new Set<string>();
+	for (const groupId of previous) {
+		if (resolvedSet.has(groupId)) {
+			next.add(groupId);
+		}
+	}
+	return next;
 }
 
 export function getMapBlockedToast(reason: MapBlockedReason): string {
@@ -293,8 +288,10 @@ export function VoiceReviewWorkspace({
 	const [selectedResolvedGroupIds, setSelectedResolvedGroupIds] = useState<
 		Set<string>
 	>(new Set());
+	const [hasInitializedSelection, setHasInitializedSelection] = useState(false);
 	const [finalizing, setFinalizing] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 	const [seekToSec, setSeekToSec] = useState<number | null>(null);
 	const [success, setSuccess] = useState<{
 		streamsCreated: number;
@@ -308,10 +305,21 @@ export function VoiceReviewWorkspace({
 	const [runStatus, setRunStatus] = useState<BulkImportRun["status"]>(
 		run.status,
 	);
+	const [selectionRunId, setSelectionRunId] = useState(run.id);
 
 	useEffect(() => {
 		setRunStatus(run.status);
 	}, [run.status]);
+
+	useEffect(() => {
+		if (selectionRunId === run.id) {
+			return;
+		}
+		setSelectedResolvedGroupIds(new Set());
+		setHasInitializedSelection(false);
+		setItems([]);
+		setSelectionRunId(run.id);
+	}, [run.id, selectionRunId]);
 
 	/* ── Load data ── */
 	const loadItems = useCallback(async (): Promise<BulkImportItem[]> => {
@@ -442,8 +450,26 @@ export function VoiceReviewWorkspace({
 	);
 
 	useEffect(() => {
-		setSelectedResolvedGroupIds(new Set(resolvedGroupIds));
-	}, [resolvedGroupIds]);
+		setSelectedResolvedGroupIds((previous) => {
+			const next = getNextSelectedResolvedGroupIds({
+				previous,
+				resolvedGroupIds,
+				autoInitialize: !hasInitializedSelection,
+			});
+			if (next.size !== previous.size) {
+				return next;
+			}
+			for (const groupId of next) {
+				if (!previous.has(groupId)) {
+					return next;
+				}
+			}
+			return previous;
+		});
+		if (!hasInitializedSelection) {
+			setHasInitializedSelection(true);
+		}
+	}, [resolvedGroupIds, hasInitializedSelection]);
 
 	const totalGroups = actionableGroups.length;
 
@@ -604,16 +630,20 @@ export function VoiceReviewWorkspace({
 			});
 			setSuccessTargetProjectId(targetProjectId);
 		} catch (error) {
-			const conflictMessage = getVoiceConflictMessage(error);
-			if (conflictMessage) {
-				toast.error(conflictMessage);
-				try {
-					const latestRun = await bulkImportAPI.getRun(run.id);
-					setRunStatus(latestRun.status);
-					onRunUpdated(latestRun);
-					await loadItems();
-				} catch {
-					// best effort refresh
+			const conflict = categorizeVoiceConflict(error);
+			if (conflict) {
+				toast.error(conflict.userMessage, {
+					description: conflict.description,
+				});
+				if (conflict.shouldRefresh) {
+					try {
+						const latestRun = await bulkImportAPI.getRun(run.id);
+						setRunStatus(latestRun.status);
+						onRunUpdated(latestRun);
+						await loadItems();
+					} catch {
+						// best effort refresh
+					}
 				}
 			} else {
 				toast.error(error instanceof Error ? error.message : "Finalize failed");
@@ -873,24 +903,42 @@ export function VoiceReviewWorkspace({
 										locationId,
 										itemIds,
 									);
+									// Immediately remove imported items from local state
+									// so counter + list update in the same frame
+									const importedSet = new Set(itemIds);
+									setItems((prev) =>
+										prev.map((entry) =>
+											importedSet.has(entry.id)
+												? {
+														...entry,
+														createdProjectId: `orphan-imported-${entry.id}`,
+													}
+												: entry,
+										),
+									);
 									toast.success(
 										`${itemIds.length} stream${itemIds.length === 1 ? "" : "s"} imported to "${locationName}"`,
 									);
+									// Background refresh for full consistency
 									const updatedRun = await bulkImportAPI.getRun(run.id);
 									setRunStatus(updatedRun.status);
 									onRunUpdated(updatedRun);
 									await loadItems();
 								} catch (error) {
-									const conflictMessage = getVoiceConflictMessage(error);
-									if (conflictMessage) {
-										toast.error(conflictMessage);
-										try {
-											const latestRun = await bulkImportAPI.getRun(run.id);
-											setRunStatus(latestRun.status);
-											onRunUpdated(latestRun);
-											await loadItems();
-										} catch {
-											// best effort refresh
+									const conflict = categorizeVoiceConflict(error);
+									if (conflict) {
+										toast.error(conflict.userMessage, {
+											description: conflict.description,
+										});
+										if (conflict.shouldRefresh) {
+											try {
+												const latestRun = await bulkImportAPI.getRun(run.id);
+												setRunStatus(latestRun.status);
+												onRunUpdated(latestRun);
+												await loadItems();
+											} catch {
+												// best effort refresh
+											}
 										}
 										return;
 									}
@@ -898,15 +946,16 @@ export function VoiceReviewWorkspace({
 								}
 							}}
 						/>
-						{/* Mention card: show detected location names from orphan groups */}
+						{/* Mention card: location names heard in audio but not matched to known locations */}
 						{orphanGroupNames.length > 0 && (
 							<div className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
-								<MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+								<AudioLines className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
 								<p className="text-xs text-muted-foreground">
-									Mentioned location{orphanGroupNames.length === 1 ? "" : "s"}:{" "}
+									Heard in audio:{" "}
 									<span className="font-medium text-foreground">
 										{orphanGroupNames.join(", ")}
 									</span>
+									{" — not matched to a known location"}
 								</p>
 							</div>
 						)}
@@ -995,7 +1044,7 @@ export function VoiceReviewWorkspace({
 			? "Assign locations first"
 			: totalGroups === 0
 				? "Close as empty"
-				: `Import ${importableStreamCount} stream${importableStreamCount === 1 ? "" : "s"} from ${selectedGroupCount} group${selectedGroupCount === 1 ? "" : "s"}`;
+				: `Import ${importableStreamCount} stream${importableStreamCount === 1 ? "" : "s"} from ${selectedGroupCount} reviewed group${selectedGroupCount === 1 ? "" : "s"}`;
 
 	const finalizeBar = (
 		<div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
@@ -1061,7 +1110,33 @@ export function VoiceReviewWorkspace({
 			importedGroups.length > 0) ||
 		finalizeDisabledReason === "no_actionable_streams";
 
-	/* ── Header ── */
+	/* ── Close confirmation logic ── */
+	const hasUsefulWork =
+		pendingItemCount > 0 ||
+		orphanItems.length > 0 ||
+		(resolvedGroupIds.length > 0 && !runEffectivelyComplete);
+
+	const closeConfirmDescription = (() => {
+		const parts: string[] = [];
+		if (resolvedGroupIds.length > 0 && !runEffectivelyComplete) {
+			parts.push(
+				`${resolvedGroupIds.length} reviewed group${resolvedGroupIds.length === 1 ? "" : "s"} not yet imported`,
+			);
+		}
+		if (pendingItemCount > 0) {
+			parts.push(
+				`${pendingItemCount} stream${pendingItemCount === 1 ? "" : "s"} still need review`,
+			);
+		}
+		if (orphanItems.length > 0) {
+			parts.push(
+				`${orphanItems.length} stream${orphanItems.length === 1 ? "" : "s"} need a location`,
+			);
+		}
+		return parts.length > 0
+			? `${parts.join(", ")}. Your individual stream decisions (accept/reject) are saved.`
+			: "";
+	})();
 	const allReviewed = pendingItemCount === 0 && totalStreamCount > 0;
 
 	const header = (
@@ -1125,7 +1200,13 @@ export function VoiceReviewWorkspace({
 				variant="ghost"
 				size="icon"
 				className="h-7 w-7"
-				onClick={onDismiss}
+				onClick={() => {
+					if (hasUsefulWork) {
+						setCloseConfirmOpen(true);
+					} else {
+						onDismiss();
+					}
+				}}
 				aria-label="Close voice review"
 				title="Close voice review"
 			>
@@ -1168,6 +1249,25 @@ export function VoiceReviewWorkspace({
 		/>
 	);
 
+	const closeConfirmDialog = (
+		<AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Leave voice review?</AlertDialogTitle>
+					<AlertDialogDescription>
+						{closeConfirmDescription}
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel>Cancel</AlertDialogCancel>
+					<AlertDialogAction onClick={onDismiss}>
+						Leave without importing
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+
 	/* ── Desktop: Split Panel ── */
 	if (isDesktop) {
 		return (
@@ -1198,6 +1298,7 @@ export function VoiceReviewWorkspace({
 				</div>
 				{editDrawer}
 				{confirmDialog}
+				{closeConfirmDialog}
 			</div>
 		);
 	}
@@ -1237,6 +1338,7 @@ export function VoiceReviewWorkspace({
 			</Tabs>
 			{editDrawer}
 			{confirmDialog}
+			{closeConfirmDialog}
 		</div>
 	);
 }

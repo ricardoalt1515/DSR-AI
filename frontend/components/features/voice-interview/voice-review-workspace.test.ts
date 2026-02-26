@@ -2,7 +2,9 @@ import { describe, expect, it } from "bun:test";
 import type { BulkImportItem } from "@/lib/api/bulk-import";
 import { getGroupBadgeLabel } from "./location-group-card";
 import { formatConfidenceLabel } from "./stream-card";
+import type { VoiceConflict } from "./voice-review-guards";
 import {
+	categorizeVoiceConflict,
 	getFinalizeDisabledReason,
 	shouldDisableFinalizeAction,
 } from "./voice-review-guards";
@@ -10,9 +12,8 @@ import {
 	applyVoiceGroupResolution,
 	getActiveOrphanItems,
 	getMapBlockedToast,
-	getVoiceConflictMessage,
+	getNextSelectedResolvedGroupIds,
 	isVoiceRunEditable,
-	VOICE_RUN_LOCKED_MESSAGE,
 } from "./voice-review-workspace";
 
 function buildItem(overrides: Partial<BulkImportItem>): BulkImportItem {
@@ -36,6 +37,12 @@ function buildItem(overrides: Partial<BulkImportItem>): BulkImportItem {
 		createdAt: overrides.createdAt ?? "2026-01-01T00:00:00.000Z",
 		updatedAt: overrides.updatedAt ?? "2026-01-01T00:00:00.000Z",
 	};
+}
+
+/** Narrows VoiceConflict | null, throwing if null so tests fail with a clear message */
+function assertConflict(result: VoiceConflict | null): VoiceConflict {
+	if (result === null) throw new Error("Expected non-null VoiceConflict");
+	return result;
 }
 
 describe("shouldDisableFinalizeAction", () => {
@@ -232,18 +239,127 @@ describe("getActiveOrphanItems", () => {
 	});
 });
 
-describe("getVoiceConflictMessage", () => {
-	it("maps known 409 run-lock error to human message", () => {
+describe("getNextSelectedResolvedGroupIds", () => {
+	it("keeps manual deselection when new groups resolve", () => {
+		const previous = new Set(["group-b"]);
+		const result = getNextSelectedResolvedGroupIds({
+			previous,
+			resolvedGroupIds: ["group-a", "group-b", "group-c"],
+			autoInitialize: false,
+		});
+		expect(Array.from(result)).toEqual(["group-b"]);
+	});
+
+	it("prunes selection when group is no longer resolved", () => {
+		const previous = new Set(["group-a", "group-b"]);
+		const result = getNextSelectedResolvedGroupIds({
+			previous,
+			resolvedGroupIds: ["group-b"],
+			autoInitialize: false,
+		});
+		expect(Array.from(result)).toEqual(["group-b"]);
+	});
+});
+
+describe("categorizeVoiceConflict", () => {
+	it("maps run_locked 409 to actionable message", () => {
 		const error = {
 			code: "HTTP_409",
 			message: "Run must be in review_ready status",
 		};
-		expect(getVoiceConflictMessage(error)).toBe(VOICE_RUN_LOCKED_MESSAGE);
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("run_locked");
+		expect(result.shouldRefresh).toBe(true);
 	});
 
-	it("returns null for non-conflict errors", () => {
+	it("maps duplicate_conflict for finalize duplicates", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "Duplicate detected before finalize for item abc-123",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("duplicate_conflict");
+		expect(result.shouldRefresh).toBe(true);
+	});
+
+	it("maps duplicate_conflict for orphan import name collision", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "A project named 'Cardboard' already exists in this location",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("duplicate_conflict");
+	});
+
+	it("maps interview_not_found", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "Voice interview not found",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("interview_not_found");
+		expect(result.shouldRefresh).toBe(false);
+	});
+
+	it("maps location_error for location mismatch", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "Location does not belong to the run's company",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("location_error");
+		expect(result.shouldRefresh).toBe(false);
+	});
+
+	it("maps stale_data for unknown group ids", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "Unknown group ids",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("stale_data");
+		expect(result.shouldRefresh).toBe(true);
+	});
+
+	it("maps stale_data for orphan status change", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "Item xyz is not an orphan (status=accepted)",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("stale_data");
+	});
+
+	it("falls back to unknown_conflict for unrecognized 409 detail", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "Something completely unexpected happened",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("unknown_conflict");
+		expect(result.userMessage).toBe("Import conflict");
+		expect(result.description).toBe("Something completely unexpected happened");
+		expect(result.shouldRefresh).toBe(true);
+	});
+
+	it("returns null for non-409 errors", () => {
 		const error = { code: "HTTP_500", message: "Internal error" };
-		expect(getVoiceConflictMessage(error)).toBeNull();
+		expect(categorizeVoiceConflict(error)).toBeNull();
+	});
+
+	it("returns null for non-object errors", () => {
+		expect(categorizeVoiceConflict("string error")).toBeNull();
+		expect(categorizeVoiceConflict(null)).toBeNull();
+		expect(categorizeVoiceConflict(undefined)).toBeNull();
+	});
+
+	it("handles case-insensitive matching", () => {
+		const error = {
+			code: "HTTP_409",
+			message: "RUN ALREADY FINALIZING",
+		};
+		const result = assertConflict(categorizeVoiceConflict(error));
+		expect(result.category).toBe("run_locked");
 	});
 });
 
