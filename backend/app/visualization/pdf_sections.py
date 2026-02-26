@@ -593,37 +593,22 @@ def build_charts_section(charts: dict[str, str]) -> str:
 
     essential_charts = [
         (
-            "process_flow",
-            "WASTE STREAMS & UPCYCLING PATHWAYS",
-            "High-level flow of waste generation, segregation, and upcycling pathways "
-            "designed for circular economy deals.",
-        ),
-        (
             "financial_executive",
             "ECONOMIC ANALYSIS: SAVINGS & REVENUE",
             "Executive view of generator savings, revenue potential, and landfill diversion benefits.",
-        ),
+        )
     ]
 
     for chart_key, chart_title, chart_description in essential_charts:
         if chart_key in charts:
             chart_data = charts[chart_key]
-            if chart_key == "process_flow":
-                html += f"""
-                <div class="chart-full-page pid-diagram">
-                    <h3 class="chart-title">{chart_title}</h3>
-                    <p class="chart-subtitle">{chart_description}</p>
-                    <img src="data:image/png;base64,{chart_data}" class="chart-image" alt="{chart_title}">
-                </div>
-                """
-            else:
-                html += f"""
-                <div class="chart-container">
-                    <h3 class="chart-title">{chart_title}</h3>
-                    <p class="chart-subtitle">{chart_description}</p>
-                    <img src="data:image/png;base64,{chart_data}" class="chart-image" alt="{chart_title}">
-                </div>
-                """
+            html += f"""
+            <div class="chart-container">
+                <h3 class="chart-title">{chart_title}</h3>
+                <p class="chart-subtitle">{chart_description}</p>
+                <img src="data:image/png;base64,{chart_data}" class="chart-image" alt="{chart_title}">
+            </div>
+            """
         else:
             html += f"""
             <div class="missing-chart-notice">

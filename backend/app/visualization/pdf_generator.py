@@ -52,7 +52,7 @@ class ProfessionalPDFGenerator:
             markdown_content: Proposal narrative content in markdown format
             metadata: Report metadata and chart inputs
             charts: Optional base64-encoded charts dict.
-                    Expected keys: 'process_flow', 'financial_executive'
+                    Expected key: 'financial_executive'
             conversation_id: Unique identifier for the conversation
 
         Returns:
