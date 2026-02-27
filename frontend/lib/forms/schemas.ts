@@ -18,6 +18,30 @@ export function isValidZipCode(value: string): boolean {
 }
 
 // =============================================================================
+// SHARED VALIDATION PATTERNS
+// =============================================================================
+
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const PHONE_MIN_LENGTH = 3;
+export const PHONE_MAX_LENGTH = 50;
+
+export function isValidEmail(value: string): boolean {
+	return EMAIL_REGEX.test(value);
+}
+
+/**
+ * Phone: 3-50 chars, at least one digit.
+ * Permissive — supports international formats, extensions, etc.
+ */
+export function isValidPhone(value: string): boolean {
+	return (
+		value.length >= PHONE_MIN_LENGTH &&
+		value.length <= PHONE_MAX_LENGTH &&
+		/[0-9]/.test(value)
+	);
+}
+
+// =============================================================================
 // COMPANY SCHEMAS
 // =============================================================================
 
@@ -43,6 +67,53 @@ export const companyBasicSchema = companySchema.pick({
 	customerType: true,
 	notes: true,
 });
+
+// =============================================================================
+// COMPANY CONTACT SCHEMAS
+// =============================================================================
+
+/**
+ * Company contact: at least one identity field (name | email | phone).
+ * Email/phone validated only when provided.
+ */
+export const companyContactSchema = z
+	.object({
+		name: z.string().default(""),
+		email: z.string().default(""),
+		phone: z.string().default(""),
+		title: z.string().default(""),
+		notes: z.string().default(""),
+		isPrimary: z.boolean().default(false),
+	})
+	.refine(
+		(data) =>
+			data.name.trim().length > 0 ||
+			data.email.trim().length > 0 ||
+			data.phone.trim().length > 0,
+		{
+			message: "Provide at least a name, email, or phone number.",
+			path: ["_identity"],
+		},
+	)
+	.refine(
+		(data) => {
+			const email = data.email.trim();
+			return email.length === 0 || isValidEmail(email);
+		},
+		{ message: "Enter a valid email address.", path: ["email"] },
+	)
+	.refine(
+		(data) => {
+			const phone = data.phone.trim();
+			return phone.length === 0 || isValidPhone(phone);
+		},
+		{
+			message: "Phone must be 3-50 characters and include at least one digit.",
+			path: ["phone"],
+		},
+	);
+
+export type CompanyContactFormData = z.infer<typeof companyContactSchema>;
 
 // =============================================================================
 // LOCATION SCHEMAS

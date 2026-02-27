@@ -177,7 +177,11 @@ export function LocationContactsCard({
 											<LocationContactDialog
 												contact={contact}
 												trigger={
-													<Button size="icon" variant="ghost">
+													<Button
+														size="icon"
+														variant="ghost"
+														aria-label={`Edit contact ${contact.name}`}
+													>
 														<Pencil className="h-4 w-4" />
 													</Button>
 												}
@@ -187,6 +191,7 @@ export function LocationContactsCard({
 												<Button
 													size="icon"
 													variant="ghost"
+													aria-label={`Delete contact ${contact.name}`}
 													onClick={() => {
 														setContactToDelete(contact);
 														setDeleteDialogOpen(true);

@@ -242,6 +242,7 @@ export function CreateLocationDialog({
 											</Label>
 											<Input
 												id={field.name}
+												placeholder="e.g. Main Plant, Warehouse #3"
 												value={field.state.value}
 												onChange={(e) => field.handleChange(e.target.value)}
 												onBlur={field.handleBlur}
@@ -304,6 +305,7 @@ export function CreateLocationDialog({
 										<Label htmlFor={field.name}>Address</Label>
 										<Input
 											id={field.name}
+											placeholder="123 Main Street"
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
 											onBlur={field.handleBlur}
@@ -314,7 +316,7 @@ export function CreateLocationDialog({
 							</form.Field>
 
 							{/* City, State & ZIP */}
-							<div className="grid grid-cols-4 gap-3">
+							<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 								<form.Field
 									name="city"
 									validators={{
@@ -330,12 +332,13 @@ export function CreateLocationDialog({
 											field.state.meta.errors.length > 0;
 
 										return (
-											<div className="col-span-2 grid gap-2">
+											<div className="col-span-1 md:col-span-2 grid gap-2">
 												<Label htmlFor={field.name}>
 													City <span className="text-destructive">*</span>
 												</Label>
 												<Input
 													id={field.name}
+													placeholder="Los Angeles"
 													value={field.state.value}
 													onChange={(e) => field.handleChange(e.target.value)}
 													onBlur={field.handleBlur}
@@ -381,6 +384,7 @@ export function CreateLocationDialog({
 												</Label>
 												<Input
 													id={field.name}
+													placeholder="CA"
 													value={field.state.value}
 													onChange={(e) => field.handleChange(e.target.value)}
 													onBlur={field.handleBlur}
@@ -466,6 +470,7 @@ export function CreateLocationDialog({
 										<Label htmlFor={field.name}>Notes</Label>
 										<Textarea
 											id={field.name}
+											placeholder="Site-specific notes..."
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
 											onBlur={field.handleBlur}

@@ -532,19 +532,13 @@ export default function CompanyDetailPage() {
 											{currentCompany.sector}
 										</Badge>
 										<Badge variant="outline" className="text-sm">
-											{currentCompany.subsector.replace(/_/g, " ")}
+											{formatSubsector(currentCompany.subsector)}
 										</Badge>
 									</div>
 								</div>
 								<Separator />
 							</>
 						)}
-
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<p className="text-sm text-muted-foreground">
-							Manage contacts in the contacts section below.
-						</p>
-					</div>
 
 					{currentCompany.notes && (
 						<>

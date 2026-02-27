@@ -204,6 +204,7 @@ export function CompanyContactsCard({
 														size="icon"
 														variant="ghost"
 														disabled={loading}
+														aria-label={`Edit contact ${contact.name || "Unnamed"}`}
 													>
 														<Pencil className="h-4 w-4" />
 													</Button>
@@ -214,6 +215,7 @@ export function CompanyContactsCard({
 												size="icon"
 												variant="ghost"
 												disabled={loading}
+												aria-label={`Delete contact ${contact.name || "Unnamed"}`}
 												onClick={() => {
 													setContactToDelete(contact);
 													setDeleteDialogOpen(true);

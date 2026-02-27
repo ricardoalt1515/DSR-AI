@@ -293,6 +293,7 @@ export function CompactSectorSelect({
 				<Popover open={subsectorOpen} onOpenChange={setSubsectorOpen}>
 					<PopoverTrigger asChild>
 						<Button
+							id="subsector"
 							variant="outline"
 							role="combobox"
 							aria-expanded={subsectorOpen}

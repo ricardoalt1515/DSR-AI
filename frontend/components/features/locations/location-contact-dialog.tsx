@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * LocationContactDialog - Add/edit a location contact.
+ *
+ * Name is required. Email/phone validated onBlur when provided.
+ * TanStack Form with accessible inline errors.
+ * Pattern matches create-location-dialog (gold standard).
+ */
+
 import { useForm } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
+import { isValidEmail, isValidPhone } from "@/lib/forms/schemas";
 import { useToast } from "@/lib/hooks/use-toast";
 import type { LocationContact } from "@/lib/types/company";
 
@@ -39,6 +48,8 @@ const EMPTY_CONTACT = {
 	notes: "",
 };
 
+const REQUIRED_FIELDS = ["name"] as const;
+
 export function LocationContactDialog({
 	contact,
 	trigger,
@@ -52,11 +63,38 @@ export function LocationContactDialog({
 		defaultValues: EMPTY_CONTACT,
 		onSubmit: async ({ value }) => {
 			if (!value.name.trim()) {
-				toast({
-					title: "Validation Error",
-					description: "Contact name is required",
-					variant: "destructive",
-				});
+				// Mark touched + trigger blur validator so error renders
+				for (const fieldName of REQUIRED_FIELDS) {
+					form.setFieldMeta(fieldName, (meta) => ({
+						...meta,
+						isTouched: true,
+					}));
+					form.validateField(fieldName, "blur");
+				}
+				document.getElementById("name")?.focus();
+				return;
+			}
+
+			// Validate email/phone if provided
+			const trimmedEmail = value.email.trim();
+			if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+				form.setFieldMeta("email", (meta) => ({
+					...meta,
+					isTouched: true,
+				}));
+				form.validateField("email", "blur");
+				document.getElementById("email")?.focus();
+				return;
+			}
+
+			const trimmedPhone = value.phone.trim();
+			if (trimmedPhone && !isValidPhone(trimmedPhone)) {
+				form.setFieldMeta("phone", (meta) => ({
+					...meta,
+					isTouched: true,
+				}));
+				form.validateField("phone", "blur");
+				document.getElementById("phone")?.focus();
 				return;
 			}
 
@@ -64,17 +102,16 @@ export function LocationContactDialog({
 				const payload: Parameters<typeof onSubmit>[0] = {
 					name: value.name.trim(),
 				};
-				const email = value.email?.trim();
-				if (email) payload.email = email;
-				const phone = value.phone?.trim();
-				if (phone) payload.phone = phone;
-				const title = value.title?.trim();
+				if (trimmedEmail) payload.email = trimmedEmail;
+				if (trimmedPhone) payload.phone = trimmedPhone;
+				const title = value.title.trim();
 				if (title) payload.title = title;
-				const notes = value.notes?.trim();
+				const notes = value.notes.trim();
 				if (notes) payload.notes = notes;
 
 				await onSubmit(payload);
 				setOpen(false);
+				form.reset();
 			} catch (error) {
 				toast({
 					title: "Error",
@@ -121,79 +158,170 @@ export function LocationContactDialog({
 					</DialogHeader>
 
 					<div className="grid gap-4 py-4">
-						<form.Field name="name">
-							{(field) => (
-								<div className="grid gap-2">
-									<Label htmlFor={field.name}>
-										Name <span className="text-destructive">*</span>
-									</Label>
-									<Input
-										id={field.name}
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										onBlur={field.handleBlur}
-									/>
-									{field.state.meta.errors.length > 0 && (
-										<p className="text-xs text-destructive">
-											{field.state.meta.errors.join(", ")}
-										</p>
-									)}
-								</div>
-							)}
+						{/* Name (required) */}
+						<form.Field
+							name="name"
+							validators={{
+								onBlur: ({ value }) => {
+									if (!value.trim()) return "Contact name is required";
+									return undefined;
+								},
+							}}
+						>
+							{(field) => {
+								const hasError =
+									field.state.meta.isTouched &&
+									field.state.meta.errors.length > 0;
+
+								return (
+									<div className="grid gap-2">
+										<Label htmlFor={field.name}>
+											Name <span className="text-destructive">*</span>
+										</Label>
+										<Input
+											id={field.name}
+											placeholder="Full name"
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											onBlur={field.handleBlur}
+											aria-invalid={hasError}
+											aria-required="true"
+											aria-describedby={
+												hasError ? `${field.name}-error` : undefined
+											}
+										/>
+										{hasError && (
+											<p
+												id={`${field.name}-error`}
+												className="text-xs text-destructive"
+												role="alert"
+											>
+												{field.state.meta.errors[0]}
+											</p>
+										)}
+									</div>
+								);
+							}}
 						</form.Field>
 
+						{/* Job Title */}
 						<form.Field name="title">
 							{(field) => (
 								<div className="grid gap-2">
-									<Label htmlFor={field.name}>Title</Label>
+									<Label htmlFor={field.name}>Job Title</Label>
 									<Input
 										id={field.name}
+										placeholder="e.g. Plant Manager, Operations Director"
 										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
+										onChange={(e) => field.handleChange(e.target.value)}
 										onBlur={field.handleBlur}
 									/>
 								</div>
 							)}
 						</form.Field>
 
-						<form.Field name="email">
-							{(field) => (
-								<div className="grid gap-2">
-									<Label htmlFor={field.name}>Email</Label>
-									<Input
-										type="email"
-										id={field.name}
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										onBlur={field.handleBlur}
-									/>
-								</div>
-							)}
+						{/* Email */}
+						<form.Field
+							name="email"
+							validators={{
+								onBlur: ({ value }) => {
+									const trimmed = value.trim();
+									if (trimmed && !isValidEmail(trimmed))
+										return "Enter a valid email address.";
+									return undefined;
+								},
+							}}
+						>
+							{(field) => {
+								const hasError =
+									field.state.meta.isTouched &&
+									field.state.meta.errors.length > 0;
+
+								return (
+									<div className="grid gap-2">
+										<Label htmlFor={field.name}>Email</Label>
+										<Input
+											type="email"
+											id={field.name}
+											placeholder="name@company.com"
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											onBlur={field.handleBlur}
+											aria-invalid={hasError}
+											aria-describedby={
+												hasError ? `${field.name}-error` : undefined
+											}
+										/>
+										{hasError && (
+											<p
+												id={`${field.name}-error`}
+												className="text-xs text-destructive"
+												role="alert"
+											>
+												{field.state.meta.errors[0]}
+											</p>
+										)}
+									</div>
+								);
+							}}
 						</form.Field>
 
-						<form.Field name="phone">
-							{(field) => (
-								<div className="grid gap-2">
-									<Label htmlFor={field.name}>Phone</Label>
-									<Input
-										type="tel"
-										id={field.name}
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										onBlur={field.handleBlur}
-									/>
-								</div>
-							)}
+						{/* Phone */}
+						<form.Field
+							name="phone"
+							validators={{
+								onBlur: ({ value }) => {
+									const trimmed = value.trim();
+									if (trimmed && !isValidPhone(trimmed))
+										return "Phone must be 3-50 characters and include at least one digit.";
+									return undefined;
+								},
+							}}
+						>
+							{(field) => {
+								const hasError =
+									field.state.meta.isTouched &&
+									field.state.meta.errors.length > 0;
+
+								return (
+									<div className="grid gap-2">
+										<Label htmlFor={field.name}>Phone</Label>
+										<Input
+											type="tel"
+											id={field.name}
+											placeholder="(555) 123-4567"
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											onBlur={field.handleBlur}
+											aria-invalid={hasError}
+											aria-describedby={
+												hasError ? `${field.name}-error` : undefined
+											}
+										/>
+										{hasError && (
+											<p
+												id={`${field.name}-error`}
+												className="text-xs text-destructive"
+												role="alert"
+											>
+												{field.state.meta.errors[0]}
+											</p>
+										)}
+									</div>
+								);
+							}}
 						</form.Field>
 
+						{/* Notes */}
 						<form.Field name="notes">
 							{(field) => (
 								<div className="grid gap-2">
 									<Label htmlFor={field.name}>Notes</Label>
 									<Textarea
 										id={field.name}
+										placeholder="Additional context about this contact..."
 										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
+										onChange={(e) => field.handleChange(e.target.value)}
 										onBlur={field.handleBlur}
 										rows={3}
 									/>
@@ -203,13 +331,8 @@ export function LocationContactDialog({
 					</div>
 
 					<DialogFooter>
-						<form.Subscribe
-							selector={(state) => ({
-								canSubmit: Boolean(state.values.name?.trim()),
-								isSubmitting: state.isSubmitting,
-							})}
-						>
-							{({ canSubmit, isSubmitting }) => (
+						<form.Subscribe selector={(state) => state.isSubmitting}>
+							{(isSubmitting) => (
 								<>
 									<Button
 										type="button"
@@ -219,11 +342,7 @@ export function LocationContactDialog({
 									>
 										Cancel
 									</Button>
-									<LoadingButton
-										type="submit"
-										loading={isSubmitting}
-										disabled={!canSubmit}
-									>
+									<LoadingButton type="submit" loading={isSubmitting}>
 										{isEditMode ? "Save Changes" : "Add Contact"}
 									</LoadingButton>
 								</>
