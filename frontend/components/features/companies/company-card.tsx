@@ -230,9 +230,6 @@ export function CompanyCard({ company, onDelete }: CompanyCardProps) {
 						sector: company.sector,
 						subsector: company.subsector,
 						customerType: company.customerType,
-						...(company.contactName && { contactName: company.contactName }),
-						...(company.contactEmail && { contactEmail: company.contactEmail }),
-						...(company.contactPhone && { contactPhone: company.contactPhone }),
 						...(company.notes && { notes: company.notes }),
 					}}
 					onSuccess={() => {

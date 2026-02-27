@@ -19,6 +19,22 @@ if TYPE_CHECKING:
     from app.schemas.company import CompanySummary
 
 
+ZIP_CODE_REGEX = re.compile(r"\d{5}(-\d{4})?")
+
+
+def _validate_zip_code(value: str | None, *, empty_as_none: bool) -> str | None:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        if empty_as_none:
+            return None
+        raise ValueError("Invalid ZIP format")
+    if not ZIP_CODE_REGEX.fullmatch(trimmed):
+        raise ValueError("Invalid ZIP format")
+    return trimmed
+
+
 class LocationProjectSummary(BaseSchema):
     """Minimal project summary for location detail views."""
 
@@ -44,14 +60,7 @@ class LocationBase(BaseSchema):
     @field_validator("zip_code")
     @classmethod
     def validate_zip_code(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        trimmed = value.strip()
-        if not trimmed:
-            return None
-        if not re.fullmatch(r"\d{5}(-\d{4})?", trimmed):
-            raise ValueError("Invalid ZIP format")
-        return trimmed
+        return _validate_zip_code(value, empty_as_none=True)
 
 
 class LocationCreate(LocationBase):
@@ -83,14 +92,7 @@ class LocationUpdate(BaseSchema):
     @field_validator("zip_code")
     @classmethod
     def validate_zip_code(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        trimmed = value.strip()
-        if not trimmed:
-            raise ValueError("Invalid ZIP format")
-        if not re.fullmatch(r"\d{5}(-\d{4})?", trimmed):
-            raise ValueError("Invalid ZIP format")
-        return trimmed
+        return _validate_zip_code(value, empty_as_none=False)
 
 
 class LocationSummary(LocationBase):

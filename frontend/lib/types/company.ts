@@ -21,8 +21,25 @@ export interface CompanyBase {
 	tags?: string[];
 }
 
+export interface CompanyContact {
+	id: string;
+	companyId: string;
+	name?: string;
+	email?: string;
+	phone?: string;
+	title?: string;
+	notes?: string;
+	isPrimary: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export const CUSTOMER_TYPES = ["buyer", "generator", "both"] as const;
 export type CustomerType = (typeof CUSTOMER_TYPES)[number];
+
+export function isCustomerType(value: string): value is CustomerType {
+	return CUSTOMER_TYPES.some((item) => item === value);
+}
 
 export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
 	buyer: "Buyer",
@@ -46,6 +63,7 @@ export interface CompanySummary extends CompanyBase {
 
 export interface CompanyDetail extends CompanySummary {
 	locations: LocationSummary[];
+	contacts: CompanyContact[];
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -71,6 +89,10 @@ export const ADDRESS_TYPES = [
 	"billing",
 ] as const;
 export type AddressType = (typeof ADDRESS_TYPES)[number];
+
+export function isAddressType(value: string): value is AddressType {
+	return ADDRESS_TYPES.some((item) => item === value);
+}
 
 export const ADDRESS_TYPE_LABELS: Record<AddressType, string> = {
 	headquarters: "Headquarters",
@@ -181,9 +203,6 @@ export interface CompanyFormData {
 	sector: Sector | "";
 	subsector: Subsector | "";
 	customerType: CustomerType | "";
-	contactName: string;
-	contactEmail: string;
-	contactPhone: string;
 	notes?: string;
 }
 

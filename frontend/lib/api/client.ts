@@ -26,7 +26,7 @@ const API_BASE_URL = (() => {
 	return url || "http://localhost:8001/api/v1"; // Waste platform uses port 8001
 })();
 
-type JsonLike = Record<string, unknown>;
+type JsonLike = object;
 
 interface APIError {
 	message: string;
@@ -36,7 +36,7 @@ interface APIError {
 
 class APIClientError extends Error {
 	code?: string | undefined;
-	details?: Record<string, unknown> | undefined;
+	details?: JsonLike | undefined;
 
 	constructor(error: APIError) {
 		super(error.message);
@@ -208,8 +208,16 @@ class APIClient {
 						body instanceof Blob
 					) {
 						requestConfig.body = body;
-					} else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
+					} else if (body instanceof ArrayBuffer) {
 						requestConfig.body = body;
+					} else if (
+						ArrayBuffer.isView(body) &&
+						body.buffer instanceof ArrayBuffer
+					) {
+						requestConfig.body = body.buffer.slice(
+							body.byteOffset,
+							body.byteOffset + body.byteLength,
+						);
 					} else if (typeof body === "object" && body !== null) {
 						requestConfig.body = JSON.stringify(body);
 					}

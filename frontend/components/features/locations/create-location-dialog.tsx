@@ -35,19 +35,18 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { isForbiddenError } from "@/lib/api/client";
-import { locationSchema } from "@/lib/forms/schemas";
+import {
+	isValidZipCode,
+	locationSchema,
+	parseZipCode,
+} from "@/lib/forms/schemas";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useLocationStore } from "@/lib/stores/location-store";
-import type { AddressType, LocationSummary } from "@/lib/types/company";
-
-const isAddressType = (value: string): value is AddressType => {
-	return (
-		value === "headquarters" ||
-		value === "pickup" ||
-		value === "delivery" ||
-		value === "billing"
-	);
-};
+import {
+	type AddressType,
+	isAddressType,
+	type LocationSummary,
+} from "@/lib/types/company";
 
 const REQUIRED_FIELDS = ["name", "city", "state", "zipCode"] as const;
 
@@ -410,9 +409,9 @@ export function CreateLocationDialog({
 									name="zipCode"
 									validators={{
 										onBlur: ({ value }) => {
-											const trimmed = value?.trim() ?? "";
+											const trimmed = parseZipCode(value ?? "");
 											if (!trimmed) return "Required";
-											if (!/^\d{5}(-\d{4})?$/.test(trimmed)) {
+											if (!isValidZipCode(trimmed)) {
 												return "Use 12345 or 12345-6789";
 											}
 											return undefined;

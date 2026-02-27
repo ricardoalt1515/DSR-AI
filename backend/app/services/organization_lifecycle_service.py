@@ -11,6 +11,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
+from app.models.company_contact import CompanyContact
 from app.models.feedback import Feedback
 from app.models.feedback_attachment import FeedbackAttachment
 from app.models.file import ProjectFile
@@ -26,7 +27,11 @@ from app.models.project import Project
 from app.models.proposal import Proposal
 from app.models.timeline import TimelineEvent
 from app.models.user import User
-from app.services.storage_delete_service import delete_storage_keys, validate_storage_keys
+from app.services.storage_delete_service import (
+    StorageDeleteError,
+    delete_storage_keys,
+    validate_storage_keys,
+)
 from app.utils.purge_utils import extract_pdf_paths
 
 logger = structlog.get_logger(__name__)
@@ -187,6 +192,7 @@ EXPLICIT_PURGE_TABLES: tuple[tuple[str, type[Any]], ...] = (
     ("project_files", ProjectFile),
     ("proposals", Proposal),
     ("projects", Project),
+    ("company_contacts", CompanyContact),
     ("location_contacts", LocationContact),
     ("incoming_materials", IncomingMaterial),
     ("locations", Location),
@@ -303,11 +309,11 @@ async def purge_force_organization(
     )
     try:
         validate_storage_keys(storage_paths)
-    except ValueError as exc:
+    except StorageDeleteError as exc:
         raise _lifecycle_error(
             status_code=400,
             code="ORG_STORAGE_KEYS_INVALID",
-            message="Invalid storage keys for purge cleanup",
+            message=str(exc),
             details={"org_id": str(organization_id)},
         ) from exc
 

@@ -2,6 +2,7 @@
 
 from app.models.bulk_import import ImportItem, ImportRun
 from app.models.company import Company
+from app.models.company_contact import CompanyContact
 from app.models.feedback import Feedback
 from app.models.feedback_attachment import FeedbackAttachment
 from app.models.file import ProjectFile
@@ -22,6 +23,7 @@ from app.models.voice_interview import ImportRunIdempotencyKey, VoiceInterview
 
 __all__ = [
     "Company",
+    "CompanyContact",
     "Feedback",
     "FeedbackAttachment",
     "ImportItem",

@@ -6,7 +6,6 @@
  * Single-step form with:
  * - Company Name (required)
  * - Sector/Subsector selection (required)
- * - Contact information (optional)
  *
  * Industry field is auto-generated from subsector for backend compatibility.
  */
@@ -48,10 +47,7 @@ import type {
 	CompanyFormData,
 	CustomerType,
 } from "@/lib/types/company";
-
-const isCustomerType = (value: string): value is CustomerType => {
-	return value === "buyer" || value === "generator" || value === "both";
-};
+import { isCustomerType } from "@/lib/types/company";
 
 const isSector = (value: string): value is Sector => {
 	return sectorsConfig.some((sector) => sector.id === value);
@@ -67,9 +63,6 @@ interface CreateCompanyDialogProps {
 		industry: string;
 		sector: Sector;
 		subsector: Subsector;
-		contactName?: string;
-		contactEmail?: string;
-		contactPhone?: string;
 		notes?: string;
 		customerType?: CustomerType;
 	};
@@ -82,9 +75,6 @@ const EMPTY_FORM: CompanyFormData = {
 	sector: "",
 	subsector: "",
 	customerType: "",
-	contactName: "",
-	contactEmail: "",
-	contactPhone: "",
 	notes: "",
 };
 
@@ -111,9 +101,6 @@ export function CreateCompanyDialog({
 				sector: companyToEdit.sector ?? "",
 				subsector: companyToEdit.subsector ?? "",
 				customerType: companyToEdit.customerType || "both",
-				contactName: companyToEdit.contactName || "",
-				contactEmail: companyToEdit.contactEmail || "",
-				contactPhone: companyToEdit.contactPhone || "",
 				notes: companyToEdit.notes || "",
 			});
 		}
@@ -210,15 +197,9 @@ export function CreateCompanyDialog({
 		}
 	};
 
-	// Form is valid when name and sector are filled, and email format is valid if provided
-	const isEmailValid =
-		!formData.contactEmail ||
-		/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail);
+	// Form is valid when required fields are filled
 	const isFormValid =
-		formData.name.trim() &&
-		formData.customerType &&
-		formData.sector &&
-		isEmailValid;
+		formData.name.trim() && formData.customerType && formData.sector;
 
 	return (
 		<Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
@@ -330,51 +311,6 @@ export function CreateCompanyDialog({
 									: undefined
 							}
 						/>
-
-						{/* Contact Name */}
-						<div className="grid gap-2">
-							<Label htmlFor="contactName">Contact Name</Label>
-							<Input
-								id="contactName"
-								value={formData.contactName}
-								onChange={(e) =>
-									setFormData({ ...formData, contactName: e.target.value })
-								}
-							/>
-						</div>
-
-						{/* Contact Email */}
-						<div className="grid gap-2">
-							<Label htmlFor="contactEmail">Contact Email</Label>
-							<Input
-								id="contactEmail"
-								type="email"
-								value={formData.contactEmail}
-								onChange={(e) =>
-									setFormData({ ...formData, contactEmail: e.target.value })
-								}
-								onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
-								placeholder="name@company.com"
-							/>
-							{touched.email && formData.contactEmail && !isEmailValid && (
-								<p className="text-sm text-destructive">
-									Please enter a valid email address
-								</p>
-							)}
-						</div>
-
-						{/* Contact Phone */}
-						<div className="grid gap-2">
-							<Label htmlFor="contactPhone">Contact Phone</Label>
-							<Input
-								id="contactPhone"
-								value={formData.contactPhone}
-								onChange={(e) =>
-									setFormData({ ...formData, contactPhone: e.target.value })
-								}
-								placeholder="+1 555 123 4567"
-							/>
-						</div>
 
 						{/* Notes */}
 						<div className="grid gap-2">

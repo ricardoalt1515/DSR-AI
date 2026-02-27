@@ -3,6 +3,19 @@
  * Single source of truth for form validation
  */
 import { z } from "zod";
+import { ADDRESS_TYPES, CUSTOMER_TYPES } from "@/lib/types/company";
+
+export const ZIP_CODE_REGEX = /^\d{5}(-\d{4})?$/;
+export const ZIP_CODE_REQUIRED_MESSAGE = "ZIP code is required";
+export const ZIP_CODE_FORMAT_MESSAGE = "Enter ZIP as 12345 or 12345-6789";
+
+export function parseZipCode(value: string): string {
+	return value.trim();
+}
+
+export function isValidZipCode(value: string): boolean {
+	return ZIP_CODE_REGEX.test(value);
+}
 
 // =============================================================================
 // COMPANY SCHEMAS
@@ -10,19 +23,12 @@ import { z } from "zod";
 
 export const companySchema = z.object({
 	name: z.string().min(1, "Company name is required").max(100),
-	customerType: z.enum(["buyer", "generator", "both"], {
+	customerType: z.enum(CUSTOMER_TYPES, {
 		required_error: "Please select a customer type",
 	}),
 	industry: z.string().optional(),
 	sector: z.string().min(1, "Please select a sector"),
 	subsector: z.string().min(1, "Please select a subsector"),
-	contactName: z.string().optional(),
-	contactEmail: z
-		.string()
-		.email("Invalid email format")
-		.optional()
-		.or(z.literal("")),
-	contactPhone: z.string().optional(),
 	notes: z.string().optional(),
 });
 
@@ -32,9 +38,9 @@ export type CompanyFormData = z.infer<typeof companySchema>;
 export const companyBasicSchema = companySchema.pick({
 	name: true,
 	industry: true,
-	contactName: true,
-	contactEmail: true,
-	contactPhone: true,
+	sector: true,
+	subsector: true,
+	customerType: true,
 	notes: true,
 });
 
@@ -44,7 +50,7 @@ export const companyBasicSchema = companySchema.pick({
 
 export const locationSchema = z.object({
 	name: z.string().min(1, "Location name is required").max(100),
-	addressType: z.enum(["headquarters", "pickup", "delivery", "billing"], {
+	addressType: z.enum(ADDRESS_TYPES, {
 		required_error: "Please select an address type",
 	}),
 	city: z.string().min(1, "City is required"),
@@ -52,9 +58,13 @@ export const locationSchema = z.object({
 	address: z.string().default(""),
 	zipCode: z
 		.string()
-		.trim()
-		.min(1, "ZIP code is required")
-		.regex(/^\d{5}(-\d{4})?$/, "Enter ZIP as 12345 or 12345-6789")
+		.transform(parseZipCode)
+		.refine((value) => value.length > 0, {
+			message: ZIP_CODE_REQUIRED_MESSAGE,
+		})
+		.refine((value) => isValidZipCode(value), {
+			message: ZIP_CODE_FORMAT_MESSAGE,
+		})
 		.default(""),
 	notes: z.string().default(""),
 });

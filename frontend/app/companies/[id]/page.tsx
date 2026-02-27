@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { ImportReviewSection } from "@/components/features/bulk-import/import-review-section";
 import { InlineDropZone } from "@/components/features/bulk-import/inline-drop-zone";
 import { InlineImportProgress } from "@/components/features/bulk-import/inline-import-progress";
+import { CompanyContactsCard } from "@/components/features/companies/company-contacts-card";
 import { CreateCompanyDialog } from "@/components/features/companies/create-company-dialog";
 import { CreateLocationDialog } from "@/components/features/locations/create-location-dialog";
 import { VoiceInterviewLauncher } from "@/components/features/voice-interview/voice-interview-launcher";
@@ -129,6 +130,43 @@ export default function CompanyDetailPage() {
 	const [inlineRunId, setInlineRunId] = useState<string | null>(null);
 	const [inlineFilename, setInlineFilename] = useState<string | null>(null);
 	const isArchived = Boolean(currentCompany?.archivedAt);
+
+	const loadDismissedRuns = useCallback((): string[] => {
+		try {
+			const parsed = JSON.parse(localStorage.getItem(dismissedRunsKey) || "[]");
+			if (!Array.isArray(parsed)) {
+				return [];
+			}
+			return parsed.filter(
+				(value): value is string => typeof value === "string",
+			);
+		} catch {
+			return [];
+		}
+	}, [dismissedRunsKey]);
+
+	const persistDismissedRun = useCallback(
+		(runId: string) => {
+			const dismissed = loadDismissedRuns();
+			if (!dismissed.includes(runId)) {
+				dismissed.push(runId);
+				localStorage.setItem(dismissedRunsKey, JSON.stringify(dismissed));
+			}
+		},
+		[dismissedRunsKey, loadDismissedRuns],
+	);
+
+	const closeReviewState = useCallback(
+		(options?: { clearVoiceProcessing?: boolean }) => {
+			setShowReviewSection(false);
+			setActiveImportRun(null);
+			setActiveVoiceInterviewId(null);
+			if (options?.clearVoiceProcessing) {
+				setVoiceProcessing(null);
+			}
+		},
+		[],
+	);
 
 	const handlePageDragEnter = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
@@ -241,13 +279,8 @@ export default function CompanyDetailPage() {
 			.then((run) => {
 				if (!cancelled && run) {
 					// Skip if user dismissed this run before
-					try {
-						const dismissed = JSON.parse(
-							localStorage.getItem(dismissedRunsKey) || "[]",
-						) as string[];
-						if (dismissed.includes(run.id)) return;
-					} catch {
-						/* ignore */
+					if (loadDismissedRuns().includes(run.id)) {
+						return;
 					}
 					setActiveImportRun(run);
 					setShowReviewSection(true);
@@ -259,7 +292,7 @@ export default function CompanyDetailPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [companyId, canCreateClientData, isArchived, dismissedRunsKey]);
+	}, [companyId, canCreateClientData, isArchived, loadDismissedRuns]);
 
 	const handleConfirmDelete = async () => {
 		if (!locationToDelete) return;
@@ -508,30 +541,9 @@ export default function CompanyDetailPage() {
 						)}
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						{currentCompany.contactName && (
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">
-									Contact Name
-								</p>
-								<p className="text-sm">{currentCompany.contactName}</p>
-							</div>
-						)}
-						{currentCompany.contactEmail && (
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">
-									Email
-								</p>
-								<p className="text-sm">{currentCompany.contactEmail}</p>
-							</div>
-						)}
-						{currentCompany.contactPhone && (
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">
-									Phone
-								</p>
-								<p className="text-sm">{currentCompany.contactPhone}</p>
-							</div>
-						)}
+						<p className="text-sm text-muted-foreground">
+							Manage contacts in the contacts section below.
+						</p>
 					</div>
 
 					{currentCompany.notes && (
@@ -567,6 +579,13 @@ export default function CompanyDetailPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			<CompanyContactsCard
+				companyId={companyId}
+				contacts={currentCompany.contacts ?? []}
+				canManageContacts={canEditCompany(currentCompany) && !isArchived}
+				onContactsUpdated={reloadCompanyData}
+			/>
 
 			{canCreateClientData &&
 				!isArchived &&
@@ -657,16 +676,10 @@ export default function CompanyDetailPage() {
 						voiceInterviewId={activeVoiceInterviewId}
 						onRunUpdated={setActiveImportRun}
 						onDismiss={() => {
-							setShowReviewSection(false);
-							setActiveImportRun(null);
-							setActiveVoiceInterviewId(null);
-							setVoiceProcessing(null);
+							closeReviewState({ clearVoiceProcessing: true });
 						}}
 						onDone={() => {
-							setShowReviewSection(false);
-							setActiveImportRun(null);
-							setActiveVoiceInterviewId(null);
-							setVoiceProcessing(null);
+							closeReviewState({ clearVoiceProcessing: true });
 							void reloadCompanyData().catch(() => {});
 						}}
 						companyLocations={locations.map((l) => ({
@@ -685,47 +698,16 @@ export default function CompanyDetailPage() {
 						run={activeImportRun}
 						onRunUpdated={setActiveImportRun}
 						onFinalized={() => {
-							setShowReviewSection(false);
-							// Persist so picker doesn't reappear on navigation/refresh
-							try {
-								const dismissed = JSON.parse(
-									localStorage.getItem(dismissedRunsKey) || "[]",
-								) as string[];
-								if (!dismissed.includes(activeImportRun.id)) {
-									dismissed.push(activeImportRun.id);
-									localStorage.setItem(
-										dismissedRunsKey,
-										JSON.stringify(dismissed),
-									);
-								}
-							} catch {
-								/* ignore */
-							}
-							setActiveImportRun(null);
-							setActiveVoiceInterviewId(null);
+							persistDismissedRun(activeImportRun.id);
+							closeReviewState();
 							// Reload locations to show newly created items
 							void reloadCompanyData().catch(() => {});
 						}}
 						onDismiss={() => {
-							setShowReviewSection(false);
+							closeReviewState();
 							if (activeImportRun) {
-								try {
-									const dismissed = JSON.parse(
-										localStorage.getItem(dismissedRunsKey) || "[]",
-									) as string[];
-									if (!dismissed.includes(activeImportRun.id)) {
-										dismissed.push(activeImportRun.id);
-										localStorage.setItem(
-											dismissedRunsKey,
-											JSON.stringify(dismissed),
-										);
-									}
-								} catch {
-									/* ignore */
-								}
+								persistDismissedRun(activeImportRun.id);
 							}
-							setActiveImportRun(null);
-							setActiveVoiceInterviewId(null);
 						}}
 						reviewMode="company"
 						companyLocations={locations.map((l) => ({
@@ -743,23 +725,8 @@ export default function CompanyDetailPage() {
 								toast.success(
 									`${result.projectsCreated} waste stream${result.projectsCreated === 1 ? "" : "s"} imported successfully`,
 								);
-								setShowReviewSection(false);
-								// Persist so picker won't reappear on navigation/refresh
-								try {
-									const dismissed = JSON.parse(
-										localStorage.getItem(dismissedRunsKey) || "[]",
-									) as string[];
-									if (!dismissed.includes(activeImportRun.id)) {
-										dismissed.push(activeImportRun.id);
-										localStorage.setItem(
-											dismissedRunsKey,
-											JSON.stringify(dismissed),
-										);
-									}
-								} catch {
-									/* ignore */
-								}
-								setActiveImportRun(null);
+								persistDismissedRun(activeImportRun.id);
+								closeReviewState();
 								void reloadCompanyData().catch(() => {});
 							} catch (error) {
 								toast.error(
@@ -1015,15 +982,6 @@ export default function CompanyDetailPage() {
 						sector: currentCompany.sector,
 						subsector: currentCompany.subsector,
 						customerType: currentCompany.customerType,
-						...(currentCompany.contactName && {
-							contactName: currentCompany.contactName,
-						}),
-						...(currentCompany.contactEmail && {
-							contactEmail: currentCompany.contactEmail,
-						}),
-						...(currentCompany.contactPhone && {
-							contactPhone: currentCompany.contactPhone,
-						}),
 						...(currentCompany.notes && { notes: currentCompany.notes }),
 					}}
 					onSuccess={async () => {

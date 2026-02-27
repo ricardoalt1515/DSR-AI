@@ -330,6 +330,9 @@ async def get_active_company_editor(
 
 
 ActiveCompanyEditor = Annotated[tuple[User, Company], Depends(get_active_company_editor)]
+CurrentCompanyContactsCreator = ActiveCompanyEditor
+CurrentCompanyContactsEditor = ActiveCompanyEditor
+CurrentCompanyContactsDeleter = ActiveCompanyEditor
 
 
 async def get_current_company_deleter(

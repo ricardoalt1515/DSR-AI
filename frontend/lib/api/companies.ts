@@ -4,6 +4,7 @@
 
 import type { SuccessResponse } from "@/lib/types/api";
 import type {
+	CompanyContact,
 	CompanyCreate,
 	CompanyDetail,
 	CompanySummary,
@@ -18,6 +19,28 @@ import type {
 import { apiClient } from "./client";
 
 export type ArchivedFilter = "active" | "archived" | "all";
+
+type JsonBody = Record<string, unknown>;
+
+type CompanyContactPayload = {
+	name?: string;
+	email?: string;
+	phone?: string;
+	title?: string;
+	notes?: string;
+	isPrimary?: boolean;
+};
+
+function compactContactPayload(data: CompanyContactPayload): JsonBody {
+	const body: JsonBody = {};
+	if (data.name !== undefined) body.name = data.name;
+	if (data.email !== undefined) body.email = data.email;
+	if (data.phone !== undefined) body.phone = data.phone;
+	if (data.title !== undefined) body.title = data.title;
+	if (data.notes !== undefined) body.notes = data.notes;
+	if (data.isPrimary !== undefined) body.isPrimary = data.isPrimary;
+	return body;
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // COMPANIES
@@ -43,20 +66,14 @@ export const companiesAPI = {
 	 * Create a new company
 	 */
 	async create(data: CompanyCreate): Promise<CompanyDetail> {
-		return apiClient.post<CompanyDetail>(
-			"/companies",
-			data as unknown as Record<string, unknown>,
-		);
+		return apiClient.post<CompanyDetail>("/companies", data);
 	},
 
 	/**
 	 * Update company
 	 */
 	async update(id: string, data: CompanyUpdate): Promise<CompanyDetail> {
-		return apiClient.put<CompanyDetail>(
-			`/companies/${id}`,
-			data as unknown as Record<string, unknown>,
-		);
+		return apiClient.put<CompanyDetail>(`/companies/${id}`, data);
 	},
 
 	/**
@@ -78,6 +95,36 @@ export const companiesAPI = {
 		await apiClient.post<void>(`/companies/${id}/purge`, {
 			confirm_name: confirmName,
 		});
+	},
+
+	async createContact(
+		companyId: string,
+		data: CompanyContactPayload,
+	): Promise<CompanyContact> {
+		return apiClient.post<CompanyContact>(
+			`/companies/${companyId}/contacts`,
+			compactContactPayload(data),
+		);
+	},
+
+	async updateContact(
+		companyId: string,
+		contactId: string,
+		data: CompanyContactPayload,
+	): Promise<CompanyContact> {
+		return apiClient.put<CompanyContact>(
+			`/companies/${companyId}/contacts/${contactId}`,
+			compactContactPayload(data),
+		);
+	},
+
+	async deleteContact(
+		companyId: string,
+		contactId: string,
+	): Promise<SuccessResponse> {
+		return apiClient.delete<SuccessResponse>(
+			`/companies/${companyId}/contacts/${contactId}`,
+		);
 	},
 };
 
@@ -139,7 +186,7 @@ export const locationsAPI = {
 		// No need to transform to snake_case - send as-is
 		const response = await apiClient.post<LocationSummary>(
 			`/companies/${companyId}/locations`,
-			data as unknown as Record<string, unknown>,
+			data,
 		);
 
 		// Backend already returns camelCase - no transformation needed
@@ -150,10 +197,7 @@ export const locationsAPI = {
 	 * Update location
 	 */
 	async update(id: string, data: LocationUpdate): Promise<LocationDetail> {
-		return apiClient.put<LocationDetail>(
-			`/companies/locations/${id}`,
-			data as unknown as Record<string, unknown>,
-		);
+		return apiClient.put<LocationDetail>(`/companies/locations/${id}`, data);
 	},
 
 	/**
@@ -190,7 +234,7 @@ export const locationsAPI = {
 	): Promise<LocationContact> {
 		return apiClient.post<LocationContact>(
 			`/companies/locations/${locationId}/contacts`,
-			data as unknown as Record<string, unknown>,
+			data,
 		);
 	},
 
@@ -203,7 +247,7 @@ export const locationsAPI = {
 	): Promise<LocationContact> {
 		return apiClient.put<LocationContact>(
 			`/companies/locations/${locationId}/contacts/${contactId}`,
-			data as unknown as Record<string, unknown>,
+			data,
 		);
 	},
 
@@ -235,7 +279,7 @@ export const locationsAPI = {
 	): Promise<IncomingMaterial> {
 		return apiClient.post<IncomingMaterial>(
 			`/companies/locations/${locationId}/incoming-materials`,
-			data as unknown as Record<string, unknown>,
+			data,
 		);
 	},
 
@@ -248,7 +292,7 @@ export const locationsAPI = {
 	): Promise<IncomingMaterial> {
 		return apiClient.put<IncomingMaterial>(
 			`/companies/locations/${locationId}/incoming-materials/${materialId}`,
-			data as unknown as Record<string, unknown>,
+			data,
 		);
 	},
 

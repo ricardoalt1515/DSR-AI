@@ -9,6 +9,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only, selectinload
 
 from app.api.dependencies import (
@@ -19,6 +20,9 @@ from app.api.dependencies import (
     ArchivedFilter,
     AsyncDB,
     CompanyAdminActionDep,
+    CurrentCompanyContactsCreator,
+    CurrentCompanyContactsDeleter,
+    CurrentCompanyContactsEditor,
     CurrentCompanyCreator,
     CurrentIncomingMaterialsCreator,
     CurrentIncomingMaterialsDeleter,
@@ -34,7 +38,7 @@ from app.api.dependencies import (
     RateLimitUser60,
     apply_archived_filter,
 )
-from app.models import Company, IncomingMaterial, Location, LocationContact, Project
+from app.models import Company, CompanyContact, IncomingMaterial, Location, LocationContact, Project
 from app.models.file import ProjectFile
 from app.models.proposal import Proposal
 from app.schemas.common import SuccessResponse
@@ -43,6 +47,11 @@ from app.schemas.company import (
     CompanyDetail,
     CompanySummary,
     CompanyUpdate,
+)
+from app.schemas.company_contact import (
+    CompanyContactCreate,
+    CompanyContactRead,
+    CompanyContactUpdate,
 )
 from app.schemas.incoming_material import (
     IncomingMaterialCreate,
@@ -73,6 +82,10 @@ from app.utils.purge_utils import (
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
+
+COMPANY_CONTACT_PRIMARY_UNIQUE_INDEX = "uq_company_contacts_primary_per_company"
+COMPANY_CONTACT_IDENTITY_CHECK = "ck_company_contacts_identity_present"
+PRIMARY_CONTACT_CONFLICT_DETAIL = "Company already has a primary contact"
 
 
 async def _get_project_counts_by_location(
@@ -188,6 +201,171 @@ async def _lock_company_for_update(db: AsyncDB, org_id: UUID, company_id: UUID) 
         .with_for_update()
     )
     return result.scalar_one_or_none()
+
+
+async def _load_company_with_relations(
+    db: AsyncDB, org_id: UUID, company_id: UUID
+) -> Company | None:
+    result = await db.execute(
+        select(Company)
+        .options(selectinload(Company.locations), selectinload(Company.contacts))
+        .where(Company.id == company_id, Company.organization_id == org_id)
+    )
+    return result.scalar_one_or_none()
+
+
+def _build_company_contacts_summary(company: Company) -> list[CompanyContactRead]:
+    return [
+        CompanyContactRead.model_validate(contact, from_attributes=True)
+        for contact in (company.contacts or [])
+    ]
+
+
+def _build_locations_summary(
+    locations: list[Location],
+    project_counts_by_location: dict[UUID, int],
+) -> list[LocationSummary]:
+    return [
+        LocationSummary.model_validate(location, from_attributes=True).model_copy(
+            update={"project_count": project_counts_by_location.get(location.id, 0)}
+        )
+        for location in locations
+    ]
+
+
+async def _build_company_detail_response(
+    *,
+    db: AsyncDB,
+    company: Company,
+    current_user: CurrentUser,
+    org_id: UUID,
+    archived: ArchivedFilter,
+) -> CompanyDetail:
+    locations = company.locations or []
+    if archived != "all":
+        locations = [
+            location
+            for location in locations
+            if (location.archived_at is None) == (archived == "active")
+        ]
+
+    location_ids = [location.id for location in locations]
+    project_counts_by_location = await _get_project_counts_by_location(
+        db=db,
+        org_id=org_id,
+        location_ids=location_ids,
+        current_user=current_user,
+        archived=archived,
+    )
+
+    company_summary = CompanySummary.model_validate(company, from_attributes=True)
+    return CompanyDetail(
+        **company_summary.model_dump(),
+        locations=_build_locations_summary(locations, project_counts_by_location),
+        contacts=_build_company_contacts_summary(company),
+    )
+
+
+def _normalize_optional(value: str | None) -> str | None:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    return trimmed if trimmed else None
+
+
+def _extract_constraint_name(exc: IntegrityError) -> str | None:
+    diag = getattr(exc.orig, "diag", None)
+    constraint_name = getattr(diag, "constraint_name", None)
+    if isinstance(constraint_name, str):
+        return constraint_name
+    return None
+
+
+def _is_primary_company_contact_conflict(exc: IntegrityError) -> bool:
+    constraint_name = _extract_constraint_name(exc)
+    if constraint_name == COMPANY_CONTACT_PRIMARY_UNIQUE_INDEX:
+        return True
+    return COMPANY_CONTACT_PRIMARY_UNIQUE_INDEX in str(exc)
+
+
+def _is_identity_check_violation(exc: IntegrityError) -> bool:
+    constraint_name = _extract_constraint_name(exc)
+    if constraint_name == COMPANY_CONTACT_IDENTITY_CHECK:
+        return True
+    return COMPANY_CONTACT_IDENTITY_CHECK in str(exc)
+
+
+def _validate_storage_paths_or_raise_bad_request(storage_paths: set[str]) -> None:
+    try:
+        validate_storage_keys(storage_paths)
+    except StorageDeleteError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+async def _sync_legacy_company_contact_fields(db: AsyncDB, company: Company) -> None:
+    result = await db.execute(
+        select(CompanyContact)
+        .where(
+            CompanyContact.organization_id == company.organization_id,
+            CompanyContact.company_id == company.id,
+        )
+        .order_by(
+            CompanyContact.is_primary.desc(),
+            CompanyContact.name.asc(),
+            CompanyContact.id.asc(),
+        )
+        .limit(1)
+    )
+    primary_or_first = result.scalar_one_or_none()
+    if primary_or_first is None:
+        company.contact_name = None
+        company.contact_email = None
+        company.contact_phone = None
+        return
+
+    company.contact_name = _normalize_optional(primary_or_first.name)
+    company.contact_email = _normalize_optional(primary_or_first.email)
+    company.contact_phone = _normalize_optional(primary_or_first.phone)
+
+
+async def _upsert_primary_contact_from_legacy_fields(db: AsyncDB, company: Company) -> None:
+    name = _normalize_optional(company.contact_name)
+    email = _normalize_optional(company.contact_email)
+    phone = _normalize_optional(company.contact_phone)
+    if not (name or email or phone):
+        return
+
+    result = await db.execute(
+        select(CompanyContact)
+        .where(
+            CompanyContact.organization_id == company.organization_id,
+            CompanyContact.company_id == company.id,
+            CompanyContact.is_primary.is_(True),
+        )
+        .limit(1)
+    )
+    primary = result.scalar_one_or_none()
+    if primary:
+        primary.name = name
+        primary.email = email
+        primary.phone = phone
+        return
+
+    db.add(
+        CompanyContact(
+            organization_id=company.organization_id,
+            company_id=company.id,
+            name=name,
+            email=email,
+            phone=phone,
+            title=None,
+            notes=None,
+            is_primary=True,
+        )
+    )
 
 
 async def _lock_location_for_update(
@@ -454,14 +632,18 @@ async def create_company(
         created_by_user_id=current_user.id,
     )
     db.add(company)
+    await db.flush()
+    await _upsert_primary_contact_from_legacy_fields(db, company)
     await db.commit()
-    await db.refresh(company)
-
-    company_summary = CompanySummary.model_validate(company, from_attributes=True)
-
-    return CompanyDetail(
-        **company_summary.model_dump(),
-        locations=[],
+    loaded_company = await _load_company_with_relations(db, org.id, company.id)
+    if not loaded_company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return await _build_company_detail_response(
+        db=db,
+        company=loaded_company,
+        current_user=current_user,
+        org_id=org.id,
+        archived="active",
     )
 
 
@@ -512,45 +694,19 @@ async def get_company(
     archived: ArchivedFilter = "active",
 ):
     """Get company details with locations."""
-    result = await db.execute(
-        select(Company)
-        .options(selectinload(Company.locations))
-        .where(Company.id == company_id, Company.organization_id == org.id)
-    )
-    company = result.scalar_one_or_none()
+    company = await _load_company_with_relations(db, org.id, company_id)
 
     if not company:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Company {company_id} not found"
         )
 
-    locations = company.locations or []
-    if archived != "all":
-        locations = [
-            location
-            for location in locations
-            if (location.archived_at is None) == (archived == "active")
-        ]
-    location_ids = [location.id for location in locations]
-    project_counts_by_location = await _get_project_counts_by_location(
+    return await _build_company_detail_response(
         db=db,
-        org_id=org.id,
-        location_ids=location_ids,
+        company=company,
         current_user=current_user,
+        org_id=org.id,
         archived=archived,
-    )
-
-    company_summary = CompanySummary.model_validate(company, from_attributes=True)
-    locations_summary = [
-        LocationSummary.model_validate(location, from_attributes=True).model_copy(
-            update={"project_count": project_counts_by_location.get(location.id, 0)}
-        )
-        for location in locations
-    ]
-
-    return CompanyDetail(
-        **company_summary.model_dump(),
-        locations=locations_summary,
     )
 
 
@@ -572,36 +728,19 @@ async def update_company(
     for field, value in update_data.items():
         setattr(company, field, value)
 
+    if {"contact_name", "contact_email", "contact_phone"} & set(update_data):
+        await _upsert_primary_contact_from_legacy_fields(db, company)
+
     await db.commit()
-    await db.refresh(company)
-
-    locations = company.locations or []
-    if archived != "all":
-        locations = [
-            location
-            for location in locations
-            if (location.archived_at is None) == (archived == "active")
-        ]
-    location_ids = [location.id for location in locations]
-    project_counts_by_location = await _get_project_counts_by_location(
+    loaded_company = await _load_company_with_relations(db, org.id, company.id)
+    if not loaded_company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return await _build_company_detail_response(
         db=db,
-        org_id=org.id,
-        location_ids=location_ids,
+        company=loaded_company,
         current_user=current_user,
+        org_id=org.id,
         archived=archived,
-    )
-
-    company_summary = CompanySummary.model_validate(company, from_attributes=True)
-    locations_summary = [
-        LocationSummary.model_validate(location, from_attributes=True).model_copy(
-            update={"project_count": project_counts_by_location.get(location.id, 0)}
-        )
-        for location in locations
-    ]
-
-    return CompanyDetail(
-        **company_summary.model_dump(),
-        locations=locations_summary,
     )
 
 
@@ -671,13 +810,7 @@ async def purge_company(
         org_id=org.id,
         company_id=company.id,
     )
-    try:
-        validate_storage_keys(storage_paths)
-    except StorageDeleteError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+    _validate_storage_paths_or_raise_bad_request(storage_paths)
 
     await db.delete(locked_company)
     await db.commit()
@@ -706,6 +839,131 @@ async def delete_company(
         company_id=company.id,
         user_id=current_user.id,
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# COMPANY CONTACTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.post(
+    "/{company_id}/contacts",
+    response_model=CompanyContactRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_company_contact(
+    current_user_company: CurrentCompanyContactsCreator,
+    contact_data: CompanyContactCreate,
+    db: AsyncDB,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser30,
+):
+    _, company = current_user_company
+    contact = CompanyContact(
+        **contact_data.model_dump(by_alias=False),
+        organization_id=org.id,
+        company_id=company.id,
+    )
+    db.add(contact)
+    try:
+        await db.flush()
+        await _sync_legacy_company_contact_fields(db, company)
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        if _is_primary_company_contact_conflict(exc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=PRIMARY_CONTACT_CONFLICT_DETAIL,
+            ) from None
+        if _is_identity_check_violation(exc):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="At least one of name, email, or phone is required",
+            ) from None
+        raise
+    await db.refresh(contact)
+    return CompanyContactRead.model_validate(contact, from_attributes=True)
+
+
+@router.put("/{company_id}/contacts/{contact_id}", response_model=CompanyContactRead)
+async def update_company_contact(
+    current_user_company: CurrentCompanyContactsEditor,
+    contact_id: UUID,
+    contact_data: CompanyContactUpdate,
+    db: AsyncDB,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser30,
+):
+    _, company = current_user_company
+    result = await db.execute(
+        select(CompanyContact).where(
+            CompanyContact.id == contact_id,
+            CompanyContact.company_id == company.id,
+            CompanyContact.organization_id == org.id,
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company contact {contact_id} not found",
+        )
+
+    update_data = contact_data.model_dump(exclude_unset=True, by_alias=False)
+    for field, value in update_data.items():
+        setattr(contact, field, value)
+
+    try:
+        await db.flush()
+        await _sync_legacy_company_contact_fields(db, company)
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        if _is_primary_company_contact_conflict(exc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=PRIMARY_CONTACT_CONFLICT_DETAIL,
+            ) from None
+        if _is_identity_check_violation(exc):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="At least one of name, email, or phone is required",
+            ) from None
+        raise
+
+    await db.refresh(contact)
+    return CompanyContactRead.model_validate(contact, from_attributes=True)
+
+
+@router.delete("/{company_id}/contacts/{contact_id}", response_model=SuccessResponse)
+async def delete_company_contact(
+    current_user_company: CurrentCompanyContactsDeleter,
+    contact_id: UUID,
+    db: AsyncDB,
+    org: OrganizationContext,
+    _rate_limit: RateLimitUser10,
+):
+    _, company = current_user_company
+    result = await db.execute(
+        select(CompanyContact).where(
+            CompanyContact.id == contact_id,
+            CompanyContact.company_id == company.id,
+            CompanyContact.organization_id == org.id,
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company contact {contact_id} not found",
+        )
+
+    await db.delete(contact)
+    await db.flush()
+    await _sync_legacy_company_contact_fields(db, company)
+    await db.commit()
+    return SuccessResponse(message=f"Contact {contact.name or contact.id} deleted successfully")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1226,13 +1484,7 @@ async def purge_location(
         org_id=org.id,
         location_id=location.id,
     )
-    try:
-        validate_storage_keys(storage_paths)
-    except StorageDeleteError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+    _validate_storage_paths_or_raise_bad_request(storage_paths)
 
     await db.delete(locked_location)
     await db.commit()

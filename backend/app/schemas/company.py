@@ -5,15 +5,14 @@ Pydantic schemas for Company model.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field
 
 from app.schemas.common import BaseSchema
-
-if TYPE_CHECKING:
-    from app.schemas.location import LocationSummary
+from app.schemas.company_contact import CompanyContactRead
+from app.schemas.location import LocationSummary
 
 
 class CompanyBase(BaseSchema):
@@ -80,3 +79,4 @@ class CompanyDetail(CompanySummary):
     """Company detail with locations."""
 
     locations: list[LocationSummary] = Field(default_factory=list)
+    contacts: list[CompanyContactRead] = Field(default_factory=list)

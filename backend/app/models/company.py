@@ -116,6 +116,13 @@ class Company(BaseModel):
         order_by="Location.name",
         lazy="selectin",  # Eager load locations with company
     )
+    contacts = relationship(
+        "CompanyContact",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="CompanyContact.name, CompanyContact.id",
+        lazy="selectin",
+    )
     organization = relationship("Organization", back_populates="companies")
 
     def __repr__(self) -> str:
