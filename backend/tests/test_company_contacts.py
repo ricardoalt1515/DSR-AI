@@ -5,7 +5,6 @@ import pytest
 from conftest import create_company, create_org, create_user
 from httpx import AsyncClient
 
-from app.models.company_contact import CompanyContact
 from app.models.user import UserRole
 
 
@@ -264,16 +263,16 @@ async def test_company_contact_tenant_isolation_blocks_cross_org_access(
 
 
 @pytest.mark.asyncio
-async def test_create_company_with_legacy_contact_fields_creates_primary_company_contact(
+async def test_company_create_response_has_no_legacy_contact_fields(
     client: AsyncClient,
     db_session,
     set_current_user,
 ):
     uid = uuid.uuid4().hex[:8]
-    org = await create_org(db_session, "Org Legacy Compat", "org-legacy-compat")
+    org = await create_org(db_session, "Org Release B", "org-release-b")
     user = await create_user(
         db_session,
-        email=f"legacy-compat-{uid}@example.com",
+        email=f"release-b-{uid}@example.com",
         org_id=org.id,
         role=UserRole.FIELD_AGENT.value,
         is_superuser=False,
@@ -283,25 +282,97 @@ async def test_create_company_with_legacy_contact_fields_creates_primary_company
     create_response = await client.post(
         "/api/v1/companies/",
         json={
-            "name": "Legacy Contact Co",
+            "name": "Release B Co",
             "industry": "Technology",
             "sector": "industrial",
             "subsector": "other",
             "customerType": "buyer",
-            "contactName": "Legacy Primary",
-            "contactEmail": "legacy.primary@example.com",
-            "contactPhone": "5551010",
         },
     )
     assert create_response.status_code == 201
-    created_company = create_response.json()
-    assert created_company["contactName"] == "Legacy Primary"
-    assert created_company["contactEmail"] == "legacy.primary@example.com"
-    assert created_company["contactPhone"] == "5551010"
-    assert len(created_company["contacts"]) == 1
-    assert created_company["contacts"][0]["isPrimary"] is True
-    assert created_company["contacts"][0]["name"] == "Legacy Primary"
+    payload = create_response.json()
+    assert "contactName" not in payload
+    assert "contactEmail" not in payload
+    assert "contactPhone" not in payload
+    assert payload["contacts"] == []
 
-    db_contact = await db_session.get(CompanyContact, created_company["contacts"][0]["id"])
-    assert db_contact is not None
-    assert db_contact.is_primary is True
+
+@pytest.mark.asyncio
+async def test_company_update_ignores_legacy_contact_fields_and_keeps_contacts_unchanged(
+    client: AsyncClient,
+    db_session,
+    set_current_user,
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Release B Update", "org-release-b-update")
+    user = await create_user(
+        db_session,
+        email=f"release-b-update-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.ORG_ADMIN.value,
+        is_superuser=False,
+    )
+    company = await create_company(db_session, org_id=org.id, name="Release B Update Co")
+    set_current_user(user)
+
+    contact_response = await client.post(
+        f"/api/v1/companies/{company.id}/contacts",
+        json={"name": "Primary", "phone": "7771234", "isPrimary": True},
+    )
+    assert contact_response.status_code == 201
+
+    update_response = await client.put(
+        f"/api/v1/companies/{company.id}",
+        json={
+            "name": "Release B Update Co Renamed",
+            "contactName": "Ignored Legacy",
+            "contactEmail": "ignored@example.com",
+            "contactPhone": "9999999",
+        },
+    )
+    assert update_response.status_code == 200
+    updated_payload = update_response.json()
+    assert "contactName" not in updated_payload
+    assert "contactEmail" not in updated_payload
+    assert "contactPhone" not in updated_payload
+    assert len(updated_payload["contacts"]) == 1
+    assert updated_payload["contacts"][0]["name"] == "Primary"
+
+
+@pytest.mark.asyncio
+async def test_company_create_update_work_without_legacy_fields(
+    client: AsyncClient,
+    db_session,
+    set_current_user,
+):
+    uid = uuid.uuid4().hex[:8]
+    org = await create_org(db_session, "Org Release B Flow", "org-release-b-flow")
+    user = await create_user(
+        db_session,
+        email=f"release-b-flow-{uid}@example.com",
+        org_id=org.id,
+        role=UserRole.FIELD_AGENT.value,
+        is_superuser=False,
+    )
+    set_current_user(user)
+
+    create_response = await client.post(
+        "/api/v1/companies/",
+        json={
+            "name": "Flow Co",
+            "industry": "Manufacturing",
+            "sector": "industrial",
+            "subsector": "other",
+            "customerType": "both",
+        },
+    )
+    assert create_response.status_code == 201
+    company_id = create_response.json()["id"]
+
+    update_response = await client.put(
+        f"/api/v1/companies/{company_id}",
+        json={"notes": "updated"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["notes"] == "updated"
+    assert "contacts" in update_response.json()

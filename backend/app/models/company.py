@@ -60,11 +60,6 @@ class Company(BaseModel):
         comment="Specific subsector within the sector (e.g., food_processing, hotel)",
     )
 
-    # Primary contact
-    contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
-
     # Additional info
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(

@@ -266,13 +266,6 @@ async def _build_company_detail_response(
     )
 
 
-def _normalize_optional(value: str | None) -> str | None:
-    if value is None:
-        return None
-    trimmed = value.strip()
-    return trimmed if trimmed else None
-
-
 def _extract_constraint_name(exc: IntegrityError) -> str | None:
     diag = getattr(exc.orig, "diag", None)
     constraint_name = getattr(diag, "constraint_name", None)
@@ -303,69 +296,6 @@ def _validate_storage_paths_or_raise_bad_request(storage_paths: set[str]) -> Non
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
-
-
-async def _sync_legacy_company_contact_fields(db: AsyncDB, company: Company) -> None:
-    result = await db.execute(
-        select(CompanyContact)
-        .where(
-            CompanyContact.organization_id == company.organization_id,
-            CompanyContact.company_id == company.id,
-        )
-        .order_by(
-            CompanyContact.is_primary.desc(),
-            CompanyContact.name.asc(),
-            CompanyContact.id.asc(),
-        )
-        .limit(1)
-    )
-    primary_or_first = result.scalar_one_or_none()
-    if primary_or_first is None:
-        company.contact_name = None
-        company.contact_email = None
-        company.contact_phone = None
-        return
-
-    company.contact_name = _normalize_optional(primary_or_first.name)
-    company.contact_email = _normalize_optional(primary_or_first.email)
-    company.contact_phone = _normalize_optional(primary_or_first.phone)
-
-
-async def _upsert_primary_contact_from_legacy_fields(db: AsyncDB, company: Company) -> None:
-    name = _normalize_optional(company.contact_name)
-    email = _normalize_optional(company.contact_email)
-    phone = _normalize_optional(company.contact_phone)
-    if not (name or email or phone):
-        return
-
-    result = await db.execute(
-        select(CompanyContact)
-        .where(
-            CompanyContact.organization_id == company.organization_id,
-            CompanyContact.company_id == company.id,
-            CompanyContact.is_primary.is_(True),
-        )
-        .limit(1)
-    )
-    primary = result.scalar_one_or_none()
-    if primary:
-        primary.name = name
-        primary.email = email
-        primary.phone = phone
-        return
-
-    db.add(
-        CompanyContact(
-            organization_id=company.organization_id,
-            company_id=company.id,
-            name=name,
-            email=email,
-            phone=phone,
-            title=None,
-            notes=None,
-            is_primary=True,
-        )
-    )
 
 
 async def _lock_location_for_update(
@@ -632,8 +562,6 @@ async def create_company(
         created_by_user_id=current_user.id,
     )
     db.add(company)
-    await db.flush()
-    await _upsert_primary_contact_from_legacy_fields(db, company)
     await db.commit()
     loaded_company = await _load_company_with_relations(db, org.id, company.id)
     if not loaded_company:
@@ -727,9 +655,6 @@ async def update_company(
     update_data = company_data.model_dump(exclude_unset=True, by_alias=False)
     for field, value in update_data.items():
         setattr(company, field, value)
-
-    if {"contact_name", "contact_email", "contact_phone"} & set(update_data):
-        await _upsert_primary_contact_from_legacy_fields(db, company)
 
     await db.commit()
     loaded_company = await _load_company_with_relations(db, org.id, company.id)
@@ -867,7 +792,6 @@ async def create_company_contact(
     db.add(contact)
     try:
         await db.flush()
-        await _sync_legacy_company_contact_fields(db, company)
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
@@ -916,7 +840,6 @@ async def update_company_contact(
 
     try:
         await db.flush()
-        await _sync_legacy_company_contact_fields(db, company)
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
@@ -960,8 +883,6 @@ async def delete_company_contact(
         )
 
     await db.delete(contact)
-    await db.flush()
-    await _sync_legacy_company_contact_fields(db, company)
     await db.commit()
     return SuccessResponse(message=f"Contact {contact.name or contact.id} deleted successfully")
 

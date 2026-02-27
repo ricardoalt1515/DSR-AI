@@ -14,9 +14,6 @@ export interface CompanyBase {
 	sector: Sector;
 	subsector: Subsector;
 	customerType: CustomerType;
-	contactName?: string;
-	contactEmail?: string;
-	contactPhone?: string;
 	notes?: string;
 	tags?: string[];
 }

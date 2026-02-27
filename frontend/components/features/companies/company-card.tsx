@@ -131,31 +131,6 @@ export function CompanyCard({ company, onDelete }: CompanyCardProps) {
 							</div>
 						)}
 
-					{(company.contactName ||
-						company.contactEmail ||
-						company.contactPhone) && (
-						<div className="space-y-1 text-sm">
-							{company.contactName && (
-								<div className="text-muted-foreground">
-									<span className="font-medium">Contact:</span>{" "}
-									{company.contactName}
-								</div>
-							)}
-							{company.contactEmail && (
-								<div className="text-muted-foreground">
-									<span className="font-medium">Email:</span>{" "}
-									{company.contactEmail}
-								</div>
-							)}
-							{company.contactPhone && (
-								<div className="text-muted-foreground">
-									<span className="font-medium">Phone:</span>{" "}
-									{company.contactPhone}
-								</div>
-							)}
-						</div>
-					)}
-
 					<div className="flex items-center gap-4 text-sm">
 						<div className="flex items-center gap-1">
 							<MapPin className="h-4 w-4 text-muted-foreground" />

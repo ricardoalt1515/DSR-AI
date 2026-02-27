@@ -66,8 +66,6 @@ async def test_create_company():
         industry="Testing",
         sector="industrial",
         subsector="food_processing",
-        contact_name="Test User",
-        contact_email="test@example.com",
         tags=["test", "verification"],
     )
 

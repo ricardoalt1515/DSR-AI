@@ -32,9 +32,6 @@ class CompanyBase(BaseSchema):
         max_length=100,
         description="Specific subsector within sector (e.g., food_processing, hotel)",
     )
-    contact_name: str | None = Field(None, max_length=255)
-    contact_email: str | None = Field(None, max_length=255)
-    contact_phone: str | None = Field(None, max_length=50)
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)
     customer_type: Literal["buyer", "generator", "both"] = "both"
@@ -53,9 +50,6 @@ class CompanyUpdate(BaseSchema):
     industry: str | None = Field(None, min_length=1, max_length=100)
     sector: str | None = Field(None, min_length=1, max_length=50)
     subsector: str | None = Field(None, min_length=1, max_length=100)
-    contact_name: str | None = Field(None, max_length=255)
-    contact_email: str | None = Field(None, max_length=255)
-    contact_phone: str | None = Field(None, max_length=50)
     notes: str | None = None
     tags: list[str] | None = None
     customer_type: Literal["buyer", "generator", "both"] | None = None
